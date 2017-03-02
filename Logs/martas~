@@ -1,0 +1,10 @@
+/home/cobs/MARTAS/Logs/martas.log
+{
+	rotate 7
+	size 900k
+	missingok
+	notifempty
+	delaycompress
+	compress
+        create 0664 cobs cobs
+}
