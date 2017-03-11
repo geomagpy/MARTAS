@@ -1,0 +1,10 @@
+*.pyc
+*.py~
+*.py.bak
+*.py.old
+*.md~
+*.txt~
+build
+dist
+dist/*.egg
+GeomagPy.egg-info
