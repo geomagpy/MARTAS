@@ -458,3 +458,52 @@
             }
          }
 
+
+         function onBM35Value(topicUri, event) {
+            client = getClientname(topicUri);
+            inst = getSensorname(topicUri);
+            eval("eventcnt_"+client+"_"+inst+" += 1;");
+            event.value = event.value;
+            switch (event.id) {
+               case 35:
+                  event.value = event.value.toFixed(2);
+                  eval("varc_"+client+"_"+inst+".innerHTML = event.value;");
+                  eval("var lastval = varc_"+client+"_"+inst+"_last;");
+                  if (lastval !== null) {
+                     eval("line_varc_"+client+"_"+inst+".append(new Date().getTime(), lastval);");
+                  }
+                  eval("varc_"+client+"_"+inst+"_last = event.value;");
+                  eval("line_varc_"+client+"_"+inst+".append(new Date().getTime(), event.value);");
+                  break;
+               case 1:
+                  eval("time_"+client+"_"+inst+".innerHTML = event.value;");
+                  break;
+               default:
+                  break;
+            }
+         }
+
+         function onAD7Value(topicUri, event) {
+            client = getClientname(topicUri);
+            inst = getSensorname(topicUri);
+            eval("eventcnt_"+client+"_"+inst+" += 1;");
+            event.value = event.value;
+            switch (event.id) {
+               case 35:
+                  event.value = event.value.toFixed(2);
+                  eval("varc_"+client+"_"+inst+".innerHTML = event.value;");
+                  eval("var lastval = varc_"+client+"_"+inst+"_last;");
+                  if (lastval !== null) {
+                     eval("line_varc_"+client+"_"+inst+".append(new Date().getTime(), lastval);");
+                  }
+                  eval("varc_"+client+"_"+inst+"_last = event.value;");
+                  eval("line_varc_"+client+"_"+inst+".append(new Date().getTime(), event.value);");
+                  break;
+               case 1:
+                  eval("time_"+client+"_"+inst+".innerHTML = event.value;");
+                  break;
+               default:
+                  break;
+            }
+         }
+

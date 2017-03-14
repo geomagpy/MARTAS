@@ -84,7 +84,7 @@
         for (var i= 0; i < senslst.length; ++i) {
                 var sensline = senslst[i].split("\t",-1);
                 var sens = sensline[0].replace(/\s+/g, '');
-                if (sens != "" && sens != "OW" && !(sens.startsWith("#"))) {
+                if (sens != "" && sens != "OW" && sens != "SERIAL" && !(sens.startsWith("#"))) {
                         if (sensline[1] == "") {
                              sensors[sens] = sens;
                         } else {
@@ -93,6 +93,10 @@
                 }
                 if (sens.startsWith("OW")) {
                      getow = true;
+                }
+                if (sens.startsWith("SERIAL")) {
+                     sensors["LNM_0351_0001"] = "LNM_0351_0001";
+                     sensors["ULTRASONICDSP_00110_0001"] = "ULTRASONICDSP_00110_0001";
                 }
         }
 
@@ -129,12 +133,15 @@
                if (elem.startsWith('ARD')) {components[elem]="x,y,z,t";};
                if (elem.startsWith('PAL')) {components[elem]="x,y,z";};
                if (elem.startsWith('ENV')) {components[elem]="t,rh";};
+               if (elem.startsWith('LNM')) {components[elem]="per,vi,tot,t";};
+               if (elem.startsWith('ULT')) {components[elem]="ws,wd,t";};
                if (elem.startsWith('KER')) {components[elem]="w";};
                if (elem.startsWith('POS')) {components[elem]="f";};
                if (elem.startsWith('GSM')) {components[elem]="f";};
                if (elem.startsWith('G82')) {components[elem]="f";};
                if (elem.startsWith('G19')) {components[elem]="f";};
                if (elem.startsWith('GP2')) {components[elem]="fa,fb,fc,ga,gb,gc";};
+               if (elem.startsWith('BM3')) {components[elem]="varc";};
         }
 
          var parameters = {
@@ -148,6 +155,12 @@
              "t"   : "deg",
              "v"   : "V",
              "w"   : "g",
+             "ws"   : "ms",
+             "wd"   : "deg",
+             "per"   : "mm",
+             "vi"   : "m",
+             "tot"   : "",
+             "w"   : "g",
              "rh" : "percent",
              "vara" : "percent",
              "fp"    : "pT",
@@ -157,7 +170,8 @@
              "fb"    : "pT",
              "gb"    : "pT",
              "fc"    : "pT",
-             "gc"    : "pT"
+             "gc"    : "pT",
+             "varc"  : "mBar"
          }
 
    </script>

@@ -68,6 +68,7 @@ from magpy.acquisition.gsm19protocol import GSM19Protocol
 from magpy.acquisition.gsm90protocol import GSM90Protocol
 from magpy.acquisition.lemiprotocol import LemiProtocol
 from magpy.acquisition.csprotocol import CsProtocol
+from magpy.acquisition.bm35protocol import BM35Protocol
 
 # Other possible protocals are: lemiprotocol, pos1protocol, envprotocol, csprotocol, gsm90protocol
 # SELECT DIRECTORY FOR BUFFER FILES
@@ -159,12 +160,16 @@ class WsMcuProtocol(WampServerProtocol):
        		self.registerForPubSub("http://example.com/"+hostname+"/pos1#", True)
 	    elif sensor[:3].upper() == 'G82': # GSM CS Sensor
        		self.registerForPubSub("http://example.com/"+hostname+"/cs#", True) 
-	    elif sensor[:3].upper() == 'SER': # standard serial
+	    elif sensor[:3].upper() == 'SER': # standard serial -- !!!!!!!!! DEFINE SENSOR SHORTCUTS
        		self.registerForPubSub("http://example.com/"+hostname+"/ser#", True) 
+       		#self.registerForPubSub("http://example.com/"+hostname+"/lnm#", True) 
+       		#self.registerForPubSub("http://example.com/"+hostname+"/ult#", True) 	    
 	    elif sensor[:3].upper() == 'GSM': # GEM Overhauzer Sensor (GSM90)
-       		self.registerForPubSub("http://example.com/"+hostname+"/gsm#", True)
+	        self.registerForPubSub("http://example.com/"+hostname+"/gsm#", True)
 	    elif sensor[:3].upper() == 'G19': # GEM Overhauzer Sensor (GSM19)
        		self.registerForPubSub("http://example.com/"+hostname+"/gsm#", True)
+            elif sensor[:3].upper() == 'BM3': # BM35 Barometer
+                self.registerForPubSub("http://example.com/"+hostname+"/bm3#", True)
 	    else:
 	        log.msg('Sensor type %s is not supported.' % (sensor))
 
@@ -203,6 +208,8 @@ class WsMcuFactory(WampServerFactory):
        		self.gsm90Protocol = GSM90Protocol(self,sensor.strip(), outputdir)
 	    if sensor[:3].upper() == 'G19':
        		self.gsm19Protocol = GSM19Protocol(self,sensor.strip(), outputdir)
+            if sensor[:3].upper() == 'BM3':
+                self.bm35Protocol = BM35Protocol(self,sensor.strip(), outputdir)
 
 #####################################################################
 # MAIN PROGRAM
@@ -248,6 +255,8 @@ if __name__ == '__main__':
 	    protocol = wsMcuFactory.arduinoProtocol
         if sensor[:3].upper() == 'PAL':
             protocol = wsMcuFactory.palmacqProtocol
+        if sensor[:3].upper() == 'BM3':
+            protocol = wsMcuFactory.bm35Protocol
 
         if sensor[:3].upper() == 'SER':
 	    try:

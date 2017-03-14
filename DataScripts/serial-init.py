@@ -34,6 +34,7 @@ def lineread(ser,eol=None):
     ser_str = ''
     while True:
         char = ser.read()
+        #if char == '\x00':
         if char in eollist:
             break
         ser_str += char
@@ -60,7 +61,6 @@ def hexify_command(command,eol):
 
 def send_command(ser,command,eol):
     command_hex = hexify_command(command,eol)
-    print('Command:  ', command)
     ser.write(command_hex)
     response = lineread(ser,eol)
     print('Response: ', response)
@@ -74,7 +74,7 @@ def send_command(ser,command,eol=None,hexify=False,bits=0):
         bits: (int) provide the amount of bits to be read
         eol:  (string) end-of-line string
     Options:
-        POS1:           hexify=True, line=True, eol=
+        POS1:           hexify=True, line=True, eol= '\x00'
         ENV05:          hexify=True, line=True, eol='\r'
         GSM90Sv6:       hexify=False, line=False, eol=''
         GSM90Sv7:       hexify=False, line=False, eol
@@ -83,11 +83,12 @@ def send_command(ser,command,eol=None,hexify=False,bits=0):
     print('-- Sending command:  ', command)
     if hexify:
         command = hexify_command(command,eol)
-    if not eol:
         ser.write(command)
     else:
-        ser.write(command+eol)
-
+        if not eol:
+            ser.write(command)
+        else:
+            ser.write(command+eol)
     if bits==0:
         response = lineread(ser,eol)
     else:
@@ -116,16 +117,16 @@ def main(argv):
     timeformat = None
 
     try:
-        opts, args = getopt.getopt(argv,"hb:p:f:y:a:s:o:c:r:xe:i:k:",["baudrate=","port=","flowcontrol=","bytesize=","parity=","stopbits=","timeout=","command=","responseaction=", "eol=", "bits2read=", "timeformat=",])
+        opts, args = getopt.getopt(argv,"hb:p:f:y:a:s:o:c:r:xe:d:i:k:",["baudrate=","port=","flowcontrol=","bytesize=","parity=","stopbits=","timeout=","command=","responseaction=", "eol=", "eol-ord=", "bits2read=", "timeformat=",])
     except getopt.GetoptError:
         print('Check your options:')
-        print('serial-init.py -b <baudrate> -p <port> -f <flowcontrol> -y <bytesize> -a <parity> -s <stopbits> -o <timeout> -c <commands> -r <responseaction> -x <hexify> -e <eol> -i <bits2read> -k <timeformat>')
+        print('serial-init.py -b <baudrate> -p <port> -f <flowcontrol> -y <bytesize> -a <parity> -s <stopbits> -o <timeout> -c <commands> -r <responseaction> -x <hexify> -e <eol> -d <eol-ord> -i <bits2read> -k <timeformat>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print('------------------------------------------------------')
             print('Usage:')
-            print('serial-init.py -b <baudrate> -p <port> -f <flowcontrol> -y <bytesize> -a <parity> -s <stopbits> -o <timeout> -c <commands> -r <responseaction> -x <hexify> -e <eol> -i <bits2read> -k <timeformat>')
+            print('serial-init.py -b <baudrate> -p <port> -f <flowcontrol> -y <bytesize> -a <parity> -s <stopbits> -o <timeout> -c <commands> -r <responseaction> -x <hexify> -e <eol> -d <eol-ord> -i <bits2read> -k <timeformat>')
             print('------------------------------------------------------')
             print('Options:')
             print('-h                             help')
@@ -143,6 +144,7 @@ def main(argv):
             print('                               second item is send')
             print('-x                             hexify commands                 ')
             print('-e                             end-of-line characters to be used')
+            print('-d                             end-of-line character as ascii number')
             print('                               defaults are: ')
             print('-i                             define the bits size of the response')
             print('                               default is to read until eol (option e)')
@@ -154,11 +156,13 @@ def main(argv):
             print('------------------------------------------------------')
             print('Examples:')
             print('1. Initializing POS1:')
-            print('   python serial-init.py -p "/dev/ttyS1" -b 9600 -c "mode text,time datetime,date 11-22-16,range 48500,auto 5" -k "%H:%M:%S" -x -e "\x00"')
+            print('   python serial-init.py -p "/dev/ttyS1" -b 9600 -c "mode text,time datetime,date 11-22-16,range 48500,auto 5" -k "%H:%M:%S" -x -d 0')
             print('2. Initializing GSM90Sv6:')
             print('   python serial-init.py -p "/dev/ttyUSB0" -c S,5,T048,C,datetime,R -k "%y%m%d%w%H%M%S" -i 1024')
             print('3. Initializing GSM90Sv7:')
             print('   python serial-init.py -p "/dev/ttyUSB0" -c S,5,T048.5,C,datetime,D,R -k "%y%m%d%w%H%M%S" -r "z-save,z" -i 1024') 
+            print('4. Initializing BM35:')
+            print('   python serial-init.py -b 2400 -p "/dev/ttyUSB0" -c "A00d03000" -d 13')
             sys.exit()
         elif opt in ("-b", "--baudrate"):
             baudrate = arg
@@ -183,6 +187,8 @@ def main(argv):
                 timeout = arg
         elif opt in ("-e", "--eol"):
             eol = arg
+        elif opt in ("-d", "--eol-ord"):
+            eol = chr(int(arg))
         elif opt in ("-c", "--commands"):
             command = arg
         elif opt in ("-r", "--responseaction"):

@@ -232,6 +232,20 @@
                           sess.subscribe("event:"+inst+"-value", onG19Value);
                       }
                   }
+                  
+                  sess.prefix("event", "http://example.com/"+client+"/ad7#");
+                  for (var inst in sensors) {
+                      if (inst.substring(0,3) == "AD7") {
+                          sess.subscribe("event:"+inst+"-value", onAD7Value);
+                      }
+                  }
+                  
+                  sess.prefix("event", "http://example.com/"+client+"/bm3#");
+                  for (var inst in sensors) {
+                      if (inst.substring(0,3) == "BM3") {
+                          sess.subscribe("event:"+inst+"-value", onBM35Value);
+                      }
+                  }
 
                   sess.prefix("event", "http://example.com/"+client+"/sug#");
                   for (var inst in sensors) {
@@ -302,6 +316,14 @@
                 }
                 else if (inst.substring(0,3) == "G19") {
                     eval("smoothie_"+inst+".addTimeSeries(line_f_"+client+"_"+inst+", { strokeStyle: '	rgb(179, 68, 108)', fillStyle: 'rgba(179, 68, 108, 0.3)', lineWidth: 3 });");
+                    eval("smoothie_"+inst+".streamTo(document.getElementById('mycanvas_"+inst+"'));");
+                }
+                else if (inst.substring(0,3) == "BM3") {
+                    eval("smoothie_"+inst+".addTimeSeries(line_varc_"+client+"_"+inst+", { strokeStyle: 'rgb(179, 68, 108)', fillStyle: 'rgba(179, 68, 108, 0.3)', lineWidth: 3 });");
+                    eval("smoothie_"+inst+".streamTo(document.getElementById('mycanvas_"+inst+"'));");
+                }
+                else if (inst.substring(0,3) == "AD7") {
+                    eval("smoothie_"+inst+".addTimeSeries(line_varc_"+client+"_"+inst+", { strokeStyle: 'rgb(179, 68, 108)', fillStyle: 'rgba(179, 68, 108, 0.3)', lineWidth: 3 });");
                     eval("smoothie_"+inst+".streamTo(document.getElementById('mycanvas_"+inst+"'));");
                 }
                 else if (inst.substring(0,3) == "KER") {
