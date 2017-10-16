@@ -12,7 +12,7 @@ import string # for ascii selection
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from acquisitionsupport import *
+from magpy.acquisition import acquisitionsupport as acs
 
 class EnvProtocol(LineReceiver):
     """
@@ -72,7 +72,7 @@ class EnvProtocol(LineReceiver):
             dew = float(valrh[0])
 
         try:
-            datearray = timeToArray(timestamp)
+            datearray = acs.timeToArray(timestamp)
             datearray.append(int(temp*1000))
             datearray.append(int(dew*1000))
             datearray.append(int(rh*1000))
@@ -82,7 +82,7 @@ class EnvProtocol(LineReceiver):
             pass
 
         if not self.confdict.get('bufferdirectory','') == '':
-            dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
         return ','.join(list(map(str,datearray))), header
 

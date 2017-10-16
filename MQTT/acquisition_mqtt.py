@@ -125,8 +125,8 @@ def GetConf(path):
         #
         # Working directory
         # -----------------
-        # Please specify the sensor configuration file 
-        sensors : /home/leon/CronScripts/MagPyAnalysis/MQTT/sensors.conf
+        # Please specify the path to the configuration files 
+        configpath : /home/leon/CronScripts/MagPyAnalysis/MQTT
 
         # Definition of the bufferdirectory
         # ---------------------------------
@@ -160,7 +160,7 @@ def GetConf(path):
     """
     # Init values:
     confdict = {}
-    confdict['homedir'] = '/home/leon/CronScripts/MagPyAnalysis/MQTT'
+    confdict['sensorsconf'] = '/home/leon/CronScripts/MagPyAnalysis/MQTT/sensors.cfg'
     #confdict['bufferdirectory'] = '/srv/ws'
     confdict['station'] = 'wic'
     confdict['bufferdirectory'] = '/srv/mqtt'
@@ -343,8 +343,10 @@ if __name__ == '__main__':
 
     ##  Load defaults dict
     ##  ----------------------------
-    conf = GetConf('/home/cobs/MARTAS/mqtt/martas.cfg')
+    conf = GetConf('martas.cfg')
 
+    print ("Check", conf)
+    print ("HERE", conf.get('sensorsconf'))
     ##  Start Twisted logging system
     ##  ----------------------------
     if conf['logging'] == 'sys.stdout':
@@ -359,7 +361,7 @@ if __name__ == '__main__':
     ##  Get Sensor data
     ##  ----------------------------
     #sensorlist = GetSensors(conf.get('sensors'))
-    sensorlist = GetSensors('/home/leon/CronScripts/MagPyAnalysis/MQTT/sensors.cfg')
+    sensorlist = GetSensors(conf.get('sensorsconf'))
     print ("Configuration", conf)
     print ("-----------------------------------------")
     print ("Sensorlist", sensorlist)
