@@ -78,6 +78,7 @@ print()
 from twisted.python import usage, log
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort
+
 import threading
 
 
@@ -169,8 +170,6 @@ def GetConf(path):
     confdict['broker'] = 'localhost'
     confdict['mqttport'] = 1883
     confdict['mqttdelay'] = 60
-    confdict['owport'] = 'usb'
-    confdict['timeoutow'] = 30.0
     confdict['logging'] = 'sys.stdout'
 
     try:
@@ -226,14 +225,14 @@ def GetSensors(path):
         ENV05_2_0001;USB0;9600;8;1;EVEN;passive;None;Env;'Environment sensor measuring temperature and humidity'
     RETURNS:
         a dictionary containing:
-        'sensorid':'ENV05_2_0001', 'port':'USB0', 'baudrate':9600, 'bytesize':8, 'stopbits':1, 'parity':'EVEN', 'mode':'a', 'init':None, 'protocol':'Env', 'stationid':'wic', 'pierid':'A2', 'sensordesc':'Environment sensor measuring temperature and humidity'
+        'sensorid':'ENV05_2_0001', 'port':'USB0', 'baudrate':9600, 'bytesize':8, 'stopbits':1, 'parity':'EVEN', 'mode':'a', 'init':None, 'rate':10, 'protocol':'Env', 'stationid':'wic', 'pierid':'A2', 'sensordesc':'Environment sensor measuring temperature and humidity'
     
     """
     sensors = open(path,'r')
     sensordata = sensors.readlines()
     sensorlist = []
     sensordict = {}
-    elements =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','protocol','stationid','pierid','sensordesc']
+    elements =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','protocol','stationid','pierid','sensordesc']
 
     for item in sensordata:
         sensordict = {}
@@ -262,7 +261,12 @@ def SendInit(parameter):
     """
     pass
 
-def ActiveThread(sensordict):
+def do_every (interval, worker_func, iterations = 0):
+    if iterations != 1:
+        threading.Timer(interval,do_every, [interval, worker_func, 0 if iterations == 0 else iterations-1]).start ()
+    worker_func()
+
+def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     """
     1. identify protocol from sensorid
     2. Apply protocol (read serial and return data)
@@ -270,15 +274,39 @@ def ActiveThread(sensordict):
     -> do all that in while True
     """
 
-    """
-    if active:
-        sendlist = GetActive()
-        serialPort = SerialPort(protocol,port,reactor, baudrate=baudrate,bytesize=SEVENBITS,parity=PARITY_EVEN)    
-    else:
-        sprot = task.LoopingCall(protocol)
-        sprot.start(timeout)
-    """
-    pass
+    sensorid = sensordict.get('sensorid')
+    print ("Starting PassiveThread for {}".format(sensorid))
+
+    print ("0. Identify protocol")
+    protocolname = sensordict.get('protocol')
+    print ("   Found protocol {}".format(protocolname))
+
+    protlst = [activeconnections[key] for key in activeconnections]
+    amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
+    #amount = 1                           # Load existing connections (new amount is len(exist)+1)
+    SUPPORTED_PROTOCOLS = ['Env','Lemi','Ow'] # should be provided by MagPy
+    print ("1. Importing ...")
+    if protocolname in SUPPORTED_PROTOCOLS:
+        importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
+        exec importstr
+        protocol = eval(evalstr)
+
+    print ("2. Starting looping call task using appropriate protocol")
+    proto = "{}Prot{}".format(protocolname,amount)
+
+    try:
+        rate = int(sensordict.get('rate'))
+    except:
+        print ("did not found appropriate sampling rate - using 30 sec")
+        rate = 30
+
+    do_every(rate, protocol.sendRequest)
+
+    activeconnection = {sensorid: protocolname}
+    print ("active connection established ... success") 
+
+    return activeconnection
 
 def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
     """
@@ -310,7 +338,7 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
     serialPort = SerialPort(protocol, port, reactor, baudrate=int(sensordict.get('baudrate')))
 
     passiveconnection = {sensorid: protocolname}
-    print ("   ... success") 
+    print ("passive connection established ... success") 
 
     return passiveconnection
 
@@ -345,8 +373,10 @@ if __name__ == '__main__':
     ##  ----------------------------
     conf = GetConf('martas.cfg')
 
-    print ("Check", conf)
-    print ("HERE", conf.get('sensorsconf'))
+    broker = conf.get('broker')
+    mqttport = int(conf.get('mqttport'))
+    mqttdelay = int(conf.get('mqttdelay'))
+
     ##  Start Twisted logging system
     ##  ----------------------------
     if conf['logging'] == 'sys.stdout':
@@ -371,7 +401,7 @@ if __name__ == '__main__':
     ##  ----------------------------
     client = mqtt.Client(clean_session=True)
     client.on_connect = onConnect
-    client.connect("localhost", 1883, 60)
+    client.connect(broker, mqttport, mqttdelay)
     client.loop_start()
 
     establishedconnections = {}
@@ -385,6 +415,8 @@ if __name__ == '__main__':
             establishedconnections.update(connected)
             passive_count +=1
         elif sensor.get('mode') in ['a','active','Active','A']:
+            connected_act = ActiveThread(conf,sensor,client,establishedconnections)
+
             #thread.start(sensorprotocol)
             pass
         else:

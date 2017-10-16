@@ -9,35 +9,8 @@ MARTAS = Magpy Automated Real Time Acquisition System
 Changes:
 ########
 
-version 0012 (March 2017)
-   * added support for BM35
-   * serial-init script supports BM35, POS1 and GSM90
-
-version 0011 (May 2015)
-   * added logrotate script for martas.log
-
-version 0010 (March 2015)
-   * added Mingeo PALMAQ/OBSDAC support
-   * adding preliminary GSM19 support 
-               (not yet finished and not contained in the maypy acquisition folder)
-
-version 0009 (February 2015)
-   * corrected GSM shortcut to gsm#... Testing GSM19 
-   * added Arduino support 
-
-version 0008 (November 2014)
-   * added GSM initialization script to DataScripts and links to martas.sh
-
-version 0007 (October 2014)
-   * added scripts and input for kern balance. modified acquisition (by adding parity and bytesize option), index, and magpy.xx webscripts for that reason
-   * changed ctime in cleanup to mtime because this is more relevant for data content
-
-version 0006 (September 2014)
-   * modified senddata.py app: dateformat and extension now freely choseable, zipping is possible
-                               corrected wrong amount of days option
-
-version 0005 (July 2014):
-   ...
+version 0.1 (October 2017)
+   * imported existing MARTAS 0012 
 
 
 ##########################
@@ -233,4 +206,27 @@ d) Be astonished.
 Just modify the code below and copy it to a terminal window - within your martas homedirectory to make all necessary parameter changes in all files. 
 
 # TODO: write a small install script which sets paths and names correctly
+
+
+
+# -------------------------------------------------------------------
+6. protocol specific configurations
+# -------------------------------------------------------------------
+
+6.1. OW (One wire) support
+
+a) modify owfs,conf
+cobs@xxx$ sudo nano /etc/owfs.conf 
+
+# ...and owserver uses the real hardware, by default fake devices
+# This part must be changed on real installation
+#server: FAKE = DS18S20,DS2405
+#
+# USB device: DS9490
+server: usb = all
+#
+
+b) start the owserver
+cobs@xxx$ sudo etc/init.d/owserver start 
+
 
