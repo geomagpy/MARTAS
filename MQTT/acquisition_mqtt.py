@@ -221,19 +221,19 @@ def GetSensors(path):
         #
         # each line contains the following information
         # sensorid port baudrate bytesize stopbits parity mode init protocol sensor_description
-        #e.g. ENV05_2_0001;USB0;9600;8;1;EVEN;passive;None;Env;'Environment sensor measuring temperature and humidity'
+        #e.g. ENV05_2_0001;USB0;9600;8;1;EVEN;passive;None;Env;wic;A2;'Environment sensor measuring temperature and humidity'
 
         ENV05_2_0001;USB0;9600;8;1;EVEN;passive;None;Env;'Environment sensor measuring temperature and humidity'
     RETURNS:
         a dictionary containing:
-        'sensorid':'ENV05_2_0001', 'port':'USB0', 'baudrate':9600, 'bytesize':8, 'stopbits':1, 'parity':'EVEN', 'mode':'a', 'init':None, 'protocol':'Env', 'sensordesc':'Environment sensor measuring temperature and humidity'
+        'sensorid':'ENV05_2_0001', 'port':'USB0', 'baudrate':9600, 'bytesize':8, 'stopbits':1, 'parity':'EVEN', 'mode':'a', 'init':None, 'protocol':'Env', 'stationid':'wic', 'pierid':'A2', 'sensordesc':'Environment sensor measuring temperature and humidity'
     
     """
     sensors = open(path,'r')
     sensordata = sensors.readlines()
     sensorlist = []
     sensordict = {}
-    elements =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','protocol','sensordesc']
+    elements =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','protocol','stationid','pierid','sensordesc']
 
     for item in sensordata:
         sensordict = {}
