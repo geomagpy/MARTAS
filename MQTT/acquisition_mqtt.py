@@ -195,7 +195,7 @@ def GetConf(path):
     return confdict
 
 
-def SendInit(parameter):
+def SendInit(confdict,sensordict):
     """
     DESCRIPTION:
     send eventually necessary initialization data as defined in sensors.conf
@@ -348,6 +348,10 @@ if __name__ == '__main__':
     # Start subprocesses for each publishing protocol
     for sensor in sensorlist:
         print ("Sensor and Mode:", sensor.get('sensorid'), sensor.get('mode'))
+        print ("----------------")
+        print ("Initialization:", sensor.get('init'))
+        # if init:
+        #     SendInit(confdict,sensordict) and run commands
         if sensor.get('mode') in ['p','passive','Passive','P']:
             connected = PassiveThread(conf,sensor,client,establishedconnections)
             print ("acquisition_mqtt: PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
