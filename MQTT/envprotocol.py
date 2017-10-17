@@ -101,6 +101,18 @@ class EnvProtocol(LineReceiver):
             else:
                 print('{}: Data seems not be EnvData: Looks like {}'.format(self.sensordict.get('protocol'),line))
 
+
+            # implement method to send junks of data (e.g.)
+            # counter: if 0 every data set is send directly
+            #          if 60, they 60 data sets are send
+            # within data, lines are separeted by ; individual data by ,
+            #counter = 10
+            #self.datalist.append(data)
+            #if self.countjunk == counter:
+            #    self.countjunk = 0
+            #    data = ';'.join(self.datalist)
+            #    self.datalist = []
+
             self.client.publish(topic+"/data", data)
             if self.count == 0:
                 self.client.publish(topic+"/meta", head)
