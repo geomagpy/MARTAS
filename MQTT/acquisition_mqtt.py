@@ -81,6 +81,7 @@ from twisted.internet.serialport import SerialPort
 
 import threading
 
+from methodstobemovedtoacs import *
 
 """
 import sys
@@ -110,6 +111,7 @@ from twisted.web.static import File
 now = datetime.utcnow()
 hostname = socket.gethostname()
 
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi'] # should be provided by MagPy
 
 def GetConf(path):
     """
@@ -192,67 +194,6 @@ def GetConf(path):
 
     return confdict
 
- 
-def GetSensors(path):
-    """
-    DESCRIPTION:
-        read sensor information from a file
-        Now: just define them by hand
-    PATH:
-        sensors.conf
-    CONTENT:
-        # sensors.conf contains specific information for each attached sensor
-        # ###################################################################
-        # Information which need to be provided comprise:
-        # sensorid: an unique identifier for the specfic sensor consiting of SensorName, 
-        #           its serial number and a revision number (e.g. GSM90_12345_0001)
-        # connection: e.g. the port to which the instument is connected (USB0, S1, ACM0, DB-mydb) 
-        # serial specifications: baudrate, bytesize, etc
-        # sensor mode: passive (sensor is broadcasting data by itself)
-        #              active (sensor is sending data upon request)
-        # initialization info: 
-        #              None (passive sensor broadcasting data without initialization) 
-        #              [parameter] (passive sensor with initial init e.g. GSM90,POS1)
-        #              [parameter] (active sensor, specific call parameters and wait time)
-        # protocol:
-        #
-        # optional sensor description:
-        #
-        # each line contains the following information
-        # sensorid port baudrate bytesize stopbits parity mode init protocol sensor_description
-        #e.g. ENV05_2_0001;USB0;9600;8;1;EVEN;passive;None;Env;wic;A2;'Environment sensor measuring temperature and humidity'
-
-        ENV05_2_0001;USB0;9600;8;1;EVEN;passive;None;Env;'Environment sensor measuring temperature and humidity'
-    RETURNS:
-        a dictionary containing:
-        'sensorid':'ENV05_2_0001', 'port':'USB0', 'baudrate':9600, 'bytesize':8, 'stopbits':1, 'parity':'EVEN', 'mode':'a', 'init':None, 'rate':10, 'protocol':'Env', 'stationid':'wic', 'pierid':'A2', 'sensordesc':'Environment sensor measuring temperature and humidity'
-    
-    """
-    sensors = open(path,'r')
-    sensordata = sensors.readlines()
-    sensorlist = []
-    sensordict = {}
-    elements =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','protocol','stationid','pierid','sensordesc']
-
-    for item in sensordata:
-        sensordict = {}
-        try:
-            parts = item.split(',')
-            if item.startswith('#'): 
-                continue
-            elif item.isspace():
-                continue
-            elif len(item) > 8:
-                for idx,part in enumerate(parts):
-                    sensordict[elements[idx]] = part
-        except:
-            # Possible issue - empty line
-            pass
-        if not sensordict == {}:
-            sensorlist.append(sensordict)
-
-    return sensorlist
-
 
 def SendInit(parameter):
     """
@@ -275,7 +216,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     """
 
     sensorid = sensordict.get('sensorid')
-    print ("Starting PassiveThread for {}".format(sensorid))
+    print ("Starting ActiveThread for {}".format(sensorid))
 
     print ("0. Identify protocol")
     protocolname = sensordict.get('protocol')
@@ -284,7 +225,6 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     protlst = [activeconnections[key] for key in activeconnections]
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
-    SUPPORTED_PROTOCOLS = ['Env','Lemi','Ow'] # should be provided by MagPy
     print ("1. Importing ...")
     if protocolname in SUPPORTED_PROTOCOLS:
         importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
@@ -324,7 +264,6 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
     protlst = [establishedconnections[key] for key in establishedconnections]
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
-    SUPPORTED_PROTOCOLS = ['Env','Lemi'] # should be provided by MagPy
     print ("1. Importing ...")
     if protocolname in SUPPORTED_PROTOCOLS:
         importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
@@ -411,10 +350,11 @@ if __name__ == '__main__':
         print ("Sensor and Mode:", sensor.get('sensorid'), sensor.get('mode'))
         if sensor.get('mode') in ['p','passive','Passive','P']:
             connected = PassiveThread(conf,sensor,client,establishedconnections)
-            print ("acquisition_mqtt: PassiveThread initiated for {}. Ready to send data ...".format(sensor.get('sensorid')))
+            print ("acquisition_mqtt: PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
             establishedconnections.update(connected)
             passive_count +=1
         elif sensor.get('mode') in ['a','active','Active','A']:
+            print ("acquisition_mqtt: ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
             connected_act = ActiveThread(conf,sensor,client,establishedconnections)
 
             #thread.start(sensorprotocol)

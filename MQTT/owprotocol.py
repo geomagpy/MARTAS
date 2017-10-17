@@ -10,10 +10,11 @@ import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
 from datetime import datetime, timedelta
-from twisted.protocols.basic import LineReceiver
-from twisted.internet import task
+#from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
+
+from methodstobemovedtoacs import *
 
 owport = 4304
 owhost = 'localhost'
@@ -27,7 +28,7 @@ except:
     onewire = False
 
 
-typedef = {'DS18B20':['temperature','temperature12'], 'DS2438':['temperature','VAD','VDD','humidity','vis'], 'DS1420':['well'], 'DS18S20':['temperature','xyz']}
+typedef = {'DS18B20':['temperature'], 'DS2438':['temperature','VAD','VDD','humidity','vis'], 'DS1420':['well'], 'DS18S20':['temperature']}
 
 
 if onewire:
@@ -48,24 +49,27 @@ if onewire:
             self.hostname = socket.gethostname()
             self.printable = set(string.printable)
             self.reconnectcount = 0
-            self.sensorarray = self.GetOneWireSensorList()
+            # Extract eventually existing one wire sensors from sensors.cfg
+            self.existinglist = GetSensors(confdict.get('sensorsconf'),identifier='!')
+            #self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='!')
+            self.sensorarray = self.GetOneWireSensorList(self.existinglist)
             print (self.sensorarray)
 
-        def GetStoredOneWireInfo(self, owid):
-            line = [line for line in self.storedlist if line[0] == owid] # read during init
-            if not len(line) > 0:
-                line = [owid.replace('/','').replace('.','').strip(),owid,self.owproxy.read(owid+'type'),'OW','0001','wic','A2']
-
-        def GetOneWireSensorList(self):
+        def GetOneWireSensorList(self, existinglist=[]):
             self.owproxy = pyownet.protocol.proxy(host=owhost, port=owport)
             sensorlst = self.owproxy.dir()
             # compare currently read sensorlst with original sensorlst (eventually from file)
-            # if new sensors are found, extend file 
+            existingpathlist = [line.get('path') for line in existinglist]
+            # if new sensors are found, extend file
 
             # Identify attached sensors and their types
             idlist = []
             fakelst = []
             for el in sensorlst:
+                values = {}
+                # get posistions of sensorid, protocol(OW), name(DS18B20), serialnumber, revision and path
+                # ADD SENSORDICT ELEMENTS to acquisition support
+                #'sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate',       				'protocol','name','serialnumber','revision','path','pierid','sensordesc'
                 if not el in fakelst:
                     # make an array of IDs
                     line = []
@@ -76,10 +80,21 @@ if onewire:
                     # make a dict for each ID
                     path = el+'type'
                     typ = self.owproxy.read(path)
-                    line.append(typ)
-                    print (typedef.get(typ))
                     if not typ == 'DS1420': # do not add dongle
-                        idlist.append(line)
+                        if el in existingpathlist:
+                            values = [line for line in existinglist if line.get('path') == el][0]
+                        else:
+                            values['path'] = el
+                            values['serialnumber'] = idel
+                            values['name'] = typ
+                            values['protocol'] = 'Ow'
+                            revision = '0001'
+                            values['revision'] = revision
+                            values['sensorid'] = typ+'_'+idel+'_'+revision
+                            success = AddSensor(path, values, block='OW')
+                            #success = acs.AddSensor(path, values, block='OW')
+
+                    idlist.append(values)
             return idlist
 
         #def connectionMade(self):
@@ -88,63 +103,24 @@ if onewire:
         #def connectionLost(self, reason):
         #    log.msg('%s lost.' % self.sensor)
 
-        def saveowlist(self,filename, owlist):
-            with open(filename, 'wb') as f:
-                wr = csv.writer(f, quoting=csv.QUOTE_ALL)
-                for row in owlist:
-                    wr.writerow(row)
-
-        def loadowlist(self,filename):
-            with open(filename, 'rb') as f:
-                reader = csv.reader(f)
-                owlist = [row for row in reader]
-            return owlist
 
         def sendRequest(self):
-            print ("Sending Request")
+            print ("Sending periodic request ...")
             sensorarray = self.GetOneWireSensorList()
             for line in sensorarray:
-                print (line)
-                print ("path:", line[1])
-                for para in typedef.get(line[2]):
-                    print ("Parameter", para)
-                    path = line[1]+para
-                    print (self.owproxy.read(path))
-                print (self.owproxy.dir(line[1]))
-            """
-            try:
-                self.root = ow.Sensor('/').sensorList()
+                print ("Getting sensor:", line.get('path'))
+                print ("Asigning sensor ID:", line.get('sensorid'))
+                sensorid = line.get('sensorid')
+                valuedict = {}
+                for para in typedef.get(line.get('name')):
+                    path = line.get('path')+para
+                    valuedict[para] = self.owproxy.read(path)
 
-                if not (self.root == owsensorlist):
-                    log.msg('Rereading sensor list')
-                    ow.init(self.source)
-                    self.root = ow.Sensor('/').sensorList()
-                    owsensorlist = self.root
-                    self.connectionMade(self.root)
-                self.reconnectcount = 0
-            except:
-                self.reconnectcount = self.reconnectcount + 1
-                log.msg('Reconnection event triggered - Number: %d' % self.reconnectcount)
-                time.sleep(2)
-                if self.reconnectcount < 10:
-                    self.owConnected()
-                else:
-                    print("owConnect: reconnection not possible")
+                topic = self.confdict.get('station') + '/' + sensorid
+                data, head  = self.processOwData(sensorid, valuedict)
 
-            self.oneWireInstruments(self.root)
-            """
-            topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-            # extract only ascii characters 
-            line = ''.join(filter(lambda x: x in string.printable, line))
-
-            #try:
-            ok = True
-            if ok:
-                data = line.split()
-                if len(data) == 3:
-                    data, head = self.processEnvData(data)
-                else:
-                    print('{}: Data seems not be EnvData: Looks like {}'.format(self.sensordict.get('protocol'),line))
+                # To find out, which parameters are available use:
+                #print (self.owproxy.dir(line[1]))
 
                 self.client.publish(topic+"/data", data)
                 if self.count == 0:
@@ -155,7 +131,7 @@ if onewire:
 
 
 
-        def processOwData(self, data):
+        def processOwData(self, sensorid, datadict):
             """Process OW data """
             currenttime = datetime.utcnow()
             outdate = datetime.strftime(currenttime, "%Y-%m-%d")
@@ -163,8 +139,21 @@ if onewire:
             actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
             outtime = datetime.strftime(currenttime, "%H:%M:%S")
             timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
+            packcode = '6hL'+'l'*len(datadict)
+            multplier = str([1000]*len(datadict)).replace(' ','')
+            if sensorid.startswith('DS18'):
+                key = '[t1]'
+                ele = '[T]'
+                unit = '[degC]'
+            elif sensorid.startswith('DS2438'):
+'temperature','VAD','VDD','humidity','vis'
+                key = '[t1,va3,var4,var1,var5]'
+                ele = '[T,VAD,VDD,RH,VIS]'
+                unit = '[degC,V,V,per,V]'
 
-            packcode = '6hLllL'
-            sensorid = self.sensor
-            header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, '[t1,t2,var1]', '[T,DewPoint,RH]', '[degC,degC,per]', '[1000,1000,1000]', packcode, struct.calcsize(packcode))
+            print ("len(valuedict)", datadict, len(datadict))
 
+            header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize(packcode))
+
+
+            return data, header
