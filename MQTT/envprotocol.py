@@ -22,7 +22,6 @@ class EnvProtocol(LineReceiver):
     is used to dipatch url links and define local storage folders
 
     """
-
     ## need a reference to our client (e.g. MQTT ot WS-MCU gateway factory) to publish events
     ##
     def __init__(self, client, sensordict, confdict):
@@ -35,6 +34,9 @@ class EnvProtocol(LineReceiver):
         self.hostname = socket.gethostname()
         self.printable = set(string.printable)
         print(self.sensor)
+        self.datalst = []
+        self.datacnt = 0
+        self.metacnt = 10
 
     def connectionMade(self):
         log.msg('%s connected.' % self.sensor)
@@ -101,24 +103,28 @@ class EnvProtocol(LineReceiver):
             else:
                 print('{}: Data seems not be EnvData: Looks like {}'.format(self.sensordict.get('protocol'),line))
 
+            senddata = False
+            coll = int(self.sensordict.get('stack'))
+            if coll > 1:
+                self.metacnt = 1 # send meta data with every block
+                if self.datacnt < coll:
+                    self.datalst.append(data)
+                    self.datacnt += 1
+                else:
+                    senddata = True
+                    data = ';'.join(self.datalst)
+                    self.datalst = []
+                    self.datacnt = 0
+            else:
+                senddata = True
 
-            # implement method to send junks of data (e.g.)
-            # counter: if 0 every data set is send directly
-            #          if 60, they 60 data sets are send
-            # within data, lines are separeted by ; individual data by ,
-            #counter = 10
-            #self.datalist.append(data)
-            #if self.countjunk == counter:
-            #    self.countjunk = 0
-            #    data = ';'.join(self.datalist)
-            #    self.datalist = []
-
-            self.client.publish(topic+"/data", data)
-            if self.count == 0:
-                self.client.publish(topic+"/meta", head)
-            self.count += 1
-            if self.count == 10:
-                self.count = 0
+            if senddata:
+                self.client.publish(topic+"/data", data)
+                if self.count == 0:
+                    self.client.publish(topic+"/meta", head)
+                self.count += 1
+                if self.count >= self.metacnt:
+                    self.count = 0
             
         #except ValueError:
         #    log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))

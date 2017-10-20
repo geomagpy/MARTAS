@@ -113,88 +113,6 @@ hostname = socket.gethostname()
 
 SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi'] # should be provided by MagPy
 
-def GetConf(path):
-    """
-    DESCRIPTION:
-        read default configuration paths etc from a file
-        Now: just define them by hand
-    PATH:
-        defaults are stored in magpymqtt.conf
-
-        File looks like:
-        # Configuration data for data transmission using MQTT (MagPy/MARTAS)
-        # use # to uncomment
-        # ##################################################################
-        #
-        # Working directory
-        # -----------------
-        # Please specify the path to the configuration files 
-        configpath : /home/leon/CronScripts/MagPyAnalysis/MQTT
-
-        # Definition of the bufferdirectory
-        # ---------------------------------
-        # Within this path, MagPy's write routine will store binary data files
-        bufferdirectory : /srv/ws
-
-        # Serial ports path
-        # -----------------
-        serialport : /dev/tty
-        timeout : 60.0
-
-        # MQTT definitions 
-        # ----------------
-        broker : localhost
-        mqttport : 1883
-        mqttdelay : 60
-
-        # One wire configuration
-        # ----------------------
-        # ports: u for usb 
-        owport : usb
-        # Defining a measurement frequency in secs (should be >= amount of sensors connected)
-        timeoutow : 30.0
-
-        # Logging
-        # ----------------------
-        # specify location to which logging information is send
-        # e.g. sys.stdout , /home/cobs/logs/logmqtt.log
-        logging : sys.stdout
-
-    """
-    # Init values:
-    confdict = {}
-    confdict['sensorsconf'] = '/home/leon/CronScripts/MagPyAnalysis/MQTT/sensors.cfg'
-    #confdict['bufferdirectory'] = '/srv/ws'
-    confdict['station'] = 'wic'
-    confdict['bufferdirectory'] = '/srv/mqtt'
-    confdict['serialport'] = '/dev/tty'
-    confdict['timeout'] = 60.0
-    confdict['broker'] = 'localhost'
-    confdict['mqttport'] = 1883
-    confdict['mqttdelay'] = 60
-    confdict['logging'] = 'sys.stdout'
-
-    try:
-        config = open(path,'r')
-        confs = config.readlines()
-
-        for conf in confs:
-            conflst = conf.split(':')
-            if conf.startswith('#'): 
-                continue
-            elif conf.isspace():
-                continue
-            elif len(conflst) == 2:
-                conflst = conf.split(':')
-                key = conflst[0].strip()
-                value = conflst[1].strip()
-                confdict[key] = value
-    except:
-        print ("Problems when loading conf data from file. Using defaults")
-
-    return confdict
-
-
 def SendInit(confdict,sensordict):
     """
     DESCRIPTION:
@@ -361,8 +279,6 @@ if __name__ == '__main__':
             print ("acquisition_mqtt: ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
             connected_act = ActiveThread(conf,sensor,client,establishedconnections)
 
-            #thread.start(sensorprotocol)
-            pass
         else:
             print ("acquisition_mqtt: Mode not recognized")
 

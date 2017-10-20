@@ -130,7 +130,6 @@ if onewire:
                     self.count = 0
 
 
-
         def processOwData(self, sensorid, datadict):
             """Process OW data """
             currenttime = datetime.utcnow()
@@ -146,14 +145,23 @@ if onewire:
                 ele = '[T]'
                 unit = '[degC]'
             elif sensorid.startswith('DS2438'):
-'temperature','VAD','VDD','humidity','vis'
-                key = '[t1,va3,var4,var1,var5]'
-                ele = '[T,VAD,VDD,RH,VIS]'
-                unit = '[degC,V,V,per,V]'
+                #'temperature','VAD','VDD','humidity','vis'
+                key = '[t1,var1,var2,var3,var4]'
+                ele = '[T,RH,VDD,VAD,VIS]'
+                unit = '[degC,per,V,V,V,V]'
 
             print ("len(valuedict)", datadict, len(datadict))
 
             header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize(packcode))
 
+            for key in datadict:
+                print ("{}: {}".format(key,datadict[key]))
+                #if key == 'humidity':
+                #    humidity = float(ow.owfs_get('/uncached%s/HIH4000/humidity' % sensor._path))
+                #    if sensortypus == "pressure":
+                #        #print "Pressure [hPa]: ", self.mpxa4100(vad,temp)
+                #        humidity = self.mpxa4100(vad,temp)
 
+            data = 'xxx,xxx'
+            header = 'xxx'
             return data, header

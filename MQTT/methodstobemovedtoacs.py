@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 
-SENSORELEMENTS =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','protocol','name','serialnumber','revision','path','pierid','sensordesc']
+SENSORELEMENTS =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','stack','protocol','name','serialnumber','revision','path','pierid','sensorgroup','sensordesc']
 
 
 def AddSensor(path, dictionary, block=None):
@@ -33,7 +33,7 @@ def AddSensor(path, dictionary, block=None):
     def makeline(dictionary):
         lst = []
         for el in SENSORELEMENTS:
-            lst.append(dictionary.get('el','-')
+            lst.append(dictionary.get('el','-'))
         return ','.join(lst)
 
     newline = makeline(dictionary)
@@ -130,7 +130,8 @@ def GetSensors(path, identifier=None):
     sensordata = sensors.readlines()
     sensorlist = []
     sensordict = {}
-    elements =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','protocol','name','serialnumber','revision','path','pierid','sensordesc']
+    #elements =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','stack','protocol','name','serialnumber','revision','path','pierid','sensordesc']
+    elements = SENSORELEMENTS
 
     # add identifier here
     # 
@@ -158,5 +159,86 @@ def GetSensors(path, identifier=None):
             sensorlist.append(sensordict)
 
     return sensorlist
+
+
+def GetConf(path):
+    """
+    DESCRIPTION:
+        read default configuration paths etc from a file
+        Now: just define them by hand
+    PATH:
+        defaults are stored in magpymqtt.conf
+
+        File looks like:
+        # Configuration data for data transmission using MQTT (MagPy/MARTAS)
+        # use # to uncomment
+        # ##################################################################
+        #
+        # Working directory
+        # -----------------
+        # Please specify the path to the configuration files 
+        configpath : /home/leon/CronScripts/MagPyAnalysis/MQTT
+
+        # Definition of the bufferdirectory
+        # ---------------------------------
+        # Within this path, MagPy's write routine will store binary data files
+        bufferdirectory : /srv/ws
+
+        # Serial ports path
+        # -----------------
+        serialport : /dev/tty
+        timeout : 60.0
+
+        # MQTT definitions 
+        # ----------------
+        broker : localhost
+        mqttport : 1883
+        mqttdelay : 60
+
+        # One wire configuration
+        # ----------------------
+        # ports: u for usb ---- NEW: owserver needs to be running - then just get port and address
+        owport : usb
+        owaddress : localhost
+
+        # Logging
+        # ----------------------
+        # specify location to which logging information is send
+        # e.g. sys.stdout , /home/cobs/logs/logmqtt.log
+        logging : sys.stdout
+
+    """
+    # Init values:
+    confdict = {}
+    confdict['sensorsconf'] = '/home/leon/CronScripts/MagPyAnalysis/MQTT/sensors.cfg'
+    #confdict['bufferdirectory'] = '/srv/ws'
+    confdict['station'] = 'wic'
+    confdict['bufferdirectory'] = '/srv/mqtt'
+    confdict['serialport'] = '/dev/tty'
+    confdict['timeout'] = 60.0
+    confdict['broker'] = 'localhost'
+    confdict['mqttport'] = 1883
+    confdict['mqttdelay'] = 60
+    confdict['logging'] = 'sys.stdout'
+
+    try:
+        config = open(path,'r')
+        confs = config.readlines()
+
+        for conf in confs:
+            conflst = conf.split(':')
+            if conf.startswith('#'): 
+                continue
+            elif conf.isspace():
+                continue
+            elif len(conflst) == 2:
+                conflst = conf.split(':')
+                key = conflst[0].strip()
+                value = conflst[1].strip()
+                confdict[key] = value
+    except:
+        print ("Problems when loading conf data from file. Using defaults")
+
+    return confdict
 
 
