@@ -29,14 +29,15 @@ def AddSensor(path, dictionary, block=None):
     arduinoheadline = "# Arduino block (automatically determined)"
     owidentifier = '!'
     arduinoidentifier = '?'
+    delimiter = '\n'
 
-    def makeline(dictionary):
+    def makeline(dictionary,delimiter):
         lst = []
         for el in SENSORELEMENTS:
-            lst.append(dictionary.get('el','-'))
-        return ','.join(lst)
+            lst.append(dictionary.get(el,'-'))
+        return ','.join(lst)+delimiter
 
-    newline = makeline(dictionary)
+    newline = makeline(dictionary,delimiter)
 
     # 1. if not block in ['OW','Arduino'] abort
     if not block in ['OW','Arduino']:
@@ -56,8 +57,6 @@ def AddSensor(path, dictionary, block=None):
         print ("no data found in sensors.cfg")
         return False
 
-    print ("Sensordata", sensordata)
-
     # 3. if block == OW
     #    owheadline = "# OW block (automatically determined)"
     #    locate owheadline - get position of last identifier 
@@ -70,25 +69,24 @@ def AddSensor(path, dictionary, block=None):
         num = [line for line in sensordata if line.startswith(owheadline)]
         identifier = owidentifier
     elif block in ['Arduino','arduino','ARDUINO']:
-        num = [line for line in sensordata if line.startswith(aduinoheadline)]
+        num = [line for line in sensordata if line.startswith(arduinoheadline)]
         identifier = arduinoidentifier
 
     # 5. Append/Insert line 
-
     if len(num) > 0:
             cnt = [idx for idx,line in enumerate(sensordata) if line.startswith(identifier)]
             lastline = max(cnt)
-            sensordata.insert(newline,lastline)
-            print (lastline)
+            sensordata.insert(lastline+1,identifier+newline)
     else:
-            sensordata.append('')
-            sensordata.append(owheadline)
-            sensordata.append(newline)
+            sensordata.append(delimiter)
+            sensordata.append(owheadline+delimiter)
+            sensordata.append(identifier+newline)
 
-    print ("TEST", sensordata)
-    
     # 6. write all lines to sensors.cfg
+    with open(path, 'w') as f:
+        f.write(''.join(sensordata))
 
+    return True
 
  
 def GetSensors(path, identifier=None):
@@ -143,6 +141,10 @@ def GetSensors(path, identifier=None):
             if item.startswith('#'): 
                 continue
             elif item.isspace():
+                continue
+            elif item.startswith('!') and not identifier: 
+                continue
+            elif item.startswith('?') and not identifier: 
                 continue
             elif not identifier and len(item) > 8:
                 for idx,part in enumerate(parts):
@@ -220,6 +222,8 @@ def GetConf(path):
     confdict['mqttport'] = 1883
     confdict['mqttdelay'] = 60
     confdict['logging'] = 'sys.stdout'
+    confdict['owport'] = 4304
+    confdict['owhost'] = 'localhost'
 
     try:
         config = open(path,'r')

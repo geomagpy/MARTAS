@@ -33,16 +33,16 @@ class EnvProtocol(LineReceiver):
         #self.outputdir = outputdir confdict.get('outputdir')
         self.hostname = socket.gethostname()
         self.printable = set(string.printable)
-        print(self.sensor)
+        #log.msg("  -> Sensor: {}".format(self.sensor))
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
 
     def connectionMade(self):
-        log.msg('%s connected.' % self.sensor)
+        log.msg('  -> {} connected.'.format(self.sensor))
 
     def connectionLost(self, reason):
-        log.msg('%s lost.' % self.sensor)
+        log.msg('  -> {} lost.'.format(self.sensor))
 
     def processEnvData(self, data):
         """Process Environment data """
@@ -101,7 +101,7 @@ class EnvProtocol(LineReceiver):
             if len(data) == 3:
                 data, head = self.processEnvData(data)
             else:
-                print('{}: Data seems not be EnvData: Looks like {}'.format(self.sensordict.get('protocol'),line))
+                log.msg('{}: Data seems not be EnvData: Looks like {}'.format(self.sensordict.get('protocol'),line))
 
             senddata = False
             coll = int(self.sensordict.get('stack'))

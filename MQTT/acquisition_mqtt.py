@@ -111,7 +111,7 @@ from twisted.web.static import File
 now = datetime.utcnow()
 hostname = socket.gethostname()
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino'] # should be provided by MagPy
 
 def SendInit(confdict,sensordict):
     """
@@ -134,35 +134,32 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     """
 
     sensorid = sensordict.get('sensorid')
-    print ("Starting ActiveThread for {}".format(sensorid))
-
-    print ("0. Identify protocol")
+    log.msg("Starting ActiveThread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
-    print ("   Found protocol {}".format(protocolname))
+    log.msg("  -> Importing protocol {}".format(protocolname))
 
     protlst = [activeconnections[key] for key in activeconnections]
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
-    print ("1. Importing ...")
     if protocolname in SUPPORTED_PROTOCOLS:
         importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
         evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
         exec importstr
         protocol = eval(evalstr)
 
-    print ("2. Starting looping call task using appropriate protocol")
+    log.msg("  -> Starting active thread ...")
     proto = "{}Prot{}".format(protocolname,amount)
 
     try:
         rate = int(sensordict.get('rate'))
     except:
-        print ("did not found appropriate sampling rate - using 30 sec")
+        log.msg("  -> did not found appropriate sampling rate - using 30 sec")
         rate = 30
 
     do_every(rate, protocol.sendRequest)
 
     activeconnection = {sensorid: protocolname}
-    print ("active connection established ... success") 
+    log.msg("  -> active connection established ... sampling every {} sec".format(rate)) 
 
     return activeconnection
 
@@ -174,28 +171,24 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
     -> do all that in while True
     """
     sensorid = sensordict.get('sensorid')
-    print ("Starting PassiveThread for {}".format(sensorid))
-
-    print ("0. Identify protocol")
+    log.msg("Starting PassiveThread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
-    print ("   Found protocol {}".format(protocolname))
+    log.msg("  -> Found protocol {}".format(protocolname))
     protlst = [establishedconnections[key] for key in establishedconnections]
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
-    print ("1. Importing ...")
     if protocolname in SUPPORTED_PROTOCOLS:
         importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
         evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
         exec(importstr)
         protocol = eval(evalstr)
 
-    print ("2. Establishing connection using appropriate protocol")
     port = confdict['serialport']+sensordict.get('port')
-    print ("   Connecting to port {} ".format(port)) 
+    log.msg("  -> Connecting to port {} ...".format(port)) 
     serialPort = SerialPort(protocol, port, reactor, baudrate=int(sensordict.get('baudrate')))
 
     passiveconnection = {sensorid: protocolname}
-    print ("passive connection established ... success") 
+    log.msg("  -> passive connection established") 
 
     return passiveconnection
 
@@ -205,14 +198,14 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
 # -------------------------------------------------------------------
 
 def onConnect(client, userdata, flags, rc):
-    print("Connected with result code " + str(rc))
+    log.msg("Connected with result code " + str(rc))
 
 def onMessage(client, userdata, message):
    # Decode the payload to get rid of the 'b' prefix and single quotes:
-   print('It is ' + str(message.payload.decode("utf-8")))
+   log.msg('It is ' + str(message.payload.decode("utf-8")))
 
 def onDisconnect(client, userdata, message):
-   print("Disconnected from the broker.")
+   log.msg("Disconnected from the broker.")
 
 #####################################################################
 # MAIN PROGRAM
@@ -247,12 +240,11 @@ if __name__ == '__main__':
 
     ##  Get Sensor data
     ##  ----------------------------
-    #sensorlist = GetSensors(conf.get('sensors'))
     sensorlist = GetSensors(conf.get('sensorsconf'))
-    print ("Configuration", conf)
-    print ("-----------------------------------------")
-    print ("Sensorlist", sensorlist)
-    print ("-----------------------------------------")
+    #print ("Configuration", conf)
+    #print ("-----------------------------------------")
+    #print ("Sensorlist", sensorlist)
+    #print ("-----------------------------------------")
 
     ## create and connect to MQTT client
     ##  ----------------------------
@@ -265,35 +257,29 @@ if __name__ == '__main__':
     ## Connect to serial port (sensor dependency) -> returns publish 
     # Start subprocesses for each publishing protocol
     for sensor in sensorlist:
-        print ("Sensor and Mode:", sensor.get('sensorid'), sensor.get('mode'))
-        print ("----------------")
-        print ("Initialization:", sensor.get('init'))
+        log.msg("----------------")
+        log.msg("Sensor and Mode:", sensor.get('sensorid'), sensor.get('mode'))
+        log.msg("----------------")
+        log.msg(" - Initialization:", sensor.get('init'))
         # if init:
         #     SendInit(confdict,sensordict) and run commands
         if sensor.get('mode') in ['p','passive','Passive','P']:
             connected = PassiveThread(conf,sensor,client,establishedconnections)
-            print ("acquisition_mqtt: PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+            log.msg(" - PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
             establishedconnections.update(connected)
             passive_count +=1
         elif sensor.get('mode') in ['a','active','Active','A']:
-            print ("acquisition_mqtt: ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
+            log.msg(" - ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
             connected_act = ActiveThread(conf,sensor,client,establishedconnections)
 
         else:
-            print ("acquisition_mqtt: Mode not recognized")
+            log.msg("acquisition_mqtt: Mode not recognized")
 
         sensorid = sensor.get('sensorid')
-        #port = sensor[1]
-        #serialcomm = sensor[2]
-        #sensorid = sensor[0]
-        #sensorid = sensor[0]
-        #sensorid = sensor[0]
-
-        #thread.start(sensorprotocol)
 
     # Start all passive clients
     if passive_count > 0:
-        print ("acquisition_mqtt: Starting reactor for passive sensors. Sending data now ...")
+        log.msg("acquisition_mqtt: Starting reactor for passive sensors. Sending data now ...")
         reactor.run()
 
 

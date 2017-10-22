@@ -40,31 +40,44 @@ if onewire:
         Save path ? folders ?
 
         """
+        # TODO check what happes if sensor is removed or added
         def __init__(self, client, sensordict, confdict):
             self.client = client
             self.sensordict = sensordict    
             self.confdict = confdict
-            self.count = 0  ## counter for sending header information
+            self.owhost = confdict.get('owhost')
+            self.owport = int(confdict.get('owport'))
             self.sensor = sensordict.get('sensorid') # should be Ow
             self.hostname = socket.gethostname()
             self.printable = set(string.printable)
             self.reconnectcount = 0
+            self.removelist = [] # list of sensorspaths from sensors.cfg which are not found
             # Extract eventually existing one wire sensors from sensors.cfg
             self.existinglist = GetSensors(confdict.get('sensorsconf'),identifier='!')
-            #self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='!')
             self.sensorarray = self.GetOneWireSensorList(self.existinglist)
-            print (self.sensorarray)
+            self.count = [0]*len(self.sensorarray)  ## counter for sending header information
+            self.metacnt = 2  # Send header information often for OW
+            self.datalst = [[]]*len(self.sensorarray)
+            self.datacnt = [0]*len(self.sensorarray)
+            log.msg("  -> one wire: Initialized")
+            #print (self.existinglist)
+            #print (self.count)
 
         def GetOneWireSensorList(self, existinglist=[]):
-            self.owproxy = pyownet.protocol.proxy(host=owhost, port=owport)
+            self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
             sensorlst = self.owproxy.dir()
             # compare currently read sensorlst with original sensorlst (eventually from file)
             existingpathlist = [line.get('path') for line in existinglist]
-            # if new sensors are found, extend file
-
             # Identify attached sensors and their types
             idlist = []
             fakelst = []
+            # check for sensors which should be there but are not
+            notfound = [el for el in existingpathlist if not el in sensorlst]
+            for el in notfound:
+                if not el in self.removelist:
+                    log.msg("OW: sensor with path {} (as listed in sensors.cfg) is not found".format(el))
+                    self.removelist.append(el)            
+
             for el in sensorlst:
                 values = {}
                 # get posistions of sensorid, protocol(OW), name(DS18B20), serialnumber, revision and path
@@ -76,12 +89,18 @@ if onewire:
                     idel = el.replace('/','').replace('.','').strip()
                     line.append(idel)
                     line.append(el)
-                    line.append(sensorname)
+                    #line.append(sensorname)
                     # make a dict for each ID
                     path = el+'type'
                     typ = self.owproxy.read(path)
                     if not typ == 'DS1420': # do not add dongle
+                        if el in self.removelist:
+                            # el found again
+                            # Dropping it from removelist
+                            log.msg("OW: sensor with path {} is active again".format(el)) 
+                            self.removelist.remove(el)
                         if el in existingpathlist:
+                            #print ("Sensor {} existing".format(path))
                             values = [line for line in existinglist if line.get('path') == el][0]
                         else:
                             values['path'] = el
@@ -90,11 +109,16 @@ if onewire:
                             values['protocol'] = 'Ow'
                             revision = '0001'
                             values['revision'] = revision
+                            values['stack'] = 0
                             values['sensorid'] = typ+'_'+idel+'_'+revision
-                            success = AddSensor(path, values, block='OW')
-                            #success = acs.AddSensor(path, values, block='OW')
-
-                    idlist.append(values)
+                            log.msg("OW: Writing new sensor input to sensors.cfg ...")
+                            success = AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
+                            #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
+                            if success:
+                                log.msg("    {} written".format(values.get('sensorid')))
+                                # extend existingpathlist
+                                self.existinglist.append(values)
+                        idlist.append(values)
             return idlist
 
         #def connectionMade(self):
@@ -105,29 +129,63 @@ if onewire:
 
 
         def sendRequest(self):
-            print ("Sending periodic request ...")
-            sensorarray = self.GetOneWireSensorList()
-            for line in sensorarray:
-                print ("Getting sensor:", line.get('path'))
-                print ("Asigning sensor ID:", line.get('sensorid'))
+            #log.msg("Sending periodic request ...")
+            sensorarray = self.GetOneWireSensorList(self.existinglist)
+            if not len(self.count) == len(sensorarray):
+                # if length of sensorarray is changing - reset counters 
+                self.count = [0]*len(sensorarray)
+                self.datalst = [[]]*len(self.sensorarray)
+                self.datacnt = [0]*len(self.sensorarray)
+            for idx, line in enumerate(sensorarray):
+                #print ("Getting sensor ID:", line.get('sensorid'))
                 sensorid = line.get('sensorid')
                 valuedict = {}
                 for para in typedef.get(line.get('name')):
                     path = line.get('path')+para
+                    if para == 'humidity': ## Check whether separete treatment is necessary
+                        pass
+                        #line.get('path')+para
+                        #print ("ALL", self.owproxy.dir())
+                        #print ("sens",self.owproxy.dir(line.get('path')))
+                        #if para == 'pressure':
+                        #    #if sensortypus == "pressure":
+                        #    #    #print "Pressure [hPa]: ", self.mpxa4100(vad,temp)
+                        #    #    humidity = self.mpxa4100(vad,temp)
+                        #    pass
                     valuedict[para] = self.owproxy.read(path)
 
                 topic = self.confdict.get('station') + '/' + sensorid
                 data, head  = self.processOwData(sensorid, valuedict)
 
                 # To find out, which parameters are available use:
-                #print (self.owproxy.dir(line[1]))
+                #print (self.owproxy.dir(line.get('path')))
 
-                self.client.publish(topic+"/data", data)
-                if self.count == 0:
-                    self.client.publish(topic+"/meta", head)
-                self.count += 1
-                if self.count == 10:
-                    self.count = 0
+                senddata = False
+                try:
+                    coll = int(line.get('stack'))
+                except:
+                    coll = 0
+                #coll = int(self.sensordict.get('stack'))
+                if coll > 1:
+                    self.metacnt = 1 # send meta data with every block for stacked transfer
+                    if self.datacnt[idx] < coll:
+                        self.datalst[idx].append(data)
+                        self.datacnt[idx] += 1
+                    else:
+                        senddata = True
+                        data = ';'.join(self.datalst[idx])
+                        self.datalst[idx] = []
+                        self.datacnt[idx] = 0
+                else:
+                    senddata = True
+
+                if senddata:
+                    self.client.publish(topic+"/data", data)
+                    if self.count[idx] == 0:
+                        self.client.publish(topic+"/meta", head)
+                    self.count[idx] += 1
+                    if self.count[idx] >= self.metacnt:
+                        self.count[idx] = 0
 
 
         def processOwData(self, sensorid, datadict):
@@ -150,18 +208,22 @@ if onewire:
                 ele = '[T,RH,VDD,VAD,VIS]'
                 unit = '[degC,per,V,V,V,V]'
 
-            print ("len(valuedict)", datadict, len(datadict))
-
             header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize(packcode))
 
-            for key in datadict:
-                print ("{}: {}".format(key,datadict[key]))
-                #if key == 'humidity':
-                #    humidity = float(ow.owfs_get('/uncached%s/HIH4000/humidity' % sensor._path))
-                #    if sensortypus == "pressure":
-                #        #print "Pressure [hPa]: ", self.mpxa4100(vad,temp)
-                #        humidity = self.mpxa4100(vad,temp)
+            data_bin = None
+            datearray = ''
+            try:
+                datearray = acs.timeToArray(timestamp)
+                paralst = typedef.get(sensorid.split('_')[0])
+                for para in paralst:
+                    if para in datadict:
+                        datearray.append(int(float(datadict[para])*1000))
+                data_bin = struct.pack(packcode,*datearray)
+            except:
+                log.msg('Error while packing binary data')
 
-            data = 'xxx,xxx'
-            header = 'xxx'
-            return data, header
+            if not self.confdict.get('bufferdirectory','') == '' and data_bin:
+                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            #print ("Sending", ','.join(list(map(str,datearray))), header)
+            return ','.join(list(map(str,datearray))), header
+
