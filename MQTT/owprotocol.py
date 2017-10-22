@@ -16,8 +16,8 @@ from magpy.acquisition import acquisitionsupport as acs
 
 from methodstobemovedtoacs import *
 
-owport = 4304
-owhost = 'localhost'
+#owport = 4304
+#owhost = 'localhost'
 
 try:
     import pyownet
@@ -40,7 +40,7 @@ if onewire:
         Save path ? folders ?
 
         """
-        # TODO check what happes if sensor is removed or added
+        # TODO check humidity and pressure
         def __init__(self, client, sensordict, confdict):
             self.client = client
             self.sensordict = sensordict    
@@ -64,8 +64,11 @@ if onewire:
             #print (self.count)
 
         def GetOneWireSensorList(self, existinglist=[]):
-            self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
-            sensorlst = self.owproxy.dir()
+            try:
+                self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
+                sensorlst = self.owproxy.dir()
+            except:
+                return []
             # compare currently read sensorlst with original sensorlst (eventually from file)
             existingpathlist = [line.get('path') for line in existinglist]
             # Identify attached sensors and their types

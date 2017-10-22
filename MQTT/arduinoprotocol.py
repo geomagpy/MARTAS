@@ -1,19 +1,30 @@
 from __future__ import print_function
-import sys, time, os, socket
-import struct, binascii, re, csv
+from __future__ import absolute_import
+
+# ###################################################################
+# Import packages
+# ###################################################################
+
+import re     # for interpretation of lines
+import struct # for binary representation
+import socket # for hostname identification
+import string # for ascii selection
 from datetime import datetime, timedelta
-
 from twisted.protocols.basic import LineReceiver
-from twisted.internet import reactor
-from twisted.python import usage, log
-from twisted.internet.serialport import SerialPort
-from twisted.web.server import Site
-from twisted.web.static import File
+from twisted.python import log
+from magpy.acquisition import acquisitionsupport as acs
 
-try: # version > 0.8.0
-    from autobahn.wamp1.protocol import exportRpc
-except:
-    from autobahn.wamp import exportRpc
+from methodstobemovedtoacs import *
+
+#import sys, time, os
+#import binascii, csv
+
+#from twisted.protocols.basic import LineReceiver
+#from twisted.internet import reactor
+#from twisted.python import usage, log
+#from twisted.internet.serialport import SerialPort
+#from twisted.web.server import Site
+#from twisted.web.static import File
 
 iddict = {'f': '10', 'x': '11', 'y': '12', 'z': '13', 'df': '14', 't': '30', 'rh': '33', 'p': '35', 'w': '38'}
 
@@ -41,41 +52,6 @@ iddict = {'f': '10', 'x': '11', 'y': '12', 'z': '13', 'df': '14', 't': '30', 'rh
 61: VAD (measured voltage)      -- float (2.03) [V]
 62: VIS (measured voltage)      -- float (0.00043) [V]
 """
-
-def timeToArray(timestring):
-    # Converts time string of format 2013-12-12 23:12:23.122324
-    # to an array similiar to a datetime object
-    try:
-        splittedfull = timestring.split(' ')
-        splittedday = splittedfull[0].split('-')
-        splittedsec = splittedfull[1].split('.')
-        splittedtime = splittedsec[0].split(':')
-        datearray = splittedday + splittedtime
-        datearray.append(splittedsec[1])
-        datearray = map(int,datearray)
-        return datearray
-    except:
-        log.msg('Error while extracting time array')
-        return []
-
-def dataToFile(outputdir, sensorid, filedate, bindata, header):
-    # File Operations
-    try:
-        hostname = socket.gethostname()
-        path = os.path.join(outputdir,hostname,sensorid)
-        # outputdir defined in main options class
-        if not os.path.exists(path):
-            os.makedirs(path)
-        savefile = os.path.join(path, sensorid+'_'+filedate+".bin")
-        if not os.path.isfile(savefile):
-            with open(savefile, "wb") as myfile:
-                myfile.write(header + "\n")
-                myfile.write(bindata + "\n")
-        else:
-            with open(savefile, "a") as myfile:
-                myfile.write(bindata + "\n")
-    except:
-        log.err("Arduino - Protocol: Error while saving file")
 
 
 ## Arduino protocol
@@ -125,7 +101,7 @@ class ArduinoProtocol(LineReceiver):
 
     ## need a reference to our WS-MCU gateway factory to dispatch PubSub events
     ##
-    def __init__(self, wsMcuFactory, sensor, outputdir):
+    def __init__(self, client, sensordict, confdict):
         self.wsMcuFactory = wsMcuFactory
         self.board = sensor
         self.hostname = socket.gethostname()
