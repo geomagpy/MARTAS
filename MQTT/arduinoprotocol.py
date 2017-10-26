@@ -13,44 +13,10 @@ from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
+from magpy.stream import KEYLIST
 
 from methodstobemovedtoacs import *
 
-#import sys, time, os
-#import binascii, csv
-
-#from twisted.internet import reactor
-#from twisted.python import usage
-#from twisted.internet.serialport import SerialPort
-#from twisted.web.server import Site
-#from twisted.web.static import File
-
-iddict = {'f': '10', 'x': '11', 'y': '12', 'z': '13', 'df': '14', 't': '30', 'rh': '33', 'p': '35', 'w': '38'}
-
-"""
-0: clientname                   -- str (atlas)
-1: timestamp (PC)               -- str (2013-01-23 12:10:32.712475)
-2: date (PC)                    -- str (2013-01-23)
-3: outtime (PC)                 -- str (12:10:32.712475)
-4: timestamp (sensor)           -- str (2013-01-23 12:10:32.712475)
-5: GPS coordinates              -- str (??.??N ??.??E)
-9: Sensor Description           -- str (to be found in the adict)
-10: f                           -- float (48633.04) [nT]
-11: x                           -- float (20401.3) [nT]
-12: y                           -- float (-30.0) [nT]
-13: z                           -- float (43229.7) [nT]
-14: df                          -- float (0.06) [nT]
-30: T (ambient)                 -- float (7.2) [C]
-31: T (sensor)                  -- float (10.0) [C]
-32: T (electronics)             -- float (12.5) [C]
-33: rh (relative humidity)      -- float (99.0) [%]
-34: T (dewpoint)                -- float (6.0) [C]
-38: W (weight)                  -- float (24.0042) [g]
-40: Error code (POS1)           -- float (80) [-]
-60: VDD (support voltage)       -- float (5.02) [V]
-61: VAD (measured voltage)      -- float (2.03) [V]
-62: VIS (measured voltage)      -- float (0.00043) [V]
-"""
 
 
 ## Arduino protocol
@@ -87,15 +53,6 @@ class ArduinoProtocol(LineReceiver):
 
          - recording starts after meta and header information have been received
 
-    MARTAS requirements:
-         - add the following line to the sensor.txt
-            ARDUINO             ACM0    9600
-         - on the MARTAS machine an additional information file will be created
-           containing the sensor information for connected ARDUINO boards:
-           arduinolist.csv:
-              "HMC5883_12345_0001","['x', 'y', 'z']"
-           This file is used by the MARCOS machine to identify connected sensors and their keys
-
     """
 
     ## need a reference to our WS-MCU gateway factory to dispatch PubSub events
@@ -112,54 +69,28 @@ class ArduinoProtocol(LineReceiver):
         self.datacnt = 0
         self.metacnt = 10
 
+        # switch on debug mode
+        debugtest = confdict.get('debug')
+        self.debug = False
+        if debugtest == 'True':
+            log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            self.debug = True    # prints many test messages
+        else:
+            log.msg('  -> Debug mode = {}'.format(debugtest))
+
         # Arduino specific
-        self.debug = True   # prints many test messages
         self.board = self.sensor
         if self.debug:
-            log.msg("Running on board {}".format(self.board))
+            log.msg("DEBUG - Running on board {}".format(self.board))
+        # get existing sensors for the relevant board
+        self.existinglist = GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
         self.sensor = ''
-        self.sensordict = {}
-        self.eventstring = ''
-        self.eventdict = {}
-        self.idlist = []
-        self.unitdict = {}
-        self.vardict = {}
-        self.keydict = {}
 
-    #TODO This part needs to be modified like OW (add to sensors.cfg)
-    """
-    def savearduinolist(self,filename, arduinolist):
-        with open(filename, 'wb') as f:
-            wr = csv.writer(f, quoting=csv.QUOTE_ALL)
-            for row in arduinolist:
-                wr.writerow(row)
+        # none is verified when initializing
+        self.verifiedids = []
+        self.infolist = []
+        self.headlist = []
 
-    def loadarduinolist(self,filename):
-        with open(filename, 'rb') as f:
-            reader = csv.reader(f)
-            arduinolist = [row for row in reader]
-        return arduinolist
-
-    def extendarduinolist(self, idnum):
-        from os.path import expanduser
-        home = expanduser("~")
-
-        martasdir = [path for path, dirs, files in os.walk(home) if path.endswith('MARTAS')][0]
-        arduinosensorfile = os.path.join(martasdir,'arduinolist.csv')
-        log.msg('Checking Arduinofile: %s' % arduinosensorfile)
-        arduinolist = []
-        sensorelement = []
-        try:
-            arduinolist = self.loadarduinolist(arduinosensorfile)
-            sensorelement = [elem[0] for elem in arduinolist]
-            print("Liste", sensorelement)
-        except:
-            log.msg('Arduino: No Sensor list so far -or- Error while getting sensor list')
-            pass
-        if not self.sensordict[idnum] in sensorelement:
-            arduinolist.append([self.sensordict[idnum], self.keydict[idnum]])
-            self.savearduinolist(arduinosensorfile,arduinolist)
-    """
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.board))
@@ -167,7 +98,7 @@ class ArduinoProtocol(LineReceiver):
     def connectionLost(self, reason):
         log.msg('  -> {} lost.'.format(self.board))
 
-    def processArduinoData(self, idnum, data):
+    def processArduinoData(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
         currenttime = datetime.utcnow()
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
@@ -178,11 +109,8 @@ class ArduinoProtocol(LineReceiver):
 
         datearray = acs.timeToArray(timestamp)
         packcode = '6hL'
-        sensorid = self.sensordict.get(idnum)
-        events = self.eventdict.get(idnum).replace('evt','').split(',')[3:-1]
-
-        if not len(events) == len(data):
-            log.msg('{} protocol: Error while assigning events to data'.format(self.sensordict.get('protocol')))
+        #sensorid = self.sensordict.get(idnum)
+        #events = self.eventdict.get(idnum).replace('evt','').split(',')[3:-1]
 
         values = []
         multiplier = []
@@ -201,36 +129,29 @@ class ArduinoProtocol(LineReceiver):
             log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
             pass
 
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, str(self.keydict[idnum]).replace("'","").strip(), str(self.vardict[idnum]).replace("'","").strip(), str(self.unitdict[idnum]).replace("'","").strip(), str(multiplier).replace(" ",""), packcode, struct.calcsize(packcode))
+        key = '['+str(meta.get('SensorKeys')).replace("'","").strip()+']'
+        ele = '['+str(meta.get('SensorElements')).replace("'","").strip()+']'
+        unit = '['+str(meta.get('SensorUnits')).replace("'","").strip()+']'
+        multplier = str(multiplier).replace(" ","")
 
-        if self.debug:
-            #print header
-            print(timestamp, values)
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize(packcode))
 
         if not self.confdict.get('bufferdirectory','') == '':
             acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
         return ','.join(list(map(str,datearray))), header
 
-        """
-        evt0 = {'id': 0, 'value': self.hostname}
-        evt1 = {'id': 1, 'value': timestamp}
-        evt3 = {'id': 3, 'value': outtime}
-
-        for idx,event in enumerate(events):
-            execstring = "evt"+event+" = {'id': "+event+", 'value': "+ str(values[idx])+"}"
-            exec(execstring)
-        evt99 = {'id': 99, 'value': 'eol'}
-
-        return eval(self.eventdict[idnum])
-        """
 
     def analyzeHeader(self, line):
-        print("Getting Header")
-        eventlist = []
+        log.msg("  -> Received unverified header data")
+        if self.debug:
+            log.msg("DEBUG -> Header looks like: {}".format(line))
+        headdict = {}
+
         head = line.strip().split(':')
         headernum = int(head[0].strip('H'))
         header = head[1].split(',')
+
         varlist = []
         keylist = []
         unitlist = []
@@ -238,80 +159,78 @@ class ArduinoProtocol(LineReceiver):
             an = elem.strip(']').split('[')
             try:
                 if len(an) < 1:
-                    print("Arduino: error when analyzing header")
-                    return
+                    log.err("Arduino: error when analyzing header")
+                    return {}
             except:
-                print("Arduino: error when analyzing header")
-                return
+                log.err("Arduino: error when analyzing header")
+                return {}
             var = an[0].split('_')
             key = var[0].strip().lower()
             variable = var[1].strip().lower()
             unit = an[1].strip()
-            if not variable in iddict:
-                variable = key
-                if not variable in iddict:
-                    variable = 'x'
             keylist.append(key)
             varlist.append(variable)
             unitlist.append(unit)
-            eventlist.append('evt'+iddict[variable])
-        eventstring = ','.join(eventlist)
+        headdict['ID'] = headernum
+        headdict['SensorKeys'] = ','.join(keylist)
+        headdict['SensorElements'] = ','.join(varlist)
+        headdict['SensorUnits'] = ','.join(unitlist)
 
-        if len(eventstring) > 0:
-            self.eventdict[headernum] = 'evt0,evt1,evt3,'+eventstring+',evt99'
-            print("Found components %s for ID %d" % (eventstring, headernum))
-            self.vardict[headernum] = varlist
-            self.unitdict[headernum] = unitlist
-            self.keydict[headernum] = keylist
+        return headdict
 
 
-    def getMeta(self, line):
-        print("Getting Metadata - does not support more than 99 sensors!")
-        sensrev = '0001'
-        sensid = '12345'
+    def getSensorInfo(self, line):
+        
+        log.msg("  -> Received unverified sensor information")
+        if self.debug:
+            log.msg("DEBUG -> Sensor information line looks like: {}".format(line))
+        metadict = {}
         try:
             metaident = line.strip().split(':')
             metanum = int(metaident[0].strip('M'))
             meta = line[3:].strip().split(',')
-
-            metadict = {}
             for elem in meta:
                 el = elem.split(':')
                 metadict[el[0].strip()] = el[1].strip()
         except:
-            log.msg('Could not interpret meta data - skipping')
-            return
+            log.err('  -> Could not interprete sensor information - skipping')
+            return {}
 
-        if 'SensorRevsion' in metadict:
-            sensrev = metadict['SensorRevision']
-        if 'SensorID' in metadict:
-            sensid = metadict['SensorID']
+        if not 'SensorRevsion' in metadict:
+            metadict['SensorRevision'] = '0001' # dummy value
+        if not 'SensorID' in metadict:
+            metadict['SensorID'] = '12345' # dummy value
         if not 'SensorName' in metadict:
             print("No Sensorname provided - aborting")
-            return
-
-        self.sensor = metadict['SensorName']+'_'+sensid+'_'+sensrev
-        self.sensordict[metanum] = self.sensor
-        print("Found Sensor %s for ID %d" % (self.sensor, metanum))
-
-        # Write a file to the martas directory: arduino.txt containig the sensorids
-        # for each connected sensor and its components
-        # This can then be used by the collector and the web scripts
-
-        #except:
-        #    print "could not interpret meta information"
+            return {}
+        metadict['ID'] = metanum
+        return metadict
 
 
-    def lineReceived(self, line):
-        # Create a list of sensors like for OW
-        # dipatch with the appropriate sensor
+    def GetArduinoSensorList(self, line):
+        """
+         DESCRIPTION:
+             Will analysze data line and a list of existing IDs.
+             Please note: when initializing, then existing data will be taken from 
+             Arduino Block.  
+             - If ID is existing, this method will return its ID, sensorid, meta info
+               as used by process data, and data.
+             - If ID not yet existing: line will be scanned until all meta info is 
+               available. Method will return ID 0 and empty fields. 
+             - If meta info is coming: sensorids will be quickly checked against existing.
+               If not existing and not yet used - ID will be added to sensors.cfg and existing
+               If not existing but used so far - ID in file is wrong -> warning
+               If existing and ID check OK: continue
 
-        topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        # extract only ascii characters 
-        line = ''.join(filter(lambda x: x in string.printable, line))
+        PARAMETER:
+            existinglist: [list] [[1,2,...],['BM35_xxx_0001','SH75_xxx_0001',...]]
+                          idnum is stored in sensordict['path'] (like ow)
+        """
+        #existingpathlist = [line.get('path') for line in existinglist]
 
-        if self.debug:
-            log.msg('received line: {}'.format(line))
+        evdict = {}
+        meta = 'not known'
+        data = '1.0'
 
         lineident = line.split(':')
         try:
@@ -319,57 +238,101 @@ class ArduinoProtocol(LineReceiver):
         except:
             idnum = 999
         if not idnum == 999:
-            if not idnum in self.idlist:
+            if not idnum in self.verifiedids:
                 if line.startswith('H'):
-                    self.analyzeHeader(line)
+                    # analyse header
+                    headdict = self.analyzeHeader(line)
+                    self.headlist.append(headdict)
                 elif line.startswith('M'):
-                    self.getMeta(line)
-                if idnum in self.eventdict and idnum in self.sensordict:
-                    self.idlist.append(idnum)
-                    #self.extendarduinolist(idnum)
+                    # analyse sensorinformation
+                    infodict = self.getSensorInfo(line)
+                    self.infolist.append(infodict)
+                    # add values to metadict
+                if idnum in [idict.get('ID') for idict in self.infolist] and idnum in [hdict.get('ID') for hdict in self.headlist]:
+                    # get critical info: sensorname, idnum and board
+                    sensoridenti = [idict.get('SensorName') for idict in self.infolist if str(idict.get('ID')) == str(idnum)]
+                    # board is already selected
+                    seldict2 = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)]
+                    seldict3 = [edict for edict in seldict2 if str(edict.get('name')) == str(sensoridenti[0])]
+                    if not len(seldict3) > 0 and len(sensoridenti) > 0:
+                        log.msg("Arduino: Sensor {} not yet existing -> adding to existinglist".format(sensoridenti[0]))
+                        relevantdict = [idict for idict in self.infolist if str(idict.get('ID')) == str(idnum)][0]
+                        values = {}
+                        values['path'] = idnum
+                        values['serialnumber'] = relevantdict.get('SensorID')
+                        values['name'] = relevantdict.get('SensorName')
+                        values['protocol'] = 'Arduino'
+                        values['port'] = self.board
+                        values['revision'] = relevantdict.get('SensorRevision')
+                        values['stack'] = 0
+                        values['sensorid'] = sensoridenti[0]
+                        log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
+                        success = AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
+                        #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
+                        self.existinglist.append(values)
+                    elif len(seldict3) > 0:
+                        log.msg("Arduino: Sensor {} identified and verified".format(sensoridenti[0]))
+                        self.verifiedids.append(idnum)
+                    else:
+                        log.err('Apparently a sensor is connected which does not correspond to the provided information in sensors.cfg - Please clarify (either delete sensor.cfg input for {} or check your arduino code'.format(sensoridenti[0]))
+
             else:
-                if line.startswith('D') and idnum in self.eventdict and idnum in self.sensordict:
+                if line.startswith('D'):
                     dataar = line.strip().split(':')
                     dataident = int(dataar[0].strip('D'))
+                    meta = [headdict for headdict in self.headlist if str(headdict.get('ID')) == str(dataident)][0]
+                    evdict = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)][0]
                     data = dataar[1].strip().split(',')
 
-                    pdata, head = self.processArduinoData(dataident, data)
-
-                    senddata = False
-                    coll = int(self.sensordict.get('stack'))
-                    if coll > 1:
-                        self.metacnt = 1 # send meta data with every block
-                        if self.datacnt < coll:
-                            self.datalst.append(data)
-                            self.datacnt += 1
-                        else:
-                            senddata = True
-                            data = ';'.join(self.datalst)
-                            self.datalst = []
-                            self.datacnt = 0
-                    else:
-                        senddata = True
-
-                    if self.debug:
-                        print ("Got", pdata)
-
-                    """
-                    eventstring = self.eventdict[dataident]
-
-                    exec(eventstring+" = self.processArduinoData(dataident, data)")
-
-                    ## publish event to all clients subscribed to topic
-                    ##
-                    eventlist = eventstring.split(',')
-
-                    dispatch_url =  "http://example.com/"+self.hostname+"/ard#"+self.board+"-value"
-                    for event in eventlist:
-                        self.wsMcuFactory.dispatch(dispatch_url, eval(event))
-                    """
         else:
+            # invalid return value found
             if self.debug:
-                log.msg('could not interprete line: {}'.format(line))
-            pass
-        #except ValueError:
-        #    log.err('Unable to parse data %s' % line)
-        #    #return
+                log.msg("DEBUG - Invalid return value found: {}".format(line))
+        
+        return evdict, meta, data
+
+
+    def lineReceived(self, line):
+
+        #if self.debug:
+        #    log.msg("Received line: {}".format(line))
+
+        # extract only ascii characters 
+        line = ''.join(filter(lambda x: x in string.printable, line))
+
+        # Create a list of sensors like for OW
+        # dipatch with the appropriate sensor
+        evdict, meta, data = self.GetArduinoSensorList(line)
+
+        if len(evdict) > 0:
+            sensorid = evdict.get('name')+'_'+evdict.get('serialnumber')+'_'+evdict.get('revision')
+            topic = self.confdict.get('station') + '/' + sensorid
+            pdata, head = self.processArduinoData(sensorid, meta, data)
+
+            senddata = False
+            try:
+                coll = int(evdict.get('stack'))
+            except:
+                coll = 0
+            if coll > 1:
+                self.metacnt = 1 # send meta data with every block
+                if self.datacnt < coll:
+                    self.datalst.append(pdata)
+                    self.datacnt += 1
+                else:
+                    senddata = True
+                    pdata = ';'.join(self.datalst)
+                    self.datalst = []
+                    self.datacnt = 0
+            else:
+                senddata = True
+
+            if senddata:
+                self.client.publish(topic+"/data", pdata)
+                if self.count == 0:
+                    self.client.publish(topic+"/meta", head)
+                self.count += 1
+                if self.count >= self.metacnt:
+                    self.count = 0
+
+

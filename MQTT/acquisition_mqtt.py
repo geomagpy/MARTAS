@@ -143,6 +143,9 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
         importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        if confdict.get('debug') == 'True':
+            log.msg("DEBUG -> Importstring looks like: {}".format(importstr))
+
         evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
         exec importstr
         protocol = eval(evalstr)
@@ -179,6 +182,8 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
         importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        if confdict.get('debug') == 'True':
+            log.msg("DEBUG  -> Importstring looks like: {}".format(importstr))
         evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
         exec(importstr)
         protocol = eval(evalstr)

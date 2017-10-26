@@ -34,7 +34,7 @@ def AddSensor(path, dictionary, block=None):
     def makeline(dictionary,delimiter):
         lst = []
         for el in SENSORELEMENTS:
-            lst.append(dictionary.get(el,'-'))
+            lst.append(str(dictionary.get(el,'-')))
         return ','.join(lst)+delimiter
 
     newline = makeline(dictionary,delimiter)
@@ -68,9 +68,11 @@ def AddSensor(path, dictionary, block=None):
     if block in ['OW','ow','Ow']:
         num = [line for line in sensordata if line.startswith(owheadline)]
         identifier = owidentifier
+        headline = owheadline
     elif block in ['Arduino','arduino','ARDUINO']:
         num = [line for line in sensordata if line.startswith(arduinoheadline)]
         identifier = arduinoidentifier
+        headline = arduinoheadline
 
     # 5. Append/Insert line 
     if len(num) > 0:
@@ -79,7 +81,7 @@ def AddSensor(path, dictionary, block=None):
             sensordata.insert(lastline+1,identifier+newline)
     else:
             sensordata.append(delimiter)
-            sensordata.append(owheadline+delimiter)
+            sensordata.append(headline+delimiter)
             sensordata.append(identifier+newline)
 
     # 6. write all lines to sensors.cfg
@@ -89,7 +91,7 @@ def AddSensor(path, dictionary, block=None):
     return True
 
  
-def GetSensors(path, identifier=None):
+def GetSensors(path, identifier=None, secondidentifier=None):
     """
     DESCRIPTION:
         read sensor information from a file
@@ -150,10 +152,18 @@ def GetSensors(path, identifier=None):
                 for idx,part in enumerate(parts):
                     sensordict[elements[idx]] = part
             elif item.startswith(str(identifier)) and len(item) > 8:
-                for idx,part in enumerate(parts):
-                    if idx == 0:
-                        part = part.strip(str(identifier))
-                    sensordict[elements[idx]] = part
+                if not secondidentifier:
+                    for idx,part in enumerate(parts):
+                        if idx == 0:
+                            part = part.strip(str(identifier))
+                        sensordict[elements[idx]] = part
+                elif secondidentifier in parts:
+                    for idx,part in enumerate(parts):
+                        if idx == 0:
+                            part = part.strip(str(identifier))
+                        sensordict[elements[idx]] = part
+                else:
+                    pass
         except:
             # Possible issue - empty line
             pass
