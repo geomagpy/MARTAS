@@ -22,15 +22,18 @@ class EnvProtocol(LineReceiver):
     is used to dipatch url links and define local storage folders
 
     """
-    ## need a reference to our client (e.g. MQTT ot WS-MCU gateway factory) to publish events
-    ##
     def __init__(self, client, sensordict, confdict):
+        """
+        'client' could be used to switch between different publishing protocols
+                 (e.g. MQTT or WS-MCU gateway factory) to publish events
+        'sensordict' contains a dictionary with all sensor relevant data (sensors.cfg)
+        'confdict' contains a dictionary with general configuration parameters (martas.cfg)
+        """
         self.client = client
         self.sensordict = sensordict    
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
-        #self.outputdir = outputdir confdict.get('outputdir')
         self.hostname = socket.gethostname()
         self.printable = set(string.printable)
         #log.msg("  -> Sensor: {}".format(self.sensor))
@@ -44,7 +47,7 @@ class EnvProtocol(LineReceiver):
     def connectionLost(self, reason):
         log.msg('  -> {} lost.'.format(self.sensor))
 
-    def processEnvData(self, data):
+    def processData(self, data):
         """Process Environment data """
 
         currenttime = datetime.utcnow()
@@ -94,14 +97,12 @@ class EnvProtocol(LineReceiver):
         # extract only ascii characters 
         line = ''.join(filter(lambda x: x in string.printable, line))
 
-        #try:
-        ok = True
-        if ok:
+        try:
             data = line.split()
             if len(data) == 3:
-                data, head = self.processEnvData(data)
+                data, head = self.processData(data)
             else:
-                log.msg('{}: Data seems not be EnvData: Looks like {}'.format(self.sensordict.get('protocol'),line))
+                log.msg('{}: Data seems not be appropriate data. Received data looks like: {}'.format(self.sensordict.get('protocol'),line))
 
             senddata = False
             coll = int(self.sensordict.get('stack'))
@@ -124,9 +125,8 @@ class EnvProtocol(LineReceiver):
                     self.client.publish(topic+"/meta", head)
                 self.count += 1
                 if self.count >= self.metacnt:
-                    self.count = 0
-            
-        #except ValueError:
-        #    log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
+                    self.count = 0            
+        except:
+            log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
 
 

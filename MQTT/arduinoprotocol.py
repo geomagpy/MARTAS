@@ -19,9 +19,8 @@ from methodstobemovedtoacs import *
 #import sys, time, os
 #import binascii, csv
 
-#from twisted.protocols.basic import LineReceiver
 #from twisted.internet import reactor
-#from twisted.python import usage, log
+#from twisted.python import usage
 #from twisted.internet.serialport import SerialPort
 #from twisted.web.server import Site
 #from twisted.web.static import File
@@ -102,11 +101,22 @@ class ArduinoProtocol(LineReceiver):
     ## need a reference to our WS-MCU gateway factory to dispatch PubSub events
     ##
     def __init__(self, client, sensordict, confdict):
-        self.wsMcuFactory = wsMcuFactory
-        self.board = sensor
+        self.client = client #self.wsMcuFactory = wsMcuFactory
+        self.sensordict = sensordict
+        self.confdict = confdict
+        self.count = 0  ## counter for sending header information
+        self.sensor = sensordict.get('sensorid')
         self.hostname = socket.gethostname()
-        self.outputdir = outputdir
-        print("Running on board", self.board)
+        self.printable = set(string.printable)
+        self.datalst = []
+        self.datacnt = 0
+        self.metacnt = 10
+
+        # Arduino specific
+        self.debug = True   # prints many test messages
+        self.board = self.sensor
+        if self.debug:
+            log.msg("Running on board {}".format(self.board))
         self.sensor = ''
         self.sensordict = {}
         self.eventstring = ''
@@ -116,6 +126,8 @@ class ArduinoProtocol(LineReceiver):
         self.vardict = {}
         self.keydict = {}
 
+    #TODO This part needs to be modified like OW (add to sensors.cfg)
+    """
     def savearduinolist(self,filename, arduinolist):
         with open(filename, 'wb') as f:
             wr = csv.writer(f, quoting=csv.QUOTE_ALL)
@@ -147,28 +159,30 @@ class ArduinoProtocol(LineReceiver):
         if not self.sensordict[idnum] in sensorelement:
             arduinolist.append([self.sensordict[idnum], self.keydict[idnum]])
             self.savearduinolist(arduinosensorfile,arduinolist)
+    """
 
     def connectionMade(self):
-        log.msg('%s connected.' % self.board)
+        log.msg('  -> {} connected.'.format(self.board))
+
+    def connectionLost(self, reason):
+        log.msg('  -> {} lost.'.format(self.board))
 
     def processArduinoData(self, idnum, data):
         """Convert raw ADC counts into SI units as per datasheets"""
-        printdata = False
-
         currenttime = datetime.utcnow()
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
-        filename = outdate
+        actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
+        filename = outdate
 
-        datearray = timeToArray(timestamp)
+        datearray = acs.timeToArray(timestamp)
         packcode = '6hL'
-        sensorid = self.sensordict[idnum]
-
-        events = self.eventdict[idnum].replace('evt','').split(',')[3:-1]
+        sensorid = self.sensordict.get(idnum)
+        events = self.eventdict.get(idnum).replace('evt','').split(',')[3:-1]
 
         if not len(events) == len(data):
-            log.msg('Error while assigning events to data')
+            log.msg('{} protocol: Error while assigning events to data'.format(self.sensordict.get('protocol')))
 
         values = []
         multiplier = []
@@ -179,33 +193,37 @@ class ArduinoProtocol(LineReceiver):
                 packcode = packcode + 'l'
                 multiplier.append(10000)
             except:
-                log.msg('Error while appending data to file (non-float?): %s ' % dat )
+                log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
 
         try:
             data_bin = struct.pack(packcode,*datearray)
         except:
-            log.msg('Error while packing binary data')
+            log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
             pass
 
         header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, str(self.keydict[idnum]).replace("'","").strip(), str(self.vardict[idnum]).replace("'","").strip(), str(self.unitdict[idnum]).replace("'","").strip(), str(multiplier).replace(" ",""), packcode, struct.calcsize(packcode))
 
-        if printdata:
+        if self.debug:
             #print header
             print(timestamp, values)
 
-        # File Operations
-        dataToFile(self.outputdir, sensorid, filename, data_bin, header)
+        if not self.confdict.get('bufferdirectory','') == '':
+            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
+        return ','.join(list(map(str,datearray))), header
+
+        """
         evt0 = {'id': 0, 'value': self.hostname}
         evt1 = {'id': 1, 'value': timestamp}
         evt3 = {'id': 3, 'value': outtime}
+
         for idx,event in enumerate(events):
             execstring = "evt"+event+" = {'id': "+event+", 'value': "+ str(values[idx])+"}"
             exec(execstring)
         evt99 = {'id': 99, 'value': 'eol'}
 
         return eval(self.eventdict[idnum])
-
+        """
 
     def analyzeHeader(self, line):
         print("Getting Header")
@@ -285,9 +303,15 @@ class ArduinoProtocol(LineReceiver):
 
 
     def lineReceived(self, line):
-        #print "Received line", line
         # Create a list of sensors like for OW
         # dipatch with the appropriate sensor
+
+        topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        # extract only ascii characters 
+        line = ''.join(filter(lambda x: x in string.printable, line))
+
+        if self.debug:
+            log.msg('received line: {}'.format(line))
 
         lineident = line.split(':')
         try:
@@ -302,12 +326,34 @@ class ArduinoProtocol(LineReceiver):
                     self.getMeta(line)
                 if idnum in self.eventdict and idnum in self.sensordict:
                     self.idlist.append(idnum)
-                    self.extendarduinolist(idnum)
+                    #self.extendarduinolist(idnum)
             else:
                 if line.startswith('D') and idnum in self.eventdict and idnum in self.sensordict:
                     dataar = line.strip().split(':')
                     dataident = int(dataar[0].strip('D'))
                     data = dataar[1].strip().split(',')
+
+                    pdata, head = self.processArduinoData(dataident, data)
+
+                    senddata = False
+                    coll = int(self.sensordict.get('stack'))
+                    if coll > 1:
+                        self.metacnt = 1 # send meta data with every block
+                        if self.datacnt < coll:
+                            self.datalst.append(data)
+                            self.datacnt += 1
+                        else:
+                            senddata = True
+                            data = ';'.join(self.datalst)
+                            self.datalst = []
+                            self.datacnt = 0
+                    else:
+                        senddata = True
+
+                    if self.debug:
+                        print ("Got", pdata)
+
+                    """
                     eventstring = self.eventdict[dataident]
 
                     exec(eventstring+" = self.processArduinoData(dataident, data)")
@@ -319,8 +365,10 @@ class ArduinoProtocol(LineReceiver):
                     dispatch_url =  "http://example.com/"+self.hostname+"/ard#"+self.board+"-value"
                     for event in eventlist:
                         self.wsMcuFactory.dispatch(dispatch_url, eval(event))
+                    """
         else:
-            #print "Arduino: could not interpret line", line
+            if self.debug:
+                log.msg('could not interprete line: {}'.format(line))
             pass
         #except ValueError:
         #    log.err('Unable to parse data %s' % line)
