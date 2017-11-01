@@ -14,6 +14,9 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 
+import os
+
+
 class EnvProtocol(LineReceiver):
     """
     Protocol to read MessPC EnvironmentalSensor 5 data from usb unit
@@ -58,7 +61,7 @@ class EnvProtocol(LineReceiver):
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         packcode = '6hLllL'
         sensorid = self.sensor
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, '[t1,t2,var1]', '[T,DewPoint,RH]', '[degC,degC,per]', '[1000,1000,1000]', packcode, struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, '[t1,t2,var1]', '[T,DewPoint,RH]', '[degC,degC,per]', '[1000,1000,1000]', packcode, struct.calcsize('<'+packcode))
 
         valrh = re.findall(r'\d+',data[0])
         if len(valrh) > 1:
@@ -81,14 +84,13 @@ class EnvProtocol(LineReceiver):
             datearray.append(int(temp*1000))
             datearray.append(int(dew*1000))
             datearray.append(int(rh*1000))
-            data_bin = struct.pack(packcode,*datearray)
+            data_bin = struct.pack('<'+packcode,*datearray)  #use little endian byte order
         except:
             log.msg('Error while packing binary data')
             pass
 
         if not self.confdict.get('bufferdirectory','') == '':
             acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
-
         return ','.join(list(map(str,datearray))), header
 
     def lineReceived(self, line):
@@ -123,6 +125,10 @@ class EnvProtocol(LineReceiver):
                 self.client.publish(topic+"/data", data)
                 if self.count == 0:
                     self.client.publish(topic+"/meta", head)
+                    ## 'Add' is a string containing dict info like: 
+                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
+                    add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc','') )
+                    self.client.publish(topic+"/dict", add)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0            

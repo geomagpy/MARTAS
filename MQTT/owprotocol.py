@@ -185,6 +185,11 @@ if onewire:
                 if senddata:
                     self.client.publish(topic+"/data", data)
                     if self.count[idx] == 0:
+                        ## 'Add' is a string containing dict info like: 
+                        ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
+                        add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{}".format( line.get('sensorid',''),self.confdict.get('station',''),line.get('pierid',''),line.get('protocol',''),line.get('sensorgroup',''),line.get('sensordesc','') )
+                        #print ("...", add)
+                        self.client.publish(topic+"/dict", add)
                         self.client.publish(topic+"/meta", head)
                     self.count[idx] += 1
                     if self.count[idx] >= self.metacnt:
@@ -211,7 +216,7 @@ if onewire:
                 ele = '[T,RH,VDD,VAD,VIS]'
                 unit = '[degC,per,V,V,V,V]'
 
-            header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize(packcode))
+            header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
 
             data_bin = None
             datearray = ''
@@ -221,7 +226,7 @@ if onewire:
                 for para in paralst:
                     if para in datadict:
                         datearray.append(int(float(datadict[para])*1000))
-                data_bin = struct.pack(packcode,*datearray)
+                data_bin = struct.pack('<'+packcode,*datearray)  # little endian
             except:
                 log.msg('Error while packing binary data')
 

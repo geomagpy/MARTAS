@@ -97,6 +97,7 @@ class ArduinoProtocol(LineReceiver):
 
     def connectionLost(self, reason):
         log.msg('  -> {} lost.'.format(self.board))
+        # implement counter and add three reconnection events here
 
     def processArduinoData(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
@@ -124,7 +125,7 @@ class ArduinoProtocol(LineReceiver):
                 log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
 
         try:
-            data_bin = struct.pack(packcode,*datearray)
+            data_bin = struct.pack('<'+packcode,*datearray) #little endian
         except:
             log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
             pass
@@ -134,7 +135,7 @@ class ArduinoProtocol(LineReceiver):
         unit = '['+str(meta.get('SensorUnits')).replace("'","").strip()+']'
         multplier = str(multiplier).replace(" ","")
 
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
 
         if not self.confdict.get('bufferdirectory','') == '':
             acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
@@ -152,29 +153,34 @@ class ArduinoProtocol(LineReceiver):
         headernum = int(head[0].strip('H'))
         header = head[1].split(',')
 
-        varlist = []
-        keylist = []
-        unitlist = []
-        for elem in header:
-            an = elem.strip(']').split('[')
-            try:
-                if len(an) < 1:
+        try:
+            varlist = []
+            keylist = []
+            unitlist = []
+            for elem in header:
+                an = elem.strip(']').split('[')
+                try:
+                    if len(an) < 1:
+                        log.err("Arduino: error when analyzing header")
+                        return {}
+                except:
                     log.err("Arduino: error when analyzing header")
                     return {}
-            except:
-                log.err("Arduino: error when analyzing header")
-                return {}
-            var = an[0].split('_')
-            key = var[0].strip().lower()
-            variable = var[1].strip().lower()
-            unit = an[1].strip()
-            keylist.append(key)
-            varlist.append(variable)
-            unitlist.append(unit)
-        headdict['ID'] = headernum
-        headdict['SensorKeys'] = ','.join(keylist)
-        headdict['SensorElements'] = ','.join(varlist)
-        headdict['SensorUnits'] = ','.join(unitlist)
+                var = an[0].split('_')
+                key = var[0].strip().lower()
+                variable = var[1].strip().lower()
+                unit = an[1].strip()
+                keylist.append(key)
+                varlist.append(variable)
+                unitlist.append(unit)
+            headdict['ID'] = headernum
+            headdict['SensorKeys'] = ','.join(keylist)
+            headdict['SensorElements'] = ','.join(varlist)
+            headdict['SensorUnits'] = ','.join(unitlist)
+        except:
+            # in case an incomplete header is available
+            # will be read next time completely
+            return {} 
 
         return headdict
 
@@ -331,6 +337,11 @@ class ArduinoProtocol(LineReceiver):
                 self.client.publish(topic+"/data", pdata)
                 if self.count == 0:
                     self.client.publish(topic+"/meta", head)
+                    ## 'Add' is a string containing dict info like: 
+                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
+                    add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{}".format( evdict.get('sensorid',''),self.confdict.get('station',''),evdict.get('pierid',''),evdict.get('protocol',''),evdict.get('sensorgroup',''),evdict.get('sensordesc','') )
+                    self.client.publish(topic+"/dict", add)
+
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0

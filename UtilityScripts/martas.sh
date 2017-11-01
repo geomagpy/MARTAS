@@ -12,17 +12,27 @@
 
 # /etc/init.d/martas
 
+# Some BASIC definitions  # please edit
+# #####################################
+
+# # Define a python path if not using default python
+#PYTHONPATH=''
+# # Your Local Martas directory 
+MARTASPATH='/home/cobs/MARTAS/MQTT/'
+# # The main acquisition program
+ACQUPROG='acquisition_mqtt.py'
+
 # Some things that run always
-touch /var/lock/martas
+#touch /var/lock/martas
 
 # Carry out specific functions when asked to by the system
 case "$1" in
   start)
-    echo "Starting acquisition script martas (in 20sec)"
+    echo "Starting acquisition script martas (in 30 sec)"
     echo "--------------------"
     sleep 20
-    echo "initializing GSM90"
-    python /home/cobs/MARTAS/DataScripts/serial-init.py -p "/dev/ttyUSB0" -c S,5,T048.5,C,datetime,D,R -k "%y%m%d%w%H%M%S" -r "z-save,z" -i 1024
+    #echo "initializing GSM90"
+    #python /home/cobs/MARTAS/DataScripts/serial-init.py -p "/dev/ttyUSB0" -c S,5,T048.5,C,datetime,D,R -k "%y%m%d%w%H%M%S" -r "z-save,z" -i 1024
     #echo "initiating POS1"
     #python /home/cobs/MARTAS/DataScripts/POS1-Start.py &
     #sleep 5
