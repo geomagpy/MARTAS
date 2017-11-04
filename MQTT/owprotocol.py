@@ -187,7 +187,7 @@ if onewire:
                     if self.count[idx] == 0:
                         ## 'Add' is a string containing dict info like: 
                         ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
-                        add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{}".format( line.get('sensorid',''),self.confdict.get('station',''),line.get('pierid',''),line.get('protocol',''),line.get('sensorgroup',''),line.get('sensordesc','') )
+                        add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( line.get('sensorid',''),self.confdict.get('station',''),line.get('pierid',''),line.get('protocol',''),line.get('sensorgroup',''),line.get('sensordesc',''),line.get('ptime','') )
                         #print ("...", add)
                         self.client.publish(topic+"/dict", add)
                         self.client.publish(topic+"/meta", head)

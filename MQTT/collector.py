@@ -298,8 +298,8 @@ def on_message(client, userdata, msg):
             print(msg.topic + " " + str(msg.payload))
 
 def main(argv):
-    broker = '192.168.178.75'
-    #broker = 'localhost'  # default
+    #broker = '192.168.178.75'
+    broker = 'localhost'  # default
     #broker = '192.168.178.84'
     #broker = '192.168.0.14'
     port = 1883
