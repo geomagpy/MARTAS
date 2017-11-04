@@ -295,6 +295,7 @@ class ArduinoProtocol(LineReceiver):
             if self.debug:
                 log.msg("DEBUG - Invalid return value found: {}".format(line))
         
+        print ("HERE", evdict, meta, data)
         return evdict, meta, data
 
 

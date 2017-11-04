@@ -196,7 +196,7 @@ def on_message(client, userdata, msg):
     # define a new data stream for each non-existing sensor
     metacheck = identifier.get(sensorid+':packingcode','')
     if msg.topic.endswith('meta') and metacheck == '':
-        print ("Found header:{}".format(str(msg.payload)))
+        print ("Found basic header:{}".format(str(msg.payload)))
         analyse_meta(str(msg.payload),sensorid)
         if not sensorid in headdict:
             headdict[sensorid] = msg.payload
