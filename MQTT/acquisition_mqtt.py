@@ -111,7 +111,25 @@ from twisted.web.static import File
 now = datetime.utcnow()
 hostname = socket.gethostname()
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1'] # should be provided by MagPy
+"""
+Protocol types:
+ok		Env 	: passive		: environment
+ok		Ow	: active (group)	: environment
+ok		Arduino	: active (group)	: environment
+none		BM35	: active 		: environment
+current work	Lemi	: passive		: mag
+written (init missing)	GSM90	: passive (init)	: mag
+-		POS1	: passive (init)	: mag
+written (time test missing)	GSM19	: passive 		: mag
+written 	Cs	: passive 		: mag
+-	   	PalmDac : passive		: mag
+current work	MySQL	: active (group)	: general db call
+-	        Active	: active		: general active call
+current work	CR1000	: active		: all
+"""
+
+
 
 def SendInit(confdict,sensordict):
     """

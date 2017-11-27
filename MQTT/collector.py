@@ -324,11 +324,11 @@ def main(argv):
     global dictcheck
     dictcheck = False
 
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred>'
     try:
         opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:u",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","debug=",])
     except getopt.GetoptError:
         print('Check your options:')
-        usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred>'
         print(usagestring)
         sys.exit(2)
     for opt, arg in opts:
