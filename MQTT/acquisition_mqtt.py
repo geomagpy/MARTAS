@@ -269,14 +269,21 @@ if __name__ == '__main__':
         # if init:
         #     SendInit(confdict,sensordict) and run commands
         if sensor.get('mode') in ['p','passive','Passive','P']:
-            connected = PassiveThread(conf,sensor,client,establishedconnections)
-            log.msg(" - PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
-            establishedconnections.update(connected)
-            passive_count +=1
+            try:
+                connected = PassiveThread(conf,sensor,client,establishedconnections)
+                log.msg(" - PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+                establishedconnections.update(connected)
+                passive_count +=1
+            except:
+                log.msg(" - !!! PassiveThread failed for {} !!!".format(sensor.get('sensorid')))
+                pass
         elif sensor.get('mode') in ['a','active','Active','A']:
-            log.msg(" - ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
-            connected_act = ActiveThread(conf,sensor,client,establishedconnections)
-
+            try:
+                log.msg(" - ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
+                connected_act = ActiveThread(conf,sensor,client,establishedconnections)
+            except:
+                log.msg(" - !!! ActiveThread failed for {} !!!".format(sensor.get('sensorid')))
+                pass
         else:
             log.msg("acquisition_mqtt: Mode not recognized")
 
