@@ -69,6 +69,12 @@ class ArduinoProtocol(LineReceiver):
         self.datacnt = 0
         self.metacnt = 10
 
+        # QOS
+        self.qos=int(confdict.get('mqttqos',0))
+        if not self.qos in [0,1,2]:
+            self.qos = 0
+        log.msg("  -> setting QOS:", self.qos)
+
         # switch on debug mode
         debugtest = confdict.get('debug')
         self.debug = False
@@ -334,13 +340,13 @@ class ArduinoProtocol(LineReceiver):
                 senddata = True
 
             if senddata:
-                self.client.publish(topic+"/data", pdata)
+                self.client.publish(topic+"/data", pdata, qos=self.qos)
                 if self.count == 0:
-                    self.client.publish(topic+"/meta", head)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
                     ## 'Add' is a string containing dict info like: 
                     ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
                     add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station',''),evdict.get('pierid',''),evdict.get('protocol',''),evdict.get('sensorgroup',''),evdict.get('sensordesc',''),evdict.get('ptime','') )
-                    self.client.publish(topic+"/dict", add)
+                    self.client.publish(topic+"/dict", add, qos=self.qos)
 
                 self.count += 1
                 if self.count >= self.metacnt:

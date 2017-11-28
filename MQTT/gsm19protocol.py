@@ -52,6 +52,12 @@ class GSM19Protocol(LineReceiver):
         self.datacnt = 0
         self.metacnt = 10
 
+        # QOS
+        self.qos=int(confdict.get('mqttqos',0))
+        if not self.qos in [0,1,2]:
+            self.qos = 0
+        log.msg("  -> setting QOS:", self.qos)
+
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
 
@@ -155,13 +161,13 @@ class GSM19Protocol(LineReceiver):
                 senddata = True
 
             if senddata:
-                self.client.publish(topic+"/data", data)
+                self.client.publish(topic+"/data", data, qos=self.qos)
                 if self.count == 0:
-                    self.client.publish(topic+"/meta", head)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
                     ## 'Add' is a string containing dict info like: 
                     ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
                     add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
-                    self.client.publish(topic+"/dict", add)
+                    self.client.publish(topic+"/dict", add, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0            

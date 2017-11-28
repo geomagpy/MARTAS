@@ -63,6 +63,13 @@ if onewire:
             #print (self.existinglist)
             #print (self.count)
 
+            # QOS
+            self.qos=int(confdict.get('mqttqos',0))
+            if not self.qos in [0,1,2]:
+                self.qos = 0
+            log.msg("  -> setting QOS:", self.qos)
+
+
         def GetOneWireSensorList(self, existinglist=[]):
             try:
                 self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
@@ -183,14 +190,14 @@ if onewire:
                     senddata = True
 
                 if senddata:
-                    self.client.publish(topic+"/data", data)
+                    self.client.publish(topic+"/data", data, qos=self.qos)
                     if self.count[idx] == 0:
                         ## 'Add' is a string containing dict info like: 
                         ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
                         add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( line.get('sensorid',''),self.confdict.get('station',''),line.get('pierid',''),line.get('protocol',''),line.get('sensorgroup',''),line.get('sensordesc',''),line.get('ptime','') )
                         #print ("...", add)
-                        self.client.publish(topic+"/dict", add)
-                        self.client.publish(topic+"/meta", head)
+                        self.client.publish(topic+"/dict", add, qos=self.qos)
+                        self.client.publish(topic+"/meta", head, qos=self.qos)
                     self.count[idx] += 1
                     if self.count[idx] >= self.metacnt:
                         self.count[idx] = 0

@@ -183,11 +183,13 @@ def interprete_data(payload, ident, stream, sensorid):
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
+    #qos = 1
+    print("Setting QOS (Quality of Service): {}".format(qos))
     if str(rc) == '0':
         print ("Everything fine - continuing")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
     substring = stationid+'/#'
-    client.subscribe(substring)
+    client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
     global verifiedlocation
@@ -197,6 +199,7 @@ def on_message(client, userdata, msg):
     metacheck = identifier.get(sensorid+':packingcode','')
     if msg.topic.endswith('meta') and metacheck == '':
         print ("Found basic header:{}".format(str(msg.payload)))
+        print ("Quality od Service (QOS):{}".format(str(msg.qos)))
         analyse_meta(str(msg.payload),sensorid)
         if not sensorid in headdict:
             headdict[sensorid] = msg.payload
@@ -314,6 +317,8 @@ def main(argv):
     dbcred=''
     global stationid
     stationid = 'wic'
+    global qos
+    qos=0
     global debug
     debug = False
     global output
@@ -324,9 +329,9 @@ def main(argv):
     global dictcheck
     dictcheck = False
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:u",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","debug=",])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=",])
     except getopt.GetoptError:
         print('Check your options:')
         print(usagestring)
@@ -350,7 +355,8 @@ def main(argv):
             print('                               if d="file": provide path')
             print('                               if d="db": provide db credentials')
             print('                               if d="std.out": not used')
-            print('-c                             set mqtt communication credential keyword')            
+            print('-c                             set mqtt communication credential keyword')
+            print('-q                             set mqtt quality of service (default = 0)')            
             print('-r                             set db credential keyword')            
             print('------------------------------------------------------')
             print('Examples:')
@@ -386,9 +392,16 @@ def main(argv):
             credentials = arg
         elif opt in ("-r", "--dbcred"):
             dbcred = arg
+        elif opt in ("-q", "--qos"):
+            try:
+                qos = int(arg)
+            except:
+                qos = 0
         elif opt in ("-u", "--debug"):
             debug = True
 
+    if not qos in [0,1,2]:
+        qos = 0
     if 'stringio' in destination:
         output = StringIO.StringIO()
     if 'file' in destination:
@@ -418,6 +431,11 @@ def main(argv):
         print ("------------------------------------")
         print ("Destination", destination, location)
     client = mqtt.Client()
+
+    # Authentication part
+    #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
+    #client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
+
     client.on_connect = on_connect
 
     # on message needs: stationid, destination, location

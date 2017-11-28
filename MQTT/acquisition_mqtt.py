@@ -283,9 +283,18 @@ if __name__ == '__main__':
         log.msg("----------------")
         log.msg("Sensor and Mode:", sensor.get('sensorid'), sensor.get('mode'))
         log.msg("----------------")
-        log.msg(" - Initialization:", sensor.get('init'))
-        # if init:
-        #     SendInit(confdict,sensordict) and run commands
+        init = sensor.get('init')
+        if not init in ['','None',None,0,'-']:
+            log.msg("  - Initialization using {}".format(init))
+            initdir = conf.get('initdir')
+            initapp = os.path.join(initdir,init)
+            # Check if provided initscript is existing
+            import subprocess
+            try:
+                log.msg("  - running initialization .{}".format(initapp))
+                log.msg(subprocess.check_output(['sh',initapp]))
+            except subprocess.CalledProcessError as e:
+                log.msg("  - init command '{}' returned with error (code {}): {}".format(e.cmd, e.returncode, e.output))
         if sensor.get('mode') in ['p','passive','Passive','P']:
             try:
                 connected = PassiveThread(conf,sensor,client,establishedconnections)
