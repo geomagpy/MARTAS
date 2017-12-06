@@ -1,0 +1,25 @@
+http://blog.hekkers.net/2012/10/13/realtime-data-with-mqtt-node-js-mqtt-js-and-socket-io/
+
+
+1. Install node.js: sudo apt-get install nodejs
+2. Install nodes package manager: sudo apt-get install npm
+(3. Install mqtt: npm install mqtt --save)
+4. Install socket.io: npm install socket.io
+
+-- get error massaged when starting pusher.js
+
+node pusher.js
+
+node --harmony pusher.js
+
+
+
+
+# To solve the problems update to latest stable...
+
+    sudo npm clean -f
+
+    sudo npm install -g n
+
+    sudo n stable
+

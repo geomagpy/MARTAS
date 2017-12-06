@@ -1,0 +1,42 @@
+<h1>Real Time</h1>
+<script type="text/javascript" src="/home/leon/node_modules/socket.io/node_modules/socket.io-client/dist/socket.io.slim.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script type="text/javascript">
+    var socket = io.connect('http://localhost:5000');
+    var sensorlist = [];
+    
+    socket.on('connect', function () {
+        socket.on('mqtt', function (msg) {
+                var elmarr=msg.topic.split("/");
+                var elm=elmarr[1];
+                var typ=elmarr[2];
+                if (typ=='meta') {
+                    if (sensorlist.indexOf(elm) < 0) {
+                        sensorlist.push(elm);
+                        console.log(sensorlist);
+                        };
+                    };
+                if (typ=='data') {
+                    console.log(msg.payload);
+                    };
+                if (typ=='dict') {
+                    console.log("Hello");
+                    };
+                //console.log(msg.topic+' '+msg.payload);
+                $('#'.concat(elm)).html(msg.payload);
+            });
+        socket.emit('subscribe',{topic:'wic/#'});
+        //socket.emit('subscribe',{topic:'wic/+/data'});
+    });
+</script>
+<table class="tablegv" style="width: 500px;">
+<tbody>
+<tr class="tablegvHeader">
+<td colspan="2"><center>Status</center></td>
+</tr>
+<tr>
+<td>Return temp</td>
+<td id="ENV05_2_0001"></td>
+</tr>
+</tbody>
+</table>
