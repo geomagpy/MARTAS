@@ -235,12 +235,13 @@ def main(argv):
     active_count = 0
     martasfile = 'martas.cfg'
     cred = ''
+    pwd = 'None'
 
     ##  Get eventually provided options
     ##  ----------------------------
     usagestring = 'acquisition.py -m <martas> -c <credentials> -P <password>'
     try:
-        opts, args = getopt.getopt(argv,"hm:s:c:P:U",["martas=","sensors=","credentials=","password=","debug=",])
+        opts, args = getopt.getopt(argv,"hm:c:P:U",["martas=","credentials=","password=","debug=",])
     except getopt.GetoptError:
         print('Check your options:')
         print(usagestring)
@@ -256,6 +257,7 @@ def main(argv):
             print('-h                             help')
             print('-m                             path to martas configuration')
             print('-c                             credentials, if authentication is used')
+            print('-P                             alternatively provide password')
             print('------------------------------------------------------')
             print('Examples:')
             print('1. Basic (using defauilt martas.cfg')
@@ -267,6 +269,8 @@ def main(argv):
             martasfile = arg
         elif opt in ("-c", "--credentials"):
             cred = arg
+        elif opt in ("-P", "--password"):
+            pwd = arg
 
 
     ##  Load defaults dict
@@ -289,10 +293,12 @@ def main(argv):
     if not user in ['','-',None,'None']:
         # Should have two possibilities:
         # 1. check whether credentials are provided
-        # 2. request pwd input
-        print ('MQTT Authentication required for User {}:'.format(user))
-        import getpass
-        pwd = getpass.getpass()
+        if pwd == 'None':
+            # 2. request pwd input
+            print ('MQTT Authentication required for User {}:'.format(user))
+            import getpass
+            pwd = getpass.getpass()
+
         client.username_pw_set(username=user,password=pwd)
 
     ##  Start Twisted logging system
