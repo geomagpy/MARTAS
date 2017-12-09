@@ -187,6 +187,8 @@ def on_connect(client, userdata, flags, rc):
     print("Setting QOS (Quality of Service): {}".format(qos))
     if str(rc) == '0':
         print ("Everything fine - continuing")
+    elif str(rc) == '5':
+        print ("Broker eventually requires authentication - use options -u and -P")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
     substring = stationid+'/#'
     client.subscribe(substring,qos=qos)
@@ -307,6 +309,8 @@ def main(argv):
     #broker = '192.168.0.14'
     port = 1883
     timeout=60
+    user = ''
+    password = ''
     global destination
     destination='stdout'
     global location
@@ -329,9 +333,9 @@ def main(argv):
     global dictcheck
     dictcheck = False
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=",])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=",])
     except getopt.GetoptError:
         print('Check your options:')
         print(usagestring)
@@ -397,7 +401,11 @@ def main(argv):
                 qos = int(arg)
             except:
                 qos = 0
-        elif opt in ("-u", "--debug"):
+        elif opt in ("-u", "--user"):
+            user = arg
+        elif opt in ("-P", "--password"):
+            password = arg
+        elif opt in ("-U", "--debug"):
             debug = True
 
     if not qos in [0,1,2]:
@@ -433,8 +441,9 @@ def main(argv):
     client = mqtt.Client()
 
     # Authentication part
-    #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
-    #client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
+    if not user in ['',None,'None','-']: 
+        #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
+        client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
 
     client.on_connect = on_connect
 

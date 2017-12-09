@@ -41,16 +41,21 @@ MINI TO-DO:
 
 All necessary files are found within the MARTAS directory 
 	SYSTEMNAME:  			(e.g. RASPBERRYONE, CERES) contains a description of the system and a history of changes made to it
-        acquisition_mqtt.py:			the main program for data aquisition (please open and modify user specific variables according to your requirements)
-        index.html:			HTML script for visualization - accessed by localhost:8080 
-	README.md:			You are here.
-	sensors.cfg:			sensors confifuration information
-	martas.cfg:			basic MARTAS confifuration
+        acquisition_mqtt.py:		the main program
+
+        index.html:			HTML script for visualization - accessed by localhost:8080
+
+        README.md:			You are here.
+        sensors.cfg:			sensors configuration information
+        martas.cfg:			basic MARTAS confifuration
+
+        acquisition.py:                 should accept options (-s sensors.cfg, -m martas.cfg, -c cred)
+        collector.py:                   should accept options (-s sensors.cfg, -m martas.cfg, -c cred)
 
 	DataScripts/convert.py:		converts MARTAS binary buffer files to ascii
-	DataScripts/POS1-Start.py:	Necessary for initiating POS-1 Overhauzer sensors
 	DataScripts/senddata.py:	Send data from MARTAS to any other machine using cron/scheduler
-	DataScripts/gsm-init.py:	Necessary for initiating GSM90 Overhauzer sensors
+
+
 	DataScripts/palmacq-init.py:	Necessary for initiating PALMAQ/OBSDAC 
                                                - specifications in commands.txt
 	DataScripts/commands.txt:	Commands for initiating PALMAQ/OBSDAC 
@@ -64,11 +69,8 @@ All necessary files are found within the MARTAS directory
 	OldVersions/...:		Folder for storage of old SYSTEMNAME log files
 
 	UtilityScripts/addcred.py:	run to add protected credentials to be used e.g. by data sending protocol
-	UtilityScripts/checklog.sh:     check for changes to log files and send them to server
 	UtilityScripts/cleanup.sh:      remove buffer files older than a definite period
-	UtilityScripts/martas.conf:     to be run at boot time using upstart (alternative to martas.sh)
 	UtilityScripts/martas.sh:	to be run at boot time for starting the acquisition
-	UtilityScripts/scp_log.py:      helper method for checklog
 	UtilityScripts/sendip.py:	Helper for checking and sending (via ftp) public IP
 
  	WebScripts/autobahn.min.js:	required for index.html 
@@ -81,46 +83,33 @@ All necessary files are found within the MARTAS directory
 	
 
 # -------------------------------------------------------------------
-3. Setting up the system
+3. Running the acquisition module
 # -------------------------------------------------------------------
 
-3.1 REQUIRED modifications:
+3.1 Basic setup:
 ###########################
 
-a) Edit MARTAS/sensors.txt to contain all required sensor info.
-The SENSORPORT code will be found under /dev/tty***.
-Use following format (data separated by TABS):
+a) Modify MARTAS/martas.cfg
 
-# -------------------------------------------------------------
-# Read data of sensors attached to PC:
-# 
-# "Sensors.txt" should have the following format:
-# SENSORNAME	SENSORPORT	SENSORBAUDRATE
-# e.g:
-# LEMI036_1_0001	USB0	57600
-# POS1_N432_0001	S0	9600
-# ARDUINO		ACM0	9600
-# OW			-	-
-#
-# Notes: OneWire devices do not need this data, all others do.
-# -------------------------------------------------------------
-
-b) Edit the SYSTEMNAME file and rename to own system name:
-Insert system information and keep it.
-
-c) Edit acquisition.py:
-Edit the user specific information and paths (beginning at line 53)
-
-d) Edit index.html:
-Insert the name of your martas client in:
-	var client = 'my_martas_name' 
-
-e) Edit martas.conf (and/or martas.sh):
-Paths need to be adjusted.
+b) Modify MARTAS/sensors.cfg
 
 
-3.2 STARTING the acquisition sytem
+3.2 Running the acquisition sytem
 ##################################
+
+
+a) Command line
+
+        python acquisition.py
+
+    acquisition.py automatically chooses cfg files from the same directory. You can use other parameter
+    files using:
+
+        python acquisition.py -m /home/myuser/MARTAS/martas.cfg -s /home/myuser/MARTAS/mysensors.cfg
+
+b) Autostart
+
+    check out the example startscript 'martas.sh' in folder UtilityScripts
 
 OPTION 1 - recommended - Using a bootscript (e.g. debian, rasbian, ubuntu etc)
 	$ sudo cp martas.sh /etc/init.d/martas
@@ -130,16 +119,6 @@ OPTION 1 - recommended - Using a bootscript (e.g. debian, rasbian, ubuntu etc)
 
 To remove:
 	$ sudo update-rc.d -f  martas remove
-
-OPTION 2 - Using startup (e.g. ubuntu)
-	$ sudo cp martas.conf /etc/init/
-	$ sudo chmod 755 /etc/init/martas.conf
-	$ sudo chown root:root /etc/init.d/martas.conf
-	$ sudo service martas start  (restart, stop) (please note the sleep interval)
-
-To remove:
-	$ sudo rm /etc/init/martas.conf
-
 
 Starting up MARTAS:
 within ~/MARTAS do:
@@ -152,35 +131,77 @@ Edit the Utility scripts (cleanup and logfile applications) according to your ne
 
 a) Remove all data buffer files older then 100 days:
     - edit cleanup.sh. It should read:
-	find /srv/ws -name "*.bin" -ctime +100 -exec rm {} \;
+	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
     - edit crontab to schedule this job once a day
 	$ sudo crontab -e
 	Add this line (don't forget to modify the path):
 	15 0 * * * sh /home/mydir/MARTAS/UtilityScripts/cleanup.sh
 	# to run the job every day 15 minutes past midnight
 
-b) Upload log file to defined destination whenever it changes:
-    - change the paths in checklog.sh
-    - change the destination path and credentials in scp_log.py
-
-c) Get human readable data out of files:
+b) Get human readable data out of files:
     - OPTION 1: Use MagPy (see examples)
     - OPTION 2: Use the included convert.py routine. convert.py -h for a description of usage
 
-d) Poll for change of public IP (useful for WiFi/UMTS connection):
+c) Poll for change of public IP (useful for WiFi/UMTS connection):
     - edit paths in UtlityScripts/sendip.py to your own FTP server (if using)
     - Add call into crontab (as often as needed):
 	$ crontab -e
 	Something like this (for hourly polling):
 	1 */1 * * * python ~/MARTAS/UtilityScripts/sendip.py
 
-e) Activate logrotation
+d) Activate logrotation
     - edit /MARTAS/Logs/martas (check logrotate WIKI)
     - do (on ubuntu and most other Linux versions):
         sudo cp martas /etc/logrotate.d/
         sudo chmod 644 /etc/logrotate.d/martas
         sudo chown root:root /etc/logrotate.d/martas
 
+
+3.4 Enabling Authentication
+##########################
+
+BROKER:
+
+    Adding user/password:
+    ---------------------
+
+    Add a user and a password file to the MQTT broker (encrypted):
+
+        sudo mosquitto_passwd -c /etc/mosquitto/passwd myuser
+
+    The use
+
+        sudo nano /etc/mosquitto/conf.d/default.conf
+
+    This should open an empty file. Paste in the following:
+        allow_anonymous false
+        password_file /etc/mosquitto/passwd
+
+    Input the user into martas.cfg:
+
+        ...
+        mqttuser : myuser
+        ...
+
+    When running acquistion.py you will be asked to provide the mqtt password.
+
+    Alternative:
+        # Not yet included
+        # You can use addcred to add user and passwd to the magpy credentials
+        # is 'myuser' is found as credential name, the asociated passwd is automatically used 
+    
+    SSL:
+
+    Please note that securing the MQTT transmission is recommended.
+    This can be done as described here;
+    https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
+        # Not yet implemented
+
+COLLECTOR:
+
+    Run the collector with user option:
+
+        python collector.py -b brokeradress -u myuser -P mypassword
 
 # -------------------------------------------------------------------
 4. Customizing the WEB interface of the MARTAS client

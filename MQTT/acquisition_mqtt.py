@@ -73,36 +73,15 @@ if sys.platform == 'win32':
     win32eventreactor.install()
 # IMPORT TWISTED
 from twisted.internet import reactor
-print("Using Twisted reactor", reactor.__class__)
-print()
 from twisted.python import usage, log
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort
 
 import threading
+import sys, getopt
 
 from methodstobemovedtoacs import *
 
-"""
-import sys
-import time
-import os
-from datetime import datetime, timedelta
-import re
-import struct, binascii
-
-from twisted.python import usage, log
-from twisted.protocols.basic import LineReceiver
-from twisted.internet.serialport import SerialPort
-from twisted.internet import task
-from twisted.web.server import Site
-from twisted.web.static import File
-"""
-
-## Import libraries
-## -----------------------------------------------------------
-#from magpy.acquisition.gsm19protocol import GSM19Protocol
-# import all libraries here
 
 # ###################################################################
 # Default specifications and initialization parameters
@@ -110,6 +89,8 @@ from twisted.web.static import File
 
 now = datetime.utcnow()
 hostname = socket.gethostname()
+msgcount = 0
+
 
 SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1'] # should be provided by MagPy
 """
@@ -222,6 +203,13 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
 
 def onConnect(client, userdata, flags, rc):
     log.msg("Connected with result code " + str(rc))
+    global msgcount
+    if rc == 0 and msgcount < 4:
+        log.msg("Moving on...")
+    elif rc == 5 and msgcount < 4:
+        log.msg("Authetication required")
+    msgcount += 1 
+    # add a counter here with max logs
 
 def onMessage(client, userdata, message):
    # Decode the payload to get rid of the 'b' prefix and single quotes:
@@ -234,21 +222,78 @@ def onDisconnect(client, userdata, message):
 # MAIN PROGRAM
 #####################################################################
 
-if __name__ == '__main__':
-
+def main(argv):
     ##
     ## Run like: python acquisition.py --conf='/home/cobs/MARTAS/defaults.conf'
 
+    global now
+    global hostname
+    global msgcount
+    global SUPPORTED_PROTOCOLS
+
     passive_count = 0
     active_count = 0
+    martasfile = 'martas.cfg'
+    cred = ''
+
+    ##  Get eventually provided options
+    ##  ----------------------------
+    usagestring = 'acquisition.py -m <martas> -c <credentials> -P <password>'
+    try:
+        opts, args = getopt.getopt(argv,"hm:s:c:P:U",["martas=","sensors=","credentials=","password=","debug=",])
+    except getopt.GetoptError:
+        print('Check your options:')
+        print(usagestring)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print('------------------------------------------------------')
+            print('Usage:')
+            print(usagestring)
+            print('------------------------------------------------------')
+            print('Options:')
+            print('-h                             help')
+            print('-m                             path to martas configuration')
+            print('-c                             credentials, if authentication is used')
+            print('------------------------------------------------------')
+            print('Examples:')
+            print('1. Basic (using defauilt martas.cfg')
+            print('   python acquisition.py')
+            print('2. Using other configuration')
+            print('   python acquisition.py -m "/home/myuser/mymartas.cfg"')
+            sys.exit()
+        elif opt in ("-m", "--martas"):
+            martasfile = arg
+        elif opt in ("-c", "--credentials"):
+            cred = arg
+
 
     ##  Load defaults dict
     ##  ----------------------------
-    conf = GetConf('martas.cfg')
+    conf = GetConf(martasfile)
+    # Add a ceck routine here whether conf information was obtained
 
     broker = conf.get('broker')
     mqttport = int(conf.get('mqttport'))
     mqttdelay = int(conf.get('mqttdelay'))
+
+    ##  Get Sensor data
+    ##  ----------------------------
+    sensorlist = GetSensors(conf.get('sensorsconf'))
+
+    ## create MQTT client
+    ##  ----------------------------
+    client = mqtt.Client(clean_session=True)
+    user = conf.get('mqttuser','')
+    if not user in ['','-',None,'None']:
+        # Should have two possibilities:
+        # 1. check whether credentials are provided
+        # 2. request pwd input
+        print ('MQTT Authentication required for User {}:'.format(user))
+        import getpass
+        pwd = getpass.getpass()
+        client.username_pw_set(username=user,password=pwd)
 
     ##  Start Twisted logging system
     ##  ----------------------------
@@ -261,17 +306,9 @@ if __name__ == '__main__':
             log.startLogging(sys.stdout)
             print ("Could not open {}. Switching log to stdout.".format(conf['logging']))
 
-    ##  Get Sensor data
-    ##  ----------------------------
-    sensorlist = GetSensors(conf.get('sensorsconf'))
-    #print ("Configuration", conf)
-    #print ("-----------------------------------------")
-    #print ("Sensorlist", sensorlist)
-    #print ("-----------------------------------------")
 
-    ## create and connect to MQTT client
+    ## connect to MQTT client
     ##  ----------------------------
-    client = mqtt.Client(clean_session=True)
     client.on_connect = onConnect
     client.connect(broker, mqttport, mqttdelay)
     client.loop_start()
@@ -321,4 +358,7 @@ if __name__ == '__main__':
         log.msg("acquisition_mqtt: Starting reactor for passive sensors. Sending data now ...")
         reactor.run()
 
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
 
