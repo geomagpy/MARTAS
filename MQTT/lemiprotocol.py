@@ -26,66 +26,71 @@ CALLED BY:
         magpy.bin.acquisition
 '''
 from __future__ import print_function
+from __future__ import absolute_import
 
-import sys, time, os, socket
-import sys, time, os, socket
-import struct, binascii, re, csv
+
+# ###################################################################
+# Import packages
+# ###################################################################
+
+import re     # for interpretation of lines
+import struct # for binary representation
+import socket # for hostname identification
+import string # for ascii selection
+import numpy as np
 from datetime import datetime, timedelta
-
-# Twisted
 from twisted.protocols.basic import LineReceiver
-from twisted.internet import reactor
-from twisted.python import usage, log
-from twisted.internet.serialport import SerialPort
-from twisted.web.server import Site
-from twisted.web.static import File
+from twisted.python import log
+from magpy.acquisition import acquisitionsupport as acs
 
-try: # version > 0.8.0
-    from autobahn.wamp1.protocol import exportRpc
-except:
-    from autobahn.wamp import exportRpc
+#import sys, time, os
+#import binascii, csv
 
 
-## Lemi protocol
+## Lemi protocol (Lemi025 and Lemi036)
 ## -------------
 
 class LemiProtocol(LineReceiver):
-
-    ## need a reference to our WS-MCU gateway factory to dispatch PubSub events
-    ##
-    def __init__(self, wsMcuFactory, sensor, soltag, outputdir):
-        self.wsMcuFactory = wsMcuFactory
-        self.sensor = sensor
-        self.buffer = ''
-        self.soltag = soltag    # Start-of-line-tag
+    """
+    Protocol to read GSM90 data
+    This protocol defines the individual sensor related read process. 
+    It is used to dipatch url links containing specific data.
+    Sensor specific coding is contained in method "processData".
+    """
+    def __init__(self, client, sensordict, confdict):
+        """
+        'client' could be used to switch between different publishing protocols
+                 (e.g. MQTT or WS-MCU gateway factory) to publish events
+        'sensordict' contains a dictionary with all sensor relevant data (sensors.cfg)
+        'confdict' contains a dictionary with general configuration parameters (martas.cfg)
+        """
+        print ("Initializing LEMI")
+        self.client = client
+        self.sensordict = sensordict    
+        self.confdict = confdict
+        self.count = 0  ## counter for sending header information
+        self.sensor = sensordict.get('sensorid')
         self.hostname = socket.gethostname()
-        self.outputdir = outputdir
+        self.printable = set(string.printable)
+        self.datalst = []
+        self.datacnt = 0
+        self.metacnt = 10
+
+        # LEMI Specific        
+        self.soltag = soltag    # Start-of-line-tag
+        self.errorcnt = {'gps':'A', 'time':'0', 'buffer':0}
+        self.buffer = ''
         self.gpsstate1 = 'A'
         self.gpsstate2 = 'P'
         self.gpsstatelst = []
         flag = 0
 
-    @exportRpc("control-led")
-    def controlLed(self, status):
-        if status:
-            print("turn on LED")
-            self.transport.write('1')
-        else:
-            print("turn off LED")
-            self.transport.write('0')
-
-
-    @exportRpc("send-command")
-    def sendCommand(self, command):
-        if not command == "":
-            print(command)
-            #self.transport.write(command)
-
     def connectionMade(self):
-        log.msg('%s connected.' % self.sensor)
+        log.msg('  -> {} connected.'.format(self.sensor))
 
-    def connectionLost(self):
-        log.msg('LEMI connection lost. Perform steps to restart it!')
+    def connectionLost(self, reason):
+        log.msg('  -> {} lost.'.format(self.sensor))
+
 
     def h2d(self,x):
         '''
@@ -95,26 +100,6 @@ class LemiProtocol(LineReceiver):
 
         y = int(x/16)*10 + x%16
         return y
-
-    def _timeToArray(self,timestring):
-        '''
-        Converts time string of format 2013-12-12T23:12:23.122324
-        to an array similiar to a datetime object
-        '''
-
-        try:
-            splittedfull = timestring.split(' ')
-            splittedday = splittedfull[0].split('-')
-            splittedsec = splittedfull[1].split('.')
-            splittedtime = splittedsec[0].split(':')
-            datearray = splittedday + splittedtime
-            datearray.append(splittedsec[1])
-            datearray = map(int,datearray)
-            return datearray
-        except:
-            log.msg('Error while extracting time array')
-            return []
-
 
     def processLemiData(self, data):
         """Convert raw ADC counts into SI units as per datasheets"""
@@ -218,11 +203,16 @@ class LemiProtocol(LineReceiver):
         except:
             log.err('LEMI - Protocol: Error assigning "evt" values.')
 
-        return evt1,evt3,evt4,evt11,evt12,evt13,evt31,evt32,evt60,evt99
+        return data_array, header
 
     def dataReceived(self, data):
-        #print "Lemi data here!", self.buffer
-        dispatch_url =  "http://example.com/"+self.hostname+"/lemi#"+self.sensor+"-value"
+        print "Lemi data here!", self.buffer
+
+        #print ("received a line", line)
+        topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        # extract only ascii characters 
+        #line = ''.join(filter(lambda x: x in string.printable, line))
+
         flag = 0
         WSflag = 0
         debug = False
@@ -242,11 +232,14 @@ class LemiProtocol(LineReceiver):
         """
 
         try:
+            # 1. Found correct data length
             if (self.buffer).startswith(self.soltag) and len(self.buffer) == 153:
                 currdata = self.buffer
                 self.buffer = ''
-                evt1,evt3,evt4,evt11,evt12,evt13,evt31,evt32,evt60,evt99 = self.processLemiData(currdata)
+                data, head = self.processLemiData(currdata)
                 WSflag = 2
+
+            # 2. Found incorrect data length
 
             ### Note: this code for fixing data is more complex than the POS fix code
             ### due to the LEMI device having a start code rather than an EOL code.
@@ -311,29 +304,32 @@ class LemiProtocol(LineReceiver):
 
         except:
             log.err('LEMI - Protocol: Error while parsing data.')
+            #Emtpying buffer
+            self.buffer = ''
 
-        ## publish event to all clients subscribed to topic
+        ## publish events to all clients subscribed to topic
         if WSflag == 2:
-            for ind, elem in enumerate(evt11):
-                t1 = evt1+timedelta(seconds=0.1*ind)
-                t2 = evt4+timedelta(seconds=0.1*ind)
-                #print t1, t2
-                evt1a = {'id': 1, 'value': datetime.strftime(t1,"%Y-%m-%d %H:%M:%S.%f")}
-                #evt3a = {'id': 1, 'value': datetime.strftime(t1,"%H:%M:%S.%f")}
-                evt4a = {'id': 4, 'value': datetime.strftime(t2,"%Y-%m-%d %H:%M:%S.%f")}
-                evt11a = {'id': 11, 'value': evt11[ind]}
-                evt12a = {'id': 12, 'value': evt12[ind]}
-                evt13a = {'id': 13, 'value': evt13[ind]}
-                try:
-                    self.wsMcuFactory.dispatch(dispatch_url, evt1a)
-                    #self.wsMcuFactory.dispatch(dispatch_url, evt3a)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt4a)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt11a)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt12a)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt13a)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt31)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt32)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt60)
-                    self.wsMcuFactory.dispatch(dispatch_url, evt99)
-                except:
-                    log.err('LEMI - Protocol: wsMcuFactory error while dispatching data.')
+
+            senddata = False
+            coll = int(self.sensordict.get('stack'))
+            if coll > 1:
+                self.metacnt = 1 # send meta data with every block
+                if self.datacnt < coll:
+                    self.datalst.append(data)
+                    self.datacnt += 1
+                else:
+                    senddata = True
+                    data = ';'.join(self.datalst)
+                    self.datalst = []
+                    self.datacnt = 0
+            else:
+                senddata = True
+
+            if senddata:
+                self.client.publish(topic+"/data", data)
+                if self.count == 0:
+                    self.client.publish(topic+"/meta", head)
+                self.count += 1
+                if self.count >= self.metacnt:
+                    self.count = 0
+
