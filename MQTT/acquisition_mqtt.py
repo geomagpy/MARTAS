@@ -236,6 +236,8 @@ def main(argv):
     active_count = 0
     martasfile = 'martas.cfg'
     cred = ''
+    creduser = ''
+    credhost = ''
     pwd = 'None'
 
     ##  Get eventually provided options
