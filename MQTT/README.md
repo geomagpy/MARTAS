@@ -29,11 +29,70 @@ MINI TO-DO:
 # -------------------------------------------------------------------
 1. Installation requirements
 # -------------------------------------------------------------------
-	Required packages:
-	- Geomagpy >= 0.3.97 (and its requirements)
-		python = 2.7.x, Matplotlib >= 1.0.0, SciPy, NumPy
-                optional: spacepy >= 1.3
 
+All installation instructions assume a linux (debian-like) system.
+Although MARTAS is platform independent, it is currently only tested and used
+on debian like LINUX systems. 
+
+    Required packages:
+    - Geomagpy >= 0.3.97 (and its requirements)
+        sudo pip install geomagpy
+    - mosquitto (MQTT client)
+        sudo apt-get install mosquitto mosquitto-clients
+    - paho-mqtt (MQTT python)
+        sudo pip install paho-mqtt
+
+1.1 Cloning MARTAS:
+###########################
+
+Get all neccessary MARTAS files by one of the following techniques:
+a) clone the MARTAS repository to your local hard disk (requires git)
+
+        user@home:~$ git clone https://github.com/geomagpy/MARTAS.git
+
+b) download the MARTAS archive and unpack it  
+
+        user@home:~$ wget ...
+        user@home:~$ tar -zxvf martas.tar.gz
+        
+
+1.2 MQTT installation:
+###########################
+
+MARTAS makes use of certain IOT protocols for real-time data transfer.
+Currently supported are WAMP (decrepated) and MQTT. In the following you will find some instructions
+on how to get MQTT running on your acquisition machine.
+
+You only need to install the required packages as listed above. Thats it.
+
+
+1.3 Authentication:
+###########################
+
+Authentication and secure data communication are supported by MARTAS. In order to enable
+authentication and SSL encryption for accessing data streams from your acquisition machine please check the following web page:
+https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
+
+For quickly enabling authentication you can also use the following instructions (without ssl encrytion of data transfer): 
+
+    Adding user/password:
+    ---------------------
+
+    Add a user and a password file to the MQTT broker (is encrypted):
+
+        user@home:~$ sudo mosquitto_passwd -c /etc/mosquitto/passwd myuser
+
+    Then use command
+
+        user@home:~$ sudo nano /etc/mosquitto/conf.d/default.conf
+
+    to open an empty file. 
+
+    Paste in the following:
+        allow_anonymous false
+        password_file /etc/mosquitto/passwd
+
+Thats it. How to use credentials in MARTAS is described in section 3.4.
 
 # -------------------------------------------------------------------
 2. Strucure/Files in home directory of MARTAS user
@@ -91,6 +150,8 @@ All necessary files are found within the MARTAS directory
 
 a) Modify MARTAS/martas.cfg
 
+   - please note that the path to sensors.cfg is defined within this file
+
 b) Modify MARTAS/sensors.cfg
 
 
@@ -100,12 +161,12 @@ b) Modify MARTAS/sensors.cfg
 
 a) Command line
 
-        python acquisition.py
+        user@home:~$ python acquisition.py
 
     acquisition.py automatically chooses cfg files from the same directory. You can use other parameter
     files using:
 
-        python acquisition.py -m /home/myuser/MARTAS/martas.cfg -s /home/myuser/MARTAS/mysensors.cfg
+        user@home:~$ python acquisition.py -m /home/myuser/MARTAS/martas.cfg
 
 b) Autostart
 
@@ -162,40 +223,37 @@ d) Activate logrotation
 
 BROKER:
 
-    Adding user/password:
-    ---------------------
-
-    Add a user and a password file to the MQTT broker (encrypted):
-
-        sudo mosquitto_passwd -c /etc/mosquitto/passwd myuser
-
-    The use
-
-        sudo nano /etc/mosquitto/conf.d/default.conf
-
-    This should open an empty file. Paste in the following:
-        allow_anonymous false
-        password_file /etc/mosquitto/passwd
-
-    Input the user into martas.cfg:
+    Input the user defined in 1.3 into martas.cfg:
 
         ...
         mqttuser : myuser
         ...
 
+    a)
     When running acquistion.py you will be asked to provide the mqtt password.
 
-    Alternative:
-        # Not yet included
-        # You can use addcred to add user and passwd to the magpy credentials
-        # is 'myuser' is found as credential name, the asociated passwd is automatically used 
-    
-    SSL:
+        user@home:~$ python acquisition_mqtt.py -m /home/cobs/martas.cfg
+        MQTT Authentication required for User cobs:
+        Password: 
 
-    Please note that securing the MQTT transmission is recommended.
-    This can be done as described here;
-    https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
-        # Not yet implemented
+    b)
+    or you provide it directly
+
+        user@home:~$ python acquisition_mqtt.py -m /home/cobs/martas.cfg -P mypasswd
+
+    c)
+    Alternative: You can use addcred.py (UtilityScripts) to add user and passwd to the magpy credentials
+    is 'myuser' is found as credential name, the asociated passwd is automatically used 
+
+        user@home:~$ python addcred.py -t transfer -c mqtt -u myuser -p mypasswd -a localhost
+    for super user:
+        user@home:~$ sudo python addcred.py -t transfer -c mqtt -u myuser -p mypasswd -a localhost
+
+    Then you can use 
+        user@home:~$ python acquisition_mqtt.py -m /home/cobs/martas.cfg -c mqtt
+    and avoid plain text usage of passwords anywhere on your system.
+
+    Please note: if you are using autostart/init scripts the alternative technqiue should be preferred
 
 COLLECTOR:
 

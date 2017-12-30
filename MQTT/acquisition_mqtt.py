@@ -52,6 +52,7 @@ from __future__ import absolute_import
 ## Import MagPy
 ## -----------------------------------------------------------
 from magpy.stream import *
+from magpy.opt import cred as mpcred
 
 ## Import support packages
 ## -----------------------------------------------------------
@@ -268,7 +269,14 @@ def main(argv):
         elif opt in ("-m", "--martas"):
             martasfile = arg
         elif opt in ("-c", "--credentials"):
-            cred = arg
+            try:
+                cred = arg
+                print ("Accessing credential information")
+                credhost = mpcred.lc(cred,'host')
+                creduser = mpcred.lc(cred,'user')
+                pwd = mpcred.lc(cred,'passwd')
+            except:
+                pass
         elif opt in ("-P", "--password"):
             pwd = arg
 
@@ -293,6 +301,10 @@ def main(argv):
     if not user in ['','-',None,'None']:
         # Should have two possibilities:
         # 1. check whether credentials are provided
+        if not cred == '':
+            if not creduser == user:
+                print ('User names provided in credentials and martas.cfg differ. Please check!')
+                pwd = 'None'
         if pwd == 'None':
             # 2. request pwd input
             print ('MQTT Authentication required for User {}:'.format(user))
