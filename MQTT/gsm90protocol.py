@@ -63,41 +63,53 @@ class GSM90Protocol(LineReceiver):
         filename = outdate
         sensorid = self.sensor
         packcode = '6hLLL6hL'
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,var1,sectime]', '[f,errorcode,internaltime]', '[nT,none,none]', '[1000,1,1]', packcode, struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,var1,sectime]', '[f,errorcode,internaltime]', '[nT,none,none]', '[1000,1,1]', packcode, struct.calcsize('<'+packcode))
 
         try:
             # Extract data
             # old data looks like 04-22-2015 142244  48464.53 99
-            data_array = data.strip().split()
-            if len(data_array) == 4:
-                intensity = float(data_array[2])
-                err_code = int(data_array[3])
+            data_array = data
+            if len(data) == 4:
+                intensity = float(data[2])
+                err_code = int(data[3])
                 try:
                     try:
-                        internal_t = datetime.strptime(data_array[0]+'T'+data_array[1], "%m-%d-%YT%H%M%S.%f")
+                        internal_t = datetime.strptime(data[0]+'T'+data[1], "%m-%d-%YT%H%M%S.%f")
                     except:
-                        internal_t = datetime.strptime(data_array[0]+'T'+data_array[1], "%m-%d-%YT%H%M%S")
+                        internal_t = datetime.strptime(data[0]+'T'+data[1], "%m-%d-%YT%H%M%S")
                     internal_time = datetime.strftime(internal_t, "%Y-%m-%d %H:%M:%S.%f")
                 except:
                     internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S.%f")
                 #print internal_time
+            elif len(data) == 3: # GSM v7.0
+                intensity = float(data[1])                
+                err_code = int(data[2])
+                try:
+                    internal_t = datetime.strptime(outdate+'T'+data[0], "%Y-%m-%dT%H%M%S.%f")
+                    internal_time = datetime.strftime(internal_t, "%Y-%m-%d %H:%M:%S.%f")
+                except:
+                    internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S.%f")
             else:
                 err_code = 0
-                intensity = float(data_array[0])
+                intensity = float(data[0])
                 internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S")
         except:
             log.err('{} protocol: Data formatting error. Data looks like: {}'.format(self.sensordict.get('protocol'),data))
 
         try:
             # Analyze time difference between GSM internal time and utc from PC
-            timediff = interal_t-currenttime
-            log.msg("timediff: {}".format(timediff))
-            #if timediff > threshold:
-            #    self.errorcnt.get('time') +=1
-            #    if self.errorcnt.get('time') < 3:
-            #        log.msg("timediff: {}".format(timediff))
-            #else:
-            #    self.errorcnt.get('time') = 0
+            timelist = sorted([internal_t,currenttime])
+            timediff = timelist[1]-timelist[0]
+            secdiff = timediff.seconds + timediff.microseconds/1E6
+            timethreshold = 3
+            if secdiff > timethreshold:
+                self.errorcnt['time'] +=1
+                if self.errorcnt.get('time') < 2:
+                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
+                    log.msg("{} protocol: switching to NTP time until timediff is smaller then 3 seconds.".format(self.sensordict.get('protocol')))
+                internal_time = timestamp
+            else:
+                self.errorcnt['time'] = 0 
         except:
             pass
 
@@ -137,15 +149,15 @@ class GSM90Protocol(LineReceiver):
         # extract only ascii characters 
         line = ''.join(filter(lambda x: x in string.printable, line))
 
-        #try:
         ok = True
-        if ok:
-            try:
-                data = line.split()
-                data, head = self.processData(data)
-            except:
-                print('{}: Data seems not be GSM90Data: Looks like {}'.format(self.sensordict.get('protocol'),line))
+        try:
+            data = line.split()
+            data, head = self.processData(data)
+        except:
+            print('{}: Data seems not be GSM90Data: Looks like {}'.format(self.sensordict.get('protocol'),line))
+            ok = False
 
+        if ok:
             senddata = False
             coll = int(self.sensordict.get('stack'))
             if coll > 1:
