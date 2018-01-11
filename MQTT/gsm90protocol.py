@@ -129,7 +129,7 @@ class GSM90Protocol(LineReceiver):
                 #print timestamp, internal_time
                 internalarray = acs.timeToArray(internal_time)
                 datearray.extend(internalarray)
-                data_bin = struct.pack(packcode,*datearray)
+                data_bin = struct.pack('<'+packcode,*datearray)
             except:
                 log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
 

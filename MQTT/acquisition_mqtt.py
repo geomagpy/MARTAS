@@ -79,7 +79,7 @@ from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort
 
 import threading
-import sys, getopt
+import sys, getopt, os
 
 from methodstobemovedtoacs import *
 
@@ -317,15 +317,21 @@ def main(argv):
 
     ##  Start Twisted logging system
     ##  ----------------------------
-    if conf['logging'] == 'sys.stdout':
+    if conf.get('logging').strip() == 'sys.stdout':
         log.startLogging(sys.stdout)
     else:
         try:
-            log.startLogging(open(conf['logging'],'a'))
+            print (" -- Logging to {}".format(conf.get('logging')))
+            log.startLogging(open(conf.get('logging'),'a'))
+            #logfile = os.path.join('/home','cobs','MARTAS','Logs','test.log')
+            #print (logfile)
+            #log.startLogging(open(logfile,'w'))
+            print ("Not yet working")
         except:
             log.startLogging(sys.stdout)
             print ("Could not open {}. Switching log to stdout.".format(conf['logging']))
 
+    log.msg("Continue")
 
     ## connect to MQTT client
     ##  ----------------------------
