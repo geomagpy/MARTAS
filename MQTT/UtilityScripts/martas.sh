@@ -21,6 +21,8 @@ PYTHONPATH='/home/cobs/anaconda2/bin/python'
 MARTASPATH='/home/cobs/MARTAS/MQTT/'
 # # The main acquisition program
 ACQUPROG='acquisition_mqtt.py'
+# # The main acquisition programs options
+ACQUOPT=''
 # # change delay (necessary for systemstart and proper restart)
 DELAY=30
 

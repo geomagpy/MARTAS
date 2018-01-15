@@ -273,8 +273,8 @@ def main(argv):
         elif opt in ("-c", "--credentials"):
             try:
                 cred = arg
-                print ("Accessing credential information")
-                credhost = mpcred.lc(cred,'host')
+                print ("Accessing credential information for {}".format(cred))
+                credhost = mpcred.lc(cred,'address')
                 creduser = mpcred.lc(cred,'user')
                 pwd = mpcred.lc(cred,'passwd')
             except:
