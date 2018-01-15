@@ -73,7 +73,7 @@ verifiedlocation = False
 destination = 'stdout'
 location = '/tmp'
 credentials = 'cred'
-stationid = 'wic'
+stationid = 'WIC'
 
 def append_file(path, array):
     # use data2file method
@@ -140,7 +140,7 @@ def create_head_dict(header,sensorid):
     head_dict['SensorRevision'] = sensl[2]
     head_dict['SensorKeys'] = ','.join(keylist)
     head_dict['SensorElements'] = ','.join(elemlist)
-    head_dict['StationID'] = stationid
+    head_dict['StationID'] = stationid.upper()
     # possible additional data in header (because in sensor.cfg)
     #head_dict['DataPier'] = ...
     #head_dict['SensorModule'] = ...
