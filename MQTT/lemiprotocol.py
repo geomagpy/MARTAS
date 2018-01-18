@@ -77,13 +77,15 @@ class LemiProtocol(LineReceiver):
         self.metacnt = 10
 
         # LEMI Specific        
-        self.soltag = soltag    # Start-of-line-tag
+        self.soltag = self.sensor[0]+self.sensor[4:7]    # Start-of-line-tag
         self.errorcnt = {'gps':'A', 'time':'0', 'buffer':0}
         self.buffer = ''
         self.gpsstate1 = 'A'
         self.gpsstate2 = 'P'
         self.gpsstatelst = []
         flag = 0
+        print ("Initializing LEMI finished")
+
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -206,12 +208,11 @@ class LemiProtocol(LineReceiver):
         return data_array, header
 
     def dataReceived(self, data):
-        print "Lemi data here!", self.buffer
 
-        #print ("received a line", line)
+        print ("HERE")
+        print ("Lemi data here!", self.buffer)
+
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        # extract only ascii characters 
-        #line = ''.join(filter(lambda x: x in string.printable, line))
 
         flag = 0
         WSflag = 0
