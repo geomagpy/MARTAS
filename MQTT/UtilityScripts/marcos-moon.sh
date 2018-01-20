@@ -23,8 +23,8 @@ MARCOSPATH="/home/cobs/MARCOS"
 IPBROKER="138.22.188.186"
 # # The main acquisition program
 COLLECTOR="collector.py"
-COLLECTOROPT="-b $IPBROKER -d db -r cobsdb"
-COLLECTORPROG="$COLLECTOR $COLLECTOROPT"
+COLLECTOROPT=" -b $IPBROKER -d db -r cobsdb"
+COLLECTORPROG="$COLLECTOR$COLLECTOROPT"
 # # change delay (necessary for systemstart and proper restart)
 DELAY=5
 

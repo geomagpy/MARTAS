@@ -17,10 +17,18 @@
 
 # # Define a python path if not using default python
 PYTHONPATH='/home/cobs/anaconda2/bin/python'
+
 # # Your Local Martas directory 
 MARTASPATH='/home/cobs/MARTAS/MQTT/'
+
 # # The main acquisition program
-ACQUPROG='acquisition_mqtt.py'
+# # Please consider the space before options if provided"
+ACQU="acquisition_mqtt.py"
+#ACQUOPT=""
+ACQUOPT=" -m /home/cobs/martas.cfg"
+PIDTEST="[a]cquisition_mqtt.py$ACQUOPT"
+ACQUPROG="$ACQU$ACQUOPT"
+
 # # change delay (necessary for systemstart and proper restart)
 DELAY=30
 
@@ -29,12 +37,12 @@ DELAY=30
 check_process()
 {
     # Check if the process is already running. Ignore grep line.
-    result=`ps aux | grep $ACQUPROG | grep -v grep | wc -l`
+    result=`ps aux | grep "$ACQUPROG" | grep -v grep | wc -l`
 }
 
 get_pid()
 {
-    pid=`ps -ef | awk '/[a]cquisition_mqtt.py/{print $2}'` 
+    pid=`ps -ef | awk -v pattern="$PIDTEST" '$0 ~ pattern{print $2}'`
 }
 
 # Carry out specific functions when asked to by the system
