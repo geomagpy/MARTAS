@@ -49,10 +49,14 @@ from __future__ import absolute_import
 # Import packages
 # ###################################################################
 
-## Import MagPy
+import threading
+import sys, getopt, os
+from datetime import datetime
+
+## Import MagPy packages
 ## -----------------------------------------------------------
-from magpy.stream import *
 from magpy.opt import cred as mpcred
+from magpy.acquisition import acquisitionsupport as acs
 
 ## Import support packages
 ## -----------------------------------------------------------
@@ -73,15 +77,11 @@ if sys.platform == 'win32':
     from twisted.internet import win32eventreactor
     win32eventreactor.install()
 # IMPORT TWISTED
+
 from twisted.internet import reactor
-from twisted.python import usage, log
+from twisted.python import log
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort
-
-import threading
-import sys, getopt, os
-
-from methodstobemovedtoacs import *
 
 
 # ###################################################################
@@ -101,8 +101,8 @@ ok		Ow	: active (group)	: environment
 ok		Arduino	: active (group)	: environment
 none		BM35	: active 		: environment
 current work	Lemi	: passive		: mag
-written (init missing)	GSM90	: passive (init)	: mag
--		POS1	: passive (init)	: mag
+ok      	GSM90	: passive (init)	: mag
+(test requ.)	POS1	: passive (init)	: mag
 written (time test missing)	GSM19	: passive 		: mag
 written 	Cs	: passive 		: mag
 -	   	PalmDac : passive		: mag
@@ -285,7 +285,7 @@ def main(argv):
 
     ##  Load defaults dict
     ##  ----------------------------
-    conf = GetConf(martasfile)
+    conf = acs.GetConf(martasfile)
     # Add a ceck routine here whether conf information was obtained
 
     broker = conf.get('broker')
@@ -294,7 +294,7 @@ def main(argv):
 
     ##  Get Sensor data
     ##  ----------------------------
-    sensorlist = GetSensors(conf.get('sensorsconf'))
+    sensorlist = acs.GetSensors(conf.get('sensorsconf'))
 
     ## create MQTT client
     ##  ----------------------------
@@ -323,15 +323,11 @@ def main(argv):
         try:
             print (" -- Logging to {}".format(conf.get('logging')))
             log.startLogging(open(conf.get('logging'),'a'))
-            #logfile = os.path.join('/home','cobs','MARTAS','Logs','test.log')
-            #print (logfile)
-            #log.startLogging(open(logfile,'w'))
-            print ("Not yet working")
+            log.msg("----------------")
+            log.msg("  -> Logging to {}".format(conf.get('logging')))
         except:
             log.startLogging(sys.stdout)
             print ("Could not open {}. Switching log to stdout.".format(conf['logging']))
-
-    log.msg("Continue")
 
     ## connect to MQTT client
     ##  ----------------------------
