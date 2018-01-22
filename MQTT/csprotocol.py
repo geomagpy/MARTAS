@@ -77,11 +77,13 @@ class CsProtocol(LineReceiver):
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
 
+        sensorid = self.sensor
         packcode = '6hLL'
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f]', '[f]', '[nT]', '[1000]', packcode, struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f]', '[f]', '[nT]', '[1000]', packcode, struct.calcsize('<'+packcode))
 
         try:
-            value = float(data[0].strip('$'))
+            intval = data[1].split(',')
+            value = float(intval[0].strip())
             if 10000 < value < 100000:
                 intensity = value
             else:
@@ -91,15 +93,11 @@ class CsProtocol(LineReceiver):
             intensity = 88888.0
 
         try:
-            datearray = asc.timeToArray(timestamp)
+            datearray = acs.timeToArray(timestamp)
             datearray.append(int(intensity*1000))
-            data_bin = struct.pack(packcode,*datearray)
+            data_bin = struct.pack('<'+packcode,*datearray)
         except:
             log.msg('Error while packing binary data')
-            pass
-
-        #return value every second
-        #if lastActualtime+timedelta(microseconds=999000) <= currenttime:   # Using ms instead of s accounts for only small errors, not all.
 
         if not self.confdict.get('bufferdirectory','') == '':
             acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
@@ -115,8 +113,11 @@ class CsProtocol(LineReceiver):
 
         try:
             data = line.split()
-            if len(data) == 3:
-                data, head = self.processData(data)
+            if len(data) == 2:
+                dataarray, head = self.processData(data)
+            elif len(data) == 1 and len(data.split(',')) == 2:
+                data = ['$',data]
+                dataarray, head = self.processData(data)
             else:
                 log.msg('{}: Data seems not be appropriate data. Received data looks like: {}'.format(self.sensordict.get('protocol'),line))
 
@@ -125,18 +126,19 @@ class CsProtocol(LineReceiver):
             if coll > 1:
                 self.metacnt = 1 # send meta data with every block
                 if self.datacnt < coll:
-                    self.datalst.append(data)
+                    self.datalst.append(dataarray)
                     self.datacnt += 1
                 else:
                     senddata = True
-                    data = ';'.join(self.datalst)
+                    dataarray = ';'.join(self.datalst)
                     self.datalst = []
                     self.datacnt = 0
             else:
                 senddata = True
 
+            print ("Dataarray", dataarray, senddata, topic)
             if senddata:
-                self.client.publish(topic+"/data", data, qos=self.qos)
+                self.client.publish(topic+"/data", dataarray, qos=self.qos)
                 if self.count == 0:
                     self.client.publish(topic+"/meta", head, qos=self.qos)
                     ## 'Add' is a string containing dict info like: 

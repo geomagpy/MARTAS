@@ -93,7 +93,7 @@ hostname = socket.gethostname()
 msgcount = 0
 
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL'] # should be provided by MagPy
 """
 Protocol types:
 ok		Env 	: passive		: environment

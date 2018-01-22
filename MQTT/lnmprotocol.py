@@ -17,6 +17,7 @@ from magpy.acquisition import acquisitionsupport as acs
 
 import os
 
+COMMANDS=['01TR00002']
 
 """
 import sys, time, os, socket
@@ -64,6 +65,12 @@ class LnmProtocol(LineReceiver):
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
 
+        """
+        Required info:
+        - address (if several systems on one rs422)
+        - eol
+        - commands (to get data and meta)
+        """
         specific = True
         if specifc:
             self.source = source
@@ -82,9 +89,10 @@ class LnmProtocol(LineReceiver):
 
 
     # MOVE SEND COMMAND to acquisition support
+    def sendCommands(sensordict, commands):
     def sendCommands(self):
-        try:   
-            ser = serial.Serial(self.port, baudrate=self.baudrate , parity='N', bytesize=8, stopbits=1, timeout=10)
+        try:
+            ser = serial.Serial(sensordict.get('port'), baudrate=sensordict.get('baudrate'), parity=sensordict.get('parity'), bytesize=sensordict.get('bytesize'),  stopbits=sensordict.get('stopbits'), parity='N', bytesize=8, stopbits=1, timeout=10)
             #print 'Connection made.'
         except: 
             log.msg('SerialCall: Connection flopped.')

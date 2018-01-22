@@ -80,8 +80,8 @@ class GSM19Protocol(LineReceiver):
 
         try:
             # Extract data
-            data_array = data.strip().split()
-            #print "Data array", len(data_array)
+            #data_array = data.strip().split()
+            data_array = data
             if len(data_array) == 3:
                 typ = "valid"
             # add other types here

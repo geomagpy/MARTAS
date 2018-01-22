@@ -12,15 +12,17 @@ import string # for ascii selection
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
+
 from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
+import magpy.opt.cred as mpcred
 import magpy.database as mdb
 
-from methodstobemovedtoacs import *
+#from methodstobemovedtoacs import *
 
 
 
-## Arduino protocol
+## MySQL protocol
 ## --------------------
 
 class MySQLProtocol(object):
@@ -48,6 +50,8 @@ class MySQLProtocol(object):
         self.datacnt = 0
         self.metacnt = 10
 
+        print ("here")
+
         # switch on debug mode
         debugtest = confdict.get('debug')
         self.debug = False
@@ -62,7 +66,10 @@ class MySQLProtocol(object):
         if self.debug:
             log.msg("DEBUG - Running on board {}".format(self.board))
         # get existing sensors for the relevant board
-        self.existinglist = GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
+        print ("  -> MySQL assumes that database credentials are saved locally using magpy.cred with the same name as database")
+        db = mdb.mysql.connect(host="localhost",user=mpcred.lc(self.sensor,'user'),passwd=mpcred.lc(self.sensor,'passwd'),db=self.sensor)
+        print ("here")
+        sensorlist = self.GetDBSensorList(db, searchsql='')
         self.sensor = ''
 
         # none is verified when initializing
@@ -78,8 +85,10 @@ class MySQLProtocol(object):
         log.msg('  -> Database {} lost.'.format(self.db))
         # implement counter and add three reconnection events here
 
+
+    """
     def processMySQLData(self, sensorid, meta, data):
-        """Convert raw ADC counts into SI units as per datasheets"""
+        #Convert raw ADC counts into SI units as per datasheets
         currenttime = datetime.utcnow()
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
@@ -163,56 +172,110 @@ class MySQLProtocol(object):
 
         return headdict
 
-
     def getSensorInfo(self, line):
-        
-        log.msg("  -> Received unverified sensor information")
-        if self.debug:
-            log.msg("DEBUG -> Sensor information line looks like: {}".format(line))
         metadict = {}
-        try:
-            metaident = line.strip().split(':')
-            metanum = int(metaident[0].strip('M'))
-            meta = line[3:].strip().split(',')
-            for elem in meta:
-                el = elem.split(':')
-                metadict[el[0].strip()] = el[1].strip()
-        except:
-            log.err('  -> Could not interprete sensor information - skipping')
-            return {}
-
-        if not 'SensorRevsion' in metadict:
-            metadict['SensorRevision'] = '0001' # dummy value
-        if not 'SensorID' in metadict:
-            metadict['SensorID'] = '12345' # dummy value
-        if not 'SensorName' in metadict:
-            print("No Sensorname provided - aborting")
-            return {}
-        metadict['ID'] = metanum
         return metadict
+    """
 
 
-    def GetDBSensorList(self, line):
+    def GetDBSensorList(self, db, searchsql=''):
         """
          DESCRIPTION:
-             Will analysze data line and a list of existing IDs.
-             Please note: when initializing, then existing data will be taken from 
-             Arduino Block.  
-             - If ID is existing, this method will return its ID, sensorid, meta info
-               as used by process data, and data.
-             - If ID not yet existing: line will be scanned until all meta info is 
-               available. Method will return ID 0 and empty fields. 
-             - If meta info is coming: sensorids will be quickly checked against existing.
-               If not existing and not yet used - ID will be added to sensors.cfg and existing
-               If not existing but used so far - ID in file is wrong -> warning
-               If existing and ID check OK: continue
+             Will connect to data base and download all data id's satisfying 
+             searchsql and containing data less then 5*sampling rate old. 
 
         PARAMETER:
             existinglist: [list] [[1,2,...],['BM35_xxx_0001','SH75_xxx_0001',...]]
                           idnum is stored in sensordict['path'] (like ow)
         """
-        #existingpathlist = [line.get('path') for line in existinglist]
 
+        now = datetime.utcnow()
+
+        if not searchsql == '':
+            """
+            if searchsql is list:
+                for item in searchsql:
+                    if not sql.endswith("WHERE ") and not item == searchsql[-1]:
+                        sql = sql + " AND "
+                    sql = sql + item
+            else:
+                sql = sql + searchsql
+            """
+        print (self.sensordict.get('revision',''),self.sensordict.get('sensorgroup',''))
+        searchsql = 'DataID LIKE "%{}"'.format(self.sensordict.get('revision',''))
+
+        # Perfom search:
+        print (searchsql)
+        senslist1 = mdb.dbselect(db, 'SensorID', 'DATAINFO', searchsql)
+        print ("Found", senslist1)
+        """
+        searchsql = 'SensorGroup LIKE "%{}%"'.format(self.sensordict.get('sensorgroup',''))
+        senslist2 = mdb.dbselect(db, 'SensorID', 'SENSORS', searchsql)
+
+        senslist = list(set(senslist1).intersection(senslist2))
+        print (senslist)
+        """
+        senslist = senslist1
+
+        # Check tables for recent data:
+        for sens in senslist:
+            datatable = sens + "_" + self.sensordict.get('revision','')
+            lasttime = mdb.dbselect(db,'time',datatable,expert="ORDER BY time DESC LIMIT 1")
+            print (sens, lasttime)
+            try:
+                lt = datetime.strptime(lasttime[0],"%Y-%m-%d %H:%M:%S.%f")
+                print (now-lt)
+            except:
+                print ("No data table?")
+
+        # Check existing data
+        #print ("Exist", self.sensordict)
+
+        # Append sensors with recent data to sensordict if the sensor is either not already existing (also uncommented):
+        # send warning if data in existinglist but not found now.
+
+        for sens in senslist:
+            print (sens)
+            values = {}
+            values['sensorid'] = sens
+            values['protocol'] = 'MySQL'
+            values['port'] = '-'
+            cond = 'SensorID = "{}"'.format(sens)
+            vals = mdb.dbselect(db,'SensorName,SensorID,SensorSerialNum,SensorRevision,SensorGroup,SensorDescription','SENSORS',condition=cond)[0]
+            vals = ['-' if el==None else el for el in vals]
+            print (vals)
+            values['serialnumber'] = vals[2]
+            values['name'] = vals[0]
+            values['revision'] = vals[3]
+            values['pierid'] = 'fromPIERS'
+            values['ptime'] = 'NTP'
+            values['sensorgroup'] = vals[4]
+            values['sensordesc'] = vals[5].replace(',',';')
+
+            #SENSORELEMENTS =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','stack','protocol','name','serialnumber','revision','path','pierid','ptime','sensorgroup','sensordesc']
+
+            #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
+            #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='MySQL')
+
+            print (values)
+            """
+                        values['path'] = idnum
+                        values['stack'] = 0
+                        log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
+                        success = AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
+            """
+
+    def sendRequest(self):
+        log.msg("Sending periodic request ...")
+
+        # get self.sensorlist
+        # get last timestamps 
+        # read all data for each sensor since last timestamp
+        # send that and store last timestamp 
+
+    """
+        # Append sensors with recent data to sensordict if not existing and not uncommentet:
+        # send warning if data in existinglist but not found now.
         evdict = {}
         meta = 'not known'
         data = '1.0'
@@ -325,4 +388,4 @@ class MySQLProtocol(object):
                 if self.count >= self.metacnt:
                     self.count = 0
 
-
+    """
