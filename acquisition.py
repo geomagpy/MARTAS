@@ -1,26 +1,82 @@
+#!/usr/bin/env python
 """
-Main Acquisition routine of MARTAS: 
-Code from TAVENDO GmbH adepted by Roman Leonhardt and Rachel Bailey to be used in the Conrad Observatory.
-The main part remained unchanged. I added instrument specific parts for serial communictaion.
-The application is mainly based on twisted, autobahn and magpy modules. Please note that autobahn in the past frequently changed its module positions.
-Additional requirements:
-1) please change the user specific part acclording your system and attached instruments
-2) 
+Secondary acquisition routine of MARTAS: 
+MQTT protocol by Roman Leonhardt and Rachel Bailey to be used in the Conrad Observatory.
+
+How should it work:
+PURPOSE:
+acquisition_mqtt.py reads e.g. serial data and publishes that using the mqtt protocol.
+An "collector" e.g. MARCOS can subscribe to the "publisher" and access the data stream.
+
+REQUIREMENTS:
+1.) install a MQTT broker (e.g. ubuntu (< 16.04): 
+sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
+sudo apt-get update
+sudo apt-get install mosquitto mosquitto-clients)
+2.) Secure comm and authencation: https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
+
+METHODS:
+acquisition_mqtt.py contains the following methods:
+
+GetSensors: read a local definition file (sensors.txt) which contains information
+            on SensorID, Port, Bausrate (better Serial communication details), active/passive, 
+            init requirements, optional SensorDesc
+
+GetDefaults: read initialization file with local paths, publishing server, ports, etc.
+
+SendInit: send eventually necessary initialization data as defined in sensors.txt
+
+GetActive: Continuously obtain serial data from instrument and convert it to an binary 
+           information line to be published (using libraries)
+
+GetPassive: Send scheduled request to serial port to obtain serial data from instrument 
+            and convert it to an binary information line to be published (using libraries)
+
+1. how to convert incoming serial datalines to magpy.stream contents
+2. an eventual initialization protocol too be send to the serial port before
+3.  
+call method: defined here
+
 Usage:
 sudo python acquisition.py
 
 """
+
 from __future__ import print_function
 from __future__ import absolute_import
 
-# -------------------------------------------------------------------
-# Import software
-# -------------------------------------------------------------------
-import sys, time, os, socket
-from datetime import datetime, timedelta
-import re
-import struct, binascii
+# ###################################################################
+# Import packages
+# ###################################################################
+## Import MagPy
+## -----------------------------------------------------------
+local = True
+if local:
+    import sys
+    sys.path.insert(1,'/home/leon/Software/magpy-git/')
 
+
+import threading
+import sys, getopt, os
+from datetime import datetime
+
+## Import MagPy packages
+## -----------------------------------------------------------
+from magpy.opt import cred as mpcred
+from magpy.acquisition import acquisitionsupport as acs
+
+## Import support packages
+## -----------------------------------------------------------
+import socket
+from serial import PARITY_EVEN
+from serial import SEVENBITS
+
+## Import MQTT
+## -----------------------------------------------------------
+import paho.mqtt.client as mqtt
+
+## Import twisted for serial port communication and web server
+## -----------------------------------------------------------
 if sys.platform == 'win32':
     ## on windows, we need to use the following reactor for serial support
     ## http://twistedmatrix.com/trac/ticket/3802
@@ -28,269 +84,313 @@ if sys.platform == 'win32':
     from twisted.internet import win32eventreactor
     win32eventreactor.install()
 # IMPORT TWISTED
+
 from twisted.internet import reactor
-print("Using Twisted reactor", reactor.__class__)
-print()
-from twisted.python import usage, log
+from twisted.python import log
 from twisted.protocols.basic import LineReceiver
 from twisted.internet.serialport import SerialPort
-from twisted.internet import task
-from twisted.web.server import Site
-from twisted.web.static import File
-from autobahn import version as autobahnversion
-print("Autobahn Version: ", autobahnversion)
-try: # version > 0.8.0
-    from autobahn.wamp1.protocol import WampServerFactory, WampServerProtocol, exportRpc
-except:
-    from autobahn.wamp import WampServerFactory, WampServerProtocol, exportRpc
-try: # version > 0.7.0
-    from autobahn.twisted.websocket import listenWS
-except:
-    from autobahn.websocket import listenWS
 
-lastActualtime = datetime.utcnow() # required for cs output
+
+# ###################################################################
+# Default specifications and initialization parameters
+# ###################################################################
+
+now = datetime.utcnow()
 hostname = socket.gethostname()
-
-from serial import PARITY_EVEN
-from serial import SEVENBITS
-
-# ------------------------------------------------------------------------
-# User specific data
-# ------------------------------------------------------------------------
-
-# IMPORT EQUIPMENT-SPECIFIC PROTOCOLS
-# ########
-from magpy.acquisition.owprotocol import OwProtocol
-#from magpy.acquisition.arduinoprotocol import ArduinoProtocol
-#from palmacqprotocol import PalmAcqProtocol
-from magpy.acquisition.envprotocol import EnvProtocol
-from magpy.acquisition.gsm19protocol import GSM19Protocol
-from magpy.acquisition.gsm90protocol import GSM90Protocol
-from magpy.acquisition.lemiprotocol import LemiProtocol
-from magpy.acquisition.csprotocol import CsProtocol
-from magpy.acquisition.bm35protocol import BM35Protocol
-
-# Other possible protocals are: lemiprotocol, pos1protocol, envprotocol, csprotocol, gsm90protocol
-# SELECT DIRECTORY FOR BUFFER FILES
-outputdir = '/srv/ws'
-# SELECT DIRECTORY WITH SCRIPTS (usually the home dir of the MARTAS user)
-homedir = '/home/cobs'
-# WEBPORTS AND COMMUNICATION
-webport = 8080                  # Web port to use for embedded Web server
-wsurl = "ws://localhost:9100"   # WebSocket port to use for embedded WebSocket $
-# INSTRUMENT PORTS
-owport = 'u' 			# u for usb
-serialport = '/dev/tty' 	# dev/tty for linux like systems
-# ONEWIRE SPECIFIC
-timeoutow = 30.0		# Defining a measurement frequency in secs (should be >= amount of sensors connected)
-timeoutser = 60.0		# Defining a measurement frequency in secs (should be >= amount of sensors connected)
- 
-
-# -------------------------------------------------------------------
-# Read data of sensors attached to PC:
-# 
-# "Sensors.txt" should have the following format:
-# SENSORNAME	SENSORPORT	SENSORBAUDRATE
-# e.g:
-# LEMI036_1_0001	USB0	57600
-# POS1_N432_0001	S0	9600
-# ARDUINO		ACM0	9600     -> ARDUINO comm
-# SERIAL		S0	115200   -> for specific calls
-# OW			-	-
-#
-# Notes: OneWire devices do not need this data, all others do.
-# -------------------------------------------------------------------
-
-def GetSensors():
-    sensors = open(os.path.join(homedir,'MARTAS','sensors.txt'),'r')
-    sensordata = sensors.readlines()
-    sensorlist = []
-    baudratedict, portdict = {}, {}
-
-    for item in sensordata:
-        try:
-            if not item.startswith("#"):
-                bits = item.split()
-                sensorname = bits[0]
-                print ("Searching for", sensorname)
-                sensorlist.append(sensorname)
-                portdict[sensorname] = bits[1]
-                try:
-                    baudratedict[sensorname] = float(bits[2])
-                except:
-                    # no float, assuming ow
-                    baudratedict[sensorname] = 0.0
-        except:
-            # Possible issue - empty line
-            pass
-
-    print("Found", sensorlist, portdict, baudratedict)
-    return sensorlist, portdict, baudratedict
+msgcount = 0
 
 
-# -------------------------------------------------------------------
-# WS-MCU protocol:
-# -------------------------------------------------------------------
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL'] # should be provided by MagPy
+"""
+Protocol types:
+ok		Env 	: passive		: environment
+ok		Ow	: active (group)	: environment
+ok		Arduino	: active (group)	: environment
+none		BM35	: active 		: environment
+current work	Lemi	: passive		: mag
+ok      	GSM90	: passive (init)	: mag
+(test requ.)	POS1	: passive (init)	: mag
+written (time test missing)	GSM19	: passive 		: mag
+written 	Cs	: passive 		: mag
+-	   	PalmDac : passive		: mag
+current work	MySQL	: active (group)	: general db call
+-	        Active	: active		: general active call
+current work	CR1000	: active		: all
+"""
 
-class WsMcuProtocol(WampServerProtocol):
 
-    def onSessionOpen(self):
-        ## register topic prefix under which we will publish MCU measurements
-        ##
-        for sensor in sensorlist:
-            if sensor[:3].upper() == 'ENV': # Environmental Sensor 5
-        	self.registerForPubSub("http://example.com/"+hostname+"/env#", True)
-       		## register methods for RPC
-		## does not work in python 2.6.5 (fine in 2.7.3)
-       		if sys.version_info >= (2, 7):
-           	    self.registerForRpc(self.factory.envProtocol, "http://example.com/"+hostname+"/env-control#")
-       		    #else:
-       		    #    self.registerMethodForRpc("http://example.com/"+hostname+"/mcu-control#",self.factory.mcuProtocol,McuProtocol.add)
-	    elif sensor[:3].upper() == 'KER': # Kern balance
-       		self.registerForPubSub("http://example.com/"+hostname+"/kern#", True)
-	    elif sensor[:3].upper() == 'ARD': # Arduino board
-       		self.registerForPubSub("http://example.com/"+hostname+"/ard#", True)
-            elif sensor[:3].upper() == 'PAL': # PalmAcq
-                self.registerForPubSub("http://example.com/"+hostname+"/pal#", True)
-	    elif sensor[:3].upper() == 'LEM': # Lemi Sensor
-       		self.registerForPubSub("http://example.com/"+hostname+"/lemi#", True)
-	    elif sensor[:2].upper() == 'OW': # OW Sensor
-       		self.registerForPubSub("http://example.com/"+hostname+"/ow#", True) 
-	    elif sensor[:3].upper() == 'POS': # POS-1 Overhauzer Sensor
-       		self.registerForPubSub("http://example.com/"+hostname+"/pos1#", True)
-	    elif sensor[:3].upper() == 'G82': # GSM CS Sensor
-       		self.registerForPubSub("http://example.com/"+hostname+"/cs#", True) 
-	    elif sensor[:3].upper() == 'SER': # standard serial -- !!!!!!!!! DEFINE SENSOR SHORTCUTS
-       		self.registerForPubSub("http://example.com/"+hostname+"/ser#", True) 
-       		#self.registerForPubSub("http://example.com/"+hostname+"/lnm#", True) 
-       		#self.registerForPubSub("http://example.com/"+hostname+"/ult#", True) 	    
-	    elif sensor[:3].upper() == 'GSM': # GEM Overhauzer Sensor (GSM90)
-	        self.registerForPubSub("http://example.com/"+hostname+"/gsm#", True)
-	    elif sensor[:3].upper() == 'G19': # GEM Overhauzer Sensor (GSM19)
-       		self.registerForPubSub("http://example.com/"+hostname+"/gsm#", True)
-            elif sensor[:3].upper() == 'BM3': # BM35 Barometer
-                self.registerForPubSub("http://example.com/"+hostname+"/bm3#", True)
-	    else:
-	        log.msg('Sensor type %s is not supported.' % (sensor))
+
+def SendInit(confdict,sensordict):
+    """
+    DESCRIPTION:
+    send eventually necessary initialization data as defined in sensors.conf
+    """
+    pass
+
+def do_every (interval, worker_func, iterations = 0):
+    if iterations != 1:
+        threading.Timer(interval,do_every, [interval, worker_func, 0 if iterations == 0 else iterations-1]).start ()
+    worker_func()
+
+def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
+    """
+    1. identify protocol from sensorid
+    2. Apply protocol (read serial and return data)
+    3. add data to Publish
+    -> do all that in while True
+    """
+
+    sensorid = sensordict.get('sensorid')
+    log.msg("Starting ActiveThread for {}".format(sensorid))
+    protocolname = sensordict.get('protocol')
+    log.msg("  -> Importing protocol {}".format(protocolname))
+
+    protlst = [activeconnections[key] for key in activeconnections]
+    amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
+    #amount = 1                           # Load existing connections (new amount is len(exist)+1)
+    if protocolname in SUPPORTED_PROTOCOLS:
+        importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        if confdict.get('debug') == 'True':
+            log.msg("DEBUG -> Importstring looks like: {}".format(importstr))
+
+        evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
+        exec importstr
+        protocol = eval(evalstr)
+        log.msg(evalstr)
+    else:
+        log.msg("  -> did not find protocol in SUPPORTED_PROTOCOL list")
+
+    log.msg("  -> Starting active thread ...")
+    proto = "{}Prot{}".format(protocolname,amount)
+
+    try:
+        rate = int(sensordict.get('rate'))
+    except:
+        log.msg("  -> did not find appropriate sampling rate - using 30 sec")
+        rate = 30
+
+    do_every(rate, protocol.sendRequest)
+
+    activeconnection = {sensorid: protocolname}
+    log.msg("  -> active connection established ... sampling every {} sec".format(rate)) 
+
+    return activeconnection
+
+def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
+    """
+    1. identify protocol from sensorid
+    2. Apply protocol (read serial and return data)
+    3. add data to Publish
+    -> do all that in while True
+    """
+    sensorid = sensordict.get('sensorid')
+    log.msg("Starting PassiveThread for {}".format(sensorid))
+    protocolname = sensordict.get('protocol')
+    log.msg("  -> Found protocol {}".format(protocolname))
+    protlst = [establishedconnections[key] for key in establishedconnections]
+    amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
+    #amount = 1                           # Load existing connections (new amount is len(exist)+1)
+    if protocolname in SUPPORTED_PROTOCOLS:
+        importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        if confdict.get('debug') == 'True':
+            log.msg("DEBUG  -> Importstring looks like: {}".format(importstr))
+        evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
+        exec(importstr)
+        protocol = eval(evalstr)
+
+    port = confdict['serialport']+sensordict.get('port')
+    log.msg("  -> Connecting to port {} ...".format(port)) 
+    serialPort = SerialPort(protocol, port, reactor, baudrate=int(sensordict.get('baudrate')))
+
+    passiveconnection = {sensorid: protocolname}
+    log.msg("  -> passive connection established") 
+
+    return passiveconnection
+
 
 # -------------------------------------------------------------------
-# WS-MCU factory
+# MQTT connect:
 # -------------------------------------------------------------------
 
-class WsMcuFactory(WampServerFactory):
+def onConnect(client, userdata, flags, rc):
+    log.msg("Connected with result code " + str(rc))
+    global msgcount
+    if rc == 0 and msgcount < 4:
+        log.msg("Moving on...")
+    elif rc == 5 and msgcount < 4:
+        log.msg("Authetication required")
+    msgcount += 1 
+    # add a counter here with max logs
 
-    protocol = WsMcuProtocol
-    def __init__(self, url):
-        WampServerFactory.__init__(self, url)
-        for sensor in sensorlist:
-            if sensor[:3].upper() == 'ENV':
-                self.envProtocol = EnvProtocol(self,sensor.strip(), outputdir)
-	    if sensor[:2].upper() == 'OW':
-	        self.owProtocol = OwProtocol(self,owport,outputdir)
-            if sensor[:3].upper() == 'POS':
-                self.pos1Protocol = Pos1Protocol(self,sensor.strip(), outputdir)
-            if sensor[:3].upper() == 'KER':
-                print("Test1:", sensor.strip)
-                self.kernProtocol = KernProtocol(self,sensor.strip(), outputdir)
-            if sensor[:3].upper() == 'ARD':
-                self.arduinoProtocol = ArduinoProtocol(self, sensor.strip(), outputdir)
-	    if sensor[:3].upper() == 'SER':
-                port = serialport+portdict[sensor]
-                baudrate = baudratedict[sensor]
-                self.callProtocol = CallProtocol(self,sensor.strip(), outputdir,port,baudrate)
-            if sensor[:3].upper() == 'PAL':
-                self.palmacqProtocol = PalmAcqProtocol(self, sensor.strip(), outputdir)
-            if sensor[:3].upper() == 'LEM':
-                self.lemiProtocol = LemiProtocol(self,sensor.strip(),sensor[0]+sensor[4:7], outputdir)
-	    if sensor[:3].upper() == 'G82':
-                self.csProtocol = CsProtocol(self,sensor.strip(), outputdir)
-	    if sensor[:3].upper() == 'GSM':
-       		self.gsm90Protocol = GSM90Protocol(self,sensor.strip(), outputdir)
-	    if sensor[:3].upper() == 'G19':
-       		self.gsm19Protocol = GSM19Protocol(self,sensor.strip(), outputdir)
-            if sensor[:3].upper() == 'BM3':
-                self.bm35Protocol = BM35Protocol(self,sensor.strip(), outputdir)
+def onMessage(client, userdata, message):
+   # Decode the payload to get rid of the 'b' prefix and single quotes:
+   log.msg('It is ' + str(message.payload.decode("utf-8")))
+
+def onDisconnect(client, userdata, message):
+   log.msg("Disconnected from the broker.")
 
 #####################################################################
 # MAIN PROGRAM
 #####################################################################
 
-if __name__ == '__main__':
+def main(argv):
+    ##
+    ## Run like: python acquisition.py --conf='/home/cobs/MARTAS/defaults.conf'
+
+    global now
+    global hostname
+    global msgcount
+    global SUPPORTED_PROTOCOLS
+
+    passive_count = 0
+    active_count = 0
+    martasfile = 'martas.cfg'
+    cred = ''
+    creduser = ''
+    credhost = ''
+    pwd = 'None'
+
+    ##  Get eventually provided options
+    ##  ----------------------------
+    usagestring = 'acquisition.py -m <martas> -c <credentials> -P <password>'
+    try:
+        opts, args = getopt.getopt(argv,"hm:c:P:U",["martas=","credentials=","password=","debug=",])
+    except getopt.GetoptError:
+        print('Check your options:')
+        print(usagestring)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print('------------------------------------------------------')
+            print('Usage:')
+            print(usagestring)
+            print('------------------------------------------------------')
+            print('Options:')
+            print('-h                             help')
+            print('-m                             path to martas configuration')
+            print('-c                             credentials, if authentication is used')
+            print('-P                             alternatively provide password')
+            print('------------------------------------------------------')
+            print('Examples:')
+            print('1. Basic (using defauilt martas.cfg')
+            print('   python acquisition.py')
+            print('2. Using other configuration')
+            print('   python acquisition.py -m "/home/myuser/mymartas.cfg"')
+            sys.exit()
+        elif opt in ("-m", "--martas"):
+            martasfile = arg
+        elif opt in ("-c", "--credentials"):
+            try:
+                cred = arg
+                print ("Accessing credential information for {}".format(cred))
+                credhost = mpcred.lc(cred,'address')
+                creduser = mpcred.lc(cred,'user')
+                pwd = mpcred.lc(cred,'passwd')
+            except:
+                pass
+        elif opt in ("-P", "--password"):
+            pwd = arg
 
 
-    sensorlist, portdict, baudratedict = GetSensors()
+    ##  Load defaults dict
+    ##  ----------------------------
+    conf = acs.GetConf(martasfile)
+    # Add a ceck routine here whether conf information was obtained
+
+    broker = conf.get('broker')
+    mqttport = int(conf.get('mqttport'))
+    mqttdelay = int(conf.get('mqttdelay'))
+
+    ##  Get Sensor data
+    ##  ----------------------------
+    sensorlist = acs.GetSensors(conf.get('sensorsconf'))
+
+    ## create MQTT client
+    ##  ----------------------------
+    client = mqtt.Client(clean_session=True)
+    user = conf.get('mqttuser','')
+    if not user in ['','-',None,'None']:
+        # Should have two possibilities:
+        # 1. check whether credentials are provided
+        if not cred == '':
+            if not creduser == user:
+                print ('User names provided in credentials and martas.cfg differ. Please check!')
+                pwd = 'None'
+        if pwd == 'None':
+            # 2. request pwd input
+            print ('MQTT Authentication required for User {}:'.format(user))
+            import getpass
+            pwd = getpass.getpass()
+
+        client.username_pw_set(username=user,password=pwd)
 
     ##  Start Twisted logging system
-    ##
-    #log.startLogging(sys.stdout)
-    logfile = os.path.join(homedir,'MARTAS','Logs','martas.log')
-    log.startLogging(open(logfile,'a'))
+    ##  ----------------------------
+    if conf.get('logging').strip() == 'sys.stdout':
+        log.startLogging(sys.stdout)
+    else:
+        try:
+            print (" -- Logging to {}".format(conf.get('logging')))
+            log.startLogging(open(conf.get('logging'),'a'))
+            log.msg("----------------")
+            log.msg("  -> Logging to {}".format(conf.get('logging')))
+        except:
+            log.startLogging(sys.stdout)
+            print ("Could not open {}. Switching log to stdout.".format(conf['logging']))
 
-    ## create Serial2Ws gateway factory
-    ##
-    wsMcuFactory = WsMcuFactory(wsurl)
-    listenWS(wsMcuFactory)
-   
-    ## create serial port and serial port protocol; modify this according to attached sensors
-    ##
+    ## connect to MQTT client
+    ##  ----------------------------
+    client.on_connect = onConnect
+    client.connect(broker, mqttport, mqttdelay)
+    client.loop_start()
+
+    establishedconnections = {}
+    ## Connect to serial port (sensor dependency) -> returns publish 
+    # Start subprocesses for each publishing protocol
     for sensor in sensorlist:
-	port = serialport+portdict[sensor]
-	baudrate = baudratedict[sensor]
-
-        if sensor[:3].upper() == 'LEM':
-	    protocol = wsMcuFactory.lemiProtocol
-        if sensor[:3].upper() == 'POS':
-	    protocol = wsMcuFactory.pos1Protocol
-        if sensor[:3].upper() == 'G82':
-	    protocol = wsMcuFactory.csProtocol
-        if sensor[:3].upper() == 'GSM':
-	    protocol = wsMcuFactory.gsm90Protocol
-        if sensor[:3].upper() == 'G19':
-	    protocol = wsMcuFactory.gsm19Protocol
-        if sensor[:3].upper() == 'ENV':
-	    protocol = wsMcuFactory.envProtocol
-        if sensor[:3].upper() == 'KER':
-	    protocol = wsMcuFactory.kernProtocol
-        if sensor[:3].upper() == 'ARD':
-	    protocol = wsMcuFactory.arduinoProtocol
-        if sensor[:3].upper() == 'PAL':
-            protocol = wsMcuFactory.palmacqProtocol
-        if sensor[:3].upper() == 'BM3':
-            protocol = wsMcuFactory.bm35Protocol
-
-        if sensor[:3].upper() == 'SER':
-	    try:
-	        log.msg('Serial Call: Initiating sensor and sending commands...')
-                # eventually define a command list
-                sprot = task.LoopingCall(wsMcuFactory.callProtocol.sendCommands)
-                sprot.start(timeoutser)
+        log.msg("----------------")
+        log.msg("Sensor and Mode:", sensor.get('sensorid'), sensor.get('mode'))
+        log.msg("----------------")
+        init = sensor.get('init')
+        if not init in ['','None',None,0,'-']:
+            log.msg("  - Initialization using {}".format(init))
+            initdir = conf.get('initdir')
+            initapp = os.path.join(initdir,init)
+            # Check if provided initscript is existing
+            import subprocess
+            try:
+                log.msg("  - running initialization .{}".format(initapp))
+                log.msg(subprocess.check_output(['sh',initapp]))
+            except subprocess.CalledProcessError as e:
+                log.msg("  - init command '{}' returned with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+        if sensor.get('mode') in ['p','passive','Passive','P']:
+            try:
+                connected = PassiveThread(conf,sensor,client,establishedconnections)
+                log.msg(" - PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+                establishedconnections.update(connected)
+                passive_count +=1
             except:
-                log.msg('Serial Call: Not available.')
-        elif sensor[:2].upper() == 'OW':
-	    try:
-	        log.msg('OneWire: Initiating sensor...')
-                oprot = task.LoopingCall(wsMcuFactory.owProtocol.owConnected)
-                oprot.start(timeoutow)
+                log.msg(" - !!! PassiveThread failed for {} !!!".format(sensor.get('sensorid')))
+                pass
+        elif sensor.get('mode') in ['a','active','Active','A']:
+            try:
+                log.msg(" - ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
+                connected_act = ActiveThread(conf,sensor,client,establishedconnections)
             except:
-                log.msg('OneWire: Not available.')
+                log.msg(" - !!! ActiveThread failed for {} !!!".format(sensor.get('sensorid')))
+                pass
         else:
-    	    try:
-        	log.msg('%s: Attempting to open port %s [%d baud]...' % (sensor, port, baudrate))
-                if sensor.startswith('KER'):
-                    serialPort = SerialPort(protocol,port,reactor, baudrate=baudrate,bytesize=SEVENBITS,parity=PARITY_EVEN)    
-                else:
-   	       	    serialPort = SerialPort(protocol, port, reactor, baudrate = baudrate)
-              	    log.msg('%s: Port %s [%d baud] connected' % (sensor, port, baudrate))
-    	    except:
-        	log.msg('%s: Port %s [%d baud] not available' % (sensor, port, baudrate))
+            log.msg("acquisition_mqtt: Mode not recognized")
+
+        sensorid = sensor.get('sensorid')
+
+    # Start all passive clients
+    if passive_count > 0:
+        log.msg("acquisition_mqtt: Starting reactor for passive sensors. Sending data now ...")
+        reactor.run()
 
 
-    ## create embedded web server for static files
-    ##
-    webdir = File(".")
-    web = Site(webdir)
-    reactor.listenTCP(webport, web)
+if __name__ == "__main__":
+   main(sys.argv[1:])
 
-    ## start Twisted reactor:
-    ##
-    reactor.run()
