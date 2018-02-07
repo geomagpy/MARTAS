@@ -32,7 +32,7 @@ def main(argv):
     host = ''
     port = ''
     try:
-        opts, args = getopt.getopt(argv,"hvt:c:u:p:s:a:o:l:",["view=","typ=","shortcut=","database=","user=","password=","smtp=","address=","host=","port="])
+        opts, args = getopt.getopt(argv,"hvt:c:d:u:p:s:a:o:l:",["view=","typ=","shortcut=","database=","user=","password=","smtp=","address=","host=","port="])
     except getopt.GetoptError:
         print 'addcred.py -v <listexisting> -t <type> -c <credentialshortcut> -d <database> -u <user> -p <password> -s <smtp> -a <address> -o <host> -l <port>'
         sys.exit(2)

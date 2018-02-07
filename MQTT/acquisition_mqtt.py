@@ -48,6 +48,13 @@ from __future__ import absolute_import
 # ###################################################################
 # Import packages
 # ###################################################################
+## Import MagPy
+## -----------------------------------------------------------
+local = True
+if local:
+    import sys
+    sys.path.insert(1,'/home/leon/Software/magpy-git/')
+
 
 import threading
 import sys, getopt, os
@@ -149,6 +156,9 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
         evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
         exec importstr
         protocol = eval(evalstr)
+        log.msg(evalstr)
+    else:
+        log.msg("  -> did not find protocol in SUPPORTED_PROTOCOL list")
 
     log.msg("  -> Starting active thread ...")
     proto = "{}Prot{}".format(protocolname,amount)
@@ -156,7 +166,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     try:
         rate = int(sensordict.get('rate'))
     except:
-        log.msg("  -> did not found appropriate sampling rate - using 30 sec")
+        log.msg("  -> did not find appropriate sampling rate - using 30 sec")
         rate = 30
 
     do_every(rate, protocol.sendRequest)

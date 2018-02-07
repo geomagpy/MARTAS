@@ -9,6 +9,7 @@ import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+import numpy as np
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -17,9 +18,6 @@ from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 import magpy.opt.cred as mpcred
 import magpy.database as mdb
-
-#from methodstobemovedtoacs import *
-
 
 
 ## MySQL protocol
@@ -50,132 +48,66 @@ class MySQLProtocol(object):
         self.datacnt = 0
         self.metacnt = 10
 
-        print ("here")
+        self.sensorlist = []
+        self.revision = self.sensordict.get('revision','')
+        try:
+            self.requestrate = int(self.sensordict.get('rate','-'))
+        except:
+            self.requestrate = 30
 
-        # switch on debug mode
+
+        # ------------------- IMPORTANT ------------------------- too be changed
+        self.deltathreshold = 100 # only data not older then x seconds will be considered
+
+        # debug mode
         debugtest = confdict.get('debug')
         self.debug = False
         if debugtest == 'True':
-            log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            log.msg('     DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
             self.debug = True    # prints many test messages
         else:
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
+        # QOS
+        self.qos=int(confdict.get('mqttqos',0))
+        if not self.qos in [0,1,2]:
+            self.qos = 0
+        log.msg("  -> setting QOS:", self.qos)
+
         # Database specific
         self.db = self.sensor
-        if self.debug:
-            log.msg("DEBUG - Running on board {}".format(self.board))
         # get existing sensors for the relevant board
-        print ("  -> MySQL assumes that database credentials are saved locally using magpy.cred with the same name as database")
-        db = mdb.mysql.connect(host="localhost",user=mpcred.lc(self.sensor,'user'),passwd=mpcred.lc(self.sensor,'passwd'),db=self.sensor)
-        print ("here")
-        sensorlist = self.GetDBSensorList(db, searchsql='')
+        log.msg("  -> IMPORTANT: MySQL assumes that database credentials ")
+        log.msg("     are saved locally using magpy.cred with the same name as database")
+        try:
+            self.db = mdb.mysql.connect(host=mpcred.lc(self.sensor,'host'),user=mpcred.lc(self.sensor,'user'),passwd=mpcred.lc(self.sensor,'passwd'),db=self.sensor)
+            self.connectionMade(self.sensor)
+        except:
+            self.connectionLost(self.sensor,"Database could not be connected - check existance/credentials")
+            return
+
+        sensorlist = self.GetDBSensorList(self.db, searchsql='')
         self.sensor = ''
+        existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='$')
 
-        # none is verified when initializing
-        self.verifiedids = []
-        self.infolist = []
-        self.headlist = []
+        # if there is a sensor in existinglist which is not an active sensor, then drop it
+        for sensdict in existinglist:
+            if sensdict.get('sensorid','') in sensorlist:
+                self.sensorlist.append(sensdict) 
+        
+        self.lastt = [None]*len(self.sensorlist)
+
+        #print ("Existinglist")
+        #print ("----------------------------------------------------------------")
+        #print (self.sensorlist)
 
 
-    def connectionMade(self):
-        log.msg('  -> Database {} connected.'.format(self.db))
+    def connectionMade(self, dbname):
+        log.msg('  -> Database {} connected.'.format(dbname))
 
-    def connectionLost(self, reason):
-        log.msg('  -> Database {} lost.'.format(self.db))
+    def connectionLost(self, dbname, reason=''):
+        log.msg('  -> Database {} lost/not connectect. ({})'.format(dbname,reason))
         # implement counter and add three reconnection events here
-
-
-    """
-    def processMySQLData(self, sensorid, meta, data):
-        #Convert raw ADC counts into SI units as per datasheets
-        currenttime = datetime.utcnow()
-        outdate = datetime.strftime(currenttime, "%Y-%m-%d")
-        actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
-        outtime = datetime.strftime(currenttime, "%H:%M:%S")
-        timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
-        filename = outdate
-
-        datearray = acs.timeToArray(timestamp)
-        packcode = '6hL'
-        #sensorid = self.sensordict.get(idnum)
-        #events = self.eventdict.get(idnum).replace('evt','').split(',')[3:-1]
-
-        values = []
-        multiplier = []
-        for dat in data:
-            try:
-                values.append(float(dat))
-                datearray.append(int(float(dat)*10000))
-                packcode = packcode + 'l'
-                multiplier.append(10000)
-            except:
-                log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
-
-        try:
-            data_bin = struct.pack('<'+packcode,*datearray) #little endian
-        except:
-            log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
-            pass
-
-        key = '['+str(meta.get('SensorKeys')).replace("'","").strip()+']'
-        ele = '['+str(meta.get('SensorElements')).replace("'","").strip()+']'
-        unit = '['+str(meta.get('SensorUnits')).replace("'","").strip()+']'
-        multplier = str(multiplier).replace(" ","")
-
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
-
-        if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
-
-        return ','.join(list(map(str,datearray))), header
-
-
-    def analyzeHeader(self, line):
-        log.msg("  -> Received unverified header data")
-        if self.debug:
-            log.msg("DEBUG -> Header looks like: {}".format(line))
-        headdict = {}
-
-        head = line.strip().split(':')
-        headernum = int(head[0].strip('H'))
-        header = head[1].split(',')
-
-        try:
-            varlist = []
-            keylist = []
-            unitlist = []
-            for elem in header:
-                an = elem.strip(']').split('[')
-                try:
-                    if len(an) < 1:
-                        log.err("Arduino: error when analyzing header")
-                        return {}
-                except:
-                    log.err("Arduino: error when analyzing header")
-                    return {}
-                var = an[0].split('_')
-                key = var[0].strip().lower()
-                variable = var[1].strip().lower()
-                unit = an[1].strip()
-                keylist.append(key)
-                varlist.append(variable)
-                unitlist.append(unit)
-            headdict['ID'] = headernum
-            headdict['SensorKeys'] = ','.join(keylist)
-            headdict['SensorElements'] = ','.join(varlist)
-            headdict['SensorUnits'] = ','.join(unitlist)
-        except:
-            # in case an incomplete header is available
-            # will be read next time completely
-            return {} 
-
-        return headdict
-
-    def getSensorInfo(self, line):
-        metadict = {}
-        return metadict
-    """
 
 
     def GetDBSensorList(self, db, searchsql=''):
@@ -191,201 +123,219 @@ class MySQLProtocol(object):
 
         now = datetime.utcnow()
 
-        if not searchsql == '':
-            """
-            if searchsql is list:
-                for item in searchsql:
-                    if not sql.endswith("WHERE ") and not item == searchsql[-1]:
-                        sql = sql + " AND "
-                    sql = sql + item
-            else:
-                sql = sql + searchsql
-            """
-        print (self.sensordict.get('revision',''),self.sensordict.get('sensorgroup',''))
-        searchsql = 'DataID LIKE "%{}"'.format(self.sensordict.get('revision',''))
-
-        # Perfom search:
-        print (searchsql)
-        senslist1 = mdb.dbselect(db, 'SensorID', 'DATAINFO', searchsql)
-        print ("Found", senslist1)
-        """
-        searchsql = 'SensorGroup LIKE "%{}%"'.format(self.sensordict.get('sensorgroup',''))
-        senslist2 = mdb.dbselect(db, 'SensorID', 'SENSORS', searchsql)
-
+        senslist1, senslist2, senslist3 = [],[],[]
+        # 1. Get search criteria (group and dataid):
+        searchdataid = 'DataID LIKE "%{}"'.format(self.sensordict.get('revision',''))
+        searchgroup = 'SensorGroup LIKE "%{}%"'.format(self.sensordict.get('sensorgroup',''))
+        # 2. Perfom search for DataID:
+        senslist1 = mdb.dbselect(db, 'SensorID', 'DATAINFO', searchdataid)
+        if self.debug:
+            log.msg("  -> DEBUG - Search DATAID {}: Found {} tables".format(self.sensordict.get('revision',''),len(senslist1))) 
+        # 3. Perfom search for group:
+        senslist2 = mdb.dbselect(db, 'SensorID', 'SENSORS', searchgroup)
+        if self.debug:
+            log.msg("  -> DEBUG - Searching for GROUP {}: Found {} tables".format(self.sensordict.get('sensorgroup',''),len(senslist2)))
+        # 4. Combine searchlists
         senslist = list(set(senslist1).intersection(senslist2))
-        print (senslist)
-        """
-        senslist = senslist1
+        if self.debug:
+            log.msg("  -> DEBUG - Fullfilling both search criteria: Found {} tables".format(len(senslist)))
 
-        # Check tables for recent data:
+        # 5. Check tables with above search criteria for recent data:
         for sens in senslist:
             datatable = sens + "_" + self.sensordict.get('revision','')
             lasttime = mdb.dbselect(db,'time',datatable,expert="ORDER BY time DESC LIMIT 1")
-            print (sens, lasttime)
             try:
                 lt = datetime.strptime(lasttime[0],"%Y-%m-%d %H:%M:%S.%f")
-                print (now-lt)
+                delta = now-lt
+                if self.debug:
+                    log.msg("  -> DEBUG - Sensor {}: Timediff = {} sec from now".format(sens, delta.total_seconds()))
+                if delta.total_seconds() < self.deltathreshold:
+                    senslist3.append(sens)
             except:
-                print ("No data table?")
+                if self.debug:
+                    log.msg("No data table?")
+                pass
 
-        # Check existing data
-        #print ("Exist", self.sensordict)
-
-        # Append sensors with recent data to sensordict if the sensor is either not already existing (also uncommented):
-        # send warning if data in existinglist but not found now.
-
-        for sens in senslist:
-            print (sens)
+        # 6. Obtaining relevant sensor data for each table
+        print ("PART 6 --- putting together  -----")
+        for sens in senslist3:
             values = {}
             values['sensorid'] = sens
             values['protocol'] = 'MySQL'
             values['port'] = '-'
             cond = 'SensorID = "{}"'.format(sens)
-            vals = mdb.dbselect(db,'SensorName,SensorID,SensorSerialNum,SensorRevision,SensorGroup,SensorDescription','SENSORS',condition=cond)[0]
+            vals = mdb.dbselect(db,'SensorName,SensorID,SensorSerialNum,SensorRevision,SensorGroup,SensorDescription,SensorTime','SENSORS',condition=cond)[0]
             vals = ['-' if el==None else el for el in vals]
-            print (vals)
             values['serialnumber'] = vals[2]
             values['name'] = vals[0]
             values['revision'] = vals[3]
-            values['pierid'] = 'fromPIERS'
-            values['ptime'] = 'NTP'
+            values['mode'] = 'active'
+            pier = mdb.dbselect(db,'DataPier','DATAINFO',condition=cond)[0]
+            values['pierid'] = pier
+            values['ptime'] = vals[6]
             values['sensorgroup'] = vals[4]
             values['sensordesc'] = vals[5].replace(',',';')
 
-            #SENSORELEMENTS =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','stack','protocol','name','serialnumber','revision','path','pierid','ptime','sensorgroup','sensordesc']
+            success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='SQL')
 
-            #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
-            #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='MySQL')
+        return senslist3
 
-            print (values)
-            """
-                        values['path'] = idnum
-                        values['stack'] = 0
-                        log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
-                        success = AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
-            """
 
     def sendRequest(self):
-        log.msg("Sending periodic request ...")
+        """
+        source:mysql:
+        Method to obtain data from table
+        """
+        t1 = datetime.utcnow()
+        outdate = datetime.strftime(t1, "%Y-%m-%d")
+        filename = outdate
+
+        if self.debug:
+            log.msg("Sending periodic request ...")
+
+        def getList(sql):
+            cursor = self.db.cursor()
+            try:
+                cursor.execute(sql)
+            except mysql.IntegrityError as message:
+                return message
+            except mysql.Error as message:
+                return message
+            except:
+                return 'dbgetlines: unkown error'
+            head = cursor.fetchall()
+            keys = list(np.transpose(np.asarray(head))[0])
+            return keys
 
         # get self.sensorlist
         # get last timestamps 
         # read all data for each sensor since last timestamp
         # send that and store last timestamp 
-
-    """
-        # Append sensors with recent data to sensordict if not existing and not uncommentet:
-        # send warning if data in existinglist but not found now.
-        evdict = {}
-        meta = 'not known'
-        data = '1.0'
-
-        lineident = line.split(':')
-        try:
-            idnum = int(lineident[0][1:])
-        except:
-            idnum = 999
-        if not idnum == 999:
-            if not idnum in self.verifiedids:
-                if line.startswith('H'):
-                    # analyse header
-                    headdict = self.analyzeHeader(line)
-                    self.headlist.append(headdict)
-                elif line.startswith('M'):
-                    # analyse sensorinformation
-                    infodict = self.getSensorInfo(line)
-                    self.infolist.append(infodict)
-                    # add values to metadict
-                if idnum in [idict.get('ID') for idict in self.infolist] and idnum in [hdict.get('ID') for hdict in self.headlist]:
-                    # get critical info: sensorname, idnum and board
-                    sensoridenti = [idict.get('SensorName') for idict in self.infolist if str(idict.get('ID')) == str(idnum)]
-                    # board is already selected
-                    seldict2 = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)]
-                    seldict3 = [edict for edict in seldict2 if str(edict.get('name')) == str(sensoridenti[0])]
-                    if not len(seldict3) > 0 and len(sensoridenti) > 0:
-                        log.msg("Arduino: Sensor {} not yet existing -> adding to existinglist".format(sensoridenti[0]))
-                        relevantdict = [idict for idict in self.infolist if str(idict.get('ID')) == str(idnum)][0]
-                        values = {}
-                        values['path'] = idnum
-                        values['serialnumber'] = relevantdict.get('SensorID')
-                        values['name'] = relevantdict.get('SensorName')
-                        values['protocol'] = 'Arduino'
-                        values['port'] = self.board
-                        values['revision'] = relevantdict.get('SensorRevision')
-                        values['stack'] = 0
-                        values['sensorid'] = sensoridenti[0]
-                        log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
-                        success = AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
-                        #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
-                        self.existinglist.append(values)
-                    elif len(seldict3) > 0:
-                        log.msg("Arduino: Sensor {} identified and verified".format(sensoridenti[0]))
-                        self.verifiedids.append(idnum)
-                    else:
-                        log.err('Apparently a sensor is connected which does not correspond to the provided information in sensors.cfg - Please clarify (either delete sensor.cfg input for {} or check your arduino code'.format(sensoridenti[0]))
-
-            else:
-                if line.startswith('D'):
-                    dataar = line.strip().split(':')
-                    dataident = int(dataar[0].strip('D'))
-                    meta = [headdict for headdict in self.headlist if str(headdict.get('ID')) == str(dataident)][0]
-                    evdict = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)][0]
-                    data = dataar[1].strip().split(',')
-
-        else:
-            # invalid return value found
+        for index,sensdict in enumerate(self.sensorlist):
+            sensorid = sensdict.get('sensorid')
             if self.debug:
-                log.msg("DEBUG - Invalid return value found: {}".format(line))
-        
-        return evdict, meta, data
+                log.msg("  -> DEBUG - dealing with sensor {}".format(sensorid))
+            # 1. Getting header
+            # -----------------
+            # load keys, elements and units
+            #header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
+            dataid = sensorid+'_'+self.revision
+            keyssql = 'SHOW COLUMNS FROM %s' % (dataid)
+            keystab = getList(keyssql)
+            if 'time' in keystab:
+                keystab.remove('time')
+            if 'flag' in keystab:
+                keystab.remove('flag')
+            if 'typ' in keystab:
+                keystab.remove('typ')
+            if 'comment' in keystab:
+                keystab.remove('comment')
+            keys = ','.join(keystab)
+            sql1 = 'SELECT SensorElements FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
+            sql2 = 'SELECT Sensorkeys FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
+            sql3 = 'SELECT ColumnUnits FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
+            sql4 = 'SELECT ColumnContents FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
+            elem = getList(sql1)[0].split(',')
+            keyssens = getList(sql2)[0].split(',')
+            unit = getList(sql3)[0].split(',')
+            cont = getList(sql4)[0].split(',')
+            units, elems = [], []
+            for key in keystab:
+                try:
+                    pos1 = keyssens.index(key)
+                    ele = elem[pos1]
+                except:
+                    ele = key
+                elems.append(ele)
+                try:
+                    pos2 = cont.index(ele)
+                    units.append(unit[pos2])
+                except:
+                    units.append('None')
+            multplier = '['+','.join(map(str, [10000]*len(keystab)))+']'
+            packcode = '6HL'+''.join(['q']*len(keystab))
+            header = ("# MagPyBin {} {} {} {} {} {} {}".format(sensorid, '['+','.join(keystab)+']', '['+','.join(elems)+']', '['+','.join(units)+']', multplier, packcode, struct.calcsize('<'+packcode)))
+
+            # 2. Getting dict
+            sql = 'SELECT DataSamplingRate FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
+            sr = float(getList(sql)[0])
+            coverage = int(self.requestrate/sr)+5
+
+            # 3. Getting data
+            # get data data and create typical message topic
+            # based on sampling rate and collection rate -> define coverage
+            
+            li = sorted(mdb.dbselect(self.db, 'time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
+            if not self.lastt[index]:
+                self.lastt[index]=li[0][0]
+
+            # drop
+            newdat = False
+            newli = []
+            for elem in li:
+                if newdat:
+                    newli.append(elem)
+                if elem[0] == self.lastt[index]:
+                    newdat = True
+
+            for dataline in newli:
+                timestamp = dataline[0]
+                data_bin = None
+                datearray = ''
+                try:
+                    datearray = acs.timeToArray(timestamp)
+                    for i,para in enumerate(keystab):
+                        try:
+                            val=int(float(dataline[i+1])*10000)
+                        except:
+                            val=999990000
+                        datearray.append(val)
+                    data_bin = struct.pack('<'+packcode,*datearray)  # little endian
+                except:
+                    log.msg('Error while packing binary data')
+
+                if not self.confdict.get('bufferdirectory','') == '' and data_bin:
+                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                #print ("Sending", ','.join(list(map(str,datearray))), header)
+                self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
+
+            self.lastt[index]=li[-1][0]
+
+        t2 = datetime.utcnow()
+        if self.debug:
+            log.msg("  -> DEBUG - Needed {}".format(t2-t1))
 
 
-    def lineReceived(self, line):
+    def sendData(self, sensorid, data, head, stack=None):
 
-        #if self.debug:
-        #    log.msg("Received line: {}".format(line))
+        topic = self.confdict.get('station') + '/' + sensorid
+        senddata = False
+        if not stack:
+            stack = int(self.sensordict.get('stack'))
+        coll = stack
 
-        # extract only ascii characters 
-        line = ''.join(filter(lambda x: x in string.printable, line))
-
-        # Create a list of sensors like for OW
-        # dipatch with the appropriate sensor
-        evdict, meta, data = self.GetArduinoSensorList(line)
-
-        if len(evdict) > 0:
-            sensorid = evdict.get('name')+'_'+evdict.get('serialnumber')+'_'+evdict.get('revision')
-            topic = self.confdict.get('station') + '/' + sensorid
-            pdata, head = self.processArduinoData(sensorid, meta, data)
-
-            senddata = False
-            try:
-                coll = int(evdict.get('stack'))
-            except:
-                coll = 0
-            if coll > 1:
-                self.metacnt = 1 # send meta data with every block
-                if self.datacnt < coll:
-                    self.datalst.append(pdata)
-                    self.datacnt += 1
-                else:
-                    senddata = True
-                    pdata = ';'.join(self.datalst)
-                    self.datalst = []
-                    self.datacnt = 0
+        if coll > 1:
+            self.metacnt = 1 # send meta data with every block
+            if self.datacnt < coll:
+                self.datalst.append(data)
+                self.datacnt += 1
             else:
                 senddata = True
+                data = ';'.join(self.datalst)
+                self.datalst = []
+                self.datacnt = 0
+        else:
+            senddata = True
 
-            if senddata:
-                self.client.publish(topic+"/data", pdata)
+        if senddata:
                 if self.count == 0:
                     self.client.publish(topic+"/meta", head)
-                    ## 'Add' is a string containing dict info like: 
-                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
-                    add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station',''),evdict.get('pierid',''),evdict.get('protocol',''),evdict.get('sensorgroup',''),evdict.get('sensordesc',''),evdict.get('ptime','') )
-                    self.client.publish(topic+"/dict", add)
-
+                    if self.debug:
+                        log.msg("  -> DEBUG - Publishing meta --", topic, head)
+                self.client.publish(topic+"/data", data)
+                if self.debug:
+                    log.msg("  -> DEBUG - Publishing data")
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
 
-    """

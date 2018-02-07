@@ -52,6 +52,7 @@ from magpy.stream import *
 from magpy.database import *
 from magpy.opt import cred as mpcred
 #from magpy.collector import collectormethods as cm
+import threading
 # For file export
 import StringIO
 from magpy.acquisition.acquisitionsupport import dataToFile
@@ -79,8 +80,10 @@ def append_file(path, array):
     # use data2file method
     pass
 
+
 def analyse_meta(header,sensorid):
     """
+    source:mqtt:
     Interprete header information
     """
     header = header.decode('utf-8')
@@ -111,6 +114,7 @@ def analyse_meta(header,sensorid):
 
 def create_head_dict(header,sensorid):
     """
+    source:mqtt:
     Interprete header information
     """
     head_dict={}
@@ -160,6 +164,9 @@ def create_head_dict(header,sensorid):
     return head_dict
 
 def interprete_data(payload, ident, stream, sensorid):
+    """
+    source:mqtt:
+    """
     lines = payload.split(';') # for multiple lines send within one payload
     # allow for strings in payload !!
     array = [[] for elem in KEYLIST]
@@ -321,6 +328,8 @@ def main(argv):
     dbcred=''
     global stationid
     stationid = 'wic'
+    global source
+    source='mqtt' # projected sources: mqtt (default), wamp, mysql, postgres, etc
     global qos
     qos=0
     global debug
@@ -333,9 +342,9 @@ def main(argv):
     global dictcheck
     dictcheck = False
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=",])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:s:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=",])
     except getopt.GetoptError:
         print('Check your options:')
         print(usagestring)
@@ -362,6 +371,9 @@ def main(argv):
             print('-c                             set mqtt communication credential keyword')
             print('-q                             set mqtt quality of service (default = 0)')            
             print('-r                             set db credential keyword')            
+            print('-s                             source protocol of data: default is mqtt')            
+            print('                               other options:')
+            print('                               -s wamp    not yet implemented.')
             print('------------------------------------------------------')
             print('Examples:')
             print('1. Basic')
@@ -388,6 +400,8 @@ def main(argv):
                 timeout = arg
         elif opt in ("-o", "--topic"):
             stationid = arg
+        elif opt in ("-s", "--source"):
+            source = arg
         elif opt in ("-d", "--destination"):
             destination = arg
         elif opt in ("-l", "--location"):
@@ -438,22 +452,22 @@ def main(argv):
         print ("Option u: debug mode switched on ...")
         print ("------------------------------------")
         print ("Destination", destination, location)
-    client = mqtt.Client()
 
-    # Authentication part
-    if not user in ['',None,'None','-']: 
-        #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
-        client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
-
-    client.on_connect = on_connect
-
-    # on message needs: stationid, destination, location
-    client.on_message = on_message
-
-    client.connect(broker, port, timeout)
-
-    client.loop_forever()
-
+    if source == 'mqtt':
+        client = mqtt.Client()
+        # Authentication part
+        if not user in ['',None,'None','-']: 
+            #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
+            client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
+        client.on_connect = on_connect
+        # on message needs: stationid, destination, location
+        client.on_message = on_message
+        client.connect(broker, port, timeout)
+        client.loop_forever()
+    elif source == 'wamp':
+        print ("Not yet supported! -> check autobahn import, crossbario")
+    else:
+        print ("Additional protocols can be added in future:")
 
 
 if __name__ == "__main__":

@@ -27,8 +27,10 @@ def AddSensor(path, dictionary, block=None):
 
     owheadline = "# OW block (automatically determined)"
     arduinoheadline = "# Arduino block (automatically determined)"
+    mysqlheadline = "# SQL block (automatically determined)"
     owidentifier = '!'
     arduinoidentifier = '?'
+    mysqlidentifier = '$'
     delimiter = '\n'
 
     def makeline(dictionary,delimiter):
@@ -40,8 +42,8 @@ def AddSensor(path, dictionary, block=None):
     newline = makeline(dictionary,delimiter)
 
     # 1. if not block in ['OW','Arduino'] abort
-    if not block in ['OW','Arduino']:
-        print ("provided block needs to be 'OW' or 'Arduino'")
+    if not block in ['OW','ow','Ow','Arduino','arduino','ARDUINO','SQL','MySQL','mysql','MYSQL','sql']:
+        print ("provided block needs to be 'OW', 'Arduino' or 'SQL'")
         return False 
 
     # 2. check whether sensors.cfg existis
@@ -57,14 +59,6 @@ def AddSensor(path, dictionary, block=None):
         print ("no data found in sensors.cfg")
         return False
 
-    # 3. if block == OW
-    #    owheadline = "# OW block (automatically determined)"
-    #    locate owheadline - get position of last identifier 
-    #    else add owheadline at the end of the file
-    # 4. if block == Arduino
-    #    owheadline = "# OW block (automatically determined)"
-    #    locate owheadline - get position of last identifier 
-    #    else add owheadline at the end of the file
     if block in ['OW','ow','Ow']:
         num = [line for line in sensordata if line.startswith(owheadline)]
         identifier = owidentifier
@@ -73,12 +67,18 @@ def AddSensor(path, dictionary, block=None):
         num = [line for line in sensordata if line.startswith(arduinoheadline)]
         identifier = arduinoidentifier
         headline = arduinoheadline
+    elif block in ['SQL','MySQL','mysql','MYSQL','sql']:
+        num = [line for line in sensordata if line.startswith(mysqlheadline)]
+        identifier = mysqlidentifier
+        headline = mysqlheadline
 
-    # 5. Append/Insert line 
+    # 3. Append/Insert line 
     if len(num) > 0:
-            cnt = [idx for idx,line in enumerate(sensordata) if line.startswith(identifier)]
+            cnt = [idx for idx,line in enumerate(sensordata) if line.startswith(identifier) or  line.startswith('#'+identifier)]
             lastline = max(cnt)
-            sensordata.insert(lastline+1,identifier+newline)
+            if not (identifier+newline) in sensordata:
+                if not ('#'+identifier+newline) in sensordata:
+                    sensordata.insert(lastline+1,identifier+newline)
     else:
             sensordata.append(delimiter)
             sensordata.append(headline+delimiter)
