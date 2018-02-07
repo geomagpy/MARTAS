@@ -342,11 +342,11 @@ class ArduinoProtocol(LineReceiver):
             if senddata:
                 self.client.publish(topic+"/data", pdata, qos=self.qos)
                 if self.count == 0:
-                    self.client.publish(topic+"/meta", head, qos=self.qos)
                     ## 'Add' is a string containing dict info like: 
                     ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
-                    add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station',''),evdict.get('pierid',''),evdict.get('protocol',''),evdict.get('sensorgroup',''),evdict.get('sensordesc',''),evdict.get('ptime','') )
+                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station',''),evdict.get('pierid',''),evdict.get('protocol',''),evdict.get('sensorgroup',''),evdict.get('sensordesc',''),evdict.get('ptime','') )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
 
                 self.count += 1
                 if self.count >= self.metacnt:

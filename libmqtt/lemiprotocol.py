@@ -371,9 +371,9 @@ class LemiProtocol(LineReceiver):
             if senddata:
                 self.client.publish(topic+"/data", dataarray)
                 if self.count == 0:
-                    self.client.publish(topic+"/meta", head)
                     add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{},DataNTPTimeDelay:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime',''),self.timedelay )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
+                    self.client.publish(topic+"/meta", head)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
