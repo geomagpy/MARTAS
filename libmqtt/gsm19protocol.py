@@ -51,6 +51,7 @@ class GSM19Protocol(LineReceiver):
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
+        self.errorcnt = {'time':0}
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
@@ -70,13 +71,14 @@ class GSM19Protocol(LineReceiver):
         date = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
+        filename = date
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         intensity = 88888.8
         typ = "none"
         dontsavedata = False
 
         packcode = '6hLLl'
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,var1]', '[f,err]', '[nT,none]', '[1000,1000]', packcode, struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,var1]', '[f,err]', '[nT,none]', '[1000,1000]', packcode, struct.calcsize('<'+packcode))
 
         try:
             # Extract data
@@ -109,6 +111,27 @@ class GSM19Protocol(LineReceiver):
             dontsavedata = True
             pass
 
+        ### Add a column for GPS/NTP e.g. 0(NTP), 1(GPS)
+        ### Add delta T in column
+        try:
+            # Analyze time difference between GSM internal time and utc from PC
+            timelist = sorted([systemtime,currenttime])
+            timediff = timelist[1]-timelist[0]
+            secdiff = timediff.seconds + timediff.microseconds/1E6
+            print ("TIMEDIFFERENCE:", timediff.total_seconds())
+            timethreshold = 3
+            if secdiff > timethreshold:
+                self.errorcnt['time'] +=1
+                if self.errorcnt.get('time') < 2:
+                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
+                    log.msg("{} protocol: switching to NTP time until timediff is smaller then 3 seconds.".format(self.sensordict.get('protocol')))
+                timestamp = timestamp
+            else:
+                self.errorcnt['time'] = 0
+                timestamp = atetime.strftime(systemtime, "%Y-%m-%d %H:%M:%S.%f")
+        except:
+            pass
+
         try:
             if not typ == "none":
                 # extract time data
@@ -119,7 +142,7 @@ class GSM19Protocol(LineReceiver):
                         datearray.append(int(errorcode*1000.))
                     else:
                         datearray.append(int(gradient*1000.))
-                    data_bin = struct.pack(packcode,*datearray)
+                    data_bin = struct.pack('<'+packcode,*datearray)
                 except:
                     log.msg('GSM19 - Protocol: Error while packing binary data')
                     pass
@@ -166,8 +189,8 @@ class GSM19Protocol(LineReceiver):
                     self.client.publish(topic+"/meta", head, qos=self.qos)
                     ## 'Add' is a string containing dict info like: 
                     ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
-                    add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
-                    self.client.publish(topic+"/dict", add, qos=self.qos)
+                    #add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
+                    #self.client.publish(topic+"/dict", add, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0            

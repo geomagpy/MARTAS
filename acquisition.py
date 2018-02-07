@@ -149,7 +149,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
-        importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        importstr = "from libmqtt.{}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
         if confdict.get('debug') == 'True':
             log.msg("DEBUG -> Importstring looks like: {}".format(importstr))
 
@@ -191,7 +191,7 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
-        importstr = "from {}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        importstr = "from libmqtt.{}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
         if confdict.get('debug') == 'True':
             log.msg("DEBUG  -> Importstring looks like: {}".format(importstr))
         evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
@@ -235,7 +235,7 @@ def onDisconnect(client, userdata, message):
 
 def main(argv):
     ##
-    ## Run like: python acquisition.py --conf='/home/cobs/MARTAS/defaults.conf'
+    ## Run like: python acquisition.py -m '/home/cobs/MARTAS/defaults.conf'
 
     global now
     global hostname

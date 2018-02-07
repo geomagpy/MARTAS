@@ -47,6 +47,13 @@ class GSM90Protocol(LineReceiver):
         self.metacnt = 10
         self.errorcnt = {'time':0}
 
+        # QOS
+        self.qos=int(confdict.get('mqttqos',0))
+        if not self.qos in [0,1,2]:
+            self.qos = 0
+        log.msg("  -> setting QOS:", self.qos)
+
+
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
 

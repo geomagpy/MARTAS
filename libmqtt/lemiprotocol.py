@@ -75,6 +75,9 @@ class LemiProtocol(LineReceiver):
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
+        self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
+                             # the median of this values is used for ntp timedelay
+        self.timedelay = 0.0
 
         # LEMI Specific        
         self.soltag = self.sensor[0]+self.sensor[4:7]    # Start-of-line-tag
@@ -93,6 +96,21 @@ class LemiProtocol(LineReceiver):
     def connectionLost(self, reason):
         log.msg('  -> {} lost.'.format(self.sensor))
 
+    def mediantimedelay(self, values):
+        """
+        Get the median of the provided list 'values'
+        Used for calculating the median timedifference between GPS and NTP
+        Median diff can be applied to NTP in case of GPS signal losses
+        """
+        if len(values) > 0:
+            ar = np.asarray(values)
+            try:
+                med = np.median(ar)
+            except:
+                med = 0.0
+        else:
+            med = 0.0
+        return med
 
     def h2d(self,x):
         '''
@@ -109,26 +127,26 @@ class LemiProtocol(LineReceiver):
             log.err('LEMI - Protocol: Unable to parse data of length %i' % len(data))
 
         """ TIMESHIFT between serial output (and thus NTP time) and GPS timestamp """
-        timedelay = 0.0   ## in sec, most likely in order of 0.1 sec
+        # update median timedelay throughout
+        timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
 
         currenttime = datetime.utcnow()
         date = datetime.strftime(currenttime, "%Y-%m-%d")
-        #actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
 
-        datearray = self._timeToArray(timestamp)
+        datearray = acs.timeToArray(timestamp)
         date_bin = struct.pack('6hL',datearray[0]-2000,datearray[1],datearray[2],datearray[3],datearray[4],datearray[5],datearray[6])
 
         # define pathname for local file storage (default dir plus hostname plus sensor plus year) and create if not existing
-        path = os.path.join(self.outputdir,self.hostname,self.sensor)
+        path = os.path.join(self.confdict.get('bufferdirectory'), self.sensor)
         if not os.path.exists(path):
             os.makedirs(path)
 
         packcode = "<4cb6B8hb30f3BcBcc5hL"
         header = "LemiBin %s %s %s %s %s %s %d\n" % (self.sensor, '[x,y,z,t1,t2]', '[X,Y,Z,T_sensor,T_elec]', '[nT,nT,nT,deg_C,deg_C]', '[0.001,0.001,0.001,100,100]', packcode, struct.calcsize(packcode))
 
-        # save binary raw data to file
+        # save binary raw data to buffer file ### please note that this file always contains GPS readings
         lemipath = os.path.join(path,self.sensor+'_'+date+".bin")
         if not os.path.exists(lemipath):
             with open(lemipath, "ab") as myfile:
@@ -141,12 +159,14 @@ class LemiProtocol(LineReceiver):
             log.err('LEMI - Protocol: Could not write data to file.')
 
         # unpack data and extract time and first field values
+        # This data is streamed via mqtt
         try:
             data_array = struct.unpack("<4cB6B8hb30f3BcB", data)
         except:
             log.err("LEMI - Protocol: Bit error while reading.")
 
         try:
+
             newtime = []
             #for i in range (5,11):
             #    newtime.append(self.correct_bin_time(data_array[i]))
@@ -178,39 +198,61 @@ class LemiProtocol(LineReceiver):
             log.msg('LEMI - Protocol: GPSSTATE changed to %s .'  % gpsstat)
         self.gpsstate2 = self.gpsstate1
 
-        #print "GPSSTAT", gpsstat
-        # important !!! change outtime to lemi reading when GPS is running
-        try:
-            if self.gpsstate2 == 'P':
-                ## passive mode - no GPS connection -> use ntptime as primary with correction
-                evt1 = currenttime-timedelta(seconds=timedelay)
-                evt4 = gps_array
-            else:
-                ## active mode - GPS time is used as primary
-                evt4 = currenttime-timedelta(seconds=timedelay)
-                evt1 = gps_array
-            evt3 = {'id': 3, 'value': outtime}
-            #evt1 = {'id': 1, 'value': timestamp}
-            #evt4 = {'id': 4, 'value': gps_time}
-            evt11 = xarray
-            evt12 = yarray
-            evt13 = zarray
-            #evt11 = {'id': 11, 'value': x}
-            #evt12 = {'id': 12, 'value': y}
-            #evt13 = {'id': 13, 'value': z}
-            evt31 = {'id': 31, 'value': temp_sensor}
-            evt32 = {'id': 32, 'value': temp_el}
-            evt60 = {'id': 60, 'value': vdd}
-            evt99 = {'id': 99, 'value': 'eol'}
-        except:
-            log.err('LEMI - Protocol: Error assigning "evt" values.')
+            #update timedelay
+            #delta = timediff.total_seconds()
+            #if delta not in [np.nan, None, '']:
+            #    self.delaylist.append(delta)
+            #    self.delaylist = self.delaylist[-1000:]
+            #    self.timedelay = self.mediantimedelay(self.delaylist)
 
-        return data_array, header
+
+
+        ### NNOOOO, always send GPS time - but provide median time delays with the dictionary
+        ### check LEMI Records whether secondary time (NTP) is readable and extractable
+
+        #if self.gpsstate2 == 'P':
+        #    ## passive mode - no GPS connection -> use ntptime as primary with correction
+        #    datearray = acs.timeToArray(timestamp)
+        #else:
+        #    ## active mode - GPS time is used as primary
+
+
+        # Create a dataarray
+        linelst = []
+        for idx,el in enumerate(xarray):
+            datalst = []
+            tincr = idx/10.
+            timear = gps_array+timedelta(seconds=tincr)
+            gps_time = datetime.strftime(timear, "%Y-%m-%d %H:%M:%S")
+            print ("Time", acs.timeToArray(gps_time))
+            datalst = acs.timeToArray(gps_time)
+            datalst.append(xarray[idx])
+            datalst.append(yarray[idx])
+            datalst.append(zarray[idx])
+            datalst.append(temp_sensor)
+            datalst.append(temp_el)
+            datalst.append(vdd)
+            linestr = ','.join(datalst)
+            linelst.append(linestr)
+            print ("Line looks like", linestr)
+        dataarray = ';'.join(datalst)
+
+        """
+            try:
+                datearray.append(int(intensity*1000.))
+                datearray.append(err_code)
+                #print timestamp, internal_time
+        """
+
+        print ("GPSSTAT", gpsstat)
+
+        return dataarray, header, metadict
+
 
     def dataReceived(self, data):
 
         print ("HERE")
-        print ("Lemi data here!", self.buffer)
+        #print ("Lemi data here!", self.buffer)
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
 
@@ -265,7 +307,7 @@ class LemiProtocol(LineReceiver):
                             if (split_data_string).startswith(self.soltag):
                                 if debug:
                                     log.msg('LEMI - Protocol: Processing data part # %s in string...' % (str(i+1)))
-                                evt1,evt3,evt4,evt11,evt12,evt13,evt31,evt32,evt60,evt99 = self.processLemiData(split_data_string)
+                                dataarray, head, metadict = self.processLemiData(split_data_string)
                                 WSflag = 2
                                 self.buffer = self.buffer[153:len(self.buffer)]
                             else:
@@ -276,7 +318,7 @@ class LemiProtocol(LineReceiver):
                             lemisearch = (self.buffer).find(self.soltag, 6)
                             if lemisearch >= 153:
                                 split_data_string = self.buffer[0:153]
-                                evt1,evt3,evt4,evt11,evt12,evt13,evt31,evt32,evt60,evt99 = self.processLemiData(split_data_string)
+                                dataarray, head, metadict = self.processLemiData(split_data_string)
                                 WSflag = 2
                                 self.buffer = self.buffer[153:len(self.buffer)]
                             elif lemisearch == -1:
@@ -316,20 +358,22 @@ class LemiProtocol(LineReceiver):
             if coll > 1:
                 self.metacnt = 1 # send meta data with every block
                 if self.datacnt < coll:
-                    self.datalst.append(data)
+                    self.datalst.append(dataarray)
                     self.datacnt += 1
                 else:
                     senddata = True
-                    data = ';'.join(self.datalst)
+                    dataarray = ';'.join(self.datalst)
                     self.datalst = []
                     self.datacnt = 0
             else:
                 senddata = True
 
             if senddata:
-                self.client.publish(topic+"/data", data)
+                self.client.publish(topic+"/data", dataarray)
                 if self.count == 0:
                     self.client.publish(topic+"/meta", head)
+                    add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{},DataNTPTimeDelay:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime',''),self.timedelay )
+                    self.client.publish(topic+"/dict", add, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
