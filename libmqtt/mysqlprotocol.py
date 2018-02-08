@@ -329,10 +329,10 @@ class MySQLProtocol(object):
 
         if senddata:
                 if self.count == 0:
-                    self.client.publish(topic+"/meta", head)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
                     if self.debug:
                         log.msg("  -> DEBUG - Publishing meta --", topic, head)
-                self.client.publish(topic+"/data", data)
+                self.client.publish(topic+"/data", data, qos=self.qos)
                 if self.debug:
                     log.msg("  -> DEBUG - Publishing data")
                 self.count += 1

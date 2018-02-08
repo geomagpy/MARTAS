@@ -48,17 +48,21 @@ class POS1Protocol(LineReceiver):
         self.datacnt = 0
         self.metacnt = 10
         self.errorcnt = {'time':0}
+        self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp (with offset)
+                             # the median of this values is used for ntp timedelay
+        self.timedelay = 0.0
+        self.ntp_gps_offset = 6.2 # sec - is only used for time diff checks - true ntp time is stored
+        self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
 
         delimiter = '\x00'
         self.buffer = ''
-        self.ntp_gps_offset = 6.2 # sec
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
         if not self.qos in [0,1,2]:
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
-        print ("End of POS1 initialization")
+        print ("  -> End of POS1 initialization")
 
 
     def connectionMade(self):
@@ -107,29 +111,42 @@ class POS1Protocol(LineReceiver):
             gpstime = datetime.strptime(gps_time, "%Y-%m-%d %H:%M:%S.%f")
             timelist = sorted([gpstime,currenttime])
             timediff = timelist[1]-timelist[0]
-            secdiff = timediff.seconds + timediff.microseconds/1E6
-            timethreshold = 3
-            if secdiff-self.ntp_gps_offset > timethreshold:
+            delta = timediff.total_seconds()-self.ntp_gps_offset
+            if not delta in [0.0, np.nan, None]:
+                self.delaylist.append(timediff.total_seconds())
+                self.delaylist = self.delaylist[-1000:]
+            if len(self.delaylist) > 100:
+                try:
+                    self.timedelay = np.median(np.asarray(self.delaylist))
+                except:
+                    self.timedelay = 0.0
+            if delta > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
                     log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
-                    log.msg("{} protocol: switching to NTP time until timediff is smaller then 3 seconds.".format(self.sensordict.get('protocol')))
-                internal_time = timestamp
+                    #log.msg("{} protocol: switching to NTP time until timediff is smaller then 3 seconds.".format(self.sensordict.get('protocol')))
+                    #internal_time = timestamp
             else:
                 self.errorcnt['time'] = 0 
         except:
             pass
 
+        if self.sensordict.get('ptime','') in ['NTP','ntp']:
+            secondtime = gps_time
+            maintime = timestamp
+        else:
+            maintime = gps_time
+            secondtime = timestamp
 
         try:
             # extract time data
-            datearray = acs.timeToArray(timestamp)
-            gpsarray = acs.timeToArray(gps_time)
+            datearray = acs.timeToArray(maintime)
+            sectarray = acs.timeToArray(secondtime)
             try:
                 datearray.append(int(intensity*1000))
                 datearray.append(int(sigma_int*1000))
                 datearray.append(err_code)
-                datearray.extend(gpsarray)
+                datearray.extend(sectarray)
                 data_bin = struct.pack('<'+packcode,datearray[0],datearray[1],datearray[2],datearray[3],datearray[4],datearray[5],datearray[6],datearray[7],datearray[8],datearray[9],datearray[10],datearray[11],datearray[12],datearray[13],datearray[14],datearray[15],datearray[16])
             except:
                 log.msg('POS1 - Protocol: Error while packing binary data')
@@ -213,7 +230,7 @@ class POS1Protocol(LineReceiver):
             if senddata:
                 self.client.publish(topic+"/data", dataarray, qos=self.qos)
                 if self.count == 0:
-                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
+                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{},DataNTPTimeDelay:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime',''), self.timedelay )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
 

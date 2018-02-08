@@ -78,6 +78,8 @@ class LemiProtocol(LineReceiver):
         self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
                              # the median of this values is used for ntp timedelay
         self.timedelay = 0.0
+        self.ntp_gps_offset = 2.03 # sec - only used for time testing
+        self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
 
         # LEMI Specific        
         self.soltag = self.sensor[0]+self.sensor[4:7]    # Start-of-line-tag
@@ -126,6 +128,7 @@ class LemiProtocol(LineReceiver):
         if len(data) != 153:
             log.err('LEMI - Protocol: Unable to parse data of length %i' % len(data))
 
+        print ("Processing data ...")
         """ TIMESHIFT between serial output (and thus NTP time) and GPS timestamp """
         # update median timedelay throughout
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
@@ -198,12 +201,12 @@ class LemiProtocol(LineReceiver):
             log.msg('LEMI - Protocol: GPSSTATE changed to %s .'  % gpsstat)
         self.gpsstate2 = self.gpsstate1
 
-            #update timedelay
-            #delta = timediff.total_seconds()
-            #if delta not in [np.nan, None, '']:
-            #    self.delaylist.append(delta)
-            #    self.delaylist = self.delaylist[-1000:]
-            #    self.timedelay = self.mediantimedelay(self.delaylist)
+        #update timedelay
+        #delta = timediff.total_seconds()
+        #if delta not in [np.nan, None, '']:
+        #    self.delaylist.append(delta)
+        #    self.delaylist = self.delaylist[-1000:]
+        #    self.timedelay = self.mediantimedelay(self.delaylist)
 
 
 

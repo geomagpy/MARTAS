@@ -47,6 +47,11 @@ class GSM90Protocol(LineReceiver):
         self.metacnt = 10
         self.errorcnt = {'time':0}
 
+        self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
+                             # the median of this values is used for ntp timedelay
+        self.timedelay = 0.0
+        self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
+
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
         if not self.qos in [0,1,2]:
@@ -107,34 +112,44 @@ class GSM90Protocol(LineReceiver):
             # Analyze time difference between GSM internal time and utc from PC
             timelist = sorted([internal_t,currenttime])
             timediff = timelist[1]-timelist[0]
-            secdiff = timediff.seconds + timediff.microseconds/1E6
-            timethreshold = 3
-            if secdiff > timethreshold:
+            #secdiff = timediff.seconds + timediff.microseconds/1E6
+            #timethreshold = 3
+            delta = timediff.total_seconds()
+            if not delta in [0.0, np.nan, None]:
+                self.delaylist.append(timediff.total_seconds())
+                self.delaylist = self.delaylist[-1000:]
+            if len(self.delaylist) > 100:
+                try:
+                    self.timedelay = np.median(np.asarray(self.delaylist))
+                except:
+                    self.timedelay = 0.0
+            #if secdiff > timethreshold:
+            if delta > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
                     log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
-                    log.msg("{} protocol: switching to NTP time until timediff is smaller then 3 seconds.".format(self.sensordict.get('protocol')))
-                internal_time = timestamp
             else:
                 self.errorcnt['time'] = 0 
         except:
             pass
 
+        if self.sensordict.get('ptime','') in ['NTP','ntp']:
+            secondtime = internal_time
+            maintime = timestamp
+        else:
+            maintime = internal_time
+            secondtime = timestamp
+
         try:
             ## GSM90 does not provide any info on whether the GPS reading is OK or not
-            gps = True
-            if gps:
-                baktimestamp = timestamp
-                timestamp = internal_time
-                internal_time = baktimestamp
 
             # extract time data
-            datearray = acs.timeToArray(timestamp)
+            datearray = acs.timeToArray(maintime)
             try:
                 datearray.append(int(intensity*1000.))
                 datearray.append(err_code)
                 #print timestamp, internal_time
-                internalarray = acs.timeToArray(internal_time)
+                internalarray = acs.timeToArray(secondtime)
                 datearray.extend(internalarray)
                 data_bin = struct.pack('<'+packcode,*datearray)
             except:
@@ -181,11 +196,11 @@ class GSM90Protocol(LineReceiver):
                 senddata = True
 
             if senddata:
-                self.client.publish(topic+"/data", data)
+                self.client.publish(topic+"/data", data, qos=self.qos)
                 if self.count == 0:
                     add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
-                    self.client.publish(topic+"/meta", head)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0

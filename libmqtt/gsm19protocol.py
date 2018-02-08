@@ -14,8 +14,6 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 
-import os
-
 
 ## GEM -GSM19 protocol
 ##
@@ -39,7 +37,7 @@ class GSM19Protocol(LineReceiver):
         'sensordict' contains a dictionary with all sensor relevant data (sensors.cfg)
         'confdict' contains a dictionary with general configuration parameters (martas.cfg)
         """
-        print ("Initialize the connection and set automatic mode (use ser.commands?)")
+        print ("  -> Initializing GSM19...")
         self.client = client
         self.sensordict = sensordict    
         self.confdict = confdict
@@ -52,6 +50,11 @@ class GSM19Protocol(LineReceiver):
         self.datacnt = 0
         self.metacnt = 10
         self.errorcnt = {'time':0}
+        self.timesource = self.sensordict.get('ptime','')
+        self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
+                             # the median of this values is used for ntp timedelay
+        self.timedelay = 0.0
+        self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
@@ -82,7 +85,6 @@ class GSM19Protocol(LineReceiver):
 
         try:
             # Extract data
-            #data_array = data.strip().split()
             data_array = data
             if len(data_array) == 2:
                 typ = "oldbase"
@@ -98,14 +100,13 @@ class GSM19Protocol(LineReceiver):
 
         if typ == "valid" or typ == "oldbase": # Comprises Mobile and Base Station mode with single sensor and no GPS
             intensity = float(data_array[1])
-            #print "Intensity", intensity
-            # Extracting time from instrument - put that to the primary time column?
             try:
                 systemtime = datetime.strptime(date+"-"+data_array[0], "%Y-%m-%d-%H%M%S.%f") 
             except:
+                # This exception happens for old GSM19 because time is 
+                # provided e.g. as 410356 instead of 180356 for 18:03:56 
                 systemtime = currenttime
-            #print "Times:", systemtime, timestamp
-            # Test whether data_array[2] == int
+                self.timesource = 'NTP'
             if len(data_array) == 2:
                 typ = "base"
                 errorcode = 99
@@ -125,25 +126,36 @@ class GSM19Protocol(LineReceiver):
             # Analyze time difference between GSM internal time and utc from PC
             timelist = sorted([systemtime,currenttime])
             timediff = timelist[1]-timelist[0]
-            secdiff = timediff.seconds + timediff.microseconds/1E6
-            #print ("TIMEDIFFERENCE:", timediff.total_seconds())
-            timethreshold = 3
-            if secdiff > timethreshold:
+            #secdiff = timediff.seconds + timediff.microseconds/1E6
+            delta = timediff.total_seconds()
+            if not delta in [0.0, np.nan, None]:
+                self.delaylist.append(timediff.total_seconds())
+                self.delaylist = self.delaylist[-1000:]
+            if len(self.delaylist) > 100:
+                try:
+                    self.timedelay = np.median(np.asarray(self.delaylist))
+                except:
+                    self.timedelay = 0.0
+            if delta > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
                     log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
-                    log.msg("{} protocol: switching to NTP time until timediff is smaller then 3 seconds.".format(self.sensordict.get('protocol')))
-                timestamp = timestamp
             else:
                 self.errorcnt['time'] = 0
-                timestamp = datetime.strftime(systemtime, "%Y-%m-%d %H:%M:%S.%f")
         except:
             pass
+
+        if self.sensordict.get('ptime','') in ['NTP','ntp']:
+            secondtime = systemtime
+            maintime = timestamp
+        else:
+            maintime = systemtime
+            secondtime = timestamp
 
         try:
             if not typ == "none":
                 # extract time data
-                datearray = acs.timeToArray(timestamp)
+                datearray = acs.timeToArray(maintime)
                 try:
                     datearray.append(int(intensity*1000.))
                     if typ == 'base':
@@ -197,7 +209,7 @@ class GSM19Protocol(LineReceiver):
                 if senddata:
                     self.client.publish(topic+"/data", data, qos=self.qos)
                     if self.count == 0:
-                        add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
+                        add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{},DataNTPTimeDelay:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.timesource, self.timedelay )
                         self.client.publish(topic+"/dict", add, qos=self.qos)
                         self.client.publish(topic+"/meta", head, qos=self.qos)
                     self.count += 1
