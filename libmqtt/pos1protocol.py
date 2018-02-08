@@ -52,7 +52,14 @@ class POS1Protocol(LineReceiver):
         delimiter = '\x00'
         self.buffer = ''
         self.ntp_gps_offset = 6.2 # sec
-        print ("End Initialization of POS1")
+
+        # QOS
+        self.qos=int(confdict.get('mqttqos',0))
+        if not self.qos in [0,1,2]:
+            self.qos = 0
+        log.msg("  -> setting QOS:", self.qos)
+        print ("End of POS1 initialization")
+
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -204,11 +211,11 @@ class POS1Protocol(LineReceiver):
                 senddata = True
 
             if senddata:
-                self.client.publish(topic+"/data", dataarray)
+                self.client.publish(topic+"/data", dataarray, qos=self.qos)
                 if self.count == 0:
                     add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
-                    self.client.publish(topic+"/meta", head)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
 
                 self.count += 1
                 if self.count >= self.metacnt:

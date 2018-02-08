@@ -84,7 +84,9 @@ class GSM19Protocol(LineReceiver):
             # Extract data
             #data_array = data.strip().split()
             data_array = data
-            if len(data_array) == 3:
+            if len(data_array) == 2:
+                typ = "oldbase"
+            elif len(data_array) == 3:
                 typ = "valid"
             # add other types here
         except:
@@ -94,14 +96,20 @@ class GSM19Protocol(LineReceiver):
         # Extrat time info and use as primary if GPS is on (in this case PC time is secondary)
         #                          PC is primary when a GPS is not connected
 
-        if typ == "valid": # Comprises Mobile and Base Station mode with single sensor and no GPS
+        if typ == "valid" or typ == "oldbase": # Comprises Mobile and Base Station mode with single sensor and no GPS
             intensity = float(data_array[1])
             #print "Intensity", intensity
             # Extracting time from instrument - put that to the primary time column?
-            systemtime = datetime.strptime(date+"-"+data_array[0], "%Y-%m-%d-%H%M%S.%f")
+            try:
+                systemtime = datetime.strptime(date+"-"+data_array[0], "%Y-%m-%d-%H%M%S.%f") 
+            except:
+                systemtime = currenttime
             #print "Times:", systemtime, timestamp
             # Test whether data_array[2] == int
-            if len(data_array[2]) < 3:
+            if len(data_array) == 2:
+                typ = "base"
+                errorcode = 99
+            elif len(data_array[2]) == 3:
                 typ = "base"
                 errorcode = int(data_array[2])
             else:
@@ -118,7 +126,7 @@ class GSM19Protocol(LineReceiver):
             timelist = sorted([systemtime,currenttime])
             timediff = timelist[1]-timelist[0]
             secdiff = timediff.seconds + timediff.microseconds/1E6
-            print ("TIMEDIFFERENCE:", timediff.total_seconds())
+            #print ("TIMEDIFFERENCE:", timediff.total_seconds())
             timethreshold = 3
             if secdiff > timethreshold:
                 self.errorcnt['time'] +=1
@@ -128,14 +136,14 @@ class GSM19Protocol(LineReceiver):
                 timestamp = timestamp
             else:
                 self.errorcnt['time'] = 0
-                timestamp = atetime.strftime(systemtime, "%Y-%m-%d %H:%M:%S.%f")
+                timestamp = datetime.strftime(systemtime, "%Y-%m-%d %H:%M:%S.%f")
         except:
             pass
 
         try:
             if not typ == "none":
                 # extract time data
-                datearray = timeToArray(timestamp)
+                datearray = acs.timeToArray(timestamp)
                 try:
                     datearray.append(int(intensity*1000.))
                     if typ == 'base':
@@ -151,7 +159,7 @@ class GSM19Protocol(LineReceiver):
             pass
 
         if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            acs.dataToFile(self.confdict.get('bufferdirectory'), self.sensor, filename, data_bin, header)
 
         return ','.join(list(map(str,datearray))), header
 
@@ -161,37 +169,40 @@ class GSM19Protocol(LineReceiver):
         # extract only ascii characters 
         line = ''.join(filter(lambda x: x in string.printable, line))
 
+        ok = True
         try:
             data = line.split()
-            if len(data) == 3:
+            if len(data) >= 2:
                 data, head = self.processData(data)
             else:
-                log.msg('{}: Data seems not be appropriate data. Received data looks like: {}'.format(self.sensordict.get('protocol'),line))
+                log.msg('{}: Data seems not to be appropriate G19 data. Received data looks like: {}'.format(self.sensordict.get('protocol'),line))
+                ok = False
 
-            senddata = False
-            coll = int(self.sensordict.get('stack'))
-            if coll > 1:
-                self.metacnt = 1 # send meta data with every block
-                if self.datacnt < coll:
-                    self.datalst.append(data)
-                    self.datacnt += 1
+            if ok:
+                senddata = False
+                coll = int(self.sensordict.get('stack'))
+                if coll > 1:
+                    self.metacnt = 1 # send meta data with every block
+                    if self.datacnt < coll:
+                        self.datalst.append(data)
+                        self.datacnt += 1
+                    else:
+                        senddata = True
+                        data = ';'.join(self.datalst)
+                        self.datalst = []
+                        self.datacnt = 0
                 else:
                     senddata = True
-                    data = ';'.join(self.datalst)
-                    self.datalst = []
-                    self.datacnt = 0
-            else:
-                senddata = True
 
-            if senddata:
-                self.client.publish(topic+"/data", data, qos=self.qos)
-                if self.count == 0:
-                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
-                    self.client.publish(topic+"/dict", add, qos=self.qos)
-                    self.client.publish(topic+"/meta", head, qos=self.qos)
-                self.count += 1
-                if self.count >= self.metacnt:
-                    self.count = 0            
+                if senddata:
+                    self.client.publish(topic+"/data", data, qos=self.qos)
+                    if self.count == 0:
+                        add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
+                        self.client.publish(topic+"/dict", add, qos=self.qos)
+                        self.client.publish(topic+"/meta", head, qos=self.qos)
+                    self.count += 1
+                    if self.count >= self.metacnt:
+                        self.count = 0            
         except:
             log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
 
