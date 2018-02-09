@@ -14,9 +14,6 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 
-#import sys, time, os
-#import binascii, csv
-
 
 ## POS1 protocol
 ## -------------
@@ -27,6 +24,17 @@ class POS1Protocol(LineReceiver):
     This protocol defines the individual sensor related read process. 
     It is used to dipatch url links containing specific data.
     Sensor specific coding is contained in method "processData".
+
+    Treatment of GPS and NTP time:
+    The protocol determines two times: 1) GPS time provided by the data logger
+    2) NTP time of the PC when data is received by serial comm.
+    Primary time is selected in sensor.cfg (either NTP or GPS)
+    Timediff between GPS and NTP is recorded, and a 1000 line median average is send
+    within the DataDictionary (DataNTPTimeDelay).
+    Besides, a waring message is generated if NTP and GPS times differ by more than 3 seconds.
+    For this comparison (and only here) a typical correction (delay) value is applied to NTP.
+    e.g. 6.2 sec for POS1.
+
     """
     def __init__(self, client, sensordict, confdict):
         """
@@ -111,21 +119,19 @@ class POS1Protocol(LineReceiver):
             gpstime = datetime.strptime(gps_time, "%Y-%m-%d %H:%M:%S.%f")
             timelist = sorted([gpstime,currenttime])
             timediff = timelist[1]-timelist[0]
-            delta = timediff.total_seconds()-self.ntp_gps_offset
+            delta = timediff.total_seconds()
             if not delta in [0.0, np.nan, None]:
-                self.delaylist.append(timediff.total_seconds())
+                self.delaylist.append(delta)
                 self.delaylist = self.delaylist[-1000:]
             if len(self.delaylist) > 100:
                 try:
                     self.timedelay = np.median(np.asarray(self.delaylist))
                 except:
                     self.timedelay = 0.0
-            if delta > self.timethreshold:
+            if delta-self.ntp_gps_offset > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
                     log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
-                    #log.msg("{} protocol: switching to NTP time until timediff is smaller then 3 seconds.".format(self.sensordict.get('protocol')))
-                    #internal_time = timestamp
             else:
                 self.errorcnt['time'] = 0 
         except:

@@ -43,19 +43,26 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 
-#import sys, time, os
-#import binascii, csv
-
 
 ## Lemi protocol (Lemi025 and Lemi036)
 ## -------------
 
 class LemiProtocol(LineReceiver):
     """
-    Protocol to read GSM90 data
+    Protocol to read LEMI (025/036) data
     This protocol defines the individual sensor related read process. 
     It is used to dipatch url links containing specific data.
     Sensor specific coding is contained in method "processData".
+
+    Treatment of GPS and NTP time:
+    The protocol determines two times: 1) GPS time provided by the data logger
+    2) NTP time of the PC when data is received by serial comm.
+    LEMI is always recording GPS time a primary. NTP is stored as secondary time.
+    Timediff between GPS and NTP is recorded, and a 1000 line median average is send
+    within the DataDictionary (DataNTPTimeDelay).
+    Besides, a waring message is generated if NTP and GPS times differ by more than 3 seconds.
+    For this comparison (and only here) a typical correction (delay) value is applied to NTP.
+    e.g. 2.304 sec for LEMI.
     """
     def __init__(self, client, sensordict, confdict):
         """
@@ -78,8 +85,14 @@ class LemiProtocol(LineReceiver):
         self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
                              # the median of this values is used for ntp timedelay
         self.timedelay = 0.0
-        self.ntp_gps_offset = 2.03 # sec - only used for time testing
+        self.ntp_gps_offset = 2.304 # sec - only used for time testing
         self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
+
+        # QOS
+        self.qos=int(confdict.get('mqttqos',0))
+        if not self.qos in [0,1,2]:
+            self.qos = 0
+        log.msg("  -> setting QOS:", self.qos)
 
         # LEMI Specific        
         self.soltag = self.sensor[0]+self.sensor[4:7]    # Start-of-line-tag
@@ -254,7 +267,7 @@ class LemiProtocol(LineReceiver):
 
     def dataReceived(self, data):
 
-        print ("HERE")
+        print ("HERE",self.soltag)
         #print ("Lemi data here!", self.buffer)
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
@@ -297,6 +310,7 @@ class LemiProtocol(LineReceiver):
             if len(self.buffer) > 153:
                 if debug:
                     log.msg('LEMI - Protocol: Warning: Bufferlength (%s) exceeds 153 characters, fixing...' % len(self.buffer))
+                    print ("BUFFER:", self.buffer)
                 lemisearch = (self.buffer).find(self.soltag)
                 #print '1', lemisearch
                 if (self.buffer).startswith(self.soltag):
@@ -372,11 +386,11 @@ class LemiProtocol(LineReceiver):
                 senddata = True
 
             if senddata:
-                self.client.publish(topic+"/data", dataarray)
+                self.client.publish(topic+"/data", dataarray, qos=self.qos)
                 if self.count == 0:
                     add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{},DataNTPTimeDelay:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime',''),self.timedelay )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
-                    self.client.publish(topic+"/meta", head)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0

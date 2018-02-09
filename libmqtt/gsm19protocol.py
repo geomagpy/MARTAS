@@ -28,6 +28,16 @@ class GSM19Protocol(LineReceiver):
         5.) F again, thats it go back to main menu
     Supported modes:
         base
+
+    Treatment of GPS and NTP time:
+    The protocol determines two times: 1) GPS time provided by the data logger
+    2) NTP time of the PC when data is received by serial comm.
+    Primary time is selected in sensor.cfg (either NTP or GPS)
+    Timediff between GPS and NTP is recorded, and a 1000 line median average is send
+    within the DataDictionary (DataNTPTimeDelay).
+    Besides, a waring message is generated if NTP and GPS times differ by more than 3 seconds.
+    For this comparison (and only here) a typical correction (delay) value is applied to NTP.
+    e.g. 6.2 sec for POS1.
     """
 
     def __init__(self, client, sensordict, confdict):

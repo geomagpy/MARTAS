@@ -329,6 +329,9 @@ class MySQLProtocol(object):
 
         if senddata:
                 if self.count == 0:
+                    # get all values initially from the database
+                    #add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( sensorid, self.confdict.get('station',''),self.sensordict.get('pierid',''), self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''), self.sensordict.get('ptime','') )
+                    #self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
                     if self.debug:
                         log.msg("  -> DEBUG - Publishing meta --", topic, head)
