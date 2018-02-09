@@ -92,12 +92,15 @@ def analyse_meta(header,sensorid):
     header = header.replace(', ',',')
     header = header.replace('deg C','deg')
     h_elem = header.strip().split()
-    packstr = '<'+h_elem[-2]+'B'
+    if not h_elem[-2].startswith('<'): # e.g. LEMI
+        packstr = '<'+h_elem[-2]+'B'
+    else:
+        packstr = h_elem[-2]
     packstr = packstr.encode('ascii','ignore')
     lengthcode = struct.calcsize(packstr)
     si = h_elem[2]
     if not si == sensorid:
-        print ("Different sensorids in publish address and header - please check - aborting")
+        print ("Different sensorids in publish address {} and header {} - please check - aborting".format(sensorid,si))
         sys.exit()
     keylist = h_elem[3].strip('[').strip(']').split(',')
     elemlist = h_elem[4].strip('[').strip(']').split(',')
@@ -123,12 +126,15 @@ def create_head_dict(header,sensorid):
     header = header.replace(', ',',')
     header = header.replace('deg C','deg')
     h_elem = header.strip().split()
-    packstr = '<'+h_elem[-2]+'B'
+    if not h_elem[-2].startswith('<'):
+        packstr = '<'+h_elem[-2]+'B'
+    else: # LEMI
+        packstr = h_elem[-2]
     packstr = packstr.encode('ascii','ignore')
     lengthcode = struct.calcsize(packstr)
     si = h_elem[2]
     if not si == sensorid:
-        print ("Different sensorids in publish address and header - please check - aborting")
+        print ("Different sensorids in publish address {} and header {} - please check - aborting".format(si,sensorid))
         sys.exit()
     keylist = h_elem[3].strip('[').strip(']').split(',')
     elemlist = h_elem[4].strip('[').strip(']').split(',')

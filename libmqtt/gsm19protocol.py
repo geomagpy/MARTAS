@@ -9,6 +9,7 @@ import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+import numpy as np
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -114,9 +115,18 @@ class GSM19Protocol(LineReceiver):
                 systemtime = datetime.strptime(date+"-"+data_array[0], "%Y-%m-%d-%H%M%S.%f") 
             except:
                 # This exception happens for old GSM19 because time is 
-                # provided e.g. as 410356 instead of 180356 for 18:03:56 
-                systemtime = currenttime
-                self.timesource = 'NTP'
+                # provided e.g. as 410356 instead of 170356 for 17:03:56 (Thursday)
+                # e.g 570301.0 instead of 09:03:01 (Friday)
+                try:
+                    hournum = int(data_array[0][:-6])
+                    rest = data_array[0][-6:]
+                    factor = np.floor(hournum/24.) # factor = days since starting
+                    hour = int(hournum - factor*24.)
+                    systemtime = datetime.strptime(date+"-"+str(hour)+rest, "%Y-%m-%d-%H%M%S.%f")
+                    #print ("Got oldbase systemtime")
+                except:
+                    systemtime = currenttime
+                    self.timesource = 'NTP'
             if len(data_array) == 2:
                 typ = "base"
                 errorcode = 99
@@ -130,8 +140,8 @@ class GSM19Protocol(LineReceiver):
             dontsavedata = True
             pass
 
-        ### Add a column for GPS/NTP e.g. 0(NTP), 1(GPS)
-        ### Add delta T in column
+        gpstime = datetime.strftime(systemtime, "%Y-%m-%d %H:%M:%S.%f")
+
         try:
             # Analyze time difference between GSM internal time and utc from PC
             timelist = sorted([systemtime,currenttime])
@@ -156,10 +166,10 @@ class GSM19Protocol(LineReceiver):
             pass
 
         if self.sensordict.get('ptime','') in ['NTP','ntp']:
-            secondtime = systemtime
+            secondtime = gpstime
             maintime = timestamp
         else:
-            maintime = systemtime
+            maintime = gpstime
             secondtime = timestamp
 
         try:

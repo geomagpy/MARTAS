@@ -38,6 +38,7 @@ import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
 import numpy as np
+import os     # binary data saved directly without acs helper method
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -94,6 +95,15 @@ class LemiProtocol(LineReceiver):
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
 
+        # Debug mode
+        debugtest = confdict.get('debug')
+        self.debug = False
+        if debugtest == 'True':
+            log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            self.debug = True    # prints many test messages
+        else:
+            log.msg('  -> Debug mode = {}'.format(debugtest))
+
         # LEMI Specific        
         self.soltag = self.sensor[0]+self.sensor[4:7]    # Start-of-line-tag
         self.errorcnt = {'gps':'A', 'time':'0', 'buffer':0}
@@ -111,22 +121,6 @@ class LemiProtocol(LineReceiver):
     def connectionLost(self, reason):
         log.msg('  -> {} lost.'.format(self.sensor))
 
-    def mediantimedelay(self, values):
-        """
-        Get the median of the provided list 'values'
-        Used for calculating the median timedifference between GPS and NTP
-        Median diff can be applied to NTP in case of GPS signal losses
-        """
-        if len(values) > 0:
-            ar = np.asarray(values)
-            try:
-                med = np.median(ar)
-            except:
-                med = 0.0
-        else:
-            med = 0.0
-        return med
-
     def h2d(self,x):
         '''
         Hexadecimal to decimal (for format LEMIBIN2)
@@ -141,26 +135,26 @@ class LemiProtocol(LineReceiver):
         if len(data) != 153:
             log.err('LEMI - Protocol: Unable to parse data of length %i' % len(data))
 
-        print ("Processing data ...")
+        #print ("Processing data ...")
         """ TIMESHIFT between serial output (and thus NTP time) and GPS timestamp """
-        # update median timedelay throughout
-        timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
 
         currenttime = datetime.utcnow()
         date = datetime.strftime(currenttime, "%Y-%m-%d")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
-
         datearray = acs.timeToArray(timestamp)
         date_bin = struct.pack('6hL',datearray[0]-2000,datearray[1],datearray[2],datearray[3],datearray[4],datearray[5],datearray[6])
 
-        # define pathname for local file storage (default dir plus hostname plus sensor plus year) and create if not existing
+        # define pathname for local file storage 
+        # (default dir plus hostname plus sensor plus year) and create if not existing
         path = os.path.join(self.confdict.get('bufferdirectory'), self.sensor)
+
         if not os.path.exists(path):
             os.makedirs(path)
 
         packcode = "<4cb6B8hb30f3BcBcc5hL"
         header = "LemiBin %s %s %s %s %s %s %d\n" % (self.sensor, '[x,y,z,t1,t2]', '[X,Y,Z,T_sensor,T_elec]', '[nT,nT,nT,deg_C,deg_C]', '[0.001,0.001,0.001,100,100]', packcode, struct.calcsize(packcode))
+        headforsend = "# MagPyBin {} {} {} {} {} {} {}\n".format(self.sensor, '[x,y,z,t1,t2,var1]', '[X,Y,Z,T_sensor,T_elec,VDD]', '[nT,nT,nT,deg_C,deg_C,V]', '[0.001,0.001,0.001,100,100,10]', packcode, struct.calcsize(packcode))
 
         # save binary raw data to buffer file ### please note that this file always contains GPS readings
         lemipath = os.path.join(path,self.sensor+'_'+date+".bin")
@@ -182,11 +176,7 @@ class LemiProtocol(LineReceiver):
             log.err("LEMI - Protocol: Bit error while reading.")
 
         try:
-
             newtime = []
-            #for i in range (5,11):
-            #    newtime.append(self.correct_bin_time(data_array[i]))
-            #time = datetime(2000+newtime[0],newtime[1],newtime[2],newtime[3],newtime[4],int(newtime[5]),int(newtime[6]*1000000))
             biasx = float(data_array[16])/400.
             biasy = float(data_array[17])/400.
             biasz = float(data_array[18])/400.
@@ -200,10 +190,14 @@ class LemiProtocol(LineReceiver):
             temp_el = data_array[12]/100.
             vdd = float(data_array[52])/10.
             gpsstat = data_array[53]
-            gps_array = datetime(2000+self.h2d(data_array[5]),self.h2d(data_array[6]),self.h2d(data_array[7]),self.h2d(data_array[8]),self.h2d(data_array[9]),self.h2d(data_array[10]))-timedelta(microseconds=300000)
-            gps_time = datetime.strftime(gps_array, "%Y-%m-%d %H:%M:%S")
+            gpstime = datetime(2000+self.h2d(data_array[5]),self.h2d(data_array[6]),self.h2d(data_array[7]),self.h2d(data_array[8]),self.h2d(data_array[9]),self.h2d(data_array[10]))-timedelta(microseconds=300000)
+            #gps_time = datetime.strftime(gps_array, "%Y-%m-%d %H:%M:%S")
         except:
             log.err("LEMI - Protocol: Number conversion error.")
+
+        #print ("HERE2", packcode, struct.calcsize(packcode))
+        if not gpsstat in ['P','A']:
+            print (" ERROR in BINDATA:", struct.unpack("<4cB6B8hb30f3BcB", data))
 
         # get the most frequent gpsstate of the last 10 secs
         # this avoids error messages for singular one sec state changes
@@ -214,67 +208,67 @@ class LemiProtocol(LineReceiver):
             log.msg('LEMI - Protocol: GPSSTATE changed to %s .'  % gpsstat)
         self.gpsstate2 = self.gpsstate1
 
-        #update timedelay
-        #delta = timediff.total_seconds()
-        #if delta not in [np.nan, None, '']:
-        #    self.delaylist.append(delta)
-        #    self.delaylist = self.delaylist[-1000:]
-        #    self.timedelay = self.mediantimedelay(self.delaylist)
-
-
+        try:
+            # Analyze time difference between GPS and NTP
+            timelist = sorted([gpstime,currenttime])
+            timediff = timelist[1]-timelist[0]
+            delta = timediff.total_seconds()
+            if not delta in [0.0, np.nan, None]:
+                self.delaylist.append(timediff.total_seconds())
+                self.delaylist = self.delaylist[-1000:]
+            if len(self.delaylist) > 100:
+                try:
+                    self.timedelay = np.median(np.asarray(self.delaylist))
+                except:
+                    self.timedelay = 0.0
+            if delta-self.ntp_gps_offset > self.timethreshold:
+                self.errorcnt['time'] +=1
+                if self.errorcnt.get('time') < 2:
+                    log.msg("  -> {} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
+            else:
+                self.errorcnt['time'] = 0
+        except:
+            pass
 
         ### NNOOOO, always send GPS time - but provide median time delays with the dictionary
         ### check LEMI Records whether secondary time (NTP) is readable and extractable
-
-        #if self.gpsstate2 == 'P':
-        #    ## passive mode - no GPS connection -> use ntptime as primary with correction
-        #    datearray = acs.timeToArray(timestamp)
-        #else:
-        #    ## active mode - GPS time is used as primary
-
 
         # Create a dataarray
         linelst = []
         for idx,el in enumerate(xarray):
             datalst = []
             tincr = idx/10.
-            timear = gps_array+timedelta(seconds=tincr)
-            gps_time = datetime.strftime(timear, "%Y-%m-%d %H:%M:%S")
-            print ("Time", acs.timeToArray(gps_time))
+            timear = gpstime+timedelta(seconds=tincr)
+            gps_time = datetime.strftime(timear, "%Y-%m-%d %H:%M:%S.%f")
             datalst = acs.timeToArray(gps_time)
-            datalst.append(xarray[idx])
-            datalst.append(yarray[idx])
-            datalst.append(zarray[idx])
-            datalst.append(temp_sensor)
-            datalst.append(temp_el)
-            datalst.append(vdd)
-            linestr = ','.join(datalst)
+            datalst.append(xarray[idx]/1000.)
+            datalst.append(yarray[idx]/1000.)
+            datalst.append(zarray[idx]/1000.)
+            datalst.append(temp_sensor*100)
+            datalst.append(temp_el*100)
+            datalst.append(vdd*10)
+            linestr = ','.join(list(map(str,datalst)))
             linelst.append(linestr)
-            print ("Line looks like", linestr)
-        dataarray = ';'.join(datalst)
+        dataarray = ';'.join(linelst)
 
-        """
-            try:
-                datearray.append(int(intensity*1000.))
-                datearray.append(err_code)
-                #print timestamp, internal_time
-        """
+        #print ("Processing successful")
 
-        print ("GPSSTAT", gpsstat)
-
-        return dataarray, header, metadict
+        return dataarray, headforsend
 
 
     def dataReceived(self, data):
 
-        print ("HERE",self.soltag)
         #print ("Lemi data here!", self.buffer)
+        """
+        Sometime the code is starting wrongly -> 148 bit length
+        self healing not working - Check thata
+        """
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
 
         flag = 0
         WSflag = 0
-        debug = False
+        #debug = self.debug
 
         """
         # Test range
@@ -295,7 +289,7 @@ class LemiProtocol(LineReceiver):
             if (self.buffer).startswith(self.soltag) and len(self.buffer) == 153:
                 currdata = self.buffer
                 self.buffer = ''
-                data, head = self.processLemiData(currdata)
+                dataarray, head = self.processLemiData(currdata)
                 WSflag = 2
 
             # 2. Found incorrect data length
@@ -308,7 +302,7 @@ class LemiProtocol(LineReceiver):
             ###  - bad bits infiltrating the data. Bad string is deleted.
 
             if len(self.buffer) > 153:
-                if debug:
+                if self.debug:
                     log.msg('LEMI - Protocol: Warning: Bufferlength (%s) exceeds 153 characters, fixing...' % len(self.buffer))
                     print ("BUFFER:", self.buffer)
                 lemisearch = (self.buffer).find(self.soltag)
@@ -317,14 +311,14 @@ class LemiProtocol(LineReceiver):
                     datatest = len(self.buffer)%153
                     dataparts = int(len(self.buffer)/153)
                     if datatest == 0:
-                        if debug:
+                        if self.debug:
                             log.msg('LEMI - Protocol: It appears multiple parts came in at once, # of parts:', dataparts)
                         for i in range(dataparts):
                             split_data_string = self.buffer[0:153]
                             if (split_data_string).startswith(self.soltag):
                                 if debug:
                                     log.msg('LEMI - Protocol: Processing data part # %s in string...' % (str(i+1)))
-                                dataarray, head, metadict = self.processLemiData(split_data_string)
+                                dataarray, head = self.processLemiData(split_data_string)
                                 WSflag = 2
                                 self.buffer = self.buffer[153:len(self.buffer)]
                             else:
@@ -335,7 +329,7 @@ class LemiProtocol(LineReceiver):
                             lemisearch = (self.buffer).find(self.soltag, 6)
                             if lemisearch >= 153:
                                 split_data_string = self.buffer[0:153]
-                                dataarray, head, metadict = self.processLemiData(split_data_string)
+                                dataarray, head = self.processLemiData(split_data_string)
                                 WSflag = 2
                                 self.buffer = self.buffer[153:len(self.buffer)]
                             elif lemisearch == -1:
