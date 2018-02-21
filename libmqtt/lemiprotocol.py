@@ -303,8 +303,8 @@ class LemiProtocol(LineReceiver):
 
             if len(self.buffer) > 153:
                 if self.debug:
-                    log.msg('LEMI - Protocol: Warning: Bufferlength (%s) exceeds 153 characters, fixing...' % len(self.buffer))
-                    print ("BUFFER:", self.buffer)
+                    log.msg('LEMI - Protocol: Warning: Bufferlength ({}) exceeds 153 characters, fixing...'.format(len(self.buffer)))
+                    log.msg("BUFFER: {}".format(self.buffer))
                 lemisearch = (self.buffer).find(self.soltag)
                 #print '1', lemisearch
                 if (self.buffer).startswith(self.soltag):
@@ -312,12 +312,12 @@ class LemiProtocol(LineReceiver):
                     dataparts = int(len(self.buffer)/153)
                     if datatest == 0:
                         if self.debug:
-                            log.msg('LEMI - Protocol: It appears multiple parts came in at once, # of parts:', dataparts)
+                            log.msg('LEMI - Protocol: It appears multiple parts came in at once, amount N of parts: {}'.format(dataparts))
                         for i in range(dataparts):
                             split_data_string = self.buffer[0:153]
                             if (split_data_string).startswith(self.soltag):
-                                if debug:
-                                    log.msg('LEMI - Protocol: Processing data part # %s in string...' % (str(i+1)))
+                                if self.debug:
+                                    log.msg('LEMI - Protocol: Processing data part N {} in string...'.format(str(i+1)))
                                 dataarray, head = self.processLemiData(split_data_string)
                                 WSflag = 2
                                 self.buffer = self.buffer[153:len(self.buffer)]
@@ -336,21 +336,22 @@ class LemiProtocol(LineReceiver):
                                 log.msg('LEMI - Protocol: No header found. Deleting buffer.')
                                 self.buffer = ''
                             else:
-                                log.msg('LEMI - Protocol: String contains bad data (%s bits). Deleting.' % len(self.buffer[:lemisearch]))
+                                log.msg('LEMI - Protocol: String contains bad data ({} bits). Deleting.'.format(len(self.buffer[:lemisearch])))
+                                #self.buffer = ''
                                 self.buffer = self.buffer[lemisearch:len(self.buffer)]
                                 flag = 1
                                 break
 
                 else:
-                    log.msg('LEMI - Protocol: Incorrect header. Attempting to fix buffer... Bufferlength:', len(self.buffer))
+                    log.msg('LEMI - Protocol: Incorrect header. Attempting to fix buffer... Bufferlength: {}'.format(len(self.buffer)))
                     lemisearch = (self.buffer).find(self.soltag, 6)
                     #lemisearch = repr(self.buffer).find(self.soltag)
                     if lemisearch == -1:
                         log.msg('LEMI - Protocol: No header found. Deleting buffer.')
                         self.buffer = ''
                     else:
-                        log.msg('LEMI - Protocol: Bad data (%s bits) deleted. New bufferlength: %s' % (lemisearch,len(self.buffer)))
                         self.buffer = self.buffer[lemisearch:len(self.buffer)]
+                        log.msg('LEMI - Protocol: Bad data ({} bits) deleted. New bufferlength: {}'.format(lemisearch,len(self.buffer)))
                         flag = 1
 
             if flag == 0:
