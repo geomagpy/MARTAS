@@ -330,6 +330,8 @@ def main(argv):
     location='/tmp'
     global credentials
     credentials=''
+    global offset
+    offset = ''
     global dbcred
     dbcred=''
     global stationid
@@ -348,9 +350,9 @@ def main(argv):
     global dictcheck
     dictcheck = False
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:s:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=",])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:s:f:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset="])
     except getopt.GetoptError:
         print('Check your options:')
         print(usagestring)
@@ -380,6 +382,11 @@ def main(argv):
             print('-s                             source protocol of data: default is mqtt')            
             print('                               other options:')
             print('                               -s wamp    not yet implemented.')
+            print('-f                             offset values. Can either be "db" for')
+            print('                               applying delta values from db or a string')
+            print('                               of the following format (key:value):')
+            print('                               -f "t1:3.234,x:45674.2"')
+            print('                               other options:')
             print('------------------------------------------------------')
             print('Examples:')
             print('1. Basic')
@@ -425,6 +432,8 @@ def main(argv):
             user = arg
         elif opt in ("-P", "--password"):
             password = arg
+        elif opt in ("-f", "--offset"):
+            offset = arg
         elif opt in ("-U", "--debug"):
             debug = True
 

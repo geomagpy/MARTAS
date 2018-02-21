@@ -157,7 +157,7 @@ class MySQLProtocol(object):
                 pass
 
         # 6. Obtaining relevant sensor data for each table
-        print ("PART 6 --- putting together  -----")
+        print ("  -> Appending sensor information to sensors.cfg")
         for sens in senslist3:
             values = {}
             values['sensorid'] = sens

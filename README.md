@@ -37,10 +37,15 @@ on debian like LINUX systems.
     Required packages:
     - Geomagpy >= 0.3.97 (and its requirements)
         sudo pip install geomagpy
-    - mosquitto (MQTT client)
+    - mosquitto (MQTT client - broker)
         sudo apt-get install mosquitto mosquitto-clients
     - paho-mqtt (MQTT python)
         sudo pip install paho-mqtt
+    - pyserial 
+        sudo pip install pyserial
+    - twisted 
+        sudo pip install twisted
+        sudo pip install service_identity
 
 1.1 Cloning MARTAS:
 ###########################
@@ -100,16 +105,15 @@ Thats it. How to use credentials in MARTAS is described in section 3.4.
 
 All necessary files are found within the MARTAS directory 
 	SYSTEMNAME:  			(e.g. RASPBERRYONE, CERES) contains a description of the system and a history of changes made to it
-        acquisition_mqtt.py:		the main program
 
         index.html:			HTML script for visualization - accessed by localhost:8080
 
         README.md:			You are here.
-        sensors.cfg:			sensors configuration information
-        martas.cfg:			basic MARTAS confifuration
+        conf/sensors.cfg:		sensors configuration information
+        conf/martas.cfg:		basic MARTAS confifuration
 
-        acquisition.py:                 should accept options (-s sensors.cfg, -m martas.cfg, -c cred)
-        collector.py:                   should accept options (-s sensors.cfg, -m martas.cfg, -c cred)
+        acquisition.py:                 accepts options (-m martas.cfg, -c cred)
+        collector.py:                   accepts options (-m martas.cfg, -c cred)
 
 	DataScripts/convert.py:		converts MARTAS binary buffer files to ascii
 	DataScripts/senddata.py:	Send data from MARTAS to any other machine using cron/scheduler
