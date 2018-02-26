@@ -29,11 +29,12 @@ typedef = {'DS18B20':['temperature'], 'DS2438':['temperature','VAD','VDD','humid
 if onewire:
     class OwProtocol():
         """
-        Protocol to read one wire data from usb DS unit
+        Protocol to read one wire data from usb DS unit.
+        For this protocol "owserver" needs to be running.
         All connected sensors are listed and data is distributed in dependency of sensor id
         Dipatch url links are defined by channel 'ow' and id+'value'
-        Save path ? folders ?
-
+        Known issues:
+        When renaming th PC, owserver can not properly be reached. -> Restart 
         """
         # TODO check humidity and pressure
         def __init__(self, client, sensordict, confdict):
@@ -73,9 +74,9 @@ if onewire:
                 self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
                 sensorlst = self.owproxy.dir()
             except:
-                log.msg("  -> one wire:could not contact to owhost")
+                #log.msg("  -> one wire: could not contact to owhost")
                 return []
-            log.msg("  -> one wire: {}".format(sensorlst))
+            #log.msg("  -> one wire: {}".format(sensorlst))
             # compare currently read sensorlst with original sensorlst (eventually from file)
             existingpathlist = [line.get('path') for line in existinglist]
             # Identify attached sensors and their types

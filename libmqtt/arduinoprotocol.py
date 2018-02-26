@@ -15,9 +15,6 @@ from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 
-from methodstobemovedtoacs import *
-
-
 
 ## Arduino protocol
 ## --------------------
