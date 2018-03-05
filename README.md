@@ -106,35 +106,33 @@ Thats it. How to use credentials in MARTAS is described in section 3.4.
 All necessary files are found within the MARTAS directory 
 	SYSTEMNAME:  			(e.g. RASPBERRYONE, CERES) contains a description of the system and a history of changes made to it
 
-        index.html:			HTML script for visualization - accessed by localhost:8080
+        acquisition.py:                 accepts options (-h for help)
+        collector.py:                   accepts options (-h for help)
 
         README.md:			You are here.
         conf/sensors.cfg:		sensors configuration information
         conf/martas.cfg:		basic MARTAS confifuration
 
-        acquisition.py:                 accepts options (-m martas.cfg, -c cred)
-        collector.py:                   accepts options (-m martas.cfg, -c cred)
+        init/pos1init.sh:		Initialization scripts
+        inti/gsmv7init.sh:		Initialization scripts
+
+        app/senddata.py:		Send data from MARTAS to any other machine using cron/scheduler
+        app/addcred.py:			run to add protected credentials to be used e.g. 
+					by data sending protocol
+        app/cleanup.sh:			remove buffer files older than a definite period
+        app/martas.sh:			to be run at boot time for starting the acquisition
+        app/sendip.py:			Helper for checking and sending (via ftp) public IP
 
 	DataScripts/convert.py:		converts MARTAS binary buffer files to ascii
-	DataScripts/senddata.py:	Send data from MARTAS to any other machine using cron/scheduler
-
-
 	DataScripts/palmacq-init.py:	Necessary for initiating PALMAQ/OBSDAC 
                                                - specifications in commands.txt
 	DataScripts/commands.txt:	Commands for initiating PALMAQ/OBSDAC 
 
-	Logs/martas.log:		MARTAS standard logging file for acquisition
-	Logs/martas:			sceleton file to be modified and copied to /etc/logrotate.d
 
 	Nagios/add2nrpe.cfg:		command to check for martas process for nagios (client side, requires nrpe)
 	Nagios/add2server.cfg:		service description to add on the cfg file (server side)
 
 	OldVersions/...:		Folder for storage of old SYSTEMNAME log files
-
-	UtilityScripts/addcred.py:	run to add protected credentials to be used e.g. by data sending protocol
-	UtilityScripts/cleanup.sh:      remove buffer files older than a definite period
-	UtilityScripts/martas.sh:	to be run at boot time for starting the acquisition
-	UtilityScripts/sendip.py:	Helper for checking and sending (via ftp) public IP
 
  	WebScripts/autobahn.min.js:	required for index.html 
  	WebScripts/autobahn.sensors.js:	required for index.html 
