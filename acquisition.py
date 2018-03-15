@@ -381,13 +381,13 @@ def main(argv):
                 log.msg(" - !!! ActiveThread failed for {} !!!".format(sensor.get('sensorid')))
                 pass
         else:
-            log.msg("acquisition_mqtt: Mode not recognized")
+            log.msg("acquisition: Mode not recognized")
 
         sensorid = sensor.get('sensorid')
 
     # Start all passive clients
     if passive_count > 0:
-        log.msg("acquisition_mqtt: Starting reactor for passive sensors. Sending data now ...")
+        log.msg("acquisition: Starting reactor for passive sensors. Sending data now ...")
         reactor.run()
 
 

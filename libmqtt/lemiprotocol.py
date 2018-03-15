@@ -43,6 +43,7 @@ from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
+from subprocess import check_call
 
 
 ## Lemi protocol (Lemi025 and Lemi036)
@@ -88,7 +89,7 @@ class LemiProtocol(LineReceiver):
         self.timedelay = 0.0
         self.ntp_gps_offset = 2.304 # sec - only used for time testing
         self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
-
+        self.buffererrorcnt = 0
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
         if not self.qos in [0,1,2]:
@@ -261,7 +262,7 @@ class LemiProtocol(LineReceiver):
         #print ("Lemi data here!", self.buffer)
         """
         Sometime the code is starting wrongly -> 148 bit length
-        self healing not working - Check thata
+        self healing not working - Check data
         """
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
@@ -310,6 +311,7 @@ class LemiProtocol(LineReceiver):
                 if (self.buffer).startswith(self.soltag):
                     datatest = len(self.buffer)%153
                     dataparts = int(len(self.buffer)/153)
+                    log.msg('LEMI - Protocol: datatest {} and dataparts {}'.format(datatest,dataparts))
                     if datatest == 0:
                         if self.debug:
                             log.msg('LEMI - Protocol: It appears multiple parts came in at once, amount N of parts: {}'.format(dataparts))
@@ -336,11 +338,25 @@ class LemiProtocol(LineReceiver):
                                 log.msg('LEMI - Protocol: No header found. Deleting buffer.')
                                 self.buffer = ''
                             else:
-                                log.msg('LEMI - Protocol: String contains bad data ({} bits). Deleting.'.format(len(self.buffer[:lemisearch])))
+                                log.msg('LEMI - Protocol: String contains bad data ({} bits). Deleting. Lemisearchpos: {}'.format(len(self.buffer[:lemisearch]), lemisearch))
                                 #self.buffer = ''
                                 self.buffer = self.buffer[lemisearch:len(self.buffer)]
                                 flag = 1
+                                self.buffererrorcnt += 1
                                 break
+                    if self.buffererrorcnt == 10:
+                        log.msg('LEMI - Protocol: Cannot fix problem - restarting process')
+                        log.msg('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+                        self.buffer = ''
+                        self.buffererrorcnt = 0
+                        try:
+                            check_call(['/etc/init.d/martas', 'restart'])
+                        except subprocess.CalledProcessError:
+                            log.msg('LEMI - Protocol: check_call didnt work')
+                        except:
+                            log.msg('LEMI - Protocol: check call problem')
+                        log.msg('LEMI - Protocol: Restarted martas process')
+
 
                 else:
                     log.msg('LEMI - Protocol: Incorrect header. Attempting to fix buffer... Bufferlength: {}'.format(len(self.buffer)))
@@ -365,6 +381,7 @@ class LemiProtocol(LineReceiver):
         ## publish events to all clients subscribed to topic
         if WSflag == 2:
 
+            self.buffererrorcnt = 0
             senddata = False
             coll = int(self.sensordict.get('stack'))
             if coll > 1:
