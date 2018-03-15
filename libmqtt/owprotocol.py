@@ -14,11 +14,6 @@ from datetime import datetime, timedelta
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 
-from methodstobemovedtoacs import *
-
-#owport = 4304
-#owhost = 'localhost'
-
 try:
     import pyownet
     onewire = True
@@ -34,14 +29,16 @@ typedef = {'DS18B20':['temperature'], 'DS2438':['temperature','VAD','VDD','humid
 if onewire:
     class OwProtocol():
         """
-        Protocol to read one wire data from usb DS unit
+        Protocol to read one wire data from usb DS unit.
+        For this protocol "owserver" needs to be running.
         All connected sensors are listed and data is distributed in dependency of sensor id
         Dipatch url links are defined by channel 'ow' and id+'value'
-        Save path ? folders ?
-
+        Known issues:
+        When renaming th PC, owserver can not properly be reached. -> Restart 
         """
         # TODO check humidity and pressure
         def __init__(self, client, sensordict, confdict):
+            log.msg("  -> one wire: Initializing ...")
             self.client = client
             self.sensordict = sensordict    
             self.confdict = confdict
@@ -53,7 +50,9 @@ if onewire:
             self.reconnectcount = 0
             self.removelist = [] # list of sensorspaths from sensors.cfg which are not found
             # Extract eventually existing one wire sensors from sensors.cfg
-            self.existinglist = GetSensors(confdict.get('sensorsconf'),identifier='!')
+            log.msg("  -> one wire: Checking existing sensors ...")
+            self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='!')
+            log.msg("  -> one wire: Checking for new sensors ...")
             self.sensorarray = self.GetOneWireSensorList(self.existinglist)
             self.count = [0]*len(self.sensorarray)  ## counter for sending header information
             self.metacnt = 2  # Send header information often for OW
@@ -75,7 +74,9 @@ if onewire:
                 self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
                 sensorlst = self.owproxy.dir()
             except:
+                #log.msg("  -> one wire: could not contact to owhost")
                 return []
+            #log.msg("  -> one wire: {}".format(sensorlst))
             # compare currently read sensorlst with original sensorlst (eventually from file)
             existingpathlist = [line.get('path') for line in existinglist]
             # Identify attached sensors and their types
@@ -122,7 +123,7 @@ if onewire:
                             values['stack'] = 0
                             values['sensorid'] = typ+'_'+idel+'_'+revision
                             log.msg("OW: Writing new sensor input to sensors.cfg ...")
-                            success = AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
+                            success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
                             #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
                             if success:
                                 log.msg("    {} written".format(values.get('sensorid')))

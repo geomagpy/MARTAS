@@ -15,9 +15,6 @@ from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 
-from methodstobemovedtoacs import *
-
-
 
 ## Arduino protocol
 ## --------------------
@@ -89,7 +86,7 @@ class ArduinoProtocol(LineReceiver):
         if self.debug:
             log.msg("DEBUG - Running on board {}".format(self.board))
         # get existing sensors for the relevant board
-        self.existinglist = GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
+        self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
         self.sensor = ''
 
         # none is verified when initializing
@@ -279,7 +276,7 @@ class ArduinoProtocol(LineReceiver):
                         values['stack'] = 0
                         values['sensorid'] = sensoridenti[0]
                         log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
-                        success = AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
+                        success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
                         #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
                         self.existinglist.append(values)
                     elif len(seldict3) > 0:
