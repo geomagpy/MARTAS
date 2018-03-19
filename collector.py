@@ -46,7 +46,9 @@ from __future__ import absolute_import
 local = True
 if local:
     import sys
-    sys.path.insert(1,'/home/leon/Software/magpy-git/')
+    #sys.path.insert(1,'/home/leon/Software/magpy-git/')
+    # TODO
+    sys.path.insert(1,'/home/cobs/Prog/mqtt2web/MARTAS/web')
 
 from magpy.stream import *
 from magpy.database import *
@@ -61,6 +63,52 @@ from magpy.acquisition.acquisitionsupport import dataToFile
 ## -----------------------------------------------------------
 import paho.mqtt.client as mqtt
 import sys, getopt
+
+## Import WebsocketServer
+## -----------------------------------------------------------
+def wsThread():
+    wsserver.set_fn_new_client(new_wsclient)
+    wsserver.set_fn_message_received(message_received)
+    wsserver.run_forever()
+
+# TODO: find a way how to use these two functions:
+def new_wsclient(ws_client,server):
+    pass
+    # for debug: see which threads are running:
+    #print(str(threading.enumerate()))
+def message_received(ws_client,server,message):
+    pass
+
+ws_available = True
+try:
+    from websocket_server import WebsocketServer
+except:
+    ws_available = False
+if ws_available:
+    import json
+    # 0.0.0.0 makes the websocket accessable from anywhere TODO: not only 5000
+    wsserver = WebsocketServer(5000, host='0.0.0.0')
+
+## Import Webserver
+## -----------------------------------------------------------
+try:
+    from twisted.web.server import Site
+    from twisted.web.static import File
+    #from twisted.internet import reactor, endpoints
+    from twisted.internet import reactor
+except:
+    ws_available = False
+
+def webThread():
+    # TODO absolut path or other solution?
+    resource = File('./web')
+    factory = Site(resource)
+    #endpoint = endpoints.TCP4ServerEndpoint(reactor, 8888)
+    #endpoint.listen(factory)
+    reactor.listenTCP(8080,factory)
+    print("collector: We don't need signals here - Webserver started as daemon")
+    reactor.run()
+## -----------------------------------------------------------
 
 # Some global variables
 global identifier
@@ -285,6 +333,16 @@ def on_message(client, userdata, msg):
                     time = num2date(el).replace(tzinfo=None)
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     print ("{}: {},{}".format(sensorid,time,datastring))
+            if 'websocket' in destination:
+                if not arrayinterpreted:
+                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
+                    arrayinterpreted = True
+                for idx,el in enumerate(stream.ndarray[0]):
+                    time = num2date(el).replace(tzinfo=None)
+                    msecSince1970 = int((time - datetime(1970,1,1)).total_seconds()*1000)
+                    datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
+                    wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
             elif 'db' in destination:
                 if not arrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
@@ -314,6 +372,19 @@ def on_message(client, userdata, msg):
                 pass
         else:
             print(msg.topic + " " + str(msg.payload))
+    if msg.topic.endswith('meta') and 'websocket' in destination:
+        # send header info for each element (# sensorid   nr   key   elem   unit) 
+        analyse_meta(str(msg.payload),sensorid)
+        for (i,void) in enumerate(identifier[sensorid+':keylist']):
+            jsonstr={}
+            jsonstr['sensorid'] = sensorid
+            jsonstr['nr'] = i
+            jsonstr['key'] = identifier[sensorid+':keylist'][i]
+            jsonstr['elem'] = identifier[sensorid+':elemlist'][i]
+            jsonstr['unit'] = identifier[sensorid+':unitlist'][i]
+            payload = json.dumps(jsonstr)
+            wsserver.send_message_to_all('# '+payload)
+
 
 def main(argv):
     #broker = '192.168.178.75'
@@ -445,6 +516,20 @@ def main(argv):
         if location in [None,''] and not os.path.exists(location):
             print ('destination "file" requires a valid path provided as location')
             print (' ... aborting ...')
+            sys.exit()
+    if 'websocket' in destination:
+        if ws_available:
+            wsThr = threading.Thread(target=wsThread)
+            # start as daemon, so the entire Python program exits when only daemon threads are left
+            wsThr.daemon = True
+            print('starting websocket on port 5000...')
+            wsThr.start()
+            # start webserver
+            webThr = threading.Thread(target=webThread)
+            webThr.daemon = True
+            webThr.start()
+        else:
+            print("no webserver or no websocket-server available")
             sys.exit()
     if 'db' in destination:
         if dbcred in [None,'']:
