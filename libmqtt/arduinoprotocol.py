@@ -42,7 +42,7 @@ class ArduinoProtocol(LineReceiver):
                 Key and Variable are separeted by an underscore, unit is provided in brackets.
                 Like the Meta information the header should be sent out once in a while
                 Example:
-                     H1: f_F [nT], t1_Temp [deg C], var1_Quality [None], var2_Pressure [mbar]
+                     H1: f_F [nT], t1_Temp [degC], var1_Quality [None], var2_Pressure [mbar]
             3.) The data line:
                 The data line containes all data from a specific sensor
                 Example:
@@ -65,6 +65,7 @@ class ArduinoProtocol(LineReceiver):
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
+        self.counter = {}
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
@@ -137,6 +138,8 @@ class ArduinoProtocol(LineReceiver):
         ele = '['+str(meta.get('SensorElements')).replace("'","").strip()+']'
         unit = '['+str(meta.get('SensorUnits')).replace("'","").strip()+']'
         multplier = str(multiplier).replace(" ","")
+        # Correct some common old problem
+        unit = unit.replace('deg C', 'degC')
 
         header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
 
@@ -272,9 +275,13 @@ class ArduinoProtocol(LineReceiver):
                         values['name'] = relevantdict.get('SensorName')
                         values['protocol'] = 'Arduino'
                         values['port'] = self.board
+                        values['ptime'] = relevantdict.get('DataTimeProtocol','-')
+                        values['pierid'] = relevantdict.get('DataPier','-')
+                        values['sensordesc'] = relevantdict.get('SensorDecription','-')
+                        values['sensorgroup'] = relevantdict.get('SensorGroup','-')
                         values['revision'] = relevantdict.get('SensorRevision')
                         values['stack'] = 0
-                        values['sensorid'] = sensoridenti[0]
+                        values['sensorid'] = sensoridenti[0]+'_'+relevantdict.get('SensorID')+'_'+relevantdict.get('SensorRevision')
                         log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
                         success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
                         #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
@@ -323,6 +330,7 @@ class ArduinoProtocol(LineReceiver):
                 coll = int(evdict.get('stack'))
             except:
                 coll = 0
+
             if coll > 1:
                 self.metacnt = 1 # send meta data with every block
                 if self.datacnt < coll:
@@ -338,15 +346,24 @@ class ArduinoProtocol(LineReceiver):
 
             if senddata:
                 self.client.publish(topic+"/data", pdata, qos=self.qos)
-                if self.count == 0:
+                # If multiple sensors are connected, self.count needs to be a dict (with topic)
+                # Initialize counter for each topic
+                if self.counter.get(sensorid,'') == '':
+                    self.counter[sensorid] = 0
+                cnt = self.counter.get(sensorid)
+
+                if cnt == 0:
                     ## 'Add' is a string containing dict info like: 
                     ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
-                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station',''),evdict.get('pierid',''),evdict.get('protocol',''),evdict.get('sensorgroup',''),evdict.get('sensordesc',''),evdict.get('ptime','') )
+                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDescription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station','').strip(),evdict.get('pierid','').strip(),evdict.get('protocol','').strip(),evdict.get('sensorgroup','').strip(),evdict.get('sensordesc','').strip(),evdict.get('ptime','').strip() )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
 
-                self.count += 1
-                if self.count >= self.metacnt:
-                    self.count = 0
+                cnt += 1
+                #self.count += 1
+                if cnt >= self.metacnt:
+                    cnt = 0
 
+                # update counter in dict 
+                self.counter[sensorid] = cnt
 
