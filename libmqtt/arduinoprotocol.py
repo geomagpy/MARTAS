@@ -174,7 +174,7 @@ class ArduinoProtocol(LineReceiver):
                     return {}
                 var = an[0].split('_')
                 key = var[0].strip().lower()
-                variable = var[1].strip().lower()
+                variable = var[1].strip()
                 unit = an[1].strip()
                 keylist.append(key)
                 varlist.append(variable)
