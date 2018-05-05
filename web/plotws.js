@@ -10,12 +10,33 @@
     console.log("plotws.js started");
 
 // "import" smoothiechart javascripts
-    var importsmoothie = document.createElement('script');
-    importsmoothie.src = 'smoothie.js';
-    document.head.appendChild(importsmoothie);
-    var importsmoothiesettings = document.createElement('script');
-    importsmoothiesettings.src = 'smoothiesettings.js';
-    document.head.appendChild(importsmoothiesettings);
+//    var importsmoothie = document.createElement('script');
+//    importsmoothie.src = 'smoothie.js';
+//    document.head.appendChild(importsmoothie);
+//    var importsmoothiesettings = document.createElement('script');
+//    importsmoothiesettings.src = 'smoothiesettings.js';
+//    document.head.appendChild(importsmoothiesettings);
+
+// Modidied import by leon May 2018
+// https://stackoverflow.com/questions/950087/how-do-i-include-a-javascript-file-in-another-javascript-file
+
+    function loadSmoothie(name, callback) {
+        var importsmoothie = document.createElement('script');
+        importsmoothie.src = name;
+        // bind the event to callback
+        importsmoothie.onreadystatechange = callback;
+        importsmoothie.onload = callback;
+        // Fire loading
+        document.head.appendChild(importsmoothie);
+    }
+
+    var getsettings = function () {
+        var importsmoothiesettings = document.createElement('script');
+        importsmoothiesettings.src = 'smoothiesettings.js';
+        document.head.appendChild(importsmoothiesettings);
+    }
+
+    loadSmoothie('smoothie.js', getsettings);
 
     function getCanvas(signalid) {
         try {

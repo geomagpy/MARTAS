@@ -48,7 +48,7 @@ if local:
     import sys
     #sys.path.insert(1,'/home/leon/Software/magpy-git/')
     # TODO
-    sys.path.insert(1,'/home/cobs/Prog/mqtt2web/MARTAS/web')
+    sys.path.insert(1,'/home/leon/Software/MARTAS/web')
 
 from magpy.stream import *
 from magpy.database import *

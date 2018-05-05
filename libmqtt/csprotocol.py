@@ -136,7 +136,7 @@ class CsProtocol(LineReceiver):
             else:
                 senddata = True
 
-            print ("Dataarray", dataarray, senddata, topic)
+            #print ("Dataarray", dataarray, senddata, topic)
             if senddata:
                 self.client.publish(topic+"/data", dataarray, qos=self.qos)
                 if self.count == 0:
