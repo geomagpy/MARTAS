@@ -154,7 +154,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
             log.msg("DEBUG -> Importstring looks like: {}".format(importstr))
 
         evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
-        exec importstr
+        exec (importstr)
         protocol = eval(evalstr)
         log.msg(evalstr)
     else:

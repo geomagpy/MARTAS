@@ -1,38 +1,22 @@
-MARTAS - new (October 2017)
+#MARTAS 
+**MagPys Automated Real Time Acquisition System**
 
-MARTAS now uses MQTT as main protocol
-Developers: R. Leonhardt (ZAMG)
+Developers: R. Leonhardt, R. Mandl, R. Bailey (ZAMG)
 
-MARTAS = Magpy Automated Real Time Acquisition System
+Note: in the folling examples we use "user" as username and "users" as group.
+Replace these names with your user:group names.
 
-########
-Changes:
-########
+## 1. INSTALLTION
 
-version 0.1 (October 2017)
-   * imported existing MARTAS 0012 
-
-
-##########################
-MINI TO-DO:
-- add trigger mode for GSM90 (sending f)
-- add to #5
-- update scp_log to use protected creds
-- add in how-to for using senddata and addcreds
-##########################
-
-
-#####################################################################
-         Setup and Structure of Acquisition Units (MARTAS)
-#####################################################################
-
-# -------------------------------------------------------------------
-1. Installation requirements
-# -------------------------------------------------------------------
+### 1.1 Installation requirements
 
 All installation instructions assume a linux (debian-like) system.
 Although MARTAS is platform independent, it is currently only tested and used
 on debian like LINUX systems. 
+
+    PYTHON:
+    - tested and running on python 2.7
+    - some unicode/string issues open for 3.x compatibility (work in progress)
 
     Required packages:
     - Geomagpy >= 0.3.97 (and its requirements)
@@ -47,22 +31,24 @@ on debian like LINUX systems.
         sudo pip install twisted
         sudo pip install service_identity
 
-1.1 Cloning MARTAS:
-###########################
+    Optional packages:
+    - pyownet  (one wire support) 
+        sudo pip install pyownet
+
+
+### 1.2 Getting MARTAS
 
 Get all neccessary MARTAS files by one of the following techniques:
-a) clone the MARTAS repository to your local hard disk (requires git)
+a) clone the MARTAS repository to your home folder (requires git)
 
-        user@home:~$ git clone https://github.com/geomagpy/MARTAS.git
+        $ git clone https://github.com/geomagpy/MARTAS.git
 
 b) download the MARTAS archive and unpack it  
 
-        user@home:~$ wget ...
-        user@home:~$ tar -zxvf martas.tar.gz
+        $ wget ...
+        $ tar -zxvf martas.tar.gz
         
-
-1.2 MQTT installation:
-###########################
+### 1.3 INSTALL MQTT
 
 MARTAS makes use of certain IOT protocols for real-time data transfer.
 Currently supported are WAMP (decrepated) and MQTT. In the following you will find some instructions
@@ -71,8 +57,7 @@ on how to get MQTT running on your acquisition machine.
 You only need to install the required packages as listed above. Thats it.
 
 
-1.3 Authentication:
-###########################
+### 1.3 Enabling authentication
 
 Authentication and secure data communication are supported by MARTAS. In order to enable
 authentication and SSL encryption for accessing data streams from your acquisition machine please check the following web page:
@@ -85,11 +70,11 @@ For quickly enabling authentication you can also use the following instructions 
 
     Add a user and a password file to the MQTT broker (is encrypted):
 
-        user@home:~$ sudo mosquitto_passwd -c /etc/mosquitto/passwd myuser
+        $ sudo mosquitto_passwd -c /etc/mosquitto/passwd user
 
     Then use command
 
-        user@home:~$ sudo nano /etc/mosquitto/conf.d/default.conf
+        $ sudo nano /etc/mosquitto/conf.d/default.conf
 
     to open an empty file. 
 
@@ -97,11 +82,148 @@ For quickly enabling authentication you can also use the following instructions 
         allow_anonymous false
         password_file /etc/mosquitto/passwd
 
+    Restart mosquitto
 Thats it. How to use credentials in MARTAS is described in section 3.4.
 
-# -------------------------------------------------------------------
-2. Strucure/Files in home directory of MARTAS user
-# -------------------------------------------------------------------
+
+## 2. Setting up MARTAS
+
+### 2.1 Basic setup:
+
+a) Copy configuration files to your home directory
+        $ cd /home/user/MARTAS/conf
+        $ cp martas.cfg ~ 
+        $ cp sensors.cfg ~ 
+
+b) Modify MARTAS/martas.cfg
+
+   Please note that the path to sensors.cfg is defined within this file
+        $ nano martas.cfg
+   
+c) Modify MARTAS/sensors.cfg
+
+   Enable your sensors
+
+d) Logging to /var/log/magpy/martas.log (recommended)
+        $ cd /var/log/ 
+        $ sudo mkdir magpy
+        $ sudo chown user:users magpy
+
+
+### 2.2 Running the acquisition sytem
+
+a) Command line
+
+        $ python acquisition.py
+
+    acquisition.py automatically chooses cfg files from the same directory. You can use other parameter
+    files using:
+
+        $ python acquisition.py -m /home/user/martas.cfg
+
+b) Autostart (recommended)
+
+    - Go to /home/user/MARTAS/init:
+        $ cd /home/user/MARTAS/init
+    
+    - Modify initialization routine:
+      Change Pythonpath and paths to cfg files
+        $ nano martas.sh
+      If you are going to use authentication you need to add
+      option -c credential!
+
+    - Activate autostart:
+        $ sudo ./autostart.sh
+
+    - To remove:
+        $ sudo update-rc.d -f  martas remove
+
+    - Thef following options are now available:
+        $ sudo /etc/init.d/martas status
+        $ sudo /etc/init.d/martas start
+        $ sudo /etc/init.d/martas restart
+        $ sudo /etc/init.d/martas stop
+
+## 3 EXPERTS settings
+
+Edit the Utility scripts (cleanup and logfile applications) according to your needs. Use cron to schedule them.
+
+### 3.1 Remove all data buffer files older then 100 days
+    - edit cleanup.sh. It should read:
+	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
+    - edit crontab to schedule this job once a day
+	$ sudo crontab -e
+	Add this line (don't forget to modify the path):
+	15 0 * * * sh /home/user/MARTAS/app/cleanup.sh
+	# to run the job every day 15 minutes past midnight
+
+### 3.2 Activate logrotation
+    - edit /MARTAS/Logs/martas (check logrotate WIKI)
+    - do (on ubuntu and most other Linux versions):
+        $ cd ~/MARTAS/app/
+    - modify log file paths and critical sizes
+        $ nano martas.logrotate
+        $ sudo cp martas.logrotate /etc/logrotate.d/martas
+        $ sudo chmod 644 /etc/logrotate.d/martas
+        $ sudo chown root:root /etc/logrotate.d/martas
+
+### 3.3  Poll for change of public IP (useful for WiFi/UMTS connection):
+    - edit paths in UtlityScripts/sendip.py to your own FTP server (if using)
+    - Add call into crontab (as often as needed):
+	$ crontab -e
+	Something like this (for hourly polling):
+	1 */1 * * * python ~/MARTAS/UtilityScripts/sendip.py
+
+
+### 3.4 Enabling Authentication
+
+BROKER:
+
+    Input the user defined in 1.3 into martas.cfg:
+
+        ...
+        mqttuser : user
+        ...
+
+    a)
+    When running acquistion.py you will be asked to provide the mqtt password.
+
+        $ python acquisition_mqtt.py -m /home/cobs/martas.cfg
+        MQTT Authentication required for User cobs:
+        Password: 
+
+    b)
+    or you provide it directly
+
+        $ python acquisition_mqtt.py -m /home/cobs/martas.cfg -P mypasswd
+
+    c)
+    Alternative: You can use addcred.py (UtilityScripts) to add user and passwd to the magpy credentials
+    is 'user' is found as credential name, the asociated passwd is automatically used 
+
+        $ python addcred.py -t transfer -c mqtt -u user -p mypasswd -a localhost
+    for super user:
+        $ sudo python addcred.py -t transfer -c mqtt -u user -p mypasswd -a localhost
+
+    When you inserted the same username in martas.cfg as outline above, then everything is working fine.
+
+    Alternatively, you can also use 
+        $ python acquisition_mqtt.py -m /home/cobs/martas.cfg -c mqtt
+    and avoid plain text usage of passwords anywhere on your system.
+
+    Please note: if you are using autostart/init scripts the alternative technique (c) should be preferred
+    IMPORTANT: you have to add  -c mqtt in the martas script.
+
+COLLECTOR:
+
+    Run the collector with user option:
+
+        python collector.py -b brokeradress -u myuser -P mypassword
+
+
+
+## 4. Strucure/Files in home directory of MARTAS user
+
 
 All necessary files are found within the MARTAS directory 
 	SYSTEMNAME:  			(e.g. RASPBERRYONE, CERES) contains a description of the system and a history of changes made to it
@@ -143,158 +265,19 @@ All necessary files are found within the MARTAS directory
 	examples/...:			contains some examples for above mentioned files
 	
 
-# -------------------------------------------------------------------
-3. Running the acquisition module
-# -------------------------------------------------------------------
 
-3.1 Basic setup:
-###########################
+## 5. Using the Webinterface
 
-a) Modify MARTAS/martas.cfg
-
-   - please note that the path to sensors.cfg is defined within this file
-
-b) Modify MARTAS/sensors.cfg
+### 5.1 Starting a WEB interface on the MARTAS client
 
 
-3.2 Running the acquisition sytem
-##################################
-
-
-a) Command line
-
-        user@home:~$ python acquisition.py
-
-    acquisition.py automatically chooses cfg files from the same directory. You can use other parameter
-    files using:
-
-        user@home:~$ python acquisition.py -m /home/myuser/MARTAS/martas.cfg
-
-b) Autostart
-
-    check out the example startscript 'martas.sh' in folder UtilityScripts
-
-OPTION 1 - recommended - Using a bootscript (e.g. debian, rasbian, ubuntu etc)
-	$ sudo cp martas.sh /etc/init.d/martas
-	$ sudo chmod 755 /etc/init.d/martas
-	$ sudo chown root:root /etc/init.d/martas
-	$ sudo update-rc.d martas defaults
-
-To remove:
-	$ sudo update-rc.d -f  martas remove
-
-Starting up MARTAS:
-within ~/MARTAS do:
-sudo /etc/init.d/martas start
-
-3.3 OPTIONAL modifications
-##########################
-
-Edit the Utility scripts (cleanup and logfile applications) according to your needs. Use cron to schedule them.
-
-a) Remove all data buffer files older then 100 days:
-    - edit cleanup.sh. It should read:
-	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
-    - edit crontab to schedule this job once a day
-	$ sudo crontab -e
-	Add this line (don't forget to modify the path):
-	15 0 * * * sh /home/mydir/MARTAS/UtilityScripts/cleanup.sh
-	# to run the job every day 15 minutes past midnight
-
-b) Get human readable data out of files:
-    - OPTION 1: Use MagPy (see examples)
-    - OPTION 2: Use the included convert.py routine. convert.py -h for a description of usage
-
-c) Poll for change of public IP (useful for WiFi/UMTS connection):
-    - edit paths in UtlityScripts/sendip.py to your own FTP server (if using)
-    - Add call into crontab (as often as needed):
-	$ crontab -e
-	Something like this (for hourly polling):
-	1 */1 * * * python ~/MARTAS/UtilityScripts/sendip.py
-
-d) Activate logrotation
-    - edit /MARTAS/Logs/martas (check logrotate WIKI)
-    - do (on ubuntu and most other Linux versions):
-        sudo cp martas /etc/logrotate.d/
-        sudo chmod 644 /etc/logrotate.d/martas
-        sudo chown root:root /etc/logrotate.d/martas
-
-
-3.4 Enabling Authentication
-##########################
-
-BROKER:
-
-    Input the user defined in 1.3 into martas.cfg:
-
-        ...
-        mqttuser : myuser
-        ...
-
-    a)
-    When running acquistion.py you will be asked to provide the mqtt password.
-
-        user@home:~$ python acquisition_mqtt.py -m /home/cobs/martas.cfg
-        MQTT Authentication required for User cobs:
-        Password: 
-
-    b)
-    or you provide it directly
-
-        user@home:~$ python acquisition_mqtt.py -m /home/cobs/martas.cfg -P mypasswd
-
-    c)
-    Alternative: You can use addcred.py (UtilityScripts) to add user and passwd to the magpy credentials
-    is 'myuser' is found as credential name, the asociated passwd is automatically used 
-
-        user@home:~$ python addcred.py -t transfer -c mqtt -u myuser -p mypasswd -a localhost
-    for super user:
-        user@home:~$ sudo python addcred.py -t transfer -c mqtt -u myuser -p mypasswd -a localhost
-
-    Then you can use 
-        user@home:~$ python acquisition_mqtt.py -m /home/cobs/martas.cfg -c mqtt
-    and avoid plain text usage of passwords anywhere on your system.
-
-    Please note: if you are using autostart/init scripts the alternative technqiue should be preferred
-
-COLLECTOR:
-
-    Run the collector with user option:
-
-        python collector.py -b brokeradress -u myuser -P mypassword
-
-# -------------------------------------------------------------------
-4. Customizing the WEB interface of the MARTAS client
-# -------------------------------------------------------------------
-
-a) Edit index.html and put in the correct client name ... that's it.
-    var client = 'name_of_my_martas'
-
-b) Open a browser, e.g. firefox.
-
-c) Enter this address: localhost:8080
-     (if you are on a remote machine use ipnumber:8080 e.g. 192.168.0.100:8080 )
-
-d) Be astonished. 
-	(if not check whether you started the script within the MARTAS homedirectory.
-	And is apache installed and running?)
-
-
-# -------------------------------------------------------------------
-5. For those who read to the end before doing any changes
-# -------------------------------------------------------------------
-
-Just modify the code below and copy it to a terminal window - within your martas homedirectory to make all necessary parameter changes in all files. 
-
-# TODO: write a small install script which sets paths and names correctly
+### 5.2 Customizing the WEB interface of the MARTAS client
 
 
 
-# -------------------------------------------------------------------
-6. protocol specific configurations
-# -------------------------------------------------------------------
+## 6. protocol specific configurations
 
-6.1. OW (One wire) support
+### 6.1. OW (One wire) support
 
 a) modify owfs,conf
 cobs@xxx$ sudo nano /etc/owfs.conf 
@@ -309,5 +292,17 @@ server: usb = all
 
 b) start the owserver
 cobs@xxx$ sudo etc/init.d/owserver start 
+
+
+
+##########################
+MINI TO-DO:
+- add trigger mode for GSM90 (sending f)
+- add to #5
+- update scp_log to use protected creds
+- add in how-to for using senddata and addcreds
+##########################
+
+
 
 

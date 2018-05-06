@@ -37,7 +37,6 @@ timeout : 60.0
 # for password protection initiate user in app
 # python addcred.py -t transfer -c mqtt -u user -p secret -a localhost
 # and enable passwd protection in mosquitto
-# please note that using credentials requries an update of the autostart script
 broker : localhost
 mqttport : 1883
 mqttdelay : 60
