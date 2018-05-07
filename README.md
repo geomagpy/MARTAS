@@ -1,4 +1,5 @@
-#MARTAS 
+# MARTAS 
+
 **MagPys Automated Real Time Acquisition System**
 
 Developers: R. Leonhardt, R. Mandl, R. Bailey (ZAMG)
@@ -224,84 +225,99 @@ COLLECTOR:
 
 ## 4. Strucure/Files in home directory of MARTAS user
 
-
-All necessary files are found within the MARTAS directory 
-	SYSTEMNAME:  			(e.g. RASPBERRYONE, CERES) contains a description of the system and a history of changes made to it
+AWithin the MARTAS directory you will find the following files and programs:
 
         acquisition.py:                 accepts options (-h for help)
         collector.py:                   accepts options (-h for help)
 
         README.md:			You are here.
+        LICENSE.md:			GNU GPL 3.0 License
+
         conf/sensors.cfg:		sensors configuration information
-        conf/martas.cfg:		basic MARTAS confifuration
+        conf/martas.cfg:		basic MARTAS confifuration -> acquisition
+        conf/marcos.cfg:		basic MARCOS confifuration -> collector
 
-        init/pos1init.sh:		Initialization scripts
-        inti/gsmv7init.sh:		Initialization scripts
+        init/martas.sh:			Start script to be used in /etc/init.d
+        init/autostart.sh:		Run to add and sctivate /etc/init.d/martas
+        init/martas.logrotate:		Example script to activate logrotation
+        init/gsm90v7init.sh:		Initialization script GEM GSM90 v7
+        init/gsm90v6init.sh:		Initialization script GEM GSM90 v6
+        init/pos1init.sh:		Initialization script Quantum POS1 
+        init/bm35init.sh:		Initialization script Meteolab BM35 pressure
+        ...
 
-        app/senddata.py:		Send data from MARTAS to any other machine using cron/scheduler
+        app/serialinit.py:		Load initialization file (in init) to activate
+                                        continuous serial data delivery (passive mode)
         app/addcred.py:			run to add protected credentials to be used e.g. 
 					by data sending protocol
+        app/senddata.py:		Send data from MARTAS to any other machine using cron/scheduler
         app/cleanup.sh:			remove buffer files older than a definite period
-        app/martas.sh:			to be run at boot time for starting the acquisition
-        app/sendip.py:			Helper for checking and sending (via ftp) public IP
+        app/sendip.py:			Helper for checking and sending public IP  (via ftp)
+        app/convert.py:		        converts MARTAS binary buffer files to other formats
 
-	DataScripts/convert.py:		converts MARTAS binary buffer files to ascii
-	DataScripts/palmacq-init.py:	Necessary for initiating PALMAQ/OBSDAC 
-                                               - specifications in commands.txt
-	DataScripts/commands.txt:	Commands for initiating PALMAQ/OBSDAC 
+        libmqtt/...:			library for supported instruments (mqtt streaming)        
+        libwamp/...:			library for sup. inst. (wamp streaming) - DISCONTINUED        
 
+        web/index.html:			local main page 
+        web/plotws.js:		  	arranging plots of real time diagrams on html page
+        web/smoothie.js:		plotting library/program (http://smoothiecharts.org/)
+        web/smoothiesettings.js:        define settings for real time plots
 
-	Nagios/add2nrpe.cfg:		command to check for martas process for nagios (client side, requires nrpe)
-	Nagios/add2server.cfg:		service description to add on the cfg file (server side)
-
-	OldVersions/...:		Folder for storage of old SYSTEMNAME log files
-
- 	WebScripts/autobahn.min.js:	required for index.html 
- 	WebScripts/autobahn.sensors.js:	required for index.html 
-        WebScripts/magpy.func.js:       required for index.html
-        WebScripts/magpy.sensors.js:    required for index.html
-	WebScripts/smoothie.js:		required for index.html
-
-	examples/...:			contains some examples for above mentioned files
-	
+        oldstuff/...:		        Folder for old contents and earlier versions
 
 
 ## 5. Using the Webinterface
 
 ### 5.1 Starting a WEB interface on the MARTAS client
 
+a) Starting websocket transfer on MARTAS
+        $ cd ~/MARTAS
+        $ python collector -d websocket -o mystation
+      If authentication is used: 
+        $ python collector -d websocket -o mystation -u user -P password
 
-### 5.2 Customizing the WEB interface of the MARTAS client
+b) accessing websocket
+      Connect to the MATRTAS machine from remote:
+      On any machine which can access defined websocket port you can now open
+      the following url in a browser of your choice:
+      (Pleas replace "ip_of_martas" with the real IP-address or url name.
 
+        http://ip_of_martas:8080
+      
+### 5.2 Customizing the WEB interface/ports of the MARTAS client
 
+a) Modifying ports and paths - modify marcos.cfg
+        $ python collector -m /path/to/marcos.cfg
+      Here you can change default port (8080) and many other parameters.
+
+b) Customizing graphs and layout
+      Modify smoothiesettings.js:
+        $ nano ~/MARTAS/web/smoothiesettings.js
 
 ## 6. protocol specific configurations
 
 ### 6.1. OW (One wire) support
 
 a) modify owfs,conf
-cobs@xxx$ sudo nano /etc/owfs.conf 
+        $ sudo nano /etc/owfs.conf 
 
-# ...and owserver uses the real hardware, by default fake devices
-# This part must be changed on real installation
-#server: FAKE = DS18S20,DS2405
-#
-# USB device: DS9490
-server: usb = all
-#
+      Modify the following parts as shown below:
+        #This part must be changed on real installation
+        #server: FAKE = DS18S20,DS2405
+
+        # USB device: DS9490
+        server: usb = all
 
 b) start the owserver
-cobs@xxx$ sudo etc/init.d/owserver start 
+        $ sudo etc/init.d/owserver start 
 
 
+### TODO
 
-##########################
-MINI TO-DO:
 - add trigger mode for GSM90 (sending f)
 - add to #5
 - update scp_log to use protected creds
 - add in how-to for using senddata and addcreds
-##########################
 
 
 

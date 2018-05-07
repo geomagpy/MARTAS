@@ -13,7 +13,7 @@ REQUIREMENTS:
 2.) Secure comm and authencation: https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
 
 METHODS:
-collector.py contains the following methods:
+collector_mqtt.py contains the following methods:
 
 GetSensors: read a local definition file (sensors.txt) which contains information
             on SensorID, Port, Bausrate (better Serial communication details), active/passive, 
@@ -43,54 +43,26 @@ from __future__ import absolute_import
 
 ## Import MagPy
 ## -----------------------------------------------------------
-
 local = True
 if local:
     import sys
-    sys.path.insert(1,'/home/leon/Software/magpy-git/')
+    #sys.path.insert(1,'/home/leon/Software/magpy-git/')
+    # TODO
+    sys.path.insert(1,'/home/leon/Software/MARTAS/web')
 
-from magpy.stream import DataStream, KEYLIST, NUMKEYLIST
-from magpy.database import mysql,writeDB
+from magpy.stream import *
+from magpy.database import *
 from magpy.opt import cred as mpcred
-
-## Import Twisted for websocket and logging functionality
-from twisted.python import log
-from twisted.web.server import Site
-from twisted.web.static import File
-from twisted.internet import reactor
-
+#from magpy.collector import collectormethods as cm
 import threading
-import struct
-from datetime import datetime 
-from matplotlib.dates import date2num, num2date
-import numpy as np
-
 # For file export
 import StringIO
-from magpy.acquisition import acquisitionsupport as acs
-
-#from magpy.collector import collectormethods as cm
+from magpy.acquisition.acquisitionsupport import dataToFile
 
 ## Import MQTT
 ## -----------------------------------------------------------
 import paho.mqtt.client as mqtt
 import sys, getopt
-
-# Some global variables
-global identifier
-identifier = {}
-streamdict = {}
-stream = DataStream()
-headdict = {} # store headerlines for file
-headstream = {}
-
-verifiedlocation = False
-destination = 'stdout'
-location = '/tmp'
-credentials = 'cred'
-stationid = 'WIC'
-webpath = './web'
-webport = 8080
 
 ## Import WebsocketServer
 ## -----------------------------------------------------------
@@ -109,25 +81,52 @@ def message_received(ws_client,server,message):
 
 ws_available = True
 try:
-    # available since 0.3.99
-    from magpy.collector.websocket_server import WebsocketServer
+    from websocket_server import WebsocketServer
 except:
     ws_available = False
-
 if ws_available:
     import json
     # 0.0.0.0 makes the websocket accessable from anywhere TODO: not only 5000
     wsserver = WebsocketServer(5000, host='0.0.0.0')
 
-def webThread(webpath,webport):
+## Import Webserver
+## -----------------------------------------------------------
+try:
+    from twisted.web.server import Site
+    from twisted.web.static import File
+    #from twisted.internet import reactor, endpoints
+    from twisted.internet import reactor
+except:
+    ws_available = False
+
+def webThread():
     # TODO absolut path or other solution?
-    resource = File(webpath)
+    resource = File('./web')
     factory = Site(resource)
     #endpoint = endpoints.TCP4ServerEndpoint(reactor, 8888)
     #endpoint.listen(factory)
-    reactor.listenTCP(webport,factory)
-    log.msg("collector: We don't need signals here - Webserver started as daemon")
+    reactor.listenTCP(8080,factory)
+    print("collector: We don't need signals here - Webserver started as daemon")
     reactor.run()
+## -----------------------------------------------------------
+
+# Some global variables
+global identifier
+identifier = {}
+streamdict = {}
+stream = DataStream()
+headdict = {} # store headerlines for file
+headstream = {}
+
+verifiedlocation = False
+destination = 'stdout'
+location = '/tmp'
+credentials = 'cred'
+stationid = 'WIC'
+
+def append_file(path, array):
+    # use data2file method
+    pass
 
 
 def analyse_meta(header,sensorid):
@@ -149,15 +148,15 @@ def analyse_meta(header,sensorid):
     lengthcode = struct.calcsize(packstr)
     si = h_elem[2]
     if not si == sensorid:
-        log.msg("Different sensorids in publish address {} and header {} - please check - aborting".format(sensorid,si))
+        print ("Different sensorids in publish address {} and header {} - please check - aborting".format(sensorid,si))
         sys.exit()
     keylist = h_elem[3].strip('[').strip(']').split(',')
     elemlist = h_elem[4].strip('[').strip(']').split(',')
     unitlist = h_elem[5].strip('[').strip(']').split(',')
     multilist = list(map(float,h_elem[6].strip('[').strip(']').split(',')))
     if debug:
-        log.msg("Packing code: {}".format(packstr))
-        log.msg("keylist: {}".format(keylist))
+        print ("Packing code", packstr)
+        print ("keylist", keylist)
     identifier[sensorid+':packingcode'] = packstr
     identifier[sensorid+':keylist'] = keylist
     identifier[sensorid+':elemlist'] = elemlist
@@ -183,15 +182,15 @@ def create_head_dict(header,sensorid):
     lengthcode = struct.calcsize(packstr)
     si = h_elem[2]
     if not si == sensorid:
-        log.msg("Different sensorids in publish address {} and header {} - please check - aborting".format(si,sensorid))
+        print ("Different sensorids in publish address {} and header {} - please check - aborting".format(si,sensorid))
         sys.exit()
     keylist = h_elem[3].strip('[').strip(']').split(',')
     elemlist = h_elem[4].strip('[').strip(']').split(',')
     unitlist = h_elem[5].strip('[').strip(']').split(',')
     multilist = list(map(float,h_elem[6].strip('[').strip(']').split(',')))
     if debug:
-        log.msg("Packing code: {}".format(packstr))
-        log.msg("keylist: {}".format(keylist))
+        print ("Packing code", packstr)
+        print ("keylist", keylist)
     head_dict['SensorID'] = sensorid
     sensl = sensorid.split('_')
     head_dict['SensorName'] = sensl[0]
@@ -230,7 +229,7 @@ def interprete_data(payload, ident, stream, sensorid):
     for line in lines:
         data = line.split(',')
         timear = list(map(int,data[:7]))
-        #log.msg(timear)
+        #print (timear)
         time = datetime(timear[0],timear[1],timear[2],timear[3],timear[4],timear[5],timear[6])
         array[0].append(date2num(time))
         for idx, elem in enumerate(keylist):
@@ -243,15 +242,14 @@ def interprete_data(payload, ident, stream, sensorid):
 
     return np.asarray([np.asarray(elem) for elem in array])
 
-
 def on_connect(client, userdata, flags, rc):
-    log.msg("Connected with result code {}".format(str(rc)))
+    print("Connected with result code " + str(rc))
     #qos = 1
-    log.msg("Setting QOS (Quality of Service): {}".format(qos))
+    print("Setting QOS (Quality of Service): {}".format(qos))
     if str(rc) == '0':
-        log.msg("Everything fine - continuing")
+        print ("Everything fine - continuing")
     elif str(rc) == '5':
-        log.msg("Broker eventually requires authentication - use options -u and -P")
+        print ("Broker eventually requires authentication - use options -u and -P")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
     substring = stationid+'/#'
     client.subscribe(substring,qos=qos)
@@ -263,17 +261,17 @@ def on_message(client, userdata, msg):
     # define a new data stream for each non-existing sensor
     metacheck = identifier.get(sensorid+':packingcode','')
     if msg.topic.endswith('meta') and metacheck == '':
-        log.msg("Found basic header:{}".format(str(msg.payload)))
-        log.msg("Quality od Service (QOS):{}".format(str(msg.qos)))
+        print ("Found basic header:{}".format(str(msg.payload)))
+        print ("Quality od Service (QOS):{}".format(str(msg.qos)))
         analyse_meta(str(msg.payload),sensorid)
         if not sensorid in headdict:
             headdict[sensorid] = msg.payload
             # create stream.header dictionary and it here
             headstream[sensorid] = create_head_dict(str(msg.payload),sensorid)
             if debug:
-                log.msg("New headdict: {}".format(headdict))
+                print ("New headdict", headdict)
     elif msg.topic.endswith('dict') and sensorid in headdict:
-        #log.msg("Found Dictionary:{}".format(str(msg.payload)))
+        #print ("Found Dictionary:{}".format(str(msg.payload)))
         head_dict = headstream[sensorid]
         for elem in str(msg.payload).split(','):
             keyvaluespair = elem.split(':')
@@ -283,16 +281,16 @@ def on_message(client, userdata, msg):
             except:
                 pass
         if debug:
-            log.msg("Dictionary now looks like {}".format(headstream[sensorid]))
+            print ("Dictionary now looks like", headstream[sensorid])
     elif msg.topic.endswith('data'):
         #if debug:
-        #    log.msg("Found data:", str(msg.payload), metacheck)
+        #    print ("Found data:", str(msg.payload), metacheck)
         if not metacheck == '':
             if 'file' in destination:
                 # Import module for writing data from acquistion
                 # -------------------
                 #if debug:
-                #    log.msg(sensorid, metacheck, msg.payload)  # payload can be split
+                #    print (sensorid, metacheck, msg.payload)  # payload can be split
                 # Check whether header is already identified 
                 # -------------------
                 if sensorid in headdict:
@@ -321,11 +319,20 @@ def on_message(client, userdata, msg):
                             if not location in [None,''] and os.path.exists(location):
                                 verifiedlocation = True
                             else:
-                                log.msg("File: destination location {} is not accessible".format(location))
-                                log.msg("      -> please use option l (e.g. -l '/my/path') to define") 
+                                print ("File: destination location {} is not accessible".format(location))
+                                print ("      -> please use option l (e.g. -l '/my/path') to define") 
                         if verifiedlocation:
                             filename = "{}-{:02d}-{:02d}".format(datearray[0],datearray[1],datearray[2])
-                            acs.dataToFile(location, sensorid, filename, data_bin, header)
+                            dataToFile(location, sensorid, filename, data_bin, header)
+            if 'stdout' in destination:
+                if not arrayinterpreted:
+                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
+                    arrayinterpreted = True
+                for idx,el in enumerate(stream.ndarray[0]):
+                    time = num2date(el).replace(tzinfo=None)
+                    datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
+                    print ("{}: {},{}".format(sensorid,time,datastring))
             if 'websocket' in destination:
                 if not arrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
@@ -336,15 +343,6 @@ def on_message(client, userdata, msg):
                     msecSince1970 = int((time - datetime(1970,1,1)).total_seconds()*1000)
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
-            if 'stdout' in destination:
-                if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
-                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    arrayinterpreted = True
-                for idx,el in enumerate(stream.ndarray[0]):
-                    time = num2date(el).replace(tzinfo=None)
-                    datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
-                    log.msg("{}: {},{}".format(sensorid,time,datastring))
             elif 'db' in destination:
                 if not arrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
@@ -352,10 +350,9 @@ def on_message(client, userdata, msg):
                     arrayinterpreted = True
                 # create a stream.header
                 #if debug:
-                #    log.msg(stream.ndarray)
+                #    print (stream.ndarray)
                 stream.header = headstream[sensorid]
-                if debug:
-                    log.msg("writing header: {}".format(headstream[sensorid]))
+                #print ("header", stream.header)
                 writeDB(db,stream)
                 #sys.exit()
             elif 'stringio' in destination:
@@ -374,7 +371,7 @@ def on_message(client, userdata, msg):
             else:
                 pass
         else:
-            log.msg("{}  {}".format(msg.topic, str(msg.payload)))
+            print(msg.topic + " " + str(msg.payload))
     if msg.topic.endswith('meta') and 'websocket' in destination:
         # send header info for each element (# sensorid   nr   key   elem   unit) 
         analyse_meta(str(msg.payload),sensorid)
@@ -398,7 +395,6 @@ def main(argv):
     timeout=60
     user = ''
     password = ''
-    logging = 'sys.stdout'
     global destination
     destination='stdout'
     global location
@@ -425,92 +421,55 @@ def main(argv):
     global dictcheck
     dictcheck = False
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:s:f:m:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos="])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:s:f:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset="])
     except getopt.GetoptError:
-        print ('Check your options:')
-        print (usagestring)
+        print('Check your options:')
+        print(usagestring)
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print ('------------------------------------------------------')
-            print ('Usage:')
-            print (usagestring)
-            print ('------------------------------------------------------')
-            print ('Options:')
-            print ('-h                             help')
-            print ('-b                             set broker address: default = localhost')
-            print ('-p                             set port - default is 1883')
-            print ('-t                             set timeout - default is 60')
-            print ('-o                             set base topic - for MARTAS this corresponds')
-            print ('                               to the station ID (e.g. wic)')
-            print ('-d                             set destination - std.out, db, file') 
-            print ('                               default is std.out') 
-            print ('-l                             set location depending on destination')
-            print ('                               if d="file": provide path')
-            print ('                               if d="std.out": not used')
-            print ('-c                             set mqtt communication credential keyword')
-            print ('-q                             set mqtt quality of service (default = 0)')            
-            print ('-r                             set db credential keyword')            
-            print ('-s                             source protocol of data: default is mqtt')            
-            print ('                               other options:')
-            print ('                               -s wamp    not yet implemented.')
-            print ('-f                             offset values. Can either be "db" for')
-            print ('                               applying delta values from db or a string')
-            print ('                               of the following format (key:value):')
-            print ('                               -f "t1:3.234,x:45674.2"')
-            print ('                               other options:')
-            print ('-m                             marcos configuration file ')
-            print ('                               e.g. "/home/cobs/marcos.cfg"')
-            print ('------------------------------------------------------')
-            print ('Examples:')
-            print ('1. Basic')
-            print ('   python collector.py -b "192.168.0.100" -o wic')
-            print ('2. Writing to file in directory "/my/path/"')
-            print ('   python collector.py -b "192.168.0.100" -d file -l "/my/path" -o wic')
-            print ('3. Writing to file and stdout')
-            print ('   python collector.py -b "192.168.0.100" -d file,stdout -l "/tmp" -o wic')
-            print ('4. Writing to db')
-            print ('   python collector.py -b "192.168.0.100" -d db -r mydb -o wic')
-            print ('   python collector.py -d "db,file" -r testdb')
-            print ('5. Using configuration file')
-            print ('   python collector.py -m "/path/to/marcos.cfg"')
-            print ('6. Overriding individual parameters from config file')
-            print ('   python collector.py -m "/path/to/marcos.cfg" -b "192.168.0.100"')
-            print ('   (make sure that config is called first)')
+            print('------------------------------------------------------')
+            print('Usage:')
+            print(usagestring)
+            print('------------------------------------------------------')
+            print('Options:')
+            print('-h                             help')
+            print('-b                             set broker address: default = localhost')
+            print('-p                             set port - default is 1883')
+            print('-t                             set timeout - default is 60')
+            print('-o                             set base topic - for MARTAS this corresponds')
+            print('                               to the station ID (e.g. wic)')
+            print('-d                             set destination - std.out, db, file') 
+            print('                               default is std.out') 
+            print('-l                             set location depending on destination')
+            print('                               if d="file": provide path')
+            print('                               if d="db": provide db credentials')
+            print('                               if d="std.out": not used')
+            print('-c                             set mqtt communication credential keyword')
+            print('-q                             set mqtt quality of service (default = 0)')            
+            print('-r                             set db credential keyword')            
+            print('-s                             source protocol of data: default is mqtt')            
+            print('                               other options:')
+            print('                               -s wamp    not yet implemented.')
+            print('-f                             offset values. Can either be "db" for')
+            print('                               applying delta values from db or a string')
+            print('                               of the following format (key:value):')
+            print('                               -f "t1:3.234,x:45674.2"')
+            print('                               other options:')
+            print('------------------------------------------------------')
+            print('Examples:')
+            print('1. Basic')
+            print('   python collector.py -b "192.168.0.100" -o wic')
+            print('2. Writing to file in directory "/my/path/"')
+            print('   python collector.py -b "192.168.0.100" -d file -l "/my/path" -o wic')
+            print('3. Writing to file and stdout')
+            print('   python collector.py -b "192.168.0.100" -d file,stdout -l "/tmp" -o wic')
+            print('4. Writing to db')
+            print('   python collector.py -b "192.168.0.100" -d db -r mydb -o wic')
+            print('   python collector.py -d "db,file" -r testdb')
             sys.exit()
-        elif opt in ("-m", "--marcos"):
-            marcosfile = arg
-            print ("Getting all parameters from configration file: {}".format(marcosfile))
-            conf = acs.GetConf(marcosfile)
-            if not conf.get('logging','') == '':
-                logging = conf.get('logging').strip()
-            if not conf.get('broker','') == '':
-                broker = conf.get('broker').strip()
-            if not conf.get('mqttport','') in ['','-']:
-                port = int(conf.get('mqttport').strip())
-            if not conf.get('mqttdelay','') in ['','-']:
-                timeout = int(conf.get('mqttdelay').strip())
-            if not conf.get('mqttuser','') in ['','-']:
-                user = conf.get('mqttuser').strip()
-            if not conf.get('mqttqos','') in ['','-']:
-                qos = conf.get('mqttqos').strip()
-            if not conf.get('mqttcredentials','') in ['','-']:
-                credentials=conf.get('mqttcredentials').strip()
-            if not conf.get('station','') in ['','-']:
-                stationid = conf.get('station').strip()
-            if not conf.get('destination','') in ['','-']:
-                destination=conf.get('destination').strip()
-            if not conf.get('filepath','') in ['','-']:
-                location=conf.get('filepath').strip()
-            if not conf.get('databasecredentials','') in ['','-']:
-                dbcred=conf.get('databasecredentials').strip()
-            if not conf.get('offset','') in ['','-']:
-                offset = conf.get('offset').strip()
-            if not conf.get('debug','') in ['','-']:
-                debug = conf.get('debug').strip()
-            source='mqtt'
         elif opt in ("-b", "--broker"):
             broker = arg
         elif opt in ("-p", "--port"):
@@ -549,87 +508,54 @@ def main(argv):
         elif opt in ("-U", "--debug"):
             debug = True
 
-
-    if debug:
-        print ("collector strting with the following parameters:")
-        print ("Logs: {}; Broker: {}; Topic/StationID: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, port, user, credentials, destination, location, dbcred, offset))
-
-    try:
-        ##  Start Twisted logging system
-        ##  ----------------------------
-        if logging == 'sys.stdout':
-            log.startLogging(sys.stdout)
-        else:
-            try:
-                print (" -- Logging to {}".format(logging))
-                log.startLogging(open(logging,'a'))
-                log.msg("----------------")
-                log.msg("  -> Logging to {}".format(logging))
-            except:
-                log.startLogging(sys.stdout)
-                log.msg("Could not open {}. Switching log to stdout.".format(logging))
-    except:
-        print("Logging requires twisted module")
-        sys.exit()
-
-    log.msg("----------------")
-    log.msg(" Starting collector")
-    log.msg("----------------")
-
     if not qos in [0,1,2]:
         qos = 0
     if 'stringio' in destination:
         output = StringIO.StringIO()
     if 'file' in destination:
         if location in [None,''] and not os.path.exists(location):
-            log.msg('destination "file" requires a valid path provided as location')
-            log.msg(' ... aborting ...')
+            print ('destination "file" requires a valid path provided as location')
+            print (' ... aborting ...')
             sys.exit()
     if 'websocket' in destination:
         if ws_available:
             wsThr = threading.Thread(target=wsThread)
             # start as daemon, so the entire Python program exits when only daemon threads are left
             wsThr.daemon = True
-            log.msg('starting websocket on port 5000...')
+            print('starting websocket on port 5000...')
             wsThr.start()
             # start webserver
-            webThr = threading.Thread(target=webThread, args=(webpath,webport))
+            webThr = threading.Thread(target=webThread)
             webThr.daemon = True
             webThr.start()
         else:
-            print("no webserver or no websocket-server available: remove 'websocket' from destination")
+            print("no webserver or no websocket-server available")
             sys.exit()
     if 'db' in destination:
         if dbcred in [None,'']:
-            log.msg('destination "db" requires database credentials')
-            log.msg('to create them use method "addcred"')
-            log.msg('to provide use option -r like -r mydb')
+            print ('destination "db" requires database credentials')
+            print ('to create them use method "addcred"')
+            print ('to provide use option -r like -r mydb')
             sys.exit()
         else:
             try:
                 global db
                 if debug:
-                    log.msg("Connecting database {} at host {} with user {}".format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
+                    print ("Connecting database {} at host {} with user {}".format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
                 db = mysql.connect(host=mpcred.lc(dbcred,'host'),user=mpcred.lc(dbcred,'user'),passwd=mpcred.lc(dbcred,'passwd'),db=mpcred.lc(dbcred,'db'))
             except:
-                log.msg('database could not be connected')
-                log.msg(' ... aborting ...')
+                print ('database coul not be connected')
+                print (' ... aborting ...')
                 sys.exit()            
 
     if debug:
-        log.msg("Option u: debug mode switched on ...")
-        log.msg("------------------------------------")
-        log.msg("Destination: {} {}".format(destination, location))
+        print ("Option u: debug mode switched on ...")
+        print ("------------------------------------")
+        print ("Destination", destination, location)
 
     if source == 'mqtt':
         client = mqtt.Client()
         # Authentication part
-        if not credentials in ['','-']:
-            # use user and pwd from credential data if not yet set 
-            if user in ['',None,'None','-']: 
-                user = mpcred.lc(credentials,'user')
-            if password  in ['','-']:
-                password = mpcred.lc(credentials,'passwd')
         if not user in ['',None,'None','-']: 
             #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
             client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
@@ -639,9 +565,9 @@ def main(argv):
         client.connect(broker, port, timeout)
         client.loop_forever()
     elif source == 'wamp':
-        log.msg("Not yet supported! -> check autobahn import, crossbario")
+        print ("Not yet supported! -> check autobahn import, crossbario")
     else:
-        log.msg("Additional protocols can be added in future...")
+        print ("Additional protocols can be added in future:")
 
 
 if __name__ == "__main__":
