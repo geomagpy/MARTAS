@@ -91,6 +91,7 @@ credentials = 'cred'
 stationid = 'WIC'
 webpath = './web'
 webport = 8080
+socketport = 5000
 
 ## Import WebsocketServer
 ## -----------------------------------------------------------
@@ -117,7 +118,8 @@ except:
 if ws_available:
     import json
     # 0.0.0.0 makes the websocket accessable from anywhere TODO: not only 5000
-    wsserver = WebsocketServer(5000, host='0.0.0.0')
+    print ("TEST", socketport)
+    wsserver = WebsocketServer(socketport, host='0.0.0.0')
 
 def webThread(webpath,webport):
     # TODO absolut path or other solution?
@@ -424,6 +426,7 @@ def main(argv):
     #verifiedlocation = False
     global dictcheck
     dictcheck = False
+    global socketport
 
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos>'
     try:
@@ -510,6 +513,11 @@ def main(argv):
                 offset = conf.get('offset').strip()
             if not conf.get('debug','') in ['','-']:
                 debug = conf.get('debug').strip()
+            if not conf.get('socketport','') in ['','-']:
+                try:
+                    socketport = int(conf.get('socketport').strip())
+                except:
+                    socketport = 5000
             source='mqtt'
         elif opt in ("-b", "--broker"):
             broker = arg
