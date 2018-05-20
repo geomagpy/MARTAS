@@ -74,7 +74,7 @@ from magpy.acquisition import acquisitionsupport as acs
 ## Import MQTT
 ## -----------------------------------------------------------
 import paho.mqtt.client as mqtt
-import sys, getopt
+import sys, getopt, os
 
 # Some global variables
 global identifier
@@ -300,11 +300,23 @@ def on_message(client, userdata, msg):
                 if sensorid in headdict:
                     header = headdict.get(sensorid)
                     packcode = metacheck.strip('<')[:-1] # drop leading < and final B
+                    # temporary code - too be deleted when lemi protocol has been updated
+                    if packcode.find('4cb6B8hb30f3Bc') >= 0:
+                        header = header.replace('<4cb6B8hb30f3BcBcc5hL 169','<6hlffflll {}'.format(struct.calcsize('<6hlffflll')))
+                        packcode = '6hlffflll' 
                     arrayelem = msg.payload.split(';')
                     for ar in arrayelem:
                         datearray = ar.split(',')
                         # identify string values in packcode
                         # -------------------
+                        for i in range(len(packcode)):
+                            if packcode[-i] == 's':
+                                datearray[-i] = datearray[-i]
+                            elif packcode[-i] == 'f':
+                                datearray[-i] = float(datearray[-i])
+                            else:
+                                datearray[-i] = int(datearray[-i])
+                        """
                         if not 's' in packcode:
                             datearray = list(map(int, datearray))
                         else:
@@ -315,6 +327,7 @@ def on_message(client, userdata, msg):
                             for i in range(len(datearray)):
                                 if not i in stringidx:
                                     datearray[-i] = int(datearray[-i])
+                        """
                         # pack data using little endian byte order
                         data_bin = struct.pack('<'+packcode,*datearray)
                         # Check whether destination path has been verified already 
