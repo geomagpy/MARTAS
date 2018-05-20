@@ -155,7 +155,8 @@ class LemiProtocol(LineReceiver):
 
         packcode = "<4cb6B8hb30f3BcBcc5hL"
         header = "LemiBin %s %s %s %s %s %s %d\n" % (self.sensor, '[x,y,z,t1,t2]', '[X,Y,Z,T_sensor,T_elec]', '[nT,nT,nT,deg_C,deg_C]', '[0.001,0.001,0.001,100,100]', packcode, struct.calcsize(packcode))
-        headforsend = "# MagPyBin {} {} {} {} {} {} {}\n".format(self.sensor, '[x,y,z,t1,t2,var1]', '[X,Y,Z,T_sensor,T_elec,VDD]', '[nT,nT,nT,deg_C,deg_C,V]', '[0.001,0.001,0.001,100,100,10]', packcode, struct.calcsize(packcode))
+        sendpackcode = '6hLffflll'
+        headforsend = "# MagPyBin {} {} {} {} {} {} {}\n".format(self.sensor, '[x,y,z,t1,t2,var1]', '[X,Y,Z,T_sensor,T_elec,VDD]', '[nT,nT,nT,deg_C,deg_C,V]', '[0.001,0.001,0.001,100,100,10]', packcode, struct.calcsize('<'+sendpackcode))
 
         # save binary raw data to buffer file ### please note that this file always contains GPS readings
         lemipath = os.path.join(path,self.sensor+'_'+date+".bin")
