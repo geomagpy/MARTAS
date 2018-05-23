@@ -302,20 +302,29 @@ def on_message(client, userdata, msg):
                     packcode = metacheck.strip('<')[:-1] # drop leading < and final B
                     # temporary code - too be deleted when lemi protocol has been updated
                     if packcode.find('4cb6B8hb30f3Bc') >= 0:
-                        header = header.replace('<4cb6B8hb30f3BcBcc5hL 169','<6hlffflll {}'.format(struct.calcsize('<6hlffflll')))
-                        packcode = '6hlffflll' 
+                        header = header.replace('<4cb6B8hb30f3BcBcc5hL 169\n','6hLffflll {}'.format(struct.calcsize('<6hLffflll')))
+                        packcode = '6hLffflll' 
                     arrayelem = msg.payload.split(';')
                     for ar in arrayelem:
                         datearray = ar.split(',')
                         # identify string values in packcode
                         # -------------------
-                        for i in range(len(packcode)):
-                            if packcode[-i] == 's':
+                        # convert packcode numbers
+                        cpack = []
+                        for c in packcode:
+                            if c.isdigit():
+                                digit = int(c)
+                            else:
+                                cpack.extend([c] * digit)
+                                digit=1
+                        cpackcode = "".join(cpack) 
+                        for i in range(len(cpackcode)):
+                            if cpackcode[-i] == 's':
                                 datearray[-i] = datearray[-i]
-                            elif packcode[-i] == 'f':
+                            elif cpackcode[-i] == 'f':
                                 datearray[-i] = float(datearray[-i])
                             else:
-                                datearray[-i] = int(datearray[-i])
+                                datearray[-i] = int(float(datearray[-i]))
                         """
                         if not 's' in packcode:
                             datearray = list(map(int, datearray))
