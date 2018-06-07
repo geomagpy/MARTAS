@@ -49,7 +49,7 @@ if local:
     import sys
     sys.path.insert(1,'/home/leon/Software/magpy-git/')
 
-from magpy.stream import DataStream, KEYLIST, NUMKEYLIST
+from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, subtractStreams
 from magpy.database import mysql,writeDB
 from magpy.opt import cred as mpcred
 
@@ -81,6 +81,8 @@ global identifier
 identifier = {}
 streamdict = {}
 stream = DataStream()
+st = []
+senslst = []
 headdict = {} # store headerlines for file
 headstream = {}
 
@@ -256,6 +258,7 @@ def on_connect(client, userdata, flags, rc):
         log.msg("Broker eventually requires authentication - use options -u and -P")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
     substring = stationid+'/#'
+    log.msg("Subscribing to: {}".format(substring))
     client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
@@ -360,6 +363,27 @@ def on_message(client, userdata, msg):
                     msecSince1970 = int((time - datetime(1970,1,1)).total_seconds()*1000)
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
+            if 'diff' in destination:
+                if not arrayinterpreted:
+                    ar = interprete_data(msg.payload, identifier, stream, sensorid)
+                    if not sensorid in senslst:
+                        senslst.append(sensorid)
+                        st.append(DataStream([],{},ar))
+                    idx = senslst.index(sensorid)
+                    st[idx].extend(stream.container,stream.header,ar)
+                    arrayinterpreted = True
+                st[idx].ndarray = np.asarray([np.asarray(el[-5:]) for el in st[idx].ndarray])
+                try:
+                    sub = subtractStreams(st[0],st[1])
+                    print (sub.ndarray[1])
+                    #if not sub.ndarray[0][-1] 
+                except:
+                    pass
+                print (sensorid, idx, st[idx].ndarray[1])
+                #for idx,el in enumerate(stream.ndarray[0]):
+                #    time = num2date(el).replace(tzinfo=None)
+                #    datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
+                #    log.msg("{}: {},{}".format(sensorid,time,datastring))
             if 'stdout' in destination:
                 if not arrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
