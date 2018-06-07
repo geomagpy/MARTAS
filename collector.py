@@ -266,6 +266,9 @@ def on_message(client, userdata, msg):
     arrayinterpreted = False
     sensorid = msg.topic.strip(stationid).replace('/','').strip('meta').strip('data').strip('dict')
     # define a new data stream for each non-existing sensor
+    if not instrument == '':
+        if not sensorid.find(instrument) > -1:
+            return
     metacheck = identifier.get(sensorid+':packingcode','')
     if msg.topic.endswith('meta') and metacheck == '':
         log.msg("Found basic header:{}".format(str(msg.payload)))
@@ -459,6 +462,8 @@ def main(argv):
     dbcred=''
     global stationid
     stationid = 'wic'
+    global instrument
+    instrument = ''
     global source
     source='mqtt' # projected sources: mqtt (default), wamp, mysql, postgres, etc
     global qos
@@ -474,9 +479,9 @@ def main(argv):
     dictcheck = False
     global socketport
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:d:l:c:r:q:u:P:s:f:m:U",["broker=","port=","timeout=","topic=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos="])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:l:c:r:q:u:P:s:f:m:U",["broker=","port=","timeout=","topic=","instrument=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos="])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -494,6 +499,10 @@ def main(argv):
             print ('-t                             set timeout - default is 60')
             print ('-o                             set base topic - for MARTAS this corresponds')
             print ('                               to the station ID (e.g. wic)')
+            print ('-i                             choose instrument(s) - only sensors containing')
+            print ('                               the provided string are used: ')
+            print ('                               -i GSM  will access GSM90_xxx and GSM19_xyz ')
+            print ('                               Default is to use all')
             print ('-d                             set destination - std.out, db, file') 
             print ('                               default is std.out') 
             print ('-l                             set location depending on destination')
@@ -579,6 +588,8 @@ def main(argv):
                 timeout = arg
         elif opt in ("-o", "--topic"):
             stationid = arg
+        elif opt in ("-i", "--instrument"):
+            instrument = arg
         elif opt in ("-s", "--source"):
             source = arg
         elif opt in ("-d", "--destination"):

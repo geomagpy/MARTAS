@@ -201,10 +201,10 @@ class LemiProtocol(LineReceiver):
         if not gpsstat in ['P','A']:
             print (" ERROR in BINDATA:", struct.unpack("<4cB6B8hb30f3BcB", data))
 
-        # get the most frequent gpsstate of the last 10 secs
+        # get the most frequent gpsstate of the last 10 min
         # this avoids error messages for singular one sec state changes
         self.gpsstatelst.append(gpsstat)
-        self.gpsstatelst = self.gpsstatelst[-10:]
+        self.gpsstatelst = self.gpsstatelst[-600:]
         self.gpsstate1 = max(set(self.gpsstatelst),key=self.gpsstatelst.count)
         if not self.gpsstate1 == self.gpsstate2:
             log.msg('LEMI - Protocol: GPSSTATE changed to %s .'  % gpsstat)
