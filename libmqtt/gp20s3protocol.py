@@ -98,6 +98,8 @@ class GP20S3Protocol(LineReceiver):
         filename = outdate
         sensorid = self.sensor
         headerlinecoming = False
+        datearray = []
+        headarray = []
 
         sensororientation = self.sensor.split('_')[0].replace(self.sensordict.get('protocol'),'')
         if len(sensororientation) > 1:
@@ -114,7 +116,6 @@ class GP20S3Protocol(LineReceiver):
 
         try:
             # Extract data
-            # old data looks like 04-22-2015 142244  48464.53 99
             data_array = data
             if len(data_array) == 5:
                 intensity1 = float(data_array[2])
@@ -194,9 +195,10 @@ class GP20S3Protocol(LineReceiver):
                 Vsens2 = float(data_array[17])/10.		# var2
                 Vsens3 = float(data_array[18])/10.		# var3 
 
-                print ("Current GPS status:", gpstatus)
+            elif len(data_array) == 1 and data_array[0] == '$$$':
+                return "",""
             else:
-                log.msg('{} protocol: data line could not be interpreted: ({}) of length {}'.format(data, len(data_array)))
+                log.msg('{} protocol: data line could not be interpreted: ({}) of length {}'.format(self.sensordict.get('protocol'),data, len(data_array)))
         except:
             log.err('{} protocol: Data formatting error. Data looks like: {}'.format(self.sensordict.get('protocol'),data))
 
@@ -259,15 +261,11 @@ class GP20S3Protocol(LineReceiver):
 
         if headerlinecoming:
             print (" now writing header info")
-            headpackcode = '6hLlllllllllllllllsss'
+            headpackcode = '6hL15ls12s4s' #'6hLlllllllllllllllsss'
             headheader = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,f,t1,t2,dx,dy,dz,df,var1,var2,var3,var4,var5,str1,str2,str3]', '[Ts1,Ts2,Ts3,Vbat,V3,Tel,L1,L2,L3,Vps,V1,V2,V3,V5p,V5n,GPSstat,Status,OCXO]', '[degC,degC,degC,V,V,degC,A,A,A,V,V,V,V,V,V]', '[1,1,1,10,100,1,10,10,10,10,10,10,10,100,100]', headpackcode, struct.calcsize(headpackcode))
             try:
                 # extract time data
-                print ("gps", gpstimestamp)
-                #gpstimestamp = datetime.strftime(datetime.strptime(gpsdate, "%Y-%m-%dT%H%M%S.%f"), "%Y-%m-%d %H:%M:%S.%f")
-                #headarray = acs.timeToArray(gpstimestamp)
                 headarray = acs.timeToArray(maintime)
-                print ("gps", headarray)
                 try:
                     headarray.append(int(tsens1))			# x
                     headarray.append(int(tsens2))			# y
@@ -288,16 +286,12 @@ class GP20S3Protocol(LineReceiver):
                     headarray.append(statusstring)			# str2
                     headarray.append(level)				# str3
 
-                    print ("Here1", headarray, len(headarray), len(headpackcode))
                     data_bin = struct.pack('<'+headpackcode,*headarray)
-                    print ("Here2", self.sensor)
                     statuslst = self.sensor.split('_')
-                    print ("here5 - writing", statuslst)
                     if len(statuslst) == 3:
                         statusname = '_'.join([statuslst[0]+'status',statuslst[1],statuslst[2]])
-                    print ("here6 - writing", statusname, filename, headheader)
-                    acs.dataToFile(self.confdict.get('bufferdirectory'), statusname, filename, data_bin, headheader)
-                    #acs.dataToFile(self.outputdir,statusname, date, data_bin, headheader)
+                    if not self.confdict.get('bufferdirectory','') == '':
+                         acs.dataToFile(self.confdict.get('bufferdirectory'), statusname, filename, data_bin, headheader)
                 except:
                     log.msg('GSMP20 - Protocol: Error while packing binary data')
             except:
@@ -305,6 +299,8 @@ class GP20S3Protocol(LineReceiver):
 
         if len(datearray) > 0:
             return ','.join(list(map(str,datearray))), header
+        elif len(headarray) > 0:
+            return ','.join(list(map(str,headarray))), headheader
 
 
     def lineReceived(self, line):
@@ -319,6 +315,9 @@ class GP20S3Protocol(LineReceiver):
             data, head = self.processData(data)
         except:
             print('{}: Data seems not be correct data: Looks like {}'.format(self.sensordict.get('protocol'),line))
+            ok = False
+
+        if data =="":
             ok = False
 
         if ok:
