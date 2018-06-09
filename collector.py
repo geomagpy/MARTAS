@@ -85,6 +85,7 @@ st = []
 senslst = []
 headdict = {} # store headerlines for file
 headstream = {}
+counter = 0
 
 verifiedlocation = False
 destination = 'stdout'
@@ -120,7 +121,7 @@ except:
 if ws_available:
     import json
     # 0.0.0.0 makes the websocket accessable from anywhere TODO: not only 5000
-    print ("TEST", socketport)
+    #print ("TEST", socketport)
     wsserver = WebsocketServer(socketport, host='0.0.0.0')
 
 def webThread(webpath,webport):
@@ -367,6 +368,9 @@ def on_message(client, userdata, msg):
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
             if 'diff' in destination:
+                doat = 1
+                sendhead = 5
+                amount = 5
                 if not arrayinterpreted:
                     ar = interprete_data(msg.payload, identifier, stream, sensorid)
                     if not sensorid in senslst:
@@ -375,18 +379,41 @@ def on_message(client, userdata, msg):
                     idx = senslst.index(sensorid)
                     st[idx].extend(stream.container,stream.header,ar)
                     arrayinterpreted = True
-                st[idx].ndarray = np.asarray([np.asarray(el[-5:]) for el in st[idx].ndarray])
+                st[idx].ndarray = np.asarray([np.asarray(el[-amount:]) for el in st[idx].ndarray])
+                if len(st) < 2:
+                     print ("not enough for sub")
                 try:
                     sub = subtractStreams(st[0],st[1])
-                    print (sub.ndarray[1])
-                    #if not sub.ndarray[0][-1] 
+                    ok = True
+                    if ok:
+                        # get head line for pub
+                        name = "diff_xxx_0001"
+                        keys = sub._get_key_headers(numerical=True)
+                        ilst = [KEYLIST.index(key) for key in keys]
+                        keystr = "[{}]".format(",".join(keys))                     
+                        #takeunits =  ### take from st[0]
+                        packcode = "6hL{}".format("".join(['l']*len(keys)))
+                        multi = "[{}]".format(",".join(['1000']*len(keys)))
+                        unit = "[{}]".format(",".join(['arb']*len(keys)))
+                        head = "# MagPyBin {} {} {} {} {} {} {}".format(name, keystr, keystr, unit, multi, packcode, struct.calcsize('<'+packcode))
+                        print (head)
+                        # get data line for pub
+                        time = sub.ndarray[0][-1]
+                        timestr = (datetime.strftime(num2date(float(time)).replace(tzinfo=None), "%Y,%m,%d,%H,%M,%S,%f"))
+                        val = [sub.ndarray[i][-1] for i in ilst]
+                        if len(val) > 1:
+                            valstr = ",".join(int(val*1000))
+                        else:
+                            valstr = int(val[0]*1000)
+                        data = "{},{}".format(timestr,valstr)
+                        print (data)
+                        topic = "wic/{}".format(name)
+                        client.publish(topic+"/data", data, qos=0)
+                        client.publish(topic+"/head", head, qos=0)
+                        print ("published")
+                        # publish head and data
                 except:
                     pass
-                print (sensorid, idx, st[idx].ndarray[1])
-                #for idx,el in enumerate(stream.ndarray[0]):
-                #    time = num2date(el).replace(tzinfo=None)
-                #    datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
-                #    log.msg("{}: {},{}".format(sensorid,time,datastring))
             if 'stdout' in destination:
                 if not arrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)

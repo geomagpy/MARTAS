@@ -65,12 +65,12 @@ class CsProtocol(LineReceiver):
 
         currenttime = datetime.utcnow()
         # Correction for ms time to work with databank:
-        currenttime_ms = currenttime.microsecond/1000000.
-        ms_rounded = round(float(currenttime_ms),3)
-        if not ms_rounded >= 1.0:
-            currenttime = currenttime.replace(microsecond=int(ms_rounded*1000000.))
-        else:
-            currenttime = currenttime.replace(microsecond=0) + timedelta(seconds=1.0)
+        #currenttime_ms = currenttime.microsecond/1000000.
+        #ms_rounded = round(float(currenttime_ms),3)
+        #if not ms_rounded >= 1.0:
+        #    currenttime = currenttime.replace(microsecond=int(ms_rounded*1000000.))
+        #else:
+        #    currenttime = currenttime.replace(microsecond=0) + timedelta(seconds=1.0)
         filename = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         lastActualtime = currenttime
@@ -111,6 +111,7 @@ class CsProtocol(LineReceiver):
         # extract only ascii characters 
         line = ''.join(filter(lambda x: x in string.printable, line))
 
+        ok = True
         try:
             data = line.split()
             if len(data) == 2:
@@ -120,7 +121,12 @@ class CsProtocol(LineReceiver):
                 dataarray, head = self.processData(data)
             else:
                 log.msg('{}: Data seems not be appropriate data. Received data looks like: {}'.format(self.sensordict.get('protocol'),line))
+                ok = False
+        except:
+            log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
+            ok = False
 
+        if ok:
             senddata = False
             coll = int(self.sensordict.get('stack'))
             if coll > 1:
@@ -148,6 +154,4 @@ class CsProtocol(LineReceiver):
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0            
-        except:
-            log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
 
