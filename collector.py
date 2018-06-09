@@ -84,6 +84,7 @@ st = []
 senslst = []
 headdict = {} # store headerlines for file
 headstream = {}
+global counter  # use for diffcalc
 counter = 0
 
 verifiedlocation = False
@@ -381,26 +382,30 @@ def on_message(client, userdata, msg):
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
             if 'diff' in destination:
-                doat = 1
-                sendhead = 5
-                amount = 5
+                global counter
+                counter+=1
+                global number
+                amount = int(number)
                 if not arrayinterpreted:
                     ar = interprete_data(msg.payload, identifier, stream, sensorid)
                     if not sensorid in senslst:
                         senslst.append(sensorid)
                         st.append(DataStream([],{},ar))
                     idx = senslst.index(sensorid)
-                    st[idx].extend(stream.container,stream.header,ar)
+                    st[idx].extend(stream.container,{'SensorID':sensorid},ar)
                     arrayinterpreted = True
                 st[idx].ndarray = np.asarray([np.asarray(el[-amount:]) for el in st[idx].ndarray])
                 if len(st) < 2:
                      print ("not enough for sub")
                 try:
-                    sub = subtractStreams(st[0],st[1])
-                    ok = True
-                    if ok:
+                    if counter > amount:
+                        counter = 0
+                        sub = subtractStreams(st[0],st[1])
+                        name = 'Diff_{}-{}_0001'.format(st[0].header.split('_')[1],st[1].header.split('_')[1])
+                        #ok = True
+                        #if ok:
                         # get head line for pub
-                        name = "diff_xxx_0001"
+                        #name = "diff_xxx_0001"
                         keys = sub._get_key_headers(numerical=True)
                         ilst = [KEYLIST.index(key) for key in keys]
                         keystr = "[{}]".format(",".join(keys))                     
@@ -409,7 +414,7 @@ def on_message(client, userdata, msg):
                         multi = "[{}]".format(",".join(['1000']*len(keys)))
                         unit = "[{}]".format(",".join(['arb']*len(keys)))
                         head = "# MagPyBin {} {} {} {} {} {} {}".format(name, keystr, keystr, unit, multi, packcode, struct.calcsize('<'+packcode))
-                        print (head)
+                        #print (head)
                         # get data line for pub
                         time = sub.ndarray[0][-1]
                         timestr = (datetime.strftime(num2date(float(time)).replace(tzinfo=None), "%Y,%m,%d,%H,%M,%S,%f"))
@@ -419,7 +424,7 @@ def on_message(client, userdata, msg):
                         else:
                             valstr = int(val[0]*1000)
                         data = "{},{}".format(timestr,valstr)
-                        print (data)
+                        #print (data)
                         topic = "wic/{}".format(name)
                         client.publish(topic+"/data", data, qos=0)
                         client.publish(topic+"/meta", head, qos=0)
@@ -514,10 +519,12 @@ def main(argv):
     global dictcheck
     dictcheck = False
     global socketport
+    global number
+    number=1
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:l:c:r:q:u:P:s:f:m:U",["broker=","port=","timeout=","topic=","instrument=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos="])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:l:c:r:q:u:P:s:f:m:n:U",["broker=","port=","timeout=","topic=","instrument=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos=","number="])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -557,6 +564,9 @@ def main(argv):
             print ('                               other options:')
             print ('-m                             marcos configuration file ')
             print ('                               e.g. "/home/cobs/marcos.cfg"')
+            print ('-n                             provide a integer number ')
+            print ('                               "-d diff -i GSM": difference of two GSM will')
+            print ('                                                 be calculated every n th step.')
             print ('------------------------------------------------------')
             print ('Examples:')
             print ('1. Basic')
@@ -573,6 +583,9 @@ def main(argv):
             print ('6. Overriding individual parameters from config file')
             print ('   python collector.py -m "/path/to/marcos.cfg" -b "192.168.0.100"')
             print ('   (make sure that config is called first)')
+            print ('7. Calculating differences/gradients on the fly:')
+            print ('   python collector.py -d diff -i G823A -n 10')
+            print ('   (will calculate the diffs of two G823A every 10th record)')
             sys.exit()
         elif opt in ("-m", "--marcos"):
             marcosfile = arg
@@ -647,6 +660,8 @@ def main(argv):
             password = arg
         elif opt in ("-f", "--offset"):
             offset = arg
+        elif opt in ("-n", "--number"):
+            number = arg
         elif opt in ("-U", "--debug"):
             debug = True
 
