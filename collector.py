@@ -64,12 +64,11 @@ import struct
 from datetime import datetime 
 from matplotlib.dates import date2num, num2date
 import numpy as np
+import json
 
 # For file export
 import StringIO
 from magpy.acquisition import acquisitionsupport as acs
-
-#from magpy.collector import collectormethods as cm
 
 ## Import MQTT
 ## -----------------------------------------------------------
@@ -119,7 +118,6 @@ except:
     ws_available = False
 
 if ws_available:
-    import json
     # 0.0.0.0 makes the websocket accessable from anywhere TODO: not only 5000
     #print ("TEST", socketport)
     wsserver = WebsocketServer(socketport, host='0.0.0.0')
@@ -133,6 +131,31 @@ def webThread(webpath,webport):
     reactor.listenTCP(webport,factory)
     log.msg("collector: We don't need signals here - Webserver started as daemon")
     reactor.run()
+
+def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password=''):
+        """
+    connectclient method
+    used to connect to a specific client as defined by the input variables
+    eventually add multiple client -> {"clients":[{"broker":"192.168.178.42","port":"1883"}]} # json type
+                import json
+                altbro = json.loads(altbrocker)
+        """
+        client = mqtt.Client()
+        # Authentication part
+        if not credentials in ['','-']:
+            # use user and pwd from credential data if not yet set 
+            if user in ['',None,'None','-']: 
+                user = mpcred.lc(credentials,'user')
+            if password  in ['','-']:
+                password = mpcred.lc(credentials,'passwd')
+        if not user in ['',None,'None','-']: 
+            #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
+            client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
+        client.on_connect = on_connect
+        # on message needs: stationid, destination, location
+        client.on_message = on_message
+        client.connect(broker, port, timeout)
+        return client
 
 
 def analyse_meta(header,sensorid):
@@ -227,6 +250,8 @@ def interprete_data(payload, ident, stream, sensorid):
     """
     source:mqtt:
     """
+    # future: check for json payload first
+    
     lines = payload.split(';') # for multiple lines send within one payload
     # allow for strings in payload !!
     array = [[] for elem in KEYLIST]
@@ -265,7 +290,7 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     global verifiedlocation
     arrayinterpreted = False
-    sensorid = msg.topic.strip(stationid).replace('/','').strip('meta').strip('data').strip('dict')
+    sensorid = msg.topic.strip(stationid).replace('/','').replace('meta','').replace('data','').replace('dict','')
     # define a new data stream for each non-existing sensor
     if not instrument == '':
         if not sensorid.find(instrument) > -1:
@@ -332,18 +357,6 @@ def on_message(client, userdata, msg):
                                 datearray[-i] = float(datearray[-i])
                             else:
                                 datearray[-i] = int(float(datearray[-i]))
-                        """
-                        if not 's' in packcode:
-                            datearray = list(map(int, datearray))
-                        else:
-                            stringidx = []
-                            for i in range(len(packcode)):
-                                if packcode[-i] == 's':
-                                    stringidx.append(i)
-                            for i in range(len(datearray)):
-                                if not i in stringidx:
-                                    datearray[-i] = int(datearray[-i])
-                        """
                         # pack data using little endian byte order
                         data_bin = struct.pack('<'+packcode,*datearray)
                         # Check whether destination path has been verified already 
@@ -409,9 +422,7 @@ def on_message(client, userdata, msg):
                         print (data)
                         topic = "wic/{}".format(name)
                         client.publish(topic+"/data", data, qos=0)
-                        client.publish(topic+"/head", head, qos=0)
-                        print ("published")
-                        # publish head and data
+                        client.publish(topic+"/meta", head, qos=0)
                 except:
                     pass
             if 'stdout' in destination:
@@ -468,12 +479,10 @@ def on_message(client, userdata, msg):
 
 
 def main(argv):
-    #broker = '192.168.178.75'
     broker = 'localhost'  # default
-    #broker = '192.168.178.84'
-    #broker = '192.168.0.14'
     port = 1883
     timeout=60
+    altbroker = ''
     user = ''
     password = ''
     logging = 'sys.stdout'
@@ -714,22 +723,9 @@ def main(argv):
         log.msg("Destination: {} {}".format(destination, location))
 
     if source == 'mqtt':
-        client = mqtt.Client()
-        # Authentication part
-        if not credentials in ['','-']:
-            # use user and pwd from credential data if not yet set 
-            if user in ['',None,'None','-']: 
-                user = mpcred.lc(credentials,'user')
-            if password  in ['','-']:
-                password = mpcred.lc(credentials,'passwd')
-        if not user in ['',None,'None','-']: 
-            #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
-            client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
-        client.on_connect = on_connect
-        # on message needs: stationid, destination, location
-        client.on_message = on_message
-        client.connect(broker, port, timeout)
+        client = connectclient(broker, port, timeout, credentials, user, password)
         client.loop_forever()
+
     elif source == 'wamp':
         log.msg("Not yet supported! -> check autobahn import, crossbario")
     else:
