@@ -386,6 +386,7 @@ def on_message(client, userdata, msg):
                 counter+=1
                 global number
                 amount = int(number)
+                cover = 5
                 if not arrayinterpreted:
                     ar = interprete_data(msg.payload, identifier, stream, sensorid)
                     if not sensorid in senslst:
@@ -394,16 +395,22 @@ def on_message(client, userdata, msg):
                     idx = senslst.index(sensorid)
                     st[idx].extend(stream.container,{'SensorID':sensorid},ar)
                     arrayinterpreted = True
-                st[idx].ndarray = np.asarray([np.asarray(el[-amount:]) for el in st[idx].ndarray])
+                st[idx].ndarray = np.asarray([np.asarray(el[-cover:]) for el in st[idx].ndarray])
                 if len(st) < 2:
-                     print ("not enough for sub")
+                     print ("Not enough streams for subtraction yet")
                 try:
                     if counter > amount:
                         counter = 0
                         sub = subtractStreams(st[0],st[1])
-                        name = 'Diff_{}-{}_0001'.format(st[0].header.split('_')[1],st[1].header.split('_')[1])
-                        #ok = True
-                        #if ok:
+                        try:
+                            part1 = (st[0].header.get('SensorID').split('_')[1])
+                        except:
+                            part1 = 'unkown'
+                        try:
+                            part2 = (st[1].header.get('SensorID').split('_')[1])
+                        except:
+                            part2 = 'unkown'
+                        name = "Diff_{}-{}_0001".format(part1,part2)
                         # get head line for pub
                         #name = "diff_xxx_0001"
                         keys = sub._get_key_headers(numerical=True)
@@ -429,7 +436,7 @@ def on_message(client, userdata, msg):
                         client.publish(topic+"/data", data, qos=0)
                         client.publish(topic+"/meta", head, qos=0)
                 except:
-                    pass
+                    print ("Found error in subtraction")
             if 'stdout' in destination:
                 if not arrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
