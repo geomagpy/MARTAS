@@ -291,7 +291,7 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     global verifiedlocation
     arrayinterpreted = False
-    sensorid = msg.topic.strip(stationid).replace('/','').replace('meta','').replace('data','').replace('dict','')
+    sensorid = msg.topic.replace(stationid,"").replace('/','').replace('meta','').replace('data','').replace('dict','')
     # define a new data stream for each non-existing sensor
     if not instrument == '':
         if not sensorid.find(instrument) > -1:

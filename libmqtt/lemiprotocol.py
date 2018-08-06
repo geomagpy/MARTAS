@@ -110,7 +110,7 @@ class LemiProtocol(LineReceiver):
         self.errorcnt = {'gps':'A', 'time':'0', 'buffer':0}
         self.buffer = ''
         self.gpsstate1 = 'A'
-        self.gpsstate2 = 'P'
+        self.gpsstate2 = 'Z'  # Initialize with Z so that current state is send when startet
         self.gpsstatelst = []
         flag = 0
         print ("Initializing LEMI finished")
@@ -156,7 +156,8 @@ class LemiProtocol(LineReceiver):
         packcode = "<4cb6B8hb30f3BcBcc5hL"
         header = "LemiBin %s %s %s %s %s %s %d\n" % (self.sensor, '[x,y,z,t1,t2]', '[X,Y,Z,T_sensor,T_elec]', '[nT,nT,nT,deg_C,deg_C]', '[0.001,0.001,0.001,100,100]', packcode, struct.calcsize(packcode))
         sendpackcode = '6hLffflll'
-        headforsend = "# MagPyBin {} {} {} {} {} {} {}".format(self.sensor, '[x,y,z,t1,t2,var1]', '[X,Y,Z,T_sensor,T_elec,VDD]', '[nT,nT,nT,deg_C,deg_C,V]', '[0.001,0.001,0.001,100,100,10]', sendpackcode, struct.calcsize('<'+sendpackcode))
+        #headforsend = "# MagPyBin {} {} {} {} {} {} {}".format(self.sensor, '[x,y,z,t1,t2,var2,str1]', '[X,Y,Z,T_sensor,T_elec,VDD,GPS]', '[nT,nT,nT,deg_C,deg_C,V,Status]', '[0.001,0.001,0.001,100,100,10]', sendpackcode, struct.calcsize('<'+sendpackcode))
+        headforsend = "# MagPyBin {} {} {} {} {} {} {}".format(self.sensor, '[x,y,z,t1,t2,var2]', '[X,Y,Z,T_sensor,T_elec,VDD]', '[nT,nT,nT,deg_C,deg_C,V]', '[0.001,0.001,0.001,100,100,10]', sendpackcode, struct.calcsize('<'+sendpackcode))
 
         # save binary raw data to buffer file ### please note that this file always contains GPS readings
         lemipath = os.path.join(path,self.sensor+'_'+date+".bin")
@@ -241,7 +242,7 @@ class LemiProtocol(LineReceiver):
             datalst = []
             tincr = idx/10.
             timear = gpstime+timedelta(seconds=tincr)
-            gps_time = datetime.strftime(timear, "%Y-%m-%d %H:%M:%S.%f")
+            gps_time = datetime.strftime(timear.replace(tzinfo=None), "%Y-%m-%d %H:%M:%S.%f")
             datalst = acs.timeToArray(gps_time)
             datalst.append(xarray[idx]/1000.)
             datalst.append(yarray[idx]/1000.)
@@ -249,6 +250,10 @@ class LemiProtocol(LineReceiver):
             datalst.append(int(temp_sensor*100))
             datalst.append(int(temp_el*100))
             datalst.append(int(vdd*10))
+            ### TODO Add GPS and secondary time to this list
+            #datalst.append(gpsstat)
+            #current_time = datetime.strftime(currenttime.replace(tzinfo=None), "%Y-%m-%d %H:%M:%S.%f")
+            #datalst.extend(current_time)
             linestr = ','.join(list(map(str,datalst)))
             linelst.append(linestr)
         dataarray = ';'.join(linelst)
