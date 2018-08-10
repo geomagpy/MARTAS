@@ -457,7 +457,7 @@ def on_message(client, userdata, msg):
                 stream.header = headstream[sensorid]
                 if debug:
                     log.msg("writing header: {}".format(headstream[sensorid]))
-                writeDB(db,stream)
+                writeDB(db,stream,tablename="{}_{}".format(sensorid,'0001'))
                 #sys.exit()
             elif 'stringio' in destination:
                 if not arrayinterpreted:

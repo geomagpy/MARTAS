@@ -144,7 +144,7 @@ class LemiProtocol(LineReceiver):
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
         datearray = acs.timeToArray(timestamp)
-        date_bin = struct.pack('6hL',datearray[0]-2000,datearray[1],datearray[2],datearray[3],datearray[4],datearray[5],datearray[6])
+        date_bin = struct.pack('<6hL',datearray[0]-2000,datearray[1],datearray[2],datearray[3],datearray[4],datearray[5],datearray[6])   ## Added "<" to pack code to get correct length in new machines
 
         # define pathname for local file storage 
         # (default dir plus hostname plus sensor plus year) and create if not existing
