@@ -131,6 +131,23 @@ class LemiProtocol(LineReceiver):
         y = int(x/16)*10 + x%16
         return y
 
+    def initiateRestart(self):
+        log.msg('LEMI - Protocol: Cannot fix problem - restarting process')
+        log.msg('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        self.buffer = ''
+        self.buffererrorcnt = 0
+        print (" ... performing restart now...") 
+        try:
+            # For some reason restart doesn't work?
+            print ("Running check_call...")
+            check_call(['/etc/init.d/martas', 'restart'])
+        except subprocess.CalledProcessError:
+            log.msg('LEMI - Protocol: check_call didnt work')
+        except:
+            log.msg('LEMI - Protocol: check call problem')
+        
+
+
     def processLemiData(self, data):
         """Convert raw ADC counts into SI units as per datasheets"""
         if len(data) != 153:
@@ -199,8 +216,14 @@ class LemiProtocol(LineReceiver):
             log.err("LEMI - Protocol: Number conversion error.")
 
         #print ("HERE2", packcode, struct.calcsize(packcode))
+        processerror = False
         if not gpsstat in ['P','A']:
             print (" ERROR in BINDATA:", struct.unpack("<4cB6B8hb30f3BcB", data))
+            print (" Rawdata looks like:", data)
+            self.buffererrorcnt += 1
+            processerror = True
+            if self.buffererrorcnt == 10:
+                self.initiateRestart()
 
         # get the most frequent gpsstate of the last 10 min
         # this avoids error messages for singular one sec state changes
@@ -258,7 +281,10 @@ class LemiProtocol(LineReceiver):
             linelst.append(linestr)
         dataarray = ';'.join(linelst)
 
-        #print ("Processing successful")
+
+        if processerror:
+            print ("Processing unsuccessful")
+            dataarray = ''
 
         return dataarray, headforsend
 
@@ -283,11 +309,11 @@ class LemiProtocol(LineReceiver):
         if not (self.buffer).startswith(self.soltag):
             lemisearch = (self.buffer).find(self.soltag, 6)
             if not lemisearch == -1:
-                print "Lemiserach", lemisearch, self.buffer
+                print ("Lemisearch", lemisearch, self.buffer)
                 self.buffer = self.buffer[lemisearch:len(self.buffer)]
         if len(self.buffer) == 153:
             # Process data
-            print self.buffer
+            print (self.buffer)
             self.buffer = ''
         """
 
@@ -297,7 +323,8 @@ class LemiProtocol(LineReceiver):
                 currdata = self.buffer
                 self.buffer = ''
                 dataarray, head = self.processLemiData(currdata)
-                WSflag = 2
+                if not dataarray == '':
+                    WSflag = 2
 
             # 2. Found incorrect data length
 
@@ -349,20 +376,9 @@ class LemiProtocol(LineReceiver):
                                 self.buffer = self.buffer[lemisearch:len(self.buffer)]
                                 flag = 1
                                 self.buffererrorcnt += 1
-                                break
+                                #break #uncommented on 2018-09-11
                     if self.buffererrorcnt == 10:
-                        log.msg('LEMI - Protocol: Cannot fix problem - restarting process')
-                        log.msg('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-                        self.buffer = ''
-                        self.buffererrorcnt = 0
-                        try:
-                            check_call(['/etc/init.d/martas', 'restart'])
-                        except subprocess.CalledProcessError:
-                            log.msg('LEMI - Protocol: check_call didnt work')
-                        except:
-                            log.msg('LEMI - Protocol: check call problem')
-                        log.msg('LEMI - Protocol: Restarted martas process')
-
+                        self.initiateRestart()
 
                 else:
                     log.msg('LEMI - Protocol: Incorrect header. Attempting to fix buffer... Bufferlength: {}'.format(len(self.buffer)))
@@ -376,7 +392,7 @@ class LemiProtocol(LineReceiver):
                         log.msg('LEMI - Protocol: Bad data ({} bits) deleted. New bufferlength: {}'.format(lemisearch,len(self.buffer)))
                         flag = 1
 
-            if flag == 0:
+            if flag in [0,1]: #flag == 0: #uncommented 2018-09-11
                 self.buffer = self.buffer + data
 
         except:

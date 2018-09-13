@@ -457,6 +457,8 @@ def on_message(client, userdata, msg):
                 stream.header = headstream[sensorid]
                 if debug:
                     log.msg("writing header: {}".format(headstream[sensorid]))
+                # Could be handled by an option like revision="0001"
+                # if revision: as below else writeDB(db,stream)
                 writeDB(db,stream,tablename="{}_{}".format(sensorid,'0001'))
                 #sys.exit()
             elif 'stringio' in destination:
