@@ -284,14 +284,21 @@ def on_connect(client, userdata, flags, rc):
     elif str(rc) == '5':
         log.msg("Broker eventually requires authentication - use options -u and -P")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
-    substring = stationid+'/#'
+    if stationid == 'all':
+        substring = '/#'
+    else:
+        substring = stationid+'/#'
     log.msg("Subscribing to: {}".format(substring))
     client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
     global verifiedlocation
     arrayinterpreted = False
-    sensorid = msg.topic.replace(stationid,"").replace('/','').replace('meta','').replace('data','').replace('dict','')
+    if stationid == 'all':
+        stid = msg.topic.split('/')[0]
+    else:
+        stid = stationid
+    sensorid = msg.topic.replace(stid,"").replace('/','').replace('meta','').replace('data','').replace('dict','')
     # define a new data stream for each non-existing sensor
     if not instrument == '':
         if not sensorid.find(instrument) > -1:
@@ -551,6 +558,7 @@ def main(argv):
             print ('-t                             set timeout - default is 60')
             print ('-o                             set base topic - for MARTAS this corresponds')
             print ('                               to the station ID (e.g. wic)')
+            print ('                               use "-o all" to get all stationids at a specific broker')
             print ('-i                             choose instrument(s) - only sensors containing')
             print ('                               the provided string are used: ')
             print ('                               -i GSM  will access GSM90_xxx and GSM19_xyz ')
