@@ -100,7 +100,7 @@ class ArduinoProtocol(LineReceiver):
         log.msg('  -> {} connected.'.format(self.board))
 
     def connectionLost(self, reason):
-        log.msg('  -> {} lost.'.format(self.board))
+        log.msg('  -> {} lost.'.format(self.board, reason))
         # implement counter and add three reconnection events here
 
     def processArduinoData(self, sensorid, meta, data):
