@@ -60,6 +60,7 @@ from twisted.web.static import File
 from twisted.internet import reactor
 
 import threading
+from multiprocessing import Process
 import struct
 from datetime import datetime 
 from matplotlib.dates import date2num, num2date
@@ -123,14 +124,17 @@ if ws_available:
     #print ("TEST", socketport)
     wsserver = WebsocketServer(socketport, host='0.0.0.0')
 
-def webThread(webpath,webport):
-    # TODO absolut path or other solution?
+def webProcess(webpath,webport):
+    """
+    These few lines will be started as an own process.
+    When the main process is killed, also this child process is killed
+    because of having it started as a daemon
+    """
     resource = File(webpath)
     factory = Site(resource)
     #endpoint = endpoints.TCP4ServerEndpoint(reactor, 8888)
     #endpoint.listen(factory)
     reactor.listenTCP(webport,factory)
-    log.msg("collector: We don't need signals here - Webserver started as daemon")
     reactor.run()
 
 def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password=''):
@@ -626,6 +630,10 @@ def main(argv):
                 offset = conf.get('offset').strip()
             if not conf.get('debug','') in ['','-']:
                 debug = conf.get('debug').strip()
+                if debug in ['True','true']:
+                    debug = True
+                else:
+                    debug = False
             if not conf.get('socketport','') in ['','-']:
                 try:
                     socketport = int(conf.get('socketport').strip())
@@ -713,14 +721,15 @@ def main(argv):
     if 'websocket' in destination:
         if ws_available:
             wsThr = threading.Thread(target=wsThread)
-            # start as daemon, so the entire Python program exits when only daemon threads are left
+            # start websocket-server in a thread as daemon, so the entire Python program exits
             wsThr.daemon = True
-            log.msg('starting websocket on port 5000...')
+            log.msg('starting websocket on port '+str(socketport))
             wsThr.start()
-            # start webserver
-            webThr = threading.Thread(target=webThread, args=(webpath,webport))
-            webThr.daemon = True
-            webThr.start()
+            # start webserver as process, also as daemon (kills process, when main program ends)
+            webPr = Process(target=webProcess, args=(webpath,webport))
+            webPr.daemon = True
+            webPr.start()
+            log.msg('starting webserver on port '+str(webport))
         else:
             print("no webserver or no websocket-server available: remove 'websocket' from destination")
             sys.exit()
