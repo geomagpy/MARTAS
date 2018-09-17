@@ -99,7 +99,7 @@ socketport = 5000
 
 ## Import WebsocketServer
 ## -----------------------------------------------------------
-def wsThread():
+def wsThread(wsserver):
     wsserver.set_fn_new_client(new_wsclient)
     wsserver.set_fn_message_received(message_received)
     wsserver.run_forever()
@@ -120,9 +120,7 @@ except:
     ws_available = False
 
 if ws_available:
-    # 0.0.0.0 makes the websocket accessable from anywhere TODO: not only 5000
-    #print ("TEST", socketport)
-    wsserver = WebsocketServer(socketport, host='0.0.0.0')
+    global wsserver
 
 def webProcess(webpath,webport):
     """
@@ -638,6 +636,7 @@ def main(argv):
                 try:
                     socketport = int(conf.get('socketport').strip())
                 except:
+                    print('socketport not read properly from marcos config file')
                     socketport = 5000
             source='mqtt'
         elif opt in ("-b", "--broker"):
@@ -720,7 +719,10 @@ def main(argv):
             sys.exit()
     if 'websocket' in destination:
         if ws_available:
-            wsThr = threading.Thread(target=wsThread)
+            # 0.0.0.0 makes the websocket accessable from anywhere
+            global wsserver
+            wsserver = WebsocketServer(socketport, host='0.0.0.0')
+            wsThr = threading.Thread(target=wsThread,args=(wsserver,))
             # start websocket-server in a thread as daemon, so the entire Python program exits
             wsThr.daemon = True
             log.msg('starting websocket on port '+str(socketport))
