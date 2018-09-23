@@ -15,11 +15,10 @@ from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 
+## Aktive Arduino protocol
+## -----------------------
 
-## Arduino protocol
-## --------------------
-
-class ArduinoProtocol(LineReceiver):
+class ActiveArduinoProtocol(object):
     """
     Protocol to read Arduino data (usually from ttyACM0)
     Tested so far only for Arduino Uno on a Linux machine
@@ -65,7 +64,21 @@ class ArduinoProtocol(LineReceiver):
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
-        self.counter = {'lostcount':0}
+        self.counter = {}
+
+        # Commands (take them from somewhere)
+        self.commands = [{'data1':'owT','data2':'swS'}]
+        self.hexcoding = False
+        self.eol = '/r'
+
+        # Serial communication data (from confdict)
+        self.sensor = sensordict.get('sensorid')
+        self.baudrate=int(sensordict.get('baudrate'))
+        self.port = confdict['serialport']+sensordict.get('port')
+        self.parity=sensordict.get('parity')
+        self.bytesize=sensordict.get('bytesize')
+        self.stopbits=sensordict.get('stopbits')
+        self.timeout=2 # should be rate depended
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
@@ -96,12 +109,33 @@ class ArduinoProtocol(LineReceiver):
         self.headlist = []
 
 
-    def connectionMade(self):
-        log.msg('  -> {} connected.'.format(self.board))
 
-    def connectionLost(self, reason):
-        log.msg('  -> {} lost.'.format(self.board, reason))
-        # implement counter and add three reconnection events here
+    def send_command(self,ser,command,eol,hex=False):
+        response = ''
+        fullresponse = ''
+        maxcnt = 50
+        cnt = 0
+        command = command+eol
+        if(ser.isOpen() == False):
+            ser.open()
+        sendtime = datetime.utcnow()
+        ser.write(command)
+        # skipping all empty lines 
+        while response == '': 
+            response = ser.readline()
+        # read until end-of-messageblock signal is obtained (use some break value)
+        while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
+            cnt += 1
+            fullresponse += response
+            response = ser.readline()
+        responsetime = datetime.utcnow()
+        if cnt == maxcnt:
+            fullresponse = 'Maximum count {} was reached'.format(maxcnt)
+        return fullresponse, responsetime
+
+
+    def datetime2array(self,t):
+        return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
     def processArduinoData(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
@@ -109,10 +143,12 @@ class ArduinoProtocol(LineReceiver):
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
-        timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
+        #timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         filename = outdate
 
-        datearray = acs.timeToArray(timestamp)
+        datearray = self.datetime2array(currenttime)
+
+        #datearray = acs.timeToArray(timestamp)
         packcode = '6hL'
         #sensorid = self.sensordict.get(idnum)
         #events = self.eventdict.get(idnum).replace('evt','').split(',')[3:-1]
@@ -308,7 +344,48 @@ class ArduinoProtocol(LineReceiver):
         return evdict, meta, data
 
 
-    def lineReceived(self, line):
+    def sendRequest(self):
+
+        # connect to serial
+        print("Connecting to serial port:")
+        ser = serial.Serial(self.port, baudrate=self.baudrate, parity=self.parity, bytesize=self.bytesize, stopbits=self.stopbits, timeout=timeout)
+
+        # send request string()
+        print("Sending commands: {} ...".format(self.commands))
+        for sensordict in self.commands:
+            for item in sensordict:
+                print ("sending command key {}: {}".format(item,sensordict.get(item)))
+                # eventually more frequnetly ask for 'data'
+                answer, actime = self.send_command(ser,sensordict.get(item),self.eol,hex=self.hexcoding)
+                # disconnect from serial
+                ser.close()
+                # analyze return if data is requested
+                if item.startswith('data'):
+                    # get all lines in answer
+                    lines = answer.split(self.eol)
+                    for line in lines:
+                        print (line)
+                        # analyzelines(line)
+
+                """
+                if not success and self.errorcnt < 5:
+                    self.errorcnt = self.errorcnt + 1
+                    log.msg('SerialCall: Could not interpret response of system when sending %s' % item) 
+                elif not success and self.errorcnt == 5:
+                    try:
+                        check_call(['/etc/init.d/martas', 'restart'])
+                    except subprocess.CalledProcessError:
+                        log.msg('SerialCall: check_call didnt work')
+                        pass # handle errors in the called executable
+                    except:
+                        log.msg('SerialCall: check call problem')
+                        pass # executable not found
+                    #os.system("/etc/init.d/martas restart")
+                    log.msg('SerialCall: Restarted martas process')
+                """
+
+
+    def analyzeline(self, line):
 
         #if self.debug:
         #    log.msg("Received line: {}".format(line))
@@ -317,7 +394,7 @@ class ArduinoProtocol(LineReceiver):
         line = ''.join(filter(lambda x: x in string.printable, line))
 
         # Create a list of sensors like for OW
-        # dipatch with the appropriate sensor
+        # dispatch with the appropriate sensor
         evdict, meta, data = self.GetArduinoSensorList(line)
 
         if len(evdict) > 0:

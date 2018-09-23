@@ -103,20 +103,21 @@ msgcount = 0
 SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Ardactive'] # should be provided by MagPy
 """
 Protocol types:
-ok		Env 	: passive		: environment
-ok		Ow	: active (group)	: environment
-ok		Arduino	: active (group)	: environment
-none		BM35	: active 		: environment
-ok      	Lemi	: passive		: mag
-ok      	GSM90	: passive (init)	: mag
-ok      	POS1	: passive (init)	: mag
-written (time test missing)	GSM19	: passive 		: mag
-written 	Cs	: passive 		: mag
--	   	PalmDac : passive		: mag
-current work	MySQL	: active (group)	: general db call
--	        Active	: active		: general active call
-current work	CR1000	: active		: all
-current work    Test    : active                : random number
+ok		Env   		: passive		: environment
+ok		Ow		: active (group)	: environment
+ok		Arduino		: passive (group)	: environment
+current work	Ardactive 	: active (group)	: environment
+none		BM35		: active 		: environment
+ok      	Lemi		: passive		: mag
+ok      	GSM90		: passive (init)	: mag
+ok      	POS1		: passive (init)	: mag
+written (time test missing)GSM19: passive 		: mag
+ok	 	Cs		: passive 		: mag
+-	   	PalmDac 	: passive		: mag
+ok		MySQL		: active (group)	: general db call
+-	        Active		: active		: general active call
+current work	CR1000		: active		: all
+ok 		Test 	  	: active                : random number
 """
 
 
