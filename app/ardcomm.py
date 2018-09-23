@@ -15,35 +15,28 @@ import numpy as np
 import time
 
 
-def lineread(ser,eol):
-            # FUNCTION 'LINEREAD'
-            # Does the same as readline(), but does not require a standard 
-            # linebreak character ('\r' in hex) to know when a line ends.
-            # Variable 'eol' determines the end-of-line char: '\x00'
-            # for the POS-1 magnetometer, '\r' for the envir. sensor.
-            # (Note: required for POS-1 because readline() cannot detect    
-            # a linebreak and reads a never-ending line.)
-            ser_str = ''
-            timeout = time.time()+2
-            while True:
-                char = ser.read()
-                if char == eol:
-                    break
-                if time.time() > timeout:
-                    break
-                ser_str += char
-            return ser_str
-
 def send_command(ser,command,eol,hex=False):
 
+    #use printable here
     response = ''
+    fullresponse = ''
+    maxcnt = 50
+    cnt = 0
     command = command+eol
     if(ser.isOpen() == False):
         ser.open()
     ser.write(command)
-    while response == '':
+    # skipping all empty lines 
+    while response == '': 
         response = ser.readline()
-    return response.strip()
+    # read until end-of-messageblock signal is obtained (use some break value)
+    while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
+        cnt += 1
+        fullresponse += response
+        response = ser.readline()
+    if cnt == maxcnt:
+        fullresponse = 'Maximum count {} was reached'.format(maxcnt)
+    return fullresponse
 
 
 def main(argv):
