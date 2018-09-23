@@ -14,6 +14,7 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
+import serial
 
 ## Aktive Arduino protocol
 ## -----------------------
@@ -67,9 +68,9 @@ class ActiveArduinoProtocol(object):
         self.counter = {}
 
         # Commands (take them from somewhere)
-        self.commands = [{'data1':'owT','data2':'swS'}]
+        self.commands = [{'data1':'owT','data2':'swD'}]
         self.hexcoding = False
-        self.eol = '/r'
+        self.eol = '/r/n'
 
         # Serial communication data (from confdict)
         self.sensor = sensordict.get('sensorid')
@@ -340,32 +341,39 @@ class ActiveArduinoProtocol(object):
             # invalid return value found
             if self.debug:
                 log.msg("DEBUG - Invalid return value found: {}".format(line))
-        
+
         return evdict, meta, data
 
 
     def sendRequest(self):
 
         # connect to serial
-        print("Connecting to serial port:")
-        ser = serial.Serial(self.port, baudrate=self.baudrate, parity=self.parity, bytesize=self.bytesize, stopbits=self.stopbits, timeout=timeout)
+        try:
+            ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
+        except:
+            log.msg("Serial connection failed")
 
         # send request string()
-        print("Sending commands: {} ...".format(self.commands))
         for sensordict in self.commands:
             for item in sensordict:
-                print ("sending command key {}: {}".format(item,sensordict.get(item)))
-                # eventually more frequnetly ask for 'data'
-                answer, actime = self.send_command(ser,sensordict.get(item),self.eol,hex=self.hexcoding)
+                command = sensordict.get(item)
+                n = command.count(":")
+                miss=-(n-2)
+                for n in range(miss):
+                    command += ':'
+                if self.debug:
+                    log.msg("DEBUG - sending command key {}: {}".format(item,command))
+
+                answer, actime = self.send_command(ser,command,self.eol,hex=self.hexcoding)
                 # disconnect from serial
                 ser.close()
                 # analyze return if data is requested
                 if item.startswith('data'):
                     # get all lines in answer
-                    lines = answer.split(self.eol)
+                    lines = answer.split('\n')
                     for line in lines:
-                        print (line)
-                        # analyzelines(line)
+                        if len(line)>2 and (line[2] == ':' or line[3] == ':'):
+                            self.analyzeline(line)
 
                 """
                 if not success and self.errorcnt < 5:
