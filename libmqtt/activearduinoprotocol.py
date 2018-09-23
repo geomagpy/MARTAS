@@ -15,6 +15,7 @@ from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 import serial
+import subprocess
 
 ## Aktive Arduino protocol
 ## -----------------------
@@ -121,14 +122,22 @@ class ActiveArduinoProtocol(object):
             ser.open()
         sendtime = datetime.utcnow()
         ser.write(command)
-        # skipping all empty lines 
-        while response == '': 
-            response = ser.readline()
-        # read until end-of-messageblock signal is obtained (use some break value)
-        while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
-            cnt += 1
-            fullresponse += response
-            response = ser.readline()
+        # skipping all empty lines
+        try: ## check for exeception in  raise SerialException
+            while response == '': 
+                response = ser.readline()
+            # read until end-of-messageblock signal is obtained (use some break value)
+            while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
+                cnt += 1
+                fullresponse += response
+                response = ser.readline()
+        except serial.SerialException:
+            log.msg("SerialException found - restarting martas")
+            self.restart()
+        except:
+            log.msg("Other exception found")
+            raise
+ 
         responsetime = datetime.utcnow()
         if cnt == maxcnt:
             fullresponse = 'Maximum count {} was reached'.format(maxcnt)
@@ -137,6 +146,18 @@ class ActiveArduinoProtocol(object):
 
     def datetime2array(self,t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
+
+    def restart(self):
+        try:
+            subprocess.check_call(['/etc/init.d/martas', 'restart'])
+        except subprocess.CalledProcessError:
+            log.msg('SerialCall: check_call didnt work')
+            pass # handle errors in the called executable
+        except:
+            log.msg('SerialCall: check call problem')
+            pass # executable not found
+        log.msg('SerialCall: Restarted martas process')
+
 
     def processArduinoData(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
