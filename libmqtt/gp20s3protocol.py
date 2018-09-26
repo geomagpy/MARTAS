@@ -272,7 +272,7 @@ class GP20S3Protocol(LineReceiver):
             if self.debug:
                 print (" now writing header info")
             headpackcode = '6hL15ls12s4s' #'6hLlllllllllllllllsss'
-            headheader = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,f,t1,t2,dx,dy,dz,df,var1,var2,var3,var4,var5,str1,str2,str3]', '[Ts1,Ts2,Ts3,Vbat,V3,Tel,L1,L2,L3,Vps,V1,V2,V3,V5p,V5n,GPSstat,Status,OCXO]', '[degC,degC,degC,V,V,degC,A,A,A,V,V,V,V,V,V]', '[1,1,1,10,100,1,10,10,10,10,10,10,10,100,100]', headpackcode, struct.calcsize(headpackcode))
+            headheader = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,f,t1,t2,dx,dy,dz,df,var1,var2,var3,var4,var5,str1,str2,str3]', '[Ts1,Ts2,Ts3,Vbat,V3,Tel,L1,L2,L3,Vps,V1,V2,V3,V5p,V5n,GPSstat,Status,OCXO]', '[degC,degC,degC,V,V,degC,A,A,A,V,V,V,V,V,V,None,None,None]', '[1,1,1,10,100,1,10,10,10,10,10,10,10,100,100,1,1,1]', headpackcode, struct.calcsize(headpackcode))
             if self.debug:
                 print ("Header looks like: {} ".format(headheader)) 
             try:
