@@ -65,6 +65,15 @@ class GP20S3Protocol(LineReceiver):
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
 
+        # Debug mode
+        debugtest = confdict.get('debug')
+        self.debug = False
+        if debugtest == 'True':
+            log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            self.debug = True    # prints many test messages
+        else:
+            log.msg('  -> Debug mode = {}'.format(debugtest))
+
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -260,9 +269,12 @@ class GP20S3Protocol(LineReceiver):
             log.msg('{} protocol: Error with binary save routine'.format(self.sensordict.get('protocol')))
 
         if headerlinecoming:
-            print (" now writing header info")
+            if self.debug:
+                print (" now writing header info")
             headpackcode = '6hL15ls12s4s' #'6hLlllllllllllllllsss'
             headheader = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,f,t1,t2,dx,dy,dz,df,var1,var2,var3,var4,var5,str1,str2,str3]', '[Ts1,Ts2,Ts3,Vbat,V3,Tel,L1,L2,L3,Vps,V1,V2,V3,V5p,V5n,GPSstat,Status,OCXO]', '[degC,degC,degC,V,V,degC,A,A,A,V,V,V,V,V,V]', '[1,1,1,10,100,1,10,10,10,10,10,10,10,100,100]', headpackcode, struct.calcsize(headpackcode))
+            if self.debug:
+                print ("Header looks like: {} ".format(headheader)) 
             try:
                 # extract time data
                 headarray = acs.timeToArray(maintime)
@@ -288,8 +300,12 @@ class GP20S3Protocol(LineReceiver):
 
                     data_bin = struct.pack('<'+headpackcode,*headarray)
                     statuslst = self.sensor.split('_')
+                    if self.debug:
+                        print ("Headerdata has been packed")
                     if len(statuslst) == 3:
                         statusname = '_'.join([statuslst[0]+'status',statuslst[1],statuslst[2]])
+                    if self.debug:
+                        print ("Writing to file: {}, {}, {}".format(statusname,filename,headheader))
                     if not self.confdict.get('bufferdirectory','') == '':
                          acs.dataToFile(self.confdict.get('bufferdirectory'), statusname, filename, data_bin, headheader)
                 except:
