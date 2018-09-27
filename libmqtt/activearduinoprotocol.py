@@ -163,8 +163,8 @@ class ActiveArduinoProtocol(object):
         """Convert raw ADC counts into SI units as per datasheets"""
         currenttime = datetime.utcnow()
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
-        actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
-        outtime = datetime.strftime(currenttime, "%H:%M:%S")
+        #actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
+        #outtime = datetime.strftime(currenttime, "%H:%M:%S")
         #timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         filename = outdate
 
