@@ -77,11 +77,10 @@ class DSPProtocol(object):
     ## need a reference to our WS-MCU gateway factory to dispatch PubSub events
     ##
     def __init__(self, client, sensordict, confdict):
-        # Specific commands for ultrasonic wind sensor
-        # self.addressanemo = '01'
-        self.commands = [{'data':'11TR00005'},{'meta':''},{'head':''}] # ,self.addressanemo+'TR00002']
+        # Specific commands for Disdrometer
+        self.commands = [{'data':'11TR00005'}]
 
-        self.commands = [{'data':'01TR00002','c1':'01SH','c2':'01SL'}]
+        #self.commands = [{'data':'01TR00002','c1':'01SH','c2':'01SL'}]
         self.hexcoding = False
         self.eol = '\r'
 
@@ -129,18 +128,15 @@ class DSPProtocol(object):
         else:
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
-        # ULTRASONIC specific
-        self.sensorid = ''
+        # DISDROMETER specific
         self.serialnum = ''
-        self.serial1 = ''
-        self.serial2 = ''
 
 
     def processData(self, sensorid, line, ntptime):
         """processing and storing data - requires sensorid and meta info
-           data looks like (TR00002):
-           01.6 290 +14.8 0E*4F
-           windspeed, winddirection, virtualtemperature, status*pruefsumme
+           data looks like (TR00005):
+           
+           
         """
         # currenttime = datetime.utcnow()
         outdate = datetime.strftime(ntptime, "%Y-%m-%d")
@@ -150,7 +146,54 @@ class DSPProtocol(object):
         packcode = '6hLlll'
         multiplier = [10,10,1]
         #print ("Processing line for {}: {}".format(sensorid, line))
-        vals = line.split()
+        data = line.split(';')
+
+        if len(data):
+            try:
+                # Extract data
+                sensor = 'LNM'
+                serialnum = data[1]
+                cumulativerain = float(data[15]) 	# x
+                if cumulativerain > 9000:
+                    #send_command(reset)
+                    pass
+                visibility = int(data[16])		# y
+                reflectivity = float(data[17])	 	# z
+                intall = float(data[12]	)	 	# var1
+                intfluid = float(data[13])	 	# var2
+                intsolid = float(data[14])	 	# var3
+                quality = int(data[18])
+                haildiameter = float(data[19])		# var4
+                insidetemp = float(data[36])	 	# t2
+                lasertemp = float(data[37])
+                lasercurrent = data[38]
+                outsidetemp = float(data[44])		# t1
+                Ptotal= int(data[49])			# f
+                Pslow = int(data[51])		 	# dx
+                Pfast= int(data[53])		 	# dy
+                Psmall= int(data[55])		 	# dz
+                synop = data[6]                         # str1
+                revision = '0001' # Software version 2.42
+                sensorid = sensor + '_' + serialnum + '_' + revision
+            except:
+                log.err('SerialCall - writeDisdro: Could not assign data values')
+
+            try:
+                ##### Write ASCII data file with full output and timestamp
+                # extract time data
+                # try:
+                #print "Writing"
+                timestr = timestamp.replace(' ',';')
+                #print "1", line.encode('ascii','ignore')
+                asciiline = ''.join([i for i in line if ord(i) < 128])
+                asciidata = timestr + ';' + asciiline.strip('\x03').strip('\x02')
+                #print "2", asciidata
+                header = '# LNM - Telegram5 plus NTP date and time at position 0 and 1'
+                self.dataToCSV(sensorid, filename, asciidata, [header])
+            except:
+                log.msg('SerialCall - writeDisdro: Error while saving ascii data')
+
+
         if len(vals) > 3:
             try:
                 datearray.append(int(float(vals[2])*10))
