@@ -483,6 +483,40 @@ def on_message(client, userdata, msg):
                     line = ','.join(linelist)
                     eol = '\r\n'
                     output.write(line+eol)
+            elif 'serial' in destination:
+                if not arrayinterpreted:
+                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
+                    arrayinterpreted = True
+                """
+                # send json like structures
+                collcount = 10
+                if sercount <= collcount:
+                    for idx,col in enumerate(stream.ndarray):
+                        if not len(col) == 0:
+                            keyname = KEYLIST[idx]
+                            if idx == 0:
+                                time = num2date(col).replace(tzinfo=None)
+                                col = int((time - datetime(1970,1,1)).total_seconds()*1000)
+                            excol = datacol.get(keyname,[])
+                            datacol[keyname] = excol.append(col)
+                    sersount += 1
+                if sercount == collcount:
+                    sercount = 0
+                    jsonstr={}
+                    jsonstr['sensorid'] = sensorid
+                    jsonstr['nr'] = i
+                    jsonstr['key'] = identifier[sensorid+':keylist'][i]
+                    jsonstr['elem'] = identifier[sensorid+':elemlist'][i]
+                    jsonstr['unit'] = identifier[sensorid+':unitlist'][i]
+                    payload = json.dumps(jsonstr)
+                    # write input to a another serial port (e.g. for radio transmisson) 
+                    # requires serdef = e.g. [115200,8,1,N]
+                    # eventually create minimum 30 sec json blocks
+                    #sendline='{"SensorID":"{}","Units":["Sec1970","degC"],"Keys":{"time":"time","x":"Temperature"}, "time":[{}],"x":[{}]}'.format(sensorid,time,x)
+                    #{"SensorID":"ID","units":["Sec1970","degC"],"keys":{"time":"time","x":"Temperature"}, "data":{"time":[12,13,45],"x":[12,13,45]}}
+                    #ser.write("{}: {},{}".format(sensorid,msecSince1970,datastring))
+                """
             else:
                 pass
         else:

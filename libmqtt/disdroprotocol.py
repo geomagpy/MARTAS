@@ -41,7 +41,7 @@ def datetime2array(t):
 ## Arduino active request protocol
 ## --------------------
 
-class DSPProtocol(object):
+class DisdroProtocol(object):
     """
     Protocol to read Arduino data (usually from ttyACM0)
     Tested so far only for Arduino Uno on a Linux machine
@@ -129,54 +129,80 @@ class DSPProtocol(object):
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
         # DISDROMETER specific
-        self.serialnum = ''
+        self.sensorid = self.sensorname
 
 
-    def processData(self, sensorid, line, ntptime):
+    def processData(self, line, ntptime):
         """processing and storing data - requires sensorid and meta info
            data looks like (TR00005):
            
-           
+           The MARTAS code reads only some parameters and sends them in realtime. The full raw data
+           is saved into a ascii file with the bufferdirectory
         """
         # currenttime = datetime.utcnow()
         outdate = datetime.strftime(ntptime, "%Y-%m-%d")
         filename = outdate
         header = ''
         datearray = datetime2array(ntptime)
-        packcode = '6hLlll'
-        multiplier = [10,10,1]
+        packcode = '6hL'
+        multiplier = []
+        key = '[x,y,z,f,t1,t2,var1,var2,var3,var4,dx,dy,dz,str1]'
+        ele = '[Rain,Visibility,Reflektivity,P_total,T,Te,]'  ### check database!!
+        unit = '[mmperhour,km,Arb,None,degC,degC,]'  ### check database
         #print ("Processing line for {}: {}".format(sensorid, line))
         data = line.split(';')
 
-        if len(data):
+        def addpara(para, mu, c='l'):
+            datearray.append(int(para*mu))
+            packcode=packcode+c
+            multiplier.append(mu)
+
+        if len(data) > 10:
+            print ("Amount of elements: {}".format(len(data)))
             try:
                 # Extract data
                 sensor = 'LNM'
-                serialnum = data[1]
+                serialnum = data[1] # I guess that this is the serial connectors ID...
                 cumulativerain = float(data[15]) 	# x
+                addpara(cumulativerain,100)
                 if cumulativerain > 9000:
                     #send_command(reset)
                     pass
                 visibility = int(data[16])		# y
+                addpara(visibility,1)
                 reflectivity = float(data[17])	 	# z
+                addpara(reflectivity,100)
+                Ptotal= int(data[49])			# f
+                addpara(Ptotal,1)
+                outsidetemp = float(data[44])		# t1
+                addpara(outsidetemp,100)
+                insidetemp = float(data[36])	 	# t2
+                addpara(insidetemp,100)
                 intall = float(data[12]	)	 	# var1
+                addpara(intall,100)
                 intfluid = float(data[13])	 	# var2
+                addpara(intfluid,100)
                 intsolid = float(data[14])	 	# var3
+                addpara(intsolid,100)
                 quality = int(data[18])
                 haildiameter = float(data[19])		# var4
-                insidetemp = float(data[36])	 	# t2
+                addpara(haildiameter,100)
                 lasertemp = float(data[37])
                 lasercurrent = data[38]
-                outsidetemp = float(data[44])		# t1
-                Ptotal= int(data[49])			# f
                 Pslow = int(data[51])		 	# dx
+                addpara(Pslow,1)
                 Pfast= int(data[53])		 	# dy
+                addpara(Pfast,1)
                 Psmall= int(data[55])		 	# dz
+                addpara(Psmall,1)
                 synop = data[6]                         # str1
+                addpara(synop,1,c='s')
                 revision = '0001' # Software version 2.42
-                sensorid = sensor + '_' + serialnum + '_' + revision
+                self.sensorid = sensor + '_' + serialnum + '_' + revision
+                data = ','.join(list(map(str,datearray)))
             except:
                 log.err('SerialCall - writeDisdro: Could not assign data values')
+                data = ''
 
             try:
                 ##### Write ASCII data file with full output and timestamp
@@ -189,38 +215,9 @@ class DSPProtocol(object):
                 asciidata = timestr + ';' + asciiline.strip('\x03').strip('\x02')
                 #print "2", asciidata
                 header = '# LNM - Telegram5 plus NTP date and time at position 0 and 1'
-                self.dataToCSV(sensorid, filename, asciidata, [header])
+                acs.dataToCSV(sensorid, filename, asciidata, [header])
             except:
                 log.msg('SerialCall - writeDisdro: Error while saving ascii data')
-
-
-        if len(vals) > 3:
-            try:
-                datearray.append(int(float(vals[2])*10))
-                datearray.append(int(float(vals[0])*10))
-                datearray.append(int(float(vals[1])*1))
-            except:
-                log.msg('{} protocol: Error while appending data to file'.format(self.sensordict.get('protocol')))
-
-            try:
-                data_bin = struct.pack('<'+packcode,*datearray) #little endian
-            except:
-                log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
-
-            #asseble header from available global information - write only if information is complete
-            key = '[t2,var1,var2]'
-            ele = '[Tv,V,Dir]'
-            unit = '[degC,m_s,deg]'
-            multplier = str(multiplier).replace(" ","")
-            # Correct some common old problem
-            unit = unit.replace('deg C', 'degC')
-            #print ("ID process", sensorid)
-
-            header = "# MagPyBin {} {} {} {} {} {} {}".format(sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
-            data = ','.join(list(map(str,datearray)))
-
-            if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
         else:
             data = ''
@@ -244,17 +241,13 @@ class DSPProtocol(object):
                 ser.close()
                 if self.debug:
                     print ("got answer: {}".format(answer))
-                self.serialnum = self.serial1+self.serial2
-                if item == 'data' and len(self.serialnum) > 7:
-                    sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
-                    data, head = self.processData(sensorid, answer, actime)
+                # check answer
+                answerok = True
+                if answerok:
+                    data, head = self.processData(answer, actime)
                     # send data via mqtt
                     if not data == '':
                         self.sendmqtt(sensorid,data,head)
-                if item == 'c2':
-                    self.serial2 = answer.replace('!'+comm,'').strip()
-                if item == 'c1':
-                    self.serial1 = answer.replace('!'+comm,'').strip()
 
                 # ##########################################################
                 # answer is a string block with eventually multiple lines
@@ -280,9 +273,6 @@ class DSPProtocol(object):
                 """
         # disconnect from serial
         ser.close()
-
-        # get answer
-        print("All commands send")
 
         
     def sendmqtt(self,sensorid,data,head):

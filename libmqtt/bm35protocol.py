@@ -1,54 +1,23 @@
-import sys, time, os, socket
-import struct, binascii, re, csv
+from __future__ import print_function
+from __future__ import absolute_import
+
+# ###################################################################
+# Import packages
+# ###################################################################
+
+import re     # for interpretation of lines
+import struct # for binary representation
+import socket # for hostname identification
+import string # for ascii selection
 from datetime import datetime, timedelta
-
-# Twisted
 from twisted.protocols.basic import LineReceiver
-from twisted.internet import reactor
-from twisted.python import usage, log
-from twisted.internet.serialport import SerialPort
-from twisted.web.server import Site
-from twisted.web.static import File
+from twisted.python import log
+from magpy.acquisition import acquisitionsupport as acs
 
-try: # version > 0.8.0
-    from autobahn.wamp1.protocol import exportRpc
-except:
-    from autobahn.wamp import exportRpc
+import os
 
-def timeToArray(timestring):
-    # Converts time string of format 2013-12-12T23:12:23.122324
-    # to an array similiat to a datetime object
-    try:
-        splittedfull = timestring.split(' ')
-        splittedday = splittedfull[0].split('-')
-        splittedsec = splittedfull[1].split('.')
-        splittedtime = splittedsec[0].split(':')
-        datearray = splittedday + splittedtime
-        datearray.append(splittedsec[1])
-        datearray = map(int,datearray)
-        return datearray
-    except:
-        log.msg('Error while extracting time array')
-        return []
-
-def dataToFile(outputdir, sensorid, filedate, bindata, header):
-    # File Operations
-    try:
-        hostname = socket.gethostname()
-        path = os.path.join(outputdir,hostname,sensorid)
-        # outputdir defined in main options class
-        if not os.path.exists(path):
-            os.makedirs(path)
-        savefile = os.path.join(path, sensorid+'_'+filedate+".bin")
-        if not os.path.isfile(savefile):
-            with open(savefile, "wb") as myfile:
-                myfile.write(header + "\n")
-                myfile.write(bindata + "\n")
-        else:
-            with open(savefile, "a") as myfile:
-                myfile.write(bindata + "\n")
-    except:
-        log.err("Protocol: Error while saving file")        
+def datetime2array(t):
+    return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
 
 ## meteolabor BM35 protocol
@@ -61,40 +30,59 @@ class BM35Protocol(LineReceiver):
     Supported modes:
         instantaneous values every half second
     """
-
-    def __init__(self, wsMcuFactory, sensor, outputdir):
-        self.wsMcuFactory = wsMcuFactory
-        self.sensor = sensor
-        self.outputdir = outputdir
+    def __init__(self, client, sensordict, confdict):
+        """
+        'client' could be used to switch between different publishing protocols
+                 (e.g. MQTT or WS-MCU gateway factory) to publish events
+        'sensordict' contains a dictionary with all sensor relevant data (sensors.cfg)
+        'confdict' contains a dictionary with general configuration parameters (martas.cfg)
+        """
+        self.client = client
+        self.sensordict = sensordict    
+        self.confdict = confdict
+        self.count = 0  ## counter for sending header information
+        self.sensor = sensordict.get('sensorid')
         self.hostname = socket.gethostname()
-        print "Initialize the connection and set automatic mode (use ser.commands?)"
-        ### TODO send A00S000^M to serial
+        self.printable = set(string.printable)
+        #log.msg("  -> Sensor: {}".format(self.sensor))
+        self.datalst = []
+        self.datacnt = 0
+        self.metacnt = 10
+        self.errorcnt = {'time':0}
 
-    @exportRpc("control-led")
-    def controlLed(self, status):
-        if status:
-            print "turn on LED"
-            self.transport.write('1')
+        self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
+                             # the median of this values is used for ntp timedelay
+        self.timedelay = 0.0
+        self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
+
+        # QOS
+        self.qos=int(confdict.get('mqttqos',0))
+        if not self.qos in [0,1,2]:
+            self.qos = 0
+        log.msg("  -> setting QOS:", self.qos)
+
+        # Debug mode
+        debugtest = confdict.get('debug')
+        self.debug = False
+        if debugtest == 'True':
+            log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            self.debug = True    # prints many test messages
         else:
-            print "turn off LED"
-            self.transport.write('0')
-
-    #def send_command(...?)
-
-    def connectionLost(self):
-        log.msg('BM35 connection lost. Perform steps to restart it!')
+            log.msg('  -> Debug mode = {}'.format(debugtest))
 
     def connectionMade(self):
-        log.msg('%s connected.' % self.sensor)
+        log.msg('  -> {} connected.'.format(self.sensor))
+
+    def connectionLost(self, reason):
+        log.msg('  -> {} lost.'.format(self.sensor))
 
     def processData(self, data):
 
         currenttime = datetime.utcnow()
-        date = datetime.strftime(currenttime, "%Y-%m-%d")
-        actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
-        outtime = datetime.strftime(currenttime, "%H:%M:%S")
-        timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
-        
+        outdate = datetime.strftime(currenttime, "%Y-%m-%d")
+        filename = outdate
+        sensorid = self.sensor
+        datearray = []
         pressure_raw = 88888.8
         pressure = 88888.8
         typ = "none"
@@ -104,61 +92,74 @@ class BM35Protocol(LineReceiver):
         header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[var3]', '[p1]', '[mBar]', '[1000]', packcode, struct.calcsize(packcode))
 
         try:
-            # Extract data
-            data_array = data.strip().split(',')
-            #print data_array, len(data_array)
-            if len(data_array) == 2:
+            if len(data) == 2:
                 typ = "valid"
             # add other types here
         except:
             # TODO??? base x mobile?
             log.err('BM35 - Protocol: Output format not supported - use either base, ... or mobile')
-        # Extracting the data from the instrument
-
+ 
         if typ == "valid": 
-            pressure_raw = float(data_array[0].strip())
-            pressure = float(data_array[1].strip())
+            pressure_raw = float(data[0].strip())
+            pressure = float(data[1].strip())
         elif typ == "none":
             dontsavedata = True
             pass
 
-        try:
-            if not typ == "none":
-                # extract time data
-                datearray = timeToArray(timestamp)
-                try:
-                    datearray.append(int(pressure*1000.))
-                    data_bin = struct.pack(packcode,*datearray)
-                    dataToFile(self.outputdir,self.sensor, date, data_bin, header)
-                except:
-                    log.msg('BM35 - Protocol: Error while packing binary data')
-                    pass
-        except:
-            log.msg('BM35 - Protocol: Error with binary save routine')
-            pass
-        evt1 = {'id': 1, 'value': timestamp}
-        evt35 = {'id': 35, 'value': pressure}
-        evt99 = {'id': 99, 'value': 'eol'}
+        if not typ == "none":
+            # extract time data
+            datearray = datetime2array(currenttime)
+            try:
+                datearray.append(int(pressure*1000.))
+                data_bin = struct.pack('<'+packcode,*datearray)
+            except:
+                log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
 
-        return evt1,evt35,evt99
+            if not self.confdict.get('bufferdirectory','') == '':
+                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            returndata = ','.join(list(map(str,datearray)))
+        else:
+            returndata = ''
+
+        return returndata, header
+
          
     def lineReceived(self, line):
-        dispatch_url =  "http://example.com/"+self.hostname+"/bm3#"+self.sensor+"-value"
+        topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        # extract only ascii characters 
+        line = ''.join(filter(lambda x: x in string.printable, line))
+
+        ok = True
         try:
-            evt1, evt35, evt99 = self.processData(line)
-        except ValueError:
-            log.err('BM35 - Protocol: Unable to parse data %s' % line)
+            data = line.split(',')
+            data, head = self.processData(data)
         except:
-            pass
+            print('{}: Data seems not be GSM90Data: Looks like {}'.format(self.sensordict.get('protocol'),line))
+            ok = False
 
-        try:
-            ## publish event to all clients subscribed to topic
-            ##
-            self.wsMcuFactory.dispatch(dispatch_url, evt1)
-            self.wsMcuFactory.dispatch(dispatch_url, evt35)
-            self.wsMcuFactory.dispatch(dispatch_url, evt99)
-        except:
-            log.err('BM35 - Protocol: wsMcuFactory error while dispatching data.')
+        if ok:
+            senddata = False
+            coll = int(self.sensordict.get('stack'))
+            if coll > 1:
+                self.metacnt = 1 # send meta data with every block
+                if self.datacnt < coll:
+                    self.datalst.append(data)
+                    self.datacnt += 1
+                else:
+                    senddata = True
+                    data = ';'.join(self.datalst)
+                    self.datalst = []
+                    self.datacnt = 0
+            else:
+                senddata = True
 
-
+            if senddata:
+                self.client.publish(topic+"/data", data, qos=self.qos)
+                if self.count == 0:
+                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
+                    self.client.publish(topic+"/dict", add, qos=self.qos)
+                    self.client.publish(topic+"/meta", head, qos=self.qos)
+                self.count += 1
+                if self.count >= self.metacnt:
+                    self.count = 0
 
