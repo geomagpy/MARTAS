@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
-
+import serial # for initializing command
 import os
 
 def datetime2array(t):
@@ -54,6 +54,15 @@ class BM35Protocol(LineReceiver):
                              # the median of this values is used for ntp timedelay
         self.timedelay = 0.0
         self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
+
+        # Serial configuration
+        self.baudrate=int(sensordict.get('baudrate'))
+        self.port = confdict['serialport']+sensordict.get('port')
+        self.parity=sensordict.get('parity')
+        self.bytesize=int(sensordict.get('bytesize'))
+        self.stopbits=int(sensordict.get('stopbits'))
+        self.timeout=2 # should be rate dependend
+
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
@@ -134,7 +143,7 @@ class BM35Protocol(LineReceiver):
             data = line.split(',')
             data, head = self.processData(data)
         except:
-            print('{}: Data seems not be GSM90Data: Looks like {}'.format(self.sensordict.get('protocol'),line))
+            print('{}: Data seems not be BM35Data: Looks like {}'.format(self.sensordict.get('protocol'),line))
             ok = False
 
         if ok:

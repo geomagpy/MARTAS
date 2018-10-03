@@ -239,7 +239,7 @@ class DSPProtocol(object):
         ser.close()
 
         # get answer
-        print("All commands send")
+        #print("All commands send")
 
         
     def sendmqtt(self,sensorid,data,head):

@@ -100,14 +100,14 @@ hostname = socket.gethostname()
 msgcount = 0
 
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro'] # should be provided by MagPy
 """
 Protocol types:
 ok		Env   		: passive		: environment
 ok		Ow		: active (group)	: environment
 ok		Arduino		: passive (group)	: environment
 current work	Ardactive 	: active (group)	: environment
-none		BM35		: active 		: environment
+ok		BM35		: passive 		: environment
 ok      	Lemi		: passive		: mag
 ok      	GSM90		: passive (init)	: mag
 ok      	POS1		: passive (init)	: mag
@@ -119,6 +119,8 @@ ok		MySQL		: active (group)	: general db call
 current work    ActiveArduino   : active (group)        : all
 current work	CR1000		: active		: all
 ok 		Test 	  	: active                : random number
+ok		Lnm		: active 		: environment
+ok		Disdro		: active 		: environment
 """
 
 

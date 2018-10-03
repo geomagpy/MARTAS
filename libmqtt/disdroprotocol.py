@@ -15,7 +15,7 @@ from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 import serial
-
+import os, csv
 
 def send_command_ascii(ser,command,eol):
     #use printable here
@@ -33,6 +33,26 @@ def send_command_ascii(ser,command,eol):
     line = ''.join(filter(lambda x: x in string.printable, response))
     line = line.strip()
     return line, responsetime
+
+def dataToCSV(outputdir, sensorid, filedate, asciidata, header):
+                # Will be part of acquisitionsupport from MagPy 0.4.5
+                #try:
+                path = os.path.join(outputdir,sensorid)
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                savefile = os.path.join(path, sensorid+'_'+filedate+".asc")
+                asciilist = asciidata.split(';')
+                if not os.path.isfile(savefile):
+                    with open(savefile, "wb") as csvfile:
+                        writer = csv.writer(csvfile,delimiter=';')
+                        writer.writerow(header)
+                        writer.writerow(asciilist)
+                else:
+                    with open(savefile, "a") as csvfile:
+                        writer = csv.writer(csvfile,delimiter=';')
+                        writer.writerow(asciilist)
+                #except:
+                #log.err("datatoCSV: Error while saving file")        
 
 
 def datetime2array(t):
@@ -90,6 +110,7 @@ class DisdroProtocol(object):
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
 
+        self.sensorid = ''
         self.sensorname = sensordict.get('name')
         self.baudrate=int(sensordict.get('baudrate'))
         self.port = confdict['serialport']+sensordict.get('port')
@@ -141,84 +162,89 @@ class DisdroProtocol(object):
         """
         # currenttime = datetime.utcnow()
         outdate = datetime.strftime(ntptime, "%Y-%m-%d")
+        timestamp = datetime.strftime(ntptime, "%Y-%m-%d %H:%M:%S.%f")
         filename = outdate
         header = ''
         datearray = datetime2array(ntptime)
         packcode = '6hL'
         multiplier = []
+        pc = []
         key = '[x,y,z,f,t1,t2,var1,var2,var3,var4,dx,dy,dz,str1]'
-        ele = '[Rain,Visibility,Reflektivity,P_total,T,Te,]'  ### check database!!
-        unit = '[mmperhour,km,Arb,None,degC,degC,]'  ### check database
+        ele = '[rainfall,visibility,reflectivity,P_tot,T,T_el,I_tot,I_fluid,I_solid,d(hail),P_slow,P_fast,P_small,SYNOP-4680-code]'
+        unit = '[mm,m,dBZ,None,degC,degC,None,None,None,mm,None,None,None,None]'  ### check database
         #print ("Processing line for {}: {}".format(sensorid, line))
         data = line.split(';')
 
-        def addpara(para, mu, c='l'):
+        def addpara(para, mu, c='l',pc=pc, multplier=multiplier):
             datearray.append(int(para*mu))
-            packcode=packcode+c
+            pc.append(c)
             multiplier.append(mu)
+            return pc, multiplier
 
         if len(data) > 10:
-            print ("Amount of elements: {}".format(len(data)))
+            if self.debug:
+                print ("Received data - amount of elements: {}".format(len(data)))
             try:
                 # Extract data
-                sensor = 'LNM'
+                #sensor = 'LNM'
                 serialnum = data[1] # I guess that this is the serial connectors ID...
                 cumulativerain = float(data[15]) 	# x
-                addpara(cumulativerain,100)
+                pc, multiplier = addpara(cumulativerain,100,c='l')
                 if cumulativerain > 9000:
                     #send_command(reset)
                     pass
                 visibility = int(data[16])		# y
-                addpara(visibility,1)
+                pc, multiplier = addpara(visibility,1,c='l')
                 reflectivity = float(data[17])	 	# z
-                addpara(reflectivity,100)
+                pc, multiplier = addpara(reflectivity,100)
                 Ptotal= int(data[49])			# f
-                addpara(Ptotal,1)
+                pc, multiplier = addpara(Ptotal,1)
                 outsidetemp = float(data[44])		# t1
-                addpara(outsidetemp,100)
+                pc, multiplier = addpara(outsidetemp,100)
                 insidetemp = float(data[36])	 	# t2
-                addpara(insidetemp,100)
+                pc, multiplier = addpara(insidetemp,100)
                 intall = float(data[12]	)	 	# var1
-                addpara(intall,100)
+                pc, multiplier = addpara(intall,100)
                 intfluid = float(data[13])	 	# var2
-                addpara(intfluid,100)
+                pc, multiplier = addpara(intfluid,100)
                 intsolid = float(data[14])	 	# var3
-                addpara(intsolid,100)
+                pc, multiplier = addpara(intsolid,100)
                 quality = int(data[18])
                 haildiameter = float(data[19])		# var4
-                addpara(haildiameter,100)
+                pc, multiplier = addpara(haildiameter,100)
                 lasertemp = float(data[37])
                 lasercurrent = data[38]
                 Pslow = int(data[51])		 	# dx
-                addpara(Pslow,1)
+                pc, multiplier = addpara(Pslow,1)
                 Pfast= int(data[53])		 	# dy
-                addpara(Pfast,1)
+                pc, multiplier = addpara(Pfast,1)
                 Psmall= int(data[55])		 	# dz
-                addpara(Psmall,1)
+                pc, multiplier = addpara(Psmall,1)
                 synop = data[6]                         # str1
-                addpara(synop,1,c='s')
+                pc, multiplier = addpara(synop,1,c='s')
                 revision = '0001' # Software version 2.42
-                self.sensorid = sensor + '_' + serialnum + '_' + revision
+                self.sensorid = self.sensorname + '_' + serialnum + '_' + revision
                 data = ','.join(list(map(str,datearray)))
+                packcode = packcode+''.join(list(pc))
+                header = "# MagPyBin {} {} {} {} {} {} {}".format (self.sensorid, key, ele, unit, '['+','.join(list(map(str,multiplier)))+']', packcode, struct.calcsize('<'+packcode))
+                if self.debug:
+                    print ("Header", header)
             except:
                 log.err('SerialCall - writeDisdro: Could not assign data values')
                 data = ''
 
-            try:
-                ##### Write ASCII data file with full output and timestamp
-                # extract time data
-                # try:
-                #print "Writing"
+
+            if not self.confdict.get('bufferdirectory','') == '':
                 timestr = timestamp.replace(' ',';')
-                #print "1", line.encode('ascii','ignore')
                 asciiline = ''.join([i for i in line if ord(i) < 128])
                 asciidata = timestr + ';' + asciiline.strip('\x03').strip('\x02')
-                #print "2", asciidata
-                header = '# LNM - Telegram5 plus NTP date and time at position 0 and 1'
-                acs.dataToCSV(sensorid, filename, asciidata, [header])
-            except:
-                log.msg('SerialCall - writeDisdro: Error while saving ascii data')
-
+                fheader = '# LNM - Telegram5 plus NTP date and time at position 0 and 1'
+                try:
+                    dataToCSV(self.confdict.get('bufferdirectory'),self.sensorid, filename, asciidata, [fheader])
+                except:
+                    log.msg("Writing data failed")
+                #if self.debug:
+                #    print ("  -> writing data successfull: {}".format(self.sensorid))
         else:
             data = ''
 
@@ -239,15 +265,15 @@ class DisdroProtocol(object):
                 answer, actime = send_command_ascii(ser,comm,self.eol)
                 # disconnect from serial
                 ser.close()
-                if self.debug:
-                    print ("got answer: {}".format(answer))
+                #if self.debug:
+                #    print ("got answer: {}".format(answer))
                 # check answer
                 answerok = True
                 if answerok:
                     data, head = self.processData(answer, actime)
                     # send data via mqtt
                     if not data == '':
-                        self.sendmqtt(sensorid,data,head)
+                        self.sendmqtt(self.sensorid,data,head)
 
                 # ##########################################################
                 # answer is a string block with eventually multiple lines
@@ -272,7 +298,7 @@ class DisdroProtocol(object):
                     log.msg('SerialCall: Restarted martas process')
                 """
         # disconnect from serial
-        ser.close()
+        #ser.close()
 
         
     def sendmqtt(self,sensorid,data,head):

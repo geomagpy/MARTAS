@@ -156,13 +156,13 @@ def main(argv):
             print('------------------------------------------------------')
             print('Examples:')
             print('1. Initializing POS1:')
-            print('   python serial-init.py -p "/dev/ttyS1" -b 9600 -c "mode text,time datetime,date 11-22-16,range 48500,auto 5" -k "%H:%M:%S" -x -d 0')
+            print('   python serialinit.py -p "/dev/ttyS1" -b 9600 -c "mode text,time datetime,date 11-22-16,range 48500,auto 5" -k "%H:%M:%S" -x -d 0')
             print('2. Initializing GSM90Sv6:')
-            print('   python serial-init.py -p "/dev/ttyUSB0" -c S,5,T048,C,datetime,R -k "%y%m%d%w%H%M%S" -i 1024')
+            print('   python serialinit.py -p "/dev/ttyUSB0" -c S,5,T048,C,datetime,R -k "%y%m%d%w%H%M%S" -i 1024')
             print('3. Initializing GSM90Sv7:')
-            print('   python serial-init.py -p "/dev/ttyUSB0" -c S,5,T048.5,C,datetime,D,R -k "%y%m%d%w%H%M%S" -r "z-save,z" -i 1024') 
+            print('   python serialinit.py -p "/dev/ttyUSB0" -c S,5,T048.5,C,datetime,D,R -k "%y%m%d%w%H%M%S" -r "z-save,z" -i 1024') 
             print('4. Initializing BM35:')
-            print('   python serial-init.py -b 2400 -p "/dev/ttyUSB0" -c "A00d03000" -d 13')
+            print('   python serialinit.py -b 2400 -p "/dev/ttyS1" -c "A00d03000" -d 13')
             sys.exit()
         elif opt in ("-b", "--baudrate"):
             baudrate = arg
