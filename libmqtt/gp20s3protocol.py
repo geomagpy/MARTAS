@@ -121,7 +121,7 @@ class GP20S3Protocol(LineReceiver):
             sens3 = 'TB'
         celem =  '[{},{},{},{}{},{}{},{}{}]'.format(sens1,sens2,sens3, sens3,sens1, sens3,sens2, sens2,sens1)
         packcode = '6hLQQQqqq6hL'
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,dx,dy,dz]', celem, '[pT,pT,pT,pT,pT,pT]', '[1000,1000,1000,1000,1000,1000]', packcode, struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,dx,dy,dz,sectime]', celem, '[pT,pT,pT,pT,pT,pT,None]', '[1000,1000,1000,1000,1000,1000,1]', packcode, struct.calcsize(packcode))
 
         try:
             # Extract data
