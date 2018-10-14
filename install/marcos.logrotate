@@ -1,0 +1,10 @@
+/logpath
+{
+	rotate 7
+	size 200k
+	missingok
+	notifempty
+	delaycompress
+	compress
+        create 0664 cobs cobs
+}

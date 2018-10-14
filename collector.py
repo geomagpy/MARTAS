@@ -328,8 +328,8 @@ def on_message(client, userdata, msg):
                 pass
         if debug:
             log.msg("Dictionary now looks like {}".format(headstream[sensorid]))
-    elif msg.topic.endswith('data'):
-        #if debug:
+    elif msg.topic.endswith('data'):  # or readable json
+        #if readable json -> create stream.ndarray and set arrayinterpreted :
         #    log.msg("Found data:", str(msg.payload), metacheck)
         if not metacheck == '':
             if 'file' in destination:
@@ -521,6 +521,21 @@ def on_message(client, userdata, msg):
                 pass
         else:
             log.msg("{}  {}".format(msg.topic, str(msg.payload)))
+    elif msg.topic.find('statuslog') > 0:
+        # json style statusinfo is coming
+        hostname = msg.topic.split('/')[-1]
+        #log.msg("---------------------------------------------------------------")
+        #log.msg("Receiving updated status information from {}".format(hostname))
+        #log.msg("---------------------------------------------------------------")
+        statusdict = json.loads(msg.payload)
+        for elem in statusdict:
+            logmsg = "{}: {} - {}".format(hostname, elem, statusdict[elem])
+            # For Nagios - add in marcos.log
+            log.msg(logmsg)
+            # For Telegram
+            # try to import telegram and telegram.cfg
+            #telegram.send(msg)
+
     if msg.topic.endswith('meta') and 'websocket' in destination:
         # send header info for each element (# sensorid   nr   key   elem   unit) 
         analyse_meta(str(msg.payload),sensorid)

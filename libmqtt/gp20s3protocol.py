@@ -119,7 +119,7 @@ class GP20S3Protocol(LineReceiver):
             sens1 = 'TA'
             sens2 = 'B'
             sens3 = 'TB'
-        celem =  '[{},{},{},{}{},{}{},{}{}]'.format(sens1,sens2,sens3, sens3,sens1, sens3,sens2, sens2,sens1)
+        celem =  '[{},{},{},{}{},{}{},{}{},None]'.format(sens1,sens2,sens3, sens3,sens1, sens3,sens2, sens2,sens1)
         packcode = '6hLQQQqqq6hL'
         header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,dx,dy,dz,sectime]', celem, '[pT,pT,pT,pT,pT,pT,None]', '[1000,1000,1000,1000,1000,1000,1]', packcode, struct.calcsize(packcode))
 
