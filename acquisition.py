@@ -50,11 +50,10 @@ from __future__ import absolute_import
 # ###################################################################
 ## Import MagPy
 ## -----------------------------------------------------------
-local = True
-if local:
-    import sys
-    sys.path.insert(1,'/home/leon/Software/magpy-git/')
-
+#local = True
+#if local:
+#    import sys
+#    sys.path.insert(1,'/home/leon/Software/magpy-git/')
 
 import threading
 import sys, getopt, os
@@ -64,6 +63,10 @@ from datetime import datetime
 ## -----------------------------------------------------------
 from magpy.opt import cred as mpcred
 from magpy.acquisition import acquisitionsupport as acs
+
+## Import specific MARTAS packages
+## -----------------------------------------------------------
+from doc.version import __version__
 
 ## Import support packages
 ## -----------------------------------------------------------
@@ -122,8 +125,6 @@ ok 		Test 	  	: active                : random number
 ok		Lnm		: active 		: environment
 ok		Disdro		: active 		: environment
 """
-
-
 
 def SendInit(confdict,sensordict):
     """
@@ -343,6 +344,10 @@ def main(argv):
         except:
             log.startLogging(sys.stdout)
             print ("Could not open {}. Switching log to stdout.".format(conf['logging']))
+
+    log.msg("----------------")
+    log.msg("Starting MARTAS acquisition version {}".format(__version__))
+    log.msg("----------------")
 
     ## connect to MQTT client
     ##  ----------------------------

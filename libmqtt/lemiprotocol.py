@@ -90,6 +90,7 @@ class LemiProtocol(LineReceiver):
         self.ntp_gps_offset = 2.304 # sec - only used for time testing
         self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
         self.buffererrorcnt = 0
+        self.compensation = [0.0,0.0,0.0]
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
         if not self.qos in [0,1,2]:
@@ -212,6 +213,9 @@ class LemiProtocol(LineReceiver):
             gpsstat = data_array[53]
             gpstime = datetime(2000+self.h2d(data_array[5]),self.h2d(data_array[6]),self.h2d(data_array[7]),self.h2d(data_array[8]),self.h2d(data_array[9]),self.h2d(data_array[10]))-timedelta(microseconds=300000)
             #gps_time = datetime.strftime(gps_array, "%Y-%m-%d %H:%M:%S")
+            self.compensation[0] = biasx
+            self.compensation[1] = biasy
+            self.compensation[2] = biasz
         except:
             log.err("LEMI - Protocol: Number conversion error.")
 
@@ -422,7 +426,7 @@ class LemiProtocol(LineReceiver):
             if senddata:
                 self.client.publish(topic+"/data", dataarray, qos=self.qos)
                 if self.count == 0:
-                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{},DataNTPTimeDelay:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime',''),self.timedelay )
+                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{},DataNTPTimeDelay:{},DataCompensationX:{},DataCompensationY:{},DataCompensationZ:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime',''),self.timedelay, self.compensation[0],self.compensation[1],self.compensation[2] )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
                 self.count += 1

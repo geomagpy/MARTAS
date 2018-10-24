@@ -18,6 +18,7 @@ PYPATH="/usr/bin/python"
 CFGPATH="/etc/marcos"
 LOGPATH="/var/log/magpy"
 COLLPATH="/home/cobs/MARCOS"
+TELEGRAMPATH="/telegram.conf"
 BROKER="broker"
 BROKERIP="localhost"
 STATION="all"
@@ -51,6 +52,7 @@ read -p "Provide a station name/topic (default = $STATION): " STATIONT
 read -p "Output destination (stdout, file, db, etc. default = $DESTINATION): " DESTINATIONT
 read -p "Destination details (e.g. path if file, or db credentials if db; default = $DETAILS): " DETAILST
 read -p "Broker requires authentication? (default = $MQTTAUTH): " MQTTAUTHT
+read -p "Want to use telegram notifications? Please provide config path (default = $TELEGRAMPATH): " TELEGRAMPATHT
 
 if [ "$PYPATHT" != "$tvar" ]; then
    PYPATH=$PYPATHT
@@ -85,6 +87,9 @@ if [ "$MQTTAUTHT" = "yes" ]; then
       MQTTCRED=$MQTTCREDT
    fi
 fi
+if [ "$TELEGRAMPATHT" != "$tvar" ]; then
+   TELEGRAMPATH=$TELEGRAMPATHT
+fi
 
 # create directories if not existing
 # log
@@ -110,10 +115,12 @@ DUMMYDEST="outputdestination"
 DUMMYIP="brokeraddress"
 DUMMYFILE="/tmp"
 DUMMYDB="mydb"
+DUMMYTELEGRAM="/telegram.conf"
 DUMMYCRED="#mqttcredentials  :  broker"
 sed -i "s+${DUMMYSTATION}+${STATION}+g" $CONFFILE
 sed -i "s+${DUMMYIP}+${BROKERIP}+g" $CONFFILE
 sed -i "s+${DUMMYDEST}+${DESTINATION}+g" $CONFFILE
+sed -i "s+${DUMMYTELEGRAM}+${TELEGRAMPATH}+g" $CONFFILE
 sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/marcos.log+g" $CONFFILE
 if [ "$DESTINATION" = "db" ]; then
    sed -i "s+${DUMMYDB}+${DETAILS}+g" $CONFFILE
@@ -159,6 +166,6 @@ echo "----------------------------------------"
 echo "usage:"
 echo "/etc/init.d/collect-$BROKER {start|stop|restart|status}"
 echo "----------------------------------------"
-echo "starting now ..."
+#echo "starting now ..."
 
 #/etc/init.d/collect-$BROKER start

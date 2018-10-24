@@ -44,10 +44,10 @@ from __future__ import absolute_import
 ## Import MagPy
 ## -----------------------------------------------------------
 
-local = True
-if local:
-    import sys
-    sys.path.insert(1,'/home/leon/Software/magpy-git/')
+#local = True
+#if local:
+#    import sys
+#    sys.path.insert(1,'/home/leon/Software/magpy-git/')
 
 from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, subtractStreams
 from magpy.database import mysql,writeDB
@@ -68,8 +68,14 @@ import numpy as np
 import json
 
 # For file export
+## -----------------------------------------------------------
 import StringIO
 from magpy.acquisition import acquisitionsupport as acs
+
+## Import specific MARTAS packages
+## -----------------------------------------------------------
+from doc.version import __version__
+from doc.martas import martaslog as ml
 
 ## Import MQTT
 ## -----------------------------------------------------------
@@ -286,17 +292,18 @@ def on_connect(client, userdata, flags, rc):
     elif str(rc) == '5':
         log.msg("Broker eventually requires authentication - use options -u and -P")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
-    if stationid == 'all':
-        substring = '/#'
+    if stationid in ['all','All','ALL']:
+        substring = '#'
     else:
         substring = stationid+'/#'
     log.msg("Subscribing to: {}".format(substring))
     client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
+    
     global verifiedlocation
     arrayinterpreted = False
-    if stationid == 'all':
+    if stationid in ['all','All','ALL']:
         stid = msg.topic.split('/')[0]
     else:
         stid = stationid
@@ -306,6 +313,22 @@ def on_message(client, userdata, msg):
         if not sensorid.find(instrument) > -1:
             return
     metacheck = identifier.get(sensorid+':packingcode','')
+    if msg.topic.startswith('lora') and msg.topic.endswith('up'):
+        #if debug:
+        log.msg(" Found LORA package")
+        devlist = msg.topic.split('/')
+        #log.msg("---------------------------------------------------------------")
+        #log.msg("Receiving updated status information from {}".format(hostname))
+        #log.msg("---------------------------------------------------------------")
+        loradict = json.loads(msg.payload)
+        print (loradict.get('time'))
+        print (loradict.get('data'))
+        print (loradict.get('deveui'))
+        #stream, packcode = loradict2datastream(loradict)
+        # arrayinterpreted = True
+        # metacheck = packcode
+        # adept -> file selection
+
     if msg.topic.endswith('meta') and metacheck == '':
         log.msg("Found basic header:{}".format(str(msg.payload)))
         log.msg("Quality od Service (QOS):{}".format(str(msg.qos)))
@@ -527,14 +550,27 @@ def on_message(client, userdata, msg):
         #log.msg("---------------------------------------------------------------")
         #log.msg("Receiving updated status information from {}".format(hostname))
         #log.msg("---------------------------------------------------------------")
+        print ("FOUND STATUS CHANGE", telegramconf)
         statusdict = json.loads(msg.payload)
         for elem in statusdict:
             logmsg = "{}: {} - {}".format(hostname, elem, statusdict[elem])
             # For Nagios - add in marcos.log
             log.msg(logmsg)
-            # For Telegram
+        # For Telegram
+        try:
             # try to import telegram and telegram.cfg
-            #telegram.send(msg)
+            ##### Add the configuration to input and marcos.cfg
+            ## Please note: requires anaconda2/bin/python on my test PC
+            ## !!! Requires network connection !!!
+            if not telegramconf == '/telegram.conf':
+                martaslog = ml(receiver='telegram')
+                martaslog.receiveroptions('telegram',options={'conf':telegramconf})
+                statusdict['Hostname'] = hostname
+                martaslog.notify(statusdict)
+        except:
+            pass
+
+        #telegram.send(msg)
 
     if msg.topic.endswith('meta') and 'websocket' in destination:
         # send header info for each element (# sensorid   nr   key   elem   unit) 
@@ -572,6 +608,8 @@ def main(argv):
     stationid = 'wic'
     global instrument
     instrument = ''
+    global telegramconf
+    telegramconf = ''
     global source
     source='mqtt' # projected sources: mqtt (default), wamp, mysql, postgres, etc
     global qos
@@ -589,9 +627,9 @@ def main(argv):
     global number
     number=1
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:l:c:r:q:u:P:s:f:m:n:U",["broker=","port=","timeout=","topic=","instrument=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos=","number="])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:l:c:r:q:u:P:s:f:m:n:e:U",["broker=","port=","timeout=","topic=","instrument=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos=","number=","telegramconf="])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -635,6 +673,8 @@ def main(argv):
             print ('-n                             provide a integer number ')
             print ('                               "-d diff -i GSM": difference of two GSM will')
             print ('                                                 be calculated every n th step.')
+            print ('-e                             provide a path to telegram configuration for ')
+            print ('                               sending critical log changes.')
             print ('------------------------------------------------------')
             print ('Examples:')
             print ('1. Basic')
@@ -695,6 +735,8 @@ def main(argv):
                 except:
                     print('socketport not read properly from marcos config file')
                     socketport = 5000
+            if not conf.get('telegramconf','') in ['','-']:
+                telegramconf = conf.get('telegramconf').strip()
             source='mqtt'
         elif opt in ("-b", "--broker"):
             broker = arg
@@ -735,6 +777,8 @@ def main(argv):
             offset = arg
         elif opt in ("-n", "--number"):
             number = arg
+        elif opt in ("-e", "--telegramconf"):
+            telegramconf = arg
         elif opt in ("-U", "--debug"):
             debug = True
 
@@ -761,8 +805,9 @@ def main(argv):
         print("Logging requires twisted module")
         sys.exit()
 
+
     log.msg("----------------")
-    log.msg(" Starting collector")
+    log.msg(" Starting collector {}".format(__version__))
     log.msg("----------------")
 
     if not qos in [0,1,2]:
