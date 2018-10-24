@@ -313,7 +313,7 @@ def on_message(client, userdata, msg):
         if not sensorid.find(instrument) > -1:
             return
     metacheck = identifier.get(sensorid+':packingcode','')
-    if msg.topic.startswith('lora') and msg.topic.endswith('up'):
+    if msg.topic.startswith('ZAMG') and msg.topic.endswith('adeunis'):
         #if debug:
         log.msg(" Found LORA package")
         devlist = msg.topic.split('/')
@@ -321,9 +321,42 @@ def on_message(client, userdata, msg):
         #log.msg("Receiving updated status information from {}".format(hostname))
         #log.msg("---------------------------------------------------------------")
         loradict = json.loads(msg.payload)
-        print (loradict.get('time'))
-        print (loradict.get('data'))
-        print (loradict.get('deveui'))
+        print (loradict.get('DateTime'))
+        # convert loradict to headdict (header) and data_bin
+        #print (loradict.get('Name'))
+        #print (loradict.get('Modell'))
+        #print (loradict.get('data'))
+        def loradict2datastream(loradict):
+            datakeytranslator = {'tl':'t1', 'rh':'var1', 'corr':'var5'}
+            datadict = loradict.get('data')
+            issuedict = (loradict.get('issue'))
+            header = {}
+            header['SensorName'] = loradict.get('Name')
+            try:
+                header['StationID'] = loradict.get('Name').strip().split(' - ')[1]
+            except:
+                header['StationID'] = "Not defined"
+            #header['SensorName'] = loradict.get('Name').split(' - ').strip()[0]
+            header['SensorSerialNum'] = issuedict.get('deveui','').replace('-','')
+            sensorid = header['SensorName'] + '_' + header['SensorSerialNum'] + '_0001'
+            header['SensorID'] = sensorid
+            array = [[] for elem in KEYLIST]
+            time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
+            array[0].append(date2num(time))
+            packcode = '6hL'
+            for elem in datadict:
+                if elem in datakeytranslator:
+                    key = datakeytranslator[elem]
+                    index = KEYLIST.index(key)
+                    print (key, index)
+                    if key in NUMKEYLIST:
+                        array[index].append(float(datadict[elem]))
+                    else:
+                        array[index].append(datadict[elem])
+   
+                print (elem, datadict[elem])
+
+        loradict2datastream(loradict)
         #stream, packcode = loradict2datastream(loradict)
         # arrayinterpreted = True
         # metacheck = packcode
