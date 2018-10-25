@@ -167,6 +167,78 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
         return client
 
 
+def loradict2datastruct(loradict):
+            datakeytranslator = {'tl':['t1','degC'], 'rf':['var1','per'], 'corr':['var5','none']}
+            datadict = loradict.get('data')
+            issuedict = (loradict.get('issue'))
+            header = {}
+            header['SensorName'] = loradict.get('Name').split(' ')[0]
+            try:
+                header['StationID'] = loradict.get('Name').strip().split(' - ')[1]
+            except:
+                header['StationID'] = "Not defined"
+            #header['SensorName'] = loradict.get('Name').split(' - ').strip()[0]
+            header['SensorSerialNum'] = issuedict.get('deveui','').replace('-','')
+            header['SensorDataLoggerSerNum'] = issuedict.get('appeui','').replace('-','')
+            header['SensorGroup'] = loradict.get('Modell')
+            sensorid = header['SensorName'].split(' ')[0] + '_' + header['SensorSerialNum'] + '_0001'
+            header['SensorID'] = sensorid
+
+            # needs to return headstream[sensorid] = header (global)
+            # identifier dictionary  (global)
+            # sensorid
+            # headdict[sensorid] = "MagPy line"  (global)
+            # and data payload
+
+            keylist, elemlist, unitlist, multilist = [],[],[],[]
+            time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
+            datalst = datetime2array(time)
+            packstr = '6hL'
+            for elem in datadict:
+                if elem in datakeytranslator:
+                    key = datakeytranslator[elem][0]
+                    unit = datakeytranslator[elem][1]
+                    keylist.append(key)
+                    elemlist.append(elem)
+                    unitlist.append(unit)
+                    multilist.append(1000)
+                    packstr += "l"
+                    datalst.append(int(datadict[elem]*1000))   
+                #print (elem, datadict[elem])
+
+            datalst = [str(elem) for elem in datalst]
+            dataline =','.join(datalst)
+            #print ("DATA", dataline)
+            identifier[sensorid+':packingcode'] = packstr
+            identifier[sensorid+':keylist'] = keylist
+            identifier[sensorid+':elemlist'] = elemlist
+            identifier[sensorid+':unitlist'] = unitlist
+            identifier[sensorid+':multilist'] = multilist
+            def identifier2line(dic, sensorid):
+                p1 = identifier.get(sensorid+':packingcode')
+                p2 = identifier.get(sensorid+':keylist')
+                p3 = identifier.get(sensorid+':elemlist')
+                p4 = identifier.get(sensorid+':unitlist')
+                p5 = identifier.get(sensorid+':multilist')
+                p5 = [str(elem) for elem in p5]
+                size = struct.calcsize(p1)
+                line = "# MagPyBin {} [{}] [{}] [{}] [{}] {} {}".format(sensorid,','.join(p2),','.join(p3),','.join(p4),','.join(p5),p1,size)
+                return line
+
+            def merge_two_dicts(x, y):
+                z = x.copy()   # start with x's keys and values
+                z.update(y)    # modifies z with y's keys and values & returns None
+                return z
+
+            headdict[sensorid] = identifier2line(identifier, sensorid)
+            headstream[sensorid] = create_head_dict(headdict[sensorid],sensorid)
+            headstream[sensorid] = merge_two_dicts(headstream[sensorid], header)
+            #print ("HEAD1", headdict[sensorid])
+            #print ("HEAD2", headstream[sensorid])
+            return dataline, sensorid
+
+
+
 def analyse_meta(header,sensorid):
     """
     source:mqtt:
@@ -232,7 +304,7 @@ def create_head_dict(header,sensorid):
     head_dict['SensorID'] = sensorid
     sensl = sensorid.split('_')
     head_dict['SensorName'] = sensl[0]
-    head_dict['SensorSerialNumber'] = sensl[1]
+    head_dict['SensorSerialNum'] = sensl[1]
     head_dict['SensorRevision'] = sensl[2]
     head_dict['SensorKeys'] = ','.join(keylist)
     head_dict['SensorElements'] = ','.join(elemlist)
@@ -282,6 +354,8 @@ def interprete_data(payload, ident, stream, sensorid):
 
     return np.asarray([np.asarray(elem) for elem in array])
 
+def datetime2array(t):
+        return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
 def on_connect(client, userdata, flags, rc):
     log.msg("Connected with result code {}".format(str(rc)))
@@ -314,103 +388,14 @@ def on_message(client, userdata, msg):
             return
 
     if msg.topic.startswith('ZAMG') and msg.topic.endswith('adeunis'):
-        #if debug:
-        log.msg(" -- Found LORA package -- ")
+        if debug:
+            log.msg(" -- Found LORA package -- ")
         devlist = msg.topic.split('/')
         loradict = json.loads(msg.payload)
-        print (loradict.get('DateTime'))
-        #print (loradict.get('Name'))
-        #print (loradict.get('Modell'))
-        #print (loradict.get('data'))
 
         # convert loradict to headdict (header) and data_bin
-        #msg.payload, sensorid =  loradict2datastruct(loradict)
-
-        def loradict2datastruct(loradict):
-            datakeytranslator = {'tl':['t1','degC'], 'rh':['var1','per'], 'corr':['var5','none']}
-            datadict = loradict.get('data')
-            issuedict = (loradict.get('issue'))
-            header = {}
-            header['SensorName'] = loradict.get('Name')
-            try:
-                header['StationID'] = loradict.get('Name').strip().split(' - ')[1]
-            except:
-                header['StationID'] = "Not defined"
-            #header['SensorName'] = loradict.get('Name').split(' - ').strip()[0]
-            header['SensorSerialNum'] = issuedict.get('deveui','').replace('-','')
-            sensorid = header['SensorName'] + '_' + header['SensorSerialNum'] + '_0001'
-            header['SensorID'] = sensorid
-
-            # needs to return headstream[sensorid] = header (global)
-            # identifier dictionary  (global)
-            # sensorid
-            # headdict[sensorid] = "MagPy line"  (global)
-            # and data payload
-
-            keylist, elemlist, unitlist, multilist = [],[],[],[]
-            time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
-            datalst = time2list(time)
-            packstr = '6hL'
-            for elem in datadict:
-                if elem in datakeytranslator:
-                    key = datakeytranslator[elem][0]
-                    unit = datakeytranslator[elem][1]
-                    keylist.append(key)
-                    elemlist.append(elem)
-                    unitlist.append(unit)
-                    multilist.append(1)
-                    packstr += "f"
-                    print (key, index)
-                    datalst.append(datadict[elem])   
-                print (elem, datadict[elem])
-
-            dataline =','.join(datalst)
-            identifier[sensorid+':packingcode'] = packstr
-            identifier[sensorid+':keylist'] = keylist
-            identifier[sensorid+':elemlist'] = elemlist
-            identifier[sensorid+':unitlist'] = unitlist
-            identifier[sensorid+':multilist'] = multilist
-
-            #headdict[sensorid] = identifier2line()
-            #headstream[sensorid] = header   # add info from headstring
-
-            return dataline, sensorid
-
-        def loradict2datastream(loradict):
-            datakeytranslator = {'tl':'t1', 'rh':'var1', 'corr':'var5'}
-            datadict = loradict.get('data')
-            issuedict = (loradict.get('issue'))
-            header = {}
-            header['SensorName'] = loradict.get('Name')
-            try:
-                header['StationID'] = loradict.get('Name').strip().split(' - ')[1]
-            except:
-                header['StationID'] = "Not defined"
-            #header['SensorName'] = loradict.get('Name').split(' - ').strip()[0]
-            header['SensorSerialNum'] = issuedict.get('deveui','').replace('-','')
-            sensorid = header['SensorName'] + '_' + header['SensorSerialNum'] + '_0001'
-            header['SensorID'] = sensorid
-            array = [[] for elem in KEYLIST]
-            time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
-            array[0].append(date2num(time))
-            packcode = '6hL'
-            for elem in datadict:
-                if elem in datakeytranslator:
-                    key = datakeytranslator[elem]
-                    index = KEYLIST.index(key)
-                    print (key, index)
-                    if key in NUMKEYLIST:
-                        array[index].append(float(datadict[elem]))
-                    else:
-                        array[index].append(datadict[elem])
-   
-                print (elem, datadict[elem])
-
-        loradict2datastream(loradict)
-        #stream, packcode = loradict2datastream(loradict)
-        # arrayinterpreted = True
-        # metacheck = packcode
-        # adept -> file selection
+        msg.payload, sensorid =  loradict2datastruct(loradict)
+        msg.topic = msg.topic+'/data'
 
     metacheck = identifier.get(sensorid+':packingcode','')
 
@@ -449,7 +434,10 @@ def on_message(client, userdata, msg):
                 # -------------------
                 if sensorid in headdict:
                     header = headdict.get(sensorid)
-                    packcode = metacheck.strip('<')[:-1] # drop leading < and final B
+                    if metacheck.endswith('B'):
+                        packcode = metacheck.strip('<')[:-1] # drop leading < and final B
+                    else:
+                        packcode = metacheck.strip('<') # drop leading <
                     # temporary code - too be deleted when lemi protocol has been updated
                     if packcode.find('4cb6B8hb30f3Bc') >= 0:
                         header = header.replace('<4cb6B8hb30f3BcBcc5hL 169\n','6hLffflll {}'.format(struct.calcsize('<6hLffflll')))
