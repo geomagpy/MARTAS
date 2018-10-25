@@ -84,12 +84,12 @@ import sys, getopt, os
 
 # Some global variables
 global identifier
-identifier = {}
+identifier = {} # used to store lists from header lines
 streamdict = {}
 stream = DataStream()
 st = []
 senslst = []
-headdict = {} # store headerlines for file
+headdict = {} # store headerlines for all sensors (headerline are firstline for BIN files)
 headstream = {}
 global counter  # use for diffcalc
 counter = 0
@@ -312,20 +312,70 @@ def on_message(client, userdata, msg):
     if not instrument == '':
         if not sensorid.find(instrument) > -1:
             return
-    metacheck = identifier.get(sensorid+':packingcode','')
+
     if msg.topic.startswith('ZAMG') and msg.topic.endswith('adeunis'):
         #if debug:
-        log.msg(" Found LORA package")
+        log.msg(" -- Found LORA package -- ")
         devlist = msg.topic.split('/')
-        #log.msg("---------------------------------------------------------------")
-        #log.msg("Receiving updated status information from {}".format(hostname))
-        #log.msg("---------------------------------------------------------------")
         loradict = json.loads(msg.payload)
         print (loradict.get('DateTime'))
-        # convert loradict to headdict (header) and data_bin
         #print (loradict.get('Name'))
         #print (loradict.get('Modell'))
         #print (loradict.get('data'))
+
+        # convert loradict to headdict (header) and data_bin
+        #msg.payload, sensorid =  loradict2datastruct(loradict)
+
+        def loradict2datastruct(loradict):
+            datakeytranslator = {'tl':['t1','degC'], 'rh':['var1','per'], 'corr':['var5','none']}
+            datadict = loradict.get('data')
+            issuedict = (loradict.get('issue'))
+            header = {}
+            header['SensorName'] = loradict.get('Name')
+            try:
+                header['StationID'] = loradict.get('Name').strip().split(' - ')[1]
+            except:
+                header['StationID'] = "Not defined"
+            #header['SensorName'] = loradict.get('Name').split(' - ').strip()[0]
+            header['SensorSerialNum'] = issuedict.get('deveui','').replace('-','')
+            sensorid = header['SensorName'] + '_' + header['SensorSerialNum'] + '_0001'
+            header['SensorID'] = sensorid
+
+            # needs to return headstream[sensorid] = header (global)
+            # identifier dictionary  (global)
+            # sensorid
+            # headdict[sensorid] = "MagPy line"  (global)
+            # and data payload
+
+            keylist, elemlist, unitlist, multilist = [],[],[],[]
+            time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
+            datalst = time2list(time)
+            packstr = '6hL'
+            for elem in datadict:
+                if elem in datakeytranslator:
+                    key = datakeytranslator[elem][0]
+                    unit = datakeytranslator[elem][1]
+                    keylist.append(key)
+                    elemlist.append(elem)
+                    unitlist.append(unit)
+                    multilist.append(1)
+                    packstr += "f"
+                    print (key, index)
+                    datalst.append(datadict[elem])   
+                print (elem, datadict[elem])
+
+            dataline =','.join(datalst)
+            identifier[sensorid+':packingcode'] = packstr
+            identifier[sensorid+':keylist'] = keylist
+            identifier[sensorid+':elemlist'] = elemlist
+            identifier[sensorid+':unitlist'] = unitlist
+            identifier[sensorid+':multilist'] = multilist
+
+            #headdict[sensorid] = identifier2line()
+            #headstream[sensorid] = header   # add info from headstring
+
+            return dataline, sensorid
+
         def loradict2datastream(loradict):
             datakeytranslator = {'tl':'t1', 'rh':'var1', 'corr':'var5'}
             datadict = loradict.get('data')
@@ -361,6 +411,8 @@ def on_message(client, userdata, msg):
         # arrayinterpreted = True
         # metacheck = packcode
         # adept -> file selection
+
+    metacheck = identifier.get(sensorid+':packingcode','')
 
     if msg.topic.endswith('meta') and metacheck == '':
         log.msg("Found basic header:{}".format(str(msg.payload)))
