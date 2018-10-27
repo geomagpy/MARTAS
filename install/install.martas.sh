@@ -16,8 +16,8 @@
 PYPATH="/home/leon/Software/anaconda2/bin/python"
 PYPATH="/usr/bin/python"
 CFGPATH="/etc/martas"
+INITPATH="/etc/martas/init"
 LOGPATH="/var/log/magpy"
-ACQUPATH="/home/cobs/MARTAS"
 ACQUISITION="martas"
 BROKERIP="localhost"
 STATION="wic"
@@ -26,6 +26,10 @@ MQTTAUTH="no"
 MQTTCRED="mqtt"
 tvar=""
 
+current="$(pwd)"
+cd ..
+ACQUPATH="$(pwd)"
+cd "$current"
 
 echo "Helper for adding new acquisition job "
 echo "----------------------------------------"
@@ -42,6 +46,7 @@ echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
 
 read -p "Provide python path (default = $PYPATH): " PYPATHT
 read -p "Provide path for martas.cfg and sensors.cfg (default = $CFGPATH): " CFGPATHT
+read -p "Path for specific sensor initialization files (default = $INITPATH): " INITPATHT
 read -p "Provide path to acquisition.py (default = $ACQUPATH): " ACQUPATHT
 read -p "Provide path for log files (default = $LOGPATH): " LOGPATHT
 read -p "Provide the name of the acquisition job (default = $ACQUISITION): " ACQUISITIONT
@@ -54,6 +59,9 @@ if [ "$PYPATHT" != "$tvar" ]; then
 fi
 if [ "$CFGPATHT" != "$tvar" ]; then
    CFGPATH=$CFGPATHT
+fi
+if [ "$INITPATHT" != "$tvar" ]; then
+   INITPATH=$INITPATHT
 fi
 if [ "$LOGPATHT" != "$tvar" ]; then
    LOGPATH=$LOGPATHT
@@ -84,6 +92,9 @@ mkdir -p $LOGPATH
 # conf
 mkdir -p $CFGPATH
 
+# init
+mkdir -p $INITPATH
+
 # update configuration
 # ------------------
 # station
@@ -92,10 +103,12 @@ mkdir -p $CFGPATH
 # storageinfo
 
 CONFFILE=$CFGPATH/martas.cfg
-SENSFILE=$CFGPATH/sensor.cfg
+SENSFILE=$CFGPATH/sensors.cfg
 
-cp martas.cfg $CONFFILE
-cp martas.cfg $SENSFILE
+# copy but not overwrite if existing
+cp -n martas.cfg $CONFFILE
+cp -n sensors.cfg $SENSFILE
+cp -n ../init/*.sh $INITPATH
 
 DUMMYLOGPATH="/logpath"
 DUMMYSENSORPATH="/sensorpath"
@@ -106,7 +119,7 @@ sed -i "s+${DUMMYSTATION}+${STATION}+g" $CONFFILE
 sed -i "s+${DUMMYIP}+${BROKERIP}+g" $CONFFILE
 sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/martas.log+g" $CONFFILE
 sed -i "s+${DUMMYSENSORPATH}+${SENSFILE}+g" $CONFFILE
-sed -i "s+${DUMMYINIT}+${ACQUPATH}/init/+g" $CONFFILE
+sed -i "s+${DUMMYINIT}+${INITPATH}/+g" $CONFFILE
 
 # modify logrotate
 # ------------------
@@ -136,8 +149,8 @@ else
 fi
 
 chmod 755 /etc/init.d/$ACQUISITION
-#chown root:root /etc/init.d/$ACQUISITION
-#update-rc.d $ACQUISITION defaults
+chown root:root /etc/init.d/$ACQUISITION
+update-rc.d $ACQUISITION defaults
 
 echo "----------------------------------------"
 echo "$ACQUISITION successfully added as service"
@@ -145,7 +158,7 @@ echo "----------------------------------------"
 echo "usage:"
 echo "/etc/init.d/$ACQUISITION {start|stop|restart|status}"
 echo "----------------------------------------"
-echo "(to remove use: )"
+echo "(to remove use: sudo sh removemartas.sh)"
 echo "----------------------------------------"
 
 

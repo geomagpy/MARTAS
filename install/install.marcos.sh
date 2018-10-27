@@ -166,6 +166,6 @@ echo "----------------------------------------"
 echo "usage:"
 echo "/etc/init.d/collect-$BROKER {start|stop|restart|status}"
 echo "----------------------------------------"
-#echo "starting now ..."
+echo "(to remove use: sudo sh removemarcos.sh)"
+echo "----------------------------------------"
 
-#/etc/init.d/collect-$BROKER start

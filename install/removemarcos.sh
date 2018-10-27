@@ -41,7 +41,13 @@ mv $CONFFILE $CONFFILE.defunc
 
 update-rc.d -f collect-$BROKER remove
 
+rm /etc/init.d/collect-$BROKER
+
 echo "----------------------------------------"
 echo "collect-$BROKER successfully removed"
+echo "----------------------------------------"
+echo "----------------------------------------"
+echo "Files in $CFGPATH are still present."
+echo "Please delete them manually if not needed anymore."
 echo "----------------------------------------"
 
