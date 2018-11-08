@@ -2,6 +2,18 @@
 
 **MagPys Automated Real Time Acquisition System**
 
+MARTAS is collection of python applications and packages supporting data acquisition,
+collection, storage, monitoring and analysis in heterogenuous sensor environments. 
+MARTAS is optimzed for professional observatory networks. Data acquisition makes use
+of an instrument library which currently supports many sensors typically used in 
+observatories arround the globe and some development platforms. Basically, incoming 
+sensor data is converted to a general purpose data/meta information object which 
+is directly streamed via MQTT (message queue transport) to a data broker (also contained).
+The collection routines, coming along with MARTAS, can access such data stream and 
+store/organize such data and meta information in files, data banks or forward
+them to web sockets etc. All data can directly be analyszed using MagPy which 
+contains many time domain and frequency domain time series anaylsis methods.  
+
 Developers: R. Leonhardt, R. Mandl, R. Bailey (ZAMG)
 
 Note: in the folling examples we use "user" as username and "users" as group.
@@ -91,19 +103,27 @@ Thats it. How to use credentials in MARTAS is described in section 3.4.
 
 ### 2.1 Basic setup:
 
-a) Copy configuration files to your home directory
+a) Use the MARTAS installation script
+        
+        $ cd /path/to/MARTAS/install
+        $ sudo sh martas.install.sh
+      -> follow the instructions
+
+b) Modify /etc/martas/sensors.cfg
+
+        $ nano /etc/martas/sensors.cfg
+
+
+c) Manually: 
+      -> Copy configuration files to your home directory
         $ cd /home/user/MARTAS/conf
         $ cp martas.cfg ~ 
         $ cp sensors.cfg ~ 
 
-b) Modify MARTAS/martas.cfg
-
-   Please note that the path to sensors.cfg is defined within this file
+      -> Modify MARTAS/martas.cfg
+      -> Please note that the path to sensors.cfg is defined within this file
         $ nano martas.cfg
-   
-c) Modify MARTAS/sensors.cfg
-
-   Enable your sensors
+        $ nano sensors.cfg
 
 d) Logging to /var/log/magpy/martas.log (recommended)
         $ cd /var/log/ 
@@ -246,6 +266,9 @@ AWithin the MARTAS directory you will find the following files and programs:
         init/bm35init.sh:		Initialization script Meteolab BM35 pressure
         ...
 
+        install/install.marcos.sh:	Installer for collector jobs 
+        install/install.martas.sh:	Installer for acquisition jobs
+
         app/serialinit.py:		Load initialization file (in init) to activate
                                         continuous serial data delivery (passive mode)
         app/addcred.py:			run to add protected credentials to be used e.g. 
@@ -253,7 +276,8 @@ AWithin the MARTAS directory you will find the following files and programs:
         app/senddata.py:		Send data from MARTAS to any other machine using cron/scheduler
         app/cleanup.sh:			remove buffer files older than a definite period
         app/sendip.py:			Helper for checking and sending public IP  (via ftp)
-        app/convert.py:		        converts MARTAS binary buffer files to other formats
+        app/mpconvert.py:		converts MARTAS binary buffer files to other formats
+        app/collectfile.py:		access data locally or via ssh/ftp and add it to files/DB
 
         libmqtt/...:			library for supported instruments (mqtt streaming)        
         libwamp/...:			library for sup. inst. (wamp streaming) - DISCONTINUED        

@@ -441,7 +441,7 @@ def main(argv):
         import pexpect
         if not dateformat in ['','ctime','mtime']: 
             for date in datelist:
-                path = ssh_getlist(remotepath, filename, date, dateformat, maxdate, cred=[user,password,address])
+                path = ssh_getlist(remotepath, filename, date, dateformat, datetime.utcnow(), cred=[user,password,address])
                 if len(path) > 0:
                     filelist.extend(path)
         else:

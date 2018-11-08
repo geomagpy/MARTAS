@@ -386,7 +386,42 @@ def on_message(client, userdata, msg):
     if not instrument == '':
         if not sensorid.find(instrument) > -1:
             return
+    ## ################################################################################
+    ## ####            Eventually check for additional format libraries       #########
+    ## ################################################################################
+    ## move the following part into a separate library
+    ## to be added:
+    ## a) select import libraries in marcos.cfg ( ----- done in Main ----- )
+    ##    library  :  default,lora,lorazamg
+    ##    addlibs = ['lora'] or ['lora','lorazamg']
+    ##    import eval("{}".format(lib))
+    ##    topic_identifiers[lib] = eval("{}.topicindetifiers()".format(lib))
+    ## b) import the non default libraries    ( -----  done in onMessage ----- )
+    ##    and get their topic_identifiers['lora'] = {'startswith':'xxx','endswith':'yyy'}
+    ##    for lib in addlibs:
+    ##        
+    ##        teststr = "msg.topic.{}('{}') and msg.topic.{}('{}')".format()
+    ##        if eval(teststr):
+    ##            payload, sensorid, headerline, headerdictionary = lib.GetPayload(msg.payload,msg.topic)
+    ##            headdict[sensorid] = headerline
+    ##            headerstream[sensorid] = headerdictionary
+    ##            msg.topic = msg.topic+'/data'
 
+    if addlib and len(addlib) > 0:
+        for lib in addlib:
+            elemlist = []
+            for elem in topic_identifiers[lib]:
+                strelem = "msg.topic.{}('{}')".format(elem,topic_identifiers[lib][elem])
+                elemlist.append(strelem)
+            teststring = " and ".join(elemlist)
+            print (teststring)
+            if eval(teststring):
+                payload, sensorid, headerline, headerdictionary = eval("c{}.GetPayload(msg.payload,msg.topic)".format(lib))
+                headdict[sensorid] = headerline
+                headerstream[sensorid] = headerdictionary
+                msg.topic = msg.topic+'/data'
+
+    """
     if msg.topic.startswith('ZAMG') and msg.topic.endswith('adeunis'):
         if debug:
             log.msg(" -- Found LORA package -- ")
@@ -396,6 +431,9 @@ def on_message(client, userdata, msg):
         # convert loradict to headdict (header) and data_bin
         msg.payload, sensorid =  loradict2datastruct(loradict)
         msg.topic = msg.topic+'/data'
+    """
+
+    ## ################################################################################
 
     metacheck = identifier.get(sensorid+':packingcode','')
 
@@ -681,8 +719,12 @@ def main(argv):
     stationid = 'wic'
     global instrument
     instrument = ''
+    global revision
+    revision = 'fix'
     global telegramconf
     telegramconf = ''
+    global addlib
+    addlib = []
     global source
     source='mqtt' # projected sources: mqtt (default), wamp, mysql, postgres, etc
     global qos
@@ -692,6 +734,8 @@ def main(argv):
     global output
     global headstream
     headstream = {}
+    global topic_identifiers
+    topic_identifiers = {}
     #global verifiedlocation
     #verifiedlocation = False
     global dictcheck
@@ -700,9 +744,9 @@ def main(argv):
     global number
     number=1
 
-    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf>'
+    usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:l:c:r:q:u:P:s:f:m:n:e:U",["broker=","port=","timeout=","topic=","instrument=","destination=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos=","number=","telegramconf="])
+        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:vl:c:r:q:u:P:s:f:m:n:e:a:U",["broker=","port=","timeout=","topic=","instrument=","destination=","revision=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos=","number=","telegramconf=","addlib="])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -727,6 +771,10 @@ def main(argv):
             print ('                               Default is to use all')
             print ('-d                             set destination - std.out, db, file') 
             print ('                               default is std.out') 
+            print ('-v                             (no option)') 
+            print ('                               if provided: meta information will be added, revision') 
+            print ('                                     automatically assigned.') 
+            print ('                               if not set: revision 0001 will be used, no meta.') 
             print ('-l                             set location depending on destination')
             print ('                               if d="file": provide path')
             print ('                               if d="std.out": not used')
@@ -748,6 +796,7 @@ def main(argv):
             print ('                                                 be calculated every n th step.')
             print ('-e                             provide a path to telegram configuration for ')
             print ('                               sending critical log changes.')
+            print ('-a                             additional MQTT translation library ')
             print ('------------------------------------------------------')
             print ('Examples:')
             print ('1. Basic')
@@ -794,6 +843,8 @@ def main(argv):
                 location=conf.get('filepath').strip()
             if not conf.get('databasecredentials','') in ['','-']:
                 dbcred=conf.get('databasecredentials').strip()
+            if not conf.get('revision','') in ['','-']:
+                destination=conf.get('revision').strip()
             if not conf.get('offset','') in ['','-']:
                 offset = conf.get('offset').strip()
             if not conf.get('debug','') in ['','-']:
@@ -810,6 +861,8 @@ def main(argv):
                     socketport = 5000
             if not conf.get('telegramconf','') in ['','-']:
                 telegramconf = conf.get('telegramconf').strip()
+            if not conf.get('addlib','') in ['','-']:
+                addlib = conf.get('addlib').strip().split(',')
             source='mqtt'
         elif opt in ("-b", "--broker"):
             broker = arg
@@ -835,6 +888,8 @@ def main(argv):
             location = arg
         elif opt in ("-c", "--credentials"):
             credentials = arg
+        elif opt in ("-v", "--revision"):
+            revision = "free"
         elif opt in ("-r", "--dbcred"):
             dbcred = arg
         elif opt in ("-q", "--qos"):
@@ -852,6 +907,8 @@ def main(argv):
             number = arg
         elif opt in ("-e", "--telegramconf"):
             telegramconf = arg
+        elif opt in ("-a", "--addlib"):
+            addlib = arg.split(',')
         elif opt in ("-U", "--debug"):
             debug = True
 
@@ -878,6 +935,16 @@ def main(argv):
         print("Logging requires twisted module")
         sys.exit()
 
+    try:
+        ##  Eventually import additional libraries
+        ##  ----------------------------
+        if addlib and len(addlib) > 0:
+            for lib in addlib:
+                exec("from libmqtt.{} import {}".format(lib,lib))
+                exec("c{} = {}()".format(lib,lib))
+                topic_identifiers[lib] = eval("c{}.topicidentifier".format(lib))
+    except:
+        pass
 
     log.msg("----------------")
     log.msg(" Starting collector {}".format(__version__))

@@ -400,9 +400,12 @@ class LemiProtocol(LineReceiver):
                 self.buffer = self.buffer + data
 
         except:
-            log.err('LEMI - Protocol: Error while parsing data.')
+            log.msg('LEMI - Protocol: Error while parsing data.')
             #Emtpying buffer
             self.buffer = ''
+            self.buffererrorcnt += 1
+            if self.buffererrorcnt == 10:
+                self.initiateRestart()
 
         ## publish events to all clients subscribed to topic
         if WSflag == 2:
