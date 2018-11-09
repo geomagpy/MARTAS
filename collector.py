@@ -943,6 +943,7 @@ def main(argv):
                 exec("from libmqtt.{} import {}".format(lib,lib))
                 exec("c{} = {}()".format(lib,lib))
                 topic_identifiers[lib] = eval("c{}.topicidentifier".format(lib))
+                print ("Imported library {}: Topic identifiers are {}".format(lib, topic_identifiers[lib]))
     except:
         pass
 
