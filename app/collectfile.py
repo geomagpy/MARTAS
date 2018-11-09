@@ -520,7 +520,7 @@ def main(argv):
                 ftp.retrbinary('RETR ' + f, fhandle.write) 
                 fhandle.close()                                                     
             elif protocol in ['scp','SCP']:
-                scptransfer(user+'@'+address+':'+f,destpath,password,timeout=30)
+                scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
             elif protocol in ['html','HTML']:
                 pass
             elif protocol in ['']:
