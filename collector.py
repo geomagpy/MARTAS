@@ -103,6 +103,12 @@ webpath = './web'
 webport = 8080
 socketport = 5000
 
+class protocolparameter(object):
+    def __init__(self):
+        self.identifier = {}
+
+po = protocolparameter()
+
 ## Import WebsocketServer
 ## -----------------------------------------------------------
 def wsThread(wsserver):
@@ -167,78 +173,6 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
         return client
 
 
-def loradict2datastruct(loradict):
-            datakeytranslator = {'tl':['t1','degC'], 'rf':['var1','per'], 'corr':['var5','none']}
-            datadict = loradict.get('data')
-            issuedict = (loradict.get('issue'))
-            header = {}
-            header['SensorName'] = loradict.get('Name').split(' ')[0]
-            try:
-                header['StationID'] = loradict.get('Name').strip().split(' - ')[1]
-            except:
-                header['StationID'] = "Not defined"
-            #header['SensorName'] = loradict.get('Name').split(' - ').strip()[0]
-            header['SensorSerialNum'] = issuedict.get('deveui','').replace('-','')
-            header['SensorDataLoggerSerNum'] = issuedict.get('appeui','').replace('-','')
-            header['SensorGroup'] = loradict.get('Modell')
-            sensorid = header['SensorName'].split(' ')[0] + '_' + header['SensorSerialNum'] + '_0001'
-            header['SensorID'] = sensorid
-
-            # needs to return headstream[sensorid] = header (global)
-            # identifier dictionary  (global)
-            # sensorid
-            # headdict[sensorid] = "MagPy line"  (global)
-            # and data payload
-
-            keylist, elemlist, unitlist, multilist = [],[],[],[]
-            time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
-            datalst = datetime2array(time)
-            packstr = '6hL'
-            for elem in datadict:
-                if elem in datakeytranslator:
-                    key = datakeytranslator[elem][0]
-                    unit = datakeytranslator[elem][1]
-                    keylist.append(key)
-                    elemlist.append(elem)
-                    unitlist.append(unit)
-                    multilist.append(1000)
-                    packstr += "l"
-                    datalst.append(int(datadict[elem]*1000))   
-                #print (elem, datadict[elem])
-
-            datalst = [str(elem) for elem in datalst]
-            dataline =','.join(datalst)
-            #print ("DATA", dataline)
-            identifier[sensorid+':packingcode'] = packstr
-            identifier[sensorid+':keylist'] = keylist
-            identifier[sensorid+':elemlist'] = elemlist
-            identifier[sensorid+':unitlist'] = unitlist
-            identifier[sensorid+':multilist'] = multilist
-            def identifier2line(dic, sensorid):
-                p1 = identifier.get(sensorid+':packingcode')
-                p2 = identifier.get(sensorid+':keylist')
-                p3 = identifier.get(sensorid+':elemlist')
-                p4 = identifier.get(sensorid+':unitlist')
-                p5 = identifier.get(sensorid+':multilist')
-                p5 = [str(elem) for elem in p5]
-                size = struct.calcsize(p1)
-                line = "# MagPyBin {} [{}] [{}] [{}] [{}] {} {}".format(sensorid,','.join(p2),','.join(p3),','.join(p4),','.join(p5),p1,size)
-                return line
-
-            def merge_two_dicts(x, y):
-                z = x.copy()   # start with x's keys and values
-                z.update(y)    # modifies z with y's keys and values & returns None
-                return z
-
-            headdict[sensorid] = identifier2line(identifier, sensorid)
-            headstream[sensorid] = create_head_dict(headdict[sensorid],sensorid)
-            headstream[sensorid] = merge_two_dicts(headstream[sensorid], header)
-            #print ("HEAD1", headdict[sensorid])
-            #print ("HEAD2", headstream[sensorid])
-            return dataline, sensorid
-
-
-
 def analyse_meta(header,sensorid):
     """
     source:mqtt:
@@ -267,11 +201,11 @@ def analyse_meta(header,sensorid):
     if debug:
         log.msg("Packing code: {}".format(packstr))
         log.msg("keylist: {}".format(keylist))
-    identifier[sensorid+':packingcode'] = packstr
-    identifier[sensorid+':keylist'] = keylist
-    identifier[sensorid+':elemlist'] = elemlist
-    identifier[sensorid+':unitlist'] = unitlist
-    identifier[sensorid+':multilist'] = multilist
+    po.identifier[sensorid+':packingcode'] = packstr
+    po.identifier[sensorid+':keylist'] = keylist
+    po.identifier[sensorid+':elemlist'] = elemlist
+    po.identifier[sensorid+':unitlist'] = unitlist
+    po.identifier[sensorid+':multilist'] = multilist
 
 def create_head_dict(header,sensorid):
     """
@@ -327,7 +261,7 @@ def create_head_dict(header,sensorid):
     head_dict['ColumnUnits'] = ','.join(l2[1:])
     return head_dict
 
-def interprete_data(payload, ident, stream, sensorid):
+def interprete_data(payload, stream, sensorid):
     """
     source:mqtt:
     """
@@ -336,8 +270,8 @@ def interprete_data(payload, ident, stream, sensorid):
     lines = payload.split(';') # for multiple lines send within one payload
     # allow for strings in payload !!
     array = [[] for elem in KEYLIST]
-    keylist = identifier[sensorid+':keylist']
-    multilist = identifier[sensorid+':multilist']
+    keylist = po.identifier[sensorid+':keylist']
+    multilist = po.identifier[sensorid+':multilist']
     for line in lines:
         data = line.split(',')
         timear = list(map(int,data[:7]))
@@ -356,6 +290,13 @@ def interprete_data(payload, ident, stream, sensorid):
 
 def datetime2array(t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
+
+
+def merge_two_dicts(x, y):
+        z = x.copy()   # start with x's keys and values
+        z.update(y)    # modifies z with y's keys and values & returns None
+        return z
+
 
 def on_connect(client, userdata, flags, rc):
     log.msg("Connected with result code {}".format(str(rc)))
@@ -386,56 +327,39 @@ def on_message(client, userdata, msg):
     if not instrument == '':
         if not sensorid.find(instrument) > -1:
             return
+
     ## ################################################################################
     ## ####            Eventually check for additional format libraries       #########
     ## ################################################################################
-    ## move the following part into a separate library
-    ## to be added:
-    ## a) select import libraries in marcos.cfg ( ----- done in Main ----- )
-    ##    library  :  default,lora,lorazamg
-    ##    addlibs = ['lora'] or ['lora','lorazamg']
-    ##    import eval("{}".format(lib))
-    ##    topic_identifiers[lib] = eval("{}.topicindetifiers()".format(lib))
-    ## b) import the non default libraries    ( -----  done in onMessage ----- )
-    ##    and get their topic_identifiers['lora'] = {'startswith':'xxx','endswith':'yyy'}
-    ##    for lib in addlibs:
-    ##        
-    ##        teststr = "msg.topic.{}('{}') and msg.topic.{}('{}')".format()
-    ##        if eval(teststr):
-    ##            payload, sensorid, headerline, headerdictionary = lib.GetPayload(msg.payload,msg.topic)
-    ##            headdict[sensorid] = headerline
-    ##            headerstream[sensorid] = headerdictionary
-    ##            msg.topic = msg.topic+'/data'
+    identdic = {}
 
     if addlib and len(addlib) > 0:
-        for lib in addlib:
+            # Currently only one additioal library is supported
+            lib = addlib[0]
+            #for lib in addlib:
             elemlist = []
             for elem in topic_identifiers[lib]:
                 strelem = "msg.topic.{}('{}')".format(elem,topic_identifiers[lib][elem])
                 elemlist.append(strelem)
-            teststring = " and ".join(elemlist)
-            print (teststring)
+            if len(elemlist) > 1:
+                teststring = " and ".join(elemlist)
+            else:
+                teststring = "".join(elemlist)
             if eval(teststring):
-                payload, sensorid, headerline, headerdictionary = eval("c{}.GetPayload(msg.payload,msg.topic)".format(lib))
+                classref = class_reference.get(lib)
+                #print ("1", msg.payload)
+                msg.payload, sensorid, headerline, headerdictionary, identdic = classref.GetPayload(msg.payload,msg.topic)
+                #print (payload, sensorid, headerline)
                 headdict[sensorid] = headerline
-                headerstream[sensorid] = headerdictionary
+                headstream[sensorid] = create_head_dict(headerline,sensorid)
+                headstream[sensorid] = merge_two_dicts(headstream[sensorid], headerdictionary)
                 msg.topic = msg.topic+'/data'
+                for el in identdic:
+                    po.identifier[el] = identdic[el]
 
-    """
-    if msg.topic.startswith('ZAMG') and msg.topic.endswith('adeunis'):
-        if debug:
-            log.msg(" -- Found LORA package -- ")
-        devlist = msg.topic.split('/')
-        loradict = json.loads(msg.payload)
-
-        # convert loradict to headdict (header) and data_bin
-        msg.payload, sensorid =  loradict2datastruct(loradict)
-        msg.topic = msg.topic+'/data'
-    """
+    metacheck = po.identifier.get(sensorid+':packingcode','')
 
     ## ################################################################################
-
-    metacheck = identifier.get(sensorid+':packingcode','')
 
     if msg.topic.endswith('meta') and metacheck == '':
         log.msg("Found basic header:{}".format(str(msg.payload)))
@@ -516,7 +440,7 @@ def on_message(client, userdata, msg):
                             acs.dataToFile(location, sensorid, filename, data_bin, header)
             if 'websocket' in destination:
                 if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     arrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
@@ -531,7 +455,7 @@ def on_message(client, userdata, msg):
                 amount = int(number)
                 cover = 5
                 if not arrayinterpreted:
-                    ar = interprete_data(msg.payload, identifier, stream, sensorid)
+                    ar = interprete_data(msg.payload, stream, sensorid)
                     if not sensorid in senslst:
                         senslst.append(sensorid)
                         st.append(DataStream([],{},ar))
@@ -582,7 +506,7 @@ def on_message(client, userdata, msg):
                     print ("Found error in subtraction")
             if 'stdout' in destination:
                 if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     arrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
@@ -591,7 +515,7 @@ def on_message(client, userdata, msg):
                     log.msg("{}: {},{}".format(sensorid,time,datastring))
             elif 'db' in destination:
                 if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     arrayinterpreted = True
                 # create a stream.header
@@ -600,13 +524,13 @@ def on_message(client, userdata, msg):
                 stream.header = headstream[sensorid]
                 if debug:
                     log.msg("writing header: {}".format(headstream[sensorid]))
-                # Could be handled by an option like revision="0001"
-                # if revision: as below else writeDB(db,stream)
-                writeDB(db,stream,tablename="{}_{}".format(sensorid,'0001'))
-                #sys.exit()
+                if revision != 'free':
+                    writeDB(db,stream,tablename="{}_{}".format(sensorid,'0001'))
+                else:
+                    writeDB(db,stream)
             elif 'stringio' in destination:
                 if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     arrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
@@ -619,7 +543,7 @@ def on_message(client, userdata, msg):
                     output.write(line+eol)
             elif 'serial' in destination:
                 if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, identifier, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     arrayinterpreted = True
                 """
@@ -640,9 +564,9 @@ def on_message(client, userdata, msg):
                     jsonstr={}
                     jsonstr['sensorid'] = sensorid
                     jsonstr['nr'] = i
-                    jsonstr['key'] = identifier[sensorid+':keylist'][i]
-                    jsonstr['elem'] = identifier[sensorid+':elemlist'][i]
-                    jsonstr['unit'] = identifier[sensorid+':unitlist'][i]
+                    jsonstr['key'] = po.identifier[sensorid+':keylist'][i]
+                    jsonstr['elem'] = po.identifier[sensorid+':elemlist'][i]
+                    jsonstr['unit'] = po.identifier[sensorid+':unitlist'][i]
                     payload = json.dumps(jsonstr)
                     # write input to a another serial port (e.g. for radio transmisson) 
                     # requires serdef = e.g. [115200,8,1,N]
@@ -654,7 +578,7 @@ def on_message(client, userdata, msg):
             else:
                 pass
         else:
-            log.msg("{}  {}".format(msg.topic, str(msg.payload)))
+            log.msg("Non-interpreted format: {}  {}".format(msg.topic, str(msg.payload)))
     elif msg.topic.find('statuslog') > 0:
         # json style statusinfo is coming
         hostname = msg.topic.split('/')[-1]
@@ -686,13 +610,13 @@ def on_message(client, userdata, msg):
     if msg.topic.endswith('meta') and 'websocket' in destination:
         # send header info for each element (# sensorid   nr   key   elem   unit) 
         analyse_meta(str(msg.payload),sensorid)
-        for (i,void) in enumerate(identifier[sensorid+':keylist']):
+        for (i,void) in enumerate(po.identifier[sensorid+':keylist']):
             jsonstr={}
             jsonstr['sensorid'] = sensorid
             jsonstr['nr'] = i
-            jsonstr['key'] = identifier[sensorid+':keylist'][i]
-            jsonstr['elem'] = identifier[sensorid+':elemlist'][i]
-            jsonstr['unit'] = identifier[sensorid+':unitlist'][i]
+            jsonstr['key'] = po.identifier[sensorid+':keylist'][i]
+            jsonstr['elem'] = po.identifier[sensorid+':elemlist'][i]
+            jsonstr['unit'] = po.identifier[sensorid+':unitlist'][i]
             payload = json.dumps(jsonstr)
             wsserver.send_message_to_all('# '+payload)
 
@@ -736,6 +660,8 @@ def main(argv):
     headstream = {}
     global topic_identifiers
     topic_identifiers = {}
+    global class_reference
+    class_reference = {}
     #global verifiedlocation
     #verifiedlocation = False
     global dictcheck
@@ -942,6 +868,7 @@ def main(argv):
             for lib in addlib:
                 exec("from libmqtt.{} import {}".format(lib,lib))
                 exec("c{} = {}()".format(lib,lib))
+                class_reference[lib] = eval("c{}".format(lib))
                 topic_identifiers[lib] = eval("c{}.topicidentifier".format(lib))
                 print ("Imported library {}: Topic identifiers are {}".format(lib, topic_identifiers[lib]))
     except:

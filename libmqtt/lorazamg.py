@@ -6,38 +6,12 @@ from __future__ import absolute_import
 # ###################################################################
 
 from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, subtractStreams
-#from magpy.database import mysql,writeDB
-#from magpy.opt import cred as mpcred
-
-## Import Twisted for websocket and logging functionality
-#from twisted.python import log
-#from twisted.web.server import Site
-#from twisted.web.static import File
-#from twisted.internet import reactor
-
-#import threading
-#from multiprocessing import Process
-#import struct
+import struct
 from datetime import datetime 
-#from matplotlib.dates import date2num, num2date
-#import numpy as np
 import json
 
-# For file export
-## -----------------------------------------------------------
-#import StringIO
-#from magpy.acquisition import acquisitionsupport as acs
-
-## Import specific MARTAS packages
-## -----------------------------------------------------------
-#from doc.version import __version__
-#from doc.martas import martaslog as ml
-
-## Import MQTT
-## -----------------------------------------------------------
-#import paho.mqtt.client as mqtt
-#import sys, getopt, os
-
+def datetime2array(t):
+        return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
 ## LORA-ZAMG - protocol
 ##
@@ -58,11 +32,10 @@ class lorazamg(object):
         self.headstream = {}
 
     def GetPayload(self, payload, topic):
-        loradict = json.loads(msg.payload)
-
+        loradict = json.loads(payload)
         # convert loradict to headdict (header) and data_bin
-        msg.payload, sensorid =  self.loradict2datastruct(loradict)
-        msg.topic = msg.topic+'/data'
+        newpayload, sensorid, headline, header =  self.loradict2datastruct(loradict)
+        return newpayload, sensorid, headline, header, self.identifier
 
     def loradict2datastruct(self, loradict):
             datakeytranslator = {'tl':['t1','degC'], 'rf':['var1','per'], 'corr':['var5','none']}
@@ -106,32 +79,28 @@ class lorazamg(object):
             datalst = [str(elem) for elem in datalst]
             dataline =','.join(datalst)
             #print ("DATA", dataline)
-            identifier[sensorid+':packingcode'] = packstr
-            identifier[sensorid+':keylist'] = keylist
-            identifier[sensorid+':elemlist'] = elemlist
-            identifier[sensorid+':unitlist'] = unitlist
-            identifier[sensorid+':multilist'] = multilist
+            self.identifier[sensorid+':packingcode'] = packstr
+            self.identifier[sensorid+':keylist'] = keylist
+            self.identifier[sensorid+':elemlist'] = elemlist
+            self.identifier[sensorid+':unitlist'] = unitlist
+            self.identifier[sensorid+':multilist'] = multilist
+
             def identifier2line(dic, sensorid):
-                p1 = identifier.get(sensorid+':packingcode')
-                p2 = identifier.get(sensorid+':keylist')
-                p3 = identifier.get(sensorid+':elemlist')
-                p4 = identifier.get(sensorid+':unitlist')
-                p5 = identifier.get(sensorid+':multilist')
+                p1 = dic.get(sensorid+':packingcode')
+                p2 = dic.get(sensorid+':keylist')
+                p3 = dic.get(sensorid+':elemlist')
+                p4 = dic.get(sensorid+':unitlist')
+                p5 = dic.get(sensorid+':multilist')
                 p5 = [str(elem) for elem in p5]
                 size = struct.calcsize(p1)
                 line = "# MagPyBin {} [{}] [{}] [{}] [{}] {} {}".format(sensorid,','.join(p2),','.join(p3),','.join(p4),','.join(p5),p1,size)
                 return line
 
-            def merge_two_dicts(x, y):
-                z = x.copy()   # start with x's keys and values
-                z.update(y)    # modifies z with y's keys and values & returns None
-                return z
-
-            headdict[sensorid] = identifier2line(identifier, sensorid)
-            headstream[sensorid] = create_head_dict(headdict[sensorid],sensorid)
-            headstream[sensorid] = merge_two_dicts(headstream[sensorid], header)
+            headline = identifier2line(self.identifier, sensorid)
+            #self.headstream[sensorid] = create_head_dict(self.headdict[sensorid],sensorid)
+            #self.headstream[sensorid] = merge_two_dicts(self.headstream[sensorid], header)
             #print ("HEAD1", headdict[sensorid])
             #print ("HEAD2", headstream[sensorid])
-            return dataline, sensorid
+            return dataline, sensorid, headline, header
 
 
