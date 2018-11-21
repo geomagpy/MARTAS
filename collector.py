@@ -643,6 +643,10 @@ def main(argv):
     dbcred=''
     global stationid
     stationid = 'wic'
+    global webpath
+    webpath = './web'
+    global webport
+    webport = 8080
     global instrument
     instrument = ''
     global revision
