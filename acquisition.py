@@ -124,6 +124,7 @@ current work	CR1000		: active		: all
 ok 		Test 	  	: active                : random number
 ok		Lnm		: active 		: environment
 ok		Disdro		: active 		: environment
+current work    AD7714	: autonomous		: general ADC
 """
 
 def SendInit(confdict,sensordict):
@@ -213,6 +214,30 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
 
     return passiveconnection
 
+def AutoThread(confdict,sensordict, mqttclient, establishedconnections):
+    """
+    1. identify protocol from sensorid
+    2. Apply protocol (an autonoumous thread will be started, who publishes data)
+    """
+    sensorid = sensordict.get('sensorid')
+    log.msg("Starting AutoThread for {}".format(sensorid))
+    protocolname = sensordict.get('protocol')
+    log.msg("  -> Found protocol {}".format(protocolname))
+    protlst = [establishedconnections[key] for key in establishedconnections]
+    amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
+    #amount = 1                           # Load existing connections (new amount is len(exist)+1)
+    if protocolname in SUPPORTED_PROTOCOLS:
+        importstr = "from libmqtt.{}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        if confdict.get('debug') == 'True':
+            log.msg("DEBUG  -> Importstring looks like: {}".format(importstr))
+        evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
+        exec(importstr)
+        protocol = eval(evalstr)
+
+    autoconnection = {sensorid: protocolname}
+    log.msg("  ->  autonomous connection established")
+
+    return autoconnection
 
 # -------------------------------------------------------------------
 # MQTT connect:
@@ -393,6 +418,14 @@ def main(argv):
             except:
                 log.msg(" - !!! ActiveThread failed for {} !!!".format(sensor.get('sensorid')))
                 pass
+        elif sensor.get('mode') in ['autonomous']:
+            #try:
+            #    log.msg(" - AutoThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+            connected_act = AutoThread(conf,sensor,client,establishedconnections)
+            #except Exception as e:
+            #    log.msg(" - !!! AutoThread failed for {} !!!".format(sensor.get('sensorid')))
+            #    log.msg(e)
+            #    pass
         else:
             log.msg("acquisition: Mode not recognized")
 
@@ -402,6 +435,15 @@ def main(argv):
     if passive_count > 0:
         log.msg("acquisition: Starting reactor for passive sensors. Sending data now ...")
         reactor.run()
+
+    # TODO other solution - when the main thread stops, the deamons are killed!
+    got_here = True
+    print("this is the end of the main thread...")
+    if got_here:
+        import time
+        while True:
+            time.sleep(100)
+
 
 
 if __name__ == "__main__":
