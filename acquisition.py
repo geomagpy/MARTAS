@@ -124,7 +124,7 @@ current work	CR1000		: active		: all
 ok 		Test 	  	: active                : random number
 ok		Lnm		: active 		: environment
 ok		Disdro		: active 		: environment
-current work    AD7714	: autonomous		: general ADC
+ok              AD7714          : autonomous		: general ADC
 """
 
 def SendInit(confdict,sensordict):
@@ -419,13 +419,13 @@ def main(argv):
                 log.msg(" - !!! ActiveThread failed for {} !!!".format(sensor.get('sensorid')))
                 pass
         elif sensor.get('mode') in ['autonomous']:
-            #try:
-            #    log.msg(" - AutoThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
-            connected_act = AutoThread(conf,sensor,client,establishedconnections)
-            #except Exception as e:
-            #    log.msg(" - !!! AutoThread failed for {} !!!".format(sensor.get('sensorid')))
-            #    log.msg(e)
-            #    pass
+            try:
+                log.msg(" - AutoThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+                connected_act = AutoThread(conf,sensor,client,establishedconnections)
+            except Exception as e:
+                log.msg(" - !!! AutoThread failed for {} !!!".format(sensor.get('sensorid')))
+                log.msg(e)
+                pass
         else:
             log.msg("acquisition: Mode not recognized")
 
