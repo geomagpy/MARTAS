@@ -6,7 +6,8 @@
     var wsconnection = new WebSocket('ws://' +serveraddr+ ':5000/');
     var signals = {};
     var table;
-    
+    var smoothieloaded = 0;
+
     console.log("plotws.js started");
 
 // "import" smoothiechart javascripts
@@ -19,24 +20,28 @@
 
 // Modidied import by leon May 2018
 // https://stackoverflow.com/questions/950087/how-do-i-include-a-javascript-file-in-another-javascript-file
+// Modified import my rmandl Sept 2018, importJs launches the nextFunction, when a js-File is loaded
+// smoothieloaded will be 1, when both files are loaded
 
-    function loadSmoothie(name, callback) {
-        var importsmoothie = document.createElement('script');
-        importsmoothie.src = name;
-        // bind the event to callback
-        importsmoothie.onreadystatechange = callback;
-        importsmoothie.onload = callback;
+    function jsImport(toBeLoaded, nextFunction) {
+        var importJs = document.createElement('script');
+        importJs.src = toBeLoaded;
+        // bind the event to callback (nextFunction)
+        //importJs.onreadystatechange = nextFunction; // don't need that here(?)
+        importJs.onload = nextFunction;
         // Fire loading
-        document.head.appendChild(importsmoothie);
+        document.head.appendChild(importJs);
     }
 
-    var getsettings = function () {
-        var importsmoothiesettings = document.createElement('script');
-        importsmoothiesettings.src = 'smoothiesettings.js';
-        document.head.appendChild(importsmoothiesettings);
+    var smoothieLoaded = function () {
+        smoothieloaded = 1;
     }
 
-    loadSmoothie('smoothie.js', getsettings);
+    var loadSmoothie = function () {
+        jsImport('smoothie.js', smoothieLoaded);
+    }
+
+    jsImport('smoothiesettings.js',loadSmoothie);
 
     function getCanvas(signalid) {
         try {
@@ -100,7 +105,7 @@
             var data = e.data.split('# ')[1];
             var head = JSON.parse(data);
             signalid = head.sensorid + '#' + head.nr;
-            if (signals[signalid] == null) {
+            if (signals[signalid] == null && smoothieloaded == 1) {
                 // new header
                 signals[signalid] = head;
                 signals[signalid].chart = addChart(signalid);
