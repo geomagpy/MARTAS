@@ -1,0 +1,31 @@
+MARTAS provides tools and libraries for data acquisition
+and collection from many different sources.
+-------------------------------------------------
+####v<0.1.1>, <2018-xx-xx> --
+
+v0.1.1 additions:
+    - 
+
+v0.1.1 fixes:
+    - 
+
+v0.1.1 improvements:
+    - 
+
+v0.1.1 removals:
+    -
+
+
+-------------------------------------------------
+####v<0.1.0>, <2018-11-22> --
+     Initial start version including:
+     + MARTAS (acquisition package)
+       - Supported instruments:
+          LEMI, POS1, GSM90/19, AD77, ...
+       - Supported transfer protocols:
+          MQTT
+
+     + MARCOS (collection package)
+       - MQTT (payloads: default, json)
+
+     + many apps 
