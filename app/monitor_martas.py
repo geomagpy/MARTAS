@@ -92,6 +92,6 @@ for d in dirs:
 
 
 martaslog = ml(logfile=logpath)
-#martaslog.receiveroptions('mqtt',options={'user':'cobs','password':'8ung2rad','stationid':'sgo'})
+#martaslog.receiveroptions('mqtt',options={'user':'cobs','password':'pwd','stationid':'sgo'})
 martaslog.msg(status)
 
