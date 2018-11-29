@@ -350,7 +350,11 @@ def on_message(client, userdata, msg):
             if eval(teststring):
                 classref = class_reference.get(lib)
                 #print ("1", msg.payload)
-                msg.payload, sensorid, headerline, headerdictionary, identdic = classref.GetPayload(msg.payload,msg.topic)
+                try:
+                    msg.payload, sensorid, headerline, headerdictionary, identdic = classref.GetPayload(msg.payload,msg.topic)
+                except:
+                    print ("Interpretation error for {}".format(msg.topic))
+                    return
                 #print (payload, sensorid, headerline)
                 headdict[sensorid] = headerline
                 headstream[sensorid] = create_head_dict(headerline,sensorid)

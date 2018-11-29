@@ -53,7 +53,6 @@ class lorazamg(object):
         self.headstream = {}
 
     def GetPayload(self, payload, topic):
-        print (topic)
         loradict = json.loads(payload)
         # convert loradict to headdict (header) and data_bin
         newpayload, sensorid, headline, header =  self.loradict2datastruct(loradict)
@@ -66,6 +65,9 @@ class lorazamg(object):
             header = {}
             header['SensorName'] = loradict.get('Name').split(' ')[0]
             try:
+                if loradict.get('Name','').find('bee') > 0:
+                    header['StationID'] = 'ZAMG bees'
+                    header['StationName'] = 'ZAMG bees'
                 header['StationID'] = loradict.get('Name').strip().split(' - ')[1]
                 header['StationName'] = loradict.get('Name').strip().split(' - ')[1]
             except:
@@ -73,15 +75,15 @@ class lorazamg(object):
             #header['SensorName'] = loradict.get('Name').split(' - ').strip()[0]
             header['SensorSerialNum'] = issuedict.get('deveui','').replace('-','')
             header['SensorDataLoggerSerNum'] = issuedict.get('appeui','').replace('-','')
-            header['SensorGroup'] = loradict.get('Modell')
+            header['SensorGroup'] = loradict.get('Modell','')
             sensorid = header['SensorName'].split(' ')[0] + '_' + header['SensorSerialNum'] + '_0001'
             header['SensorID'] = sensorid
             header['StationLongitude'] = issuedict.get('laenge','')
             header['StationLatitude'] = issuedict.get('breite','')
-            if issuedict.get('laenge',''):
+            if not issuedict.get('laenge','') == '':
                 header['StationLocationReference'] = 'WGS84, EPSG: 4326'
             header['StationElevation'] = issuedict.get('hoehe','')
-            if issuedict.get('hoehe',''):
+            if not issuedict.get('hoehe','') == '':
                 header['StationElevationRef'] = issuedict.get('hoehe','')
 
             # needs to return headstream[sensorid] = header (global)
@@ -91,10 +93,10 @@ class lorazamg(object):
             # and data payload
 
             keylist, elemlist, unitlist, multilist = [],[],[],[]
-            if loradict.get('DateTime',''):
+            if not loradict.get('DateTime','') == '':
                 time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
-            elif loradict.get('DatumSec',''):
-                time = datetime.strptime(loradict.get('DateTime'),"%Y-%m-%dT%H:%M:%S.%fZ")
+            elif not loradict.get('DatumSec','') == '':
+                time = datetime.strptime(loradict.get('DatumSec'),"%Y-%m-%dT%H:%M:%S.%fZ")
             datalst = datetime2array(time)
             packstr = '6hL'
             for elem in datadict:
