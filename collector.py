@@ -883,6 +883,7 @@ def main(argv):
         ##  Eventually import additional libraries
         ##  ----------------------------
         if addlib and len(addlib) > 0:
+            print ("Importing additional library")
             for lib in addlib:
                 exec("from libmqtt.{} import {}".format(lib,lib))
                 exec("c{} = {}()".format(lib,lib))
