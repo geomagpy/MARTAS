@@ -97,8 +97,6 @@ class lorawanserver(object):
             print ("Device:", loradict.get('deviceName'))
             print ("Length Bytearray:", len(barray))
 
-            datadict = {"tl":temp, "rf":rf}
-
             if len(barray) == 10:
                 temp = self.b2v(barray[3],barray[4],barray[5],55)
                 rf = self.b2v(barray[7],barray[8],barray[9],25)
@@ -112,6 +110,9 @@ class lorawanserver(object):
             else:
                 print ("Found Bytearray of length {} with code", len(barray), datacode)
                 print ("Payload looks like", loradict)
+                temp = 999.0
+                rf = -10.0
+                datadict = {"tl":temp, "rf":rf}
 
             keylist, elemlist, unitlist, multilist = [],[],[],[]
             if not loradict.get('DateTime','') == '':
