@@ -59,7 +59,7 @@ class lorawanserver(object):
 
     def loradict2datastruct(self, loradict):
             datakeytranslator = {'tl':['t1','degC'], 'rf':['var1','per'], 'corr':['var5','none']}
-            rxdict = loradict.get('rxinfo')[0]
+            rxdict = loradict.get('rxInfo')[0]
             locdict = rxdict.get('location')
             header = {}
 
@@ -69,7 +69,6 @@ class lorawanserver(object):
             header['SensorGroup'] = loradict.get('deviceName','LORA')
             sensorid = header['SensorName'].split(' ')[0] + '_' + header['SensorSerialNum'] + '_0001'
             header['SensorID'] = sensorid
-
             header['StationID'] = rxdict.get('gatewayID','undefined')
             header['StationName'] = rxdict.get('name','undefined')
 
@@ -88,9 +87,20 @@ class lorawanserver(object):
             datacode = loradict.get('data')
             # convert to something like datadict = {"tl":21.75,"rf":36.9}
             barray = bytearray(base64.b64decode(datacode))
-            temp = self.b2v(barray[3],barray[4],barray[5],55)
-            rf = self.b2v(barray[7],barray[8],barray[9],25)
-            datadict = {"tl":temp,"rf":rf}
+
+            print ("Datacode", datacode)
+            print ("Bytearray", len(bytearray))
+            print ("Device", loradict.get('deviceName'))
+
+            if len(barray) == 10:
+                temp = self.b2v(barray[3],barray[4],barray[5],55)
+                rf = self.b2v(barray[7],barray[8],barray[9],25)
+            elif len(barray) == 7:
+                temp = 99.0
+                rf = -10.0
+
+            datadict = {"tl":temp, "rf":rf}
+            print ("Step6")
 
             keylist, elemlist, unitlist, multilist = [],[],[],[]
             if not loradict.get('DateTime','') == '':
@@ -100,6 +110,7 @@ class lorawanserver(object):
             else:
                 time = datetime.utcnow()
             datalst = datetime2array(time)
+            print ("Step7")
             packstr = '6hL'
             for elem in datadict:
                 if elem in datakeytranslator:
@@ -112,6 +123,7 @@ class lorawanserver(object):
                     packstr += "l"
                     datalst.append(int(datadict[elem]*1000))   
                 #print (elem, datadict[elem])
+            print ("Step8")
 
             datalst = [str(elem) for elem in datalst]
             dataline =','.join(datalst)
@@ -121,6 +133,8 @@ class lorawanserver(object):
             self.identifier[sensorid+':elemlist'] = elemlist
             self.identifier[sensorid+':unitlist'] = unitlist
             self.identifier[sensorid+':multilist'] = multilist
+
+            print ("Step9")
 
             def identifier2line(dic, sensorid):
                 p1 = dic.get(sensorid+':packingcode')
@@ -132,6 +146,8 @@ class lorawanserver(object):
                 size = struct.calcsize(p1)
                 line = "# MagPyBin {} [{}] [{}] [{}] [{}] {} {}".format(sensorid,','.join(p2),','.join(p3),','.join(p4),','.join(p5),p1,size)
                 return line
+
+            print ("Step10")
 
             headline = identifier2line(self.identifier, sensorid)
             #self.headstream[sensorid] = create_head_dict(self.headdict[sensorid],sensorid)
