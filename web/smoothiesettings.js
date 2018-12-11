@@ -13,7 +13,8 @@ const smoothiesettings = {  interpolation:'linear',
                             //timestampFormatter:SmoothieChart.timeFormatter};
 */
 const smoothiesettings = {  yRangeFunction:myYRangeFunction,
-                            timestampFormatter:SmoothieChart.timeFormatter};
+                            //timestampFormatter:SmoothieChart.timeFormatter};
+                         };
 
 const timeseriessettings = { lineWidth:1, strokeStyle:'#fff900' };
 

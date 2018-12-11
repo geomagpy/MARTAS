@@ -46,12 +46,6 @@ try:
 except:
     log.msg('sorry, equipment not prepared to communicate over SPI')
     raise
-# TODO make it better (acs)!
-try:
-    import libmqtt.sendData as sendData
-except:
-    # when started in python command line
-    import sendData
 
 # TODO brauch ich das? und wenn, ab ins acs!
 def datetime2array(t):
