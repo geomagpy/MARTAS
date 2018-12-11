@@ -73,7 +73,7 @@ class lorawanserver(object):
             header['SensorDescription'] = loradict.get('applicationName','not specified')
             header['SensorSerialNum'] = loradict.get('devEUI','')
             header['SensorGroup'] = loradict.get('deviceName','LORA')
-            sensorid = header['SensorName'][:5] + '_' + header['SensorSerialNum'] + '_0001'
+            sensorid = header['SensorName'][:5].replace('-','') + '_' + header['SensorSerialNum'] + '_0001'
             header['SensorID'] = sensorid
             header['StationID'] = rxdict.get('gatewayID','undefined')
             header['StationName'] = rxdict.get('name','undefined')
