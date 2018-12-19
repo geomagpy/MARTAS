@@ -68,8 +68,16 @@ class ActiveArduinoProtocol(object):
         self.metacnt = 10
         self.counter = {}
 
-        # Commands (take them from somewhere)
-        self.commands = [{'data1':'owT','data2':'swD'}]
+        # Commands (take them from somewhere --- sensordesc)
+        commandlist = sensordict.get('sensordesc').strip().replace('\n','').split('-')
+        if not 'arduino sensors' in commandlist:
+            cdict = {}
+            for idx,com in enumerate(commandlist):
+                cdict['data{}'.format(idx)] = com
+            self.commands = [cdict]
+        else:
+            self.commands = [{'data1':'owT','data2':'swD'}]
+        print ("Commands:", self.commands)
         self.hexcoding = False
         self.eol = '/r/n'
 
@@ -386,6 +394,8 @@ class ActiveArduinoProtocol(object):
                     log.msg("DEBUG - sending command key {}: {}".format(item,command))
 
                 answer, actime = self.send_command(ser,command,self.eol,hex=self.hexcoding)
+                if self.debug:
+                    log.msg("DEBUG - received {}".format(answer))
                 # disconnect from serial
                 ser.close()
                 # analyze return if data is requested
