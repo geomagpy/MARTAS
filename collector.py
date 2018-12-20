@@ -99,6 +99,7 @@ destination = 'stdout'
 location = '/tmp'
 credentials = 'cred'
 stationid = 'WIC'
+stid = stationid
 webpath = './web'
 webport = 8080
 socketport = 5000
@@ -244,7 +245,7 @@ def create_head_dict(header,sensorid):
     head_dict['SensorRevision'] = sensl[2]
     head_dict['SensorKeys'] = ','.join(keylist)
     head_dict['SensorElements'] = ','.join(elemlist)
-    head_dict['StationID'] = stationid.upper()
+    head_dict['StationID'] = stid.upper()
     # possible additional data in header (because in sensor.cfg)
     #head_dict['DataPier'] = ...
     #head_dict['SensorModule'] = ...
@@ -647,6 +648,8 @@ def main(argv):
     dbcred=''
     global stationid
     stationid = 'wic'
+    global stid
+    stid = stationid
     global webpath
     webpath = './web'
     global webport
