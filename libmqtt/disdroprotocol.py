@@ -191,8 +191,8 @@ class DisdroProtocol(object):
                 cumulativerain = float(data[15]) 	# x
                 pc, multiplier = addpara(cumulativerain,100,c='l')
                 if cumulativerain > 9000:
-                    #send_command(reset)
-                    pass
+                    log.msg('SerialCall - writeDisdro: Resetting percipitation counter')
+                    self.commands = [{'setconfmod':'11KY00001'},{'reset':'11RA00001'},{'setworkmode':'11KY00000'}]
                 visibility = int(data[16])		# y
                 pc, multiplier = addpara(visibility,1,c='l')
                 reflectivity = float(data[17])	 	# z
@@ -263,12 +263,17 @@ class DisdroProtocol(object):
                     print ("sending item {} with command {}".format(item, comm))
                 # eventually more frequently ask for 'data'
                 answer, actime = send_command_ascii(ser,comm,self.eol)
+                answerok = True
+                if item in ['setworkmode','setconfmode','reset']:
+                    answerok = False
+                if item == 'setworkmode':
+                    log.msg('SerialCall: Continuing normal acquisition')
+                    self.commands = [{'data':'11TR00005'}]
                 # disconnect from serial
                 ser.close()
                 #if self.debug:
                 #    print ("got answer: {}".format(answer))
                 # check answer
-                answerok = True
                 if answerok:
                     data, head = self.processData(answer, actime)
                     # send data via mqtt
@@ -282,9 +287,9 @@ class DisdroProtocol(object):
 
                 #answer = ''.join(filter(lambda x: x in string.printable, answer))
                 """
-                if not success and self.errorcnt < 5:
+                if not success and self.errorcnt < 5 and not item=='reset':
                     self.errorcnt = self.errorcnt + 1
-                    log.msg('SerialCall: Could not interpret response of system when sending %s' % item) 
+                    log.msg('SerialCall: Could not interprete response of system when sending %s' % item) 
                 elif not success and self.errorcnt == 5:
                     try:
                         check_call(['/etc/init.d/martas', 'restart'])

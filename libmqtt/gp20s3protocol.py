@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from magpy.acquisition import acquisitionsupport as acs
-
+import numpy as np
 
 ## GEM -GP20S3 protocol
 ##
@@ -215,22 +215,22 @@ class GP20S3Protocol(LineReceiver):
             # Analyze time difference between GSM internal time and utc from PC
             timelist = sorted([internal_t,currenttime])
             timediff = timelist[1]-timelist[0]
-            #secdiff = timediff.seconds + timediff.microseconds/1E6
-            #timethreshold = 3
             delta = timediff.total_seconds()
-            if not delta in [0.0, np.nan, None]:
+            if not delta in [0.0, float('NAN'), None]:
                 self.delaylist.append(timediff.total_seconds())
-                self.delaylist = self.delaylist[-1000:]
+                if len(self.delaylist) > 600:
+                    self.delaylist = self.delaylist[-600:]
             if len(self.delaylist) > 100:
                 try:
-                    self.timedelay = np.median(np.asarray(self.delaylist))
+                    self.timedelay = np.abs(np.median(np.asarray(self.delaylist)))
                 except:
                     self.timedelay = 0.0
-            #if secdiff > timethreshold:
-            if delta > self.timethreshold:
+            if self.timedelay > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
-                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
+                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, self.timedelay))
+                if self.errorcnt.get('time') > 1000:
+                    self.errorcnt['time'] = 1000
             else:
                 self.errorcnt['time'] = 0 
         except:
