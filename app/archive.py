@@ -177,7 +177,8 @@ def main(argv):
             if not num2date(max(stream.ndarray[0])).replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None):
                 print ("  Found in-appropriate date in stream!! maxdate = {}".format(num2date(max(stream.ndarray[0]))))
                 print ("  Length stream before:", len(stream.ndarray[0]))
-                stream = stream.extract('time',date2num(datetime.utcnow()),'<')
+                stream = stream.trim(endtime=datetime.utcnow())
+                #stream = stream.extract('time',date2num(datetime.utcnow()),'<')
                 print ("  Length stream after:", len(stream.ndarray[0]))
             print ("  Ending at :", num2date(max(stream.ndarray[0])))
 

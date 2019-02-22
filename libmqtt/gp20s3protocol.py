@@ -67,7 +67,8 @@ class GP20S3Protocol(LineReceiver):
 
         # Debug mode
         debugtest = confdict.get('debug')
-        self.debug = False
+        #self.debug = False
+        #self.debug = True
         if debugtest == 'True':
             log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
             self.debug = True    # prints many test messages
@@ -97,8 +98,6 @@ class GP20S3Protocol(LineReceiver):
         time 111 field1 field2 field3                                            (every sec or faster)
         """
 
-        # TODO: The components need to be extracted e.g. from filename
-
         currenttime = datetime.utcnow()
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
@@ -109,6 +108,7 @@ class GP20S3Protocol(LineReceiver):
         headerlinecoming = False
         datearray = []
         headarray = []
+        statusname = "Status_123_0001"
 
         sensororientation = self.sensor.split('_')[0].replace(self.sensordict.get('protocol'),'')
         if len(sensororientation) > 1:
@@ -121,7 +121,7 @@ class GP20S3Protocol(LineReceiver):
             sens3 = 'TB'
         celem =  '[{},{},{},{}{},{}{},{}{},None]'.format(sens1,sens2,sens3, sens3,sens1, sens3,sens2, sens2,sens1)
         packcode = '6hLQQQqqq6hL'
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,dx,dy,dz,sectime]', celem, '[pT,pT,pT,pT,pT,pT,None]', '[1000,1000,1000,1000,1000,1000,1]', packcode, struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,dx,dy,dz,sectime]', celem, '[pT,pT,pT,pT,pT,pT,None]', '[1000,1000,1000,1000,1000,1000,1]', packcode, struct.calcsize('<'+packcode))
 
         try:
             # Extract data
@@ -184,7 +184,6 @@ class GP20S3Protocol(LineReceiver):
                     gpstimestamp = timestamp
                 internal_time = gpstimestamp
 
-                timestamp = gpstimestamp
                 gpstatus = data_array[1]			# str1
                 telec = int(data_array[2])			# t2
                 Vbat = float(data_array[3])/10.			# f
@@ -205,7 +204,7 @@ class GP20S3Protocol(LineReceiver):
                 Vsens3 = float(data_array[18])/10.		# var3 
 
             elif len(data_array) == 1 and data_array[0] == '$$$':
-                return "",""
+                return "","",""
             else:
                 log.msg('{} protocol: data line could not be interpreted: ({}) of length {}'.format(self.sensordict.get('protocol'),data, len(data_array)))
         except:
@@ -264,7 +263,6 @@ class GP20S3Protocol(LineReceiver):
 
             if not self.confdict.get('bufferdirectory','') == '':
                 acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
-
           except:
             log.msg('{} protocol: Error with binary save routine'.format(self.sensordict.get('protocol')))
 
@@ -302,34 +300,38 @@ class GP20S3Protocol(LineReceiver):
                         print ("Headerdata has been packed")
                     if len(statuslst) == 3:
                         statusname = '_'.join([statuslst[0]+'status',statuslst[1],statuslst[2]])
-                    headheader = "# MagPyBin %s %s %s %s %s %s %d" % (statusname, '[x,y,z,f,t1,t2,dx,dy,dz,df,var1,var2,var3,var4,var5,str1,str2,str3]', '[Ts1,Ts2,Ts3,Vbat,V3,Tel,L1,L2,L3,Vps,V1,V2,V3,V5p,V5n,GPSstat,Status,OCXO]', '[degC,degC,degC,V,V,degC,A,A,A,V,V,V,V,V,V,None,None,None]', '[1,1,1,10,100,1,10,10,10,10,10,10,10,100,100,1,1,1]', headpackcode, struct.calcsize(headpackcode))
+                    headheader = "# MagPyBin %s %s %s %s %s %s %d" % (statusname, '[x,y,z,f,t1,t2,dx,dy,dz,df,var1,var2,var3,var4,var5,str1,str2,str3]', '[Ts1,Ts2,Ts3,Vbat,V3,Tel,L1,L2,L3,Vps,V1,V2,V3,V5p,V5n,GPSstat,Status,OCXO]', '[degC,degC,degC,V,V,degC,A,A,A,V,V,V,V,V,V,None,None,None]', '[1,1,1,10,100,1,10,10,10,10,10,10,10,100,100,1,1,1]', headpackcode, struct.calcsize('<'+headpackcode))
                     if self.debug:
                         print ("Header looks like: {} ".format(headheader))
                         print ("Writing to file: {}, {}, {}".format(statusname,filename,headheader))
                     if not self.confdict.get('bufferdirectory','') == '':
-                         acs.dataToFile(self.confdict.get('bufferdirectory'), statusname, filename, data_bin, headheader)
+                        acs.dataToFile(self.confdict.get('bufferdirectory'), statusname, filename, data_bin, headheader)
                 except:
                     log.msg('GSMP20 - Protocol: Error while packing binary data')
             except:
                 pass
 
         if len(datearray) > 0:
-            return ','.join(list(map(str,datearray))), header
+            topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+            return ','.join(list(map(str,datearray))), header, topic
         elif len(headarray) > 0:
-            return ','.join(list(map(str,headarray))), headheader
+            topic = self.confdict.get('station') + '/' + statusname
+            return ','.join(list(map(str,headarray))), headheader, topic
 
 
     def lineReceived(self, line):
 
+        # Defaulttopic
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
         # extract only ascii characters 
         line = ''.join(filter(lambda x: x in string.printable, line))
 
         ok = True
         try:
-            data = line.split()
-            data, head = self.processData(data)
+            splitline = line.split()
+            data, head, topic = self.processData(splitline)
         except:
+            data = ''
             print('{}: Data seems not be correct data: Looks like {}'.format(self.sensordict.get('protocol'),line))
             ok = False
 

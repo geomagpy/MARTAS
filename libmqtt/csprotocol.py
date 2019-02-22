@@ -120,7 +120,7 @@ class CsProtocol(LineReceiver):
                 data = ['$',data]
                 dataarray, head = self.processData(data)
             else:
-                log.msg('{}: Data seems not be appropriate data. Received data looks like: {}'.format(self.sensordict.get('protocol'),line))
+                log.msg('{}: did not find appropriate data. Received data looks like: {}'.format(self.sensordict.get('protocol'),line))
                 ok = False
         except:
             log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
