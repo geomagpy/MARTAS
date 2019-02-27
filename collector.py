@@ -69,7 +69,10 @@ import json
 
 # For file export
 ## -----------------------------------------------------------
-import StringIO
+try: # Python2.7
+    from StringIO import StringIO
+except ImportError: # Python 3.x
+    from io import StringIO
 from magpy.acquisition import acquisitionsupport as acs
 
 ## Import specific MARTAS packages
@@ -81,6 +84,10 @@ from doc.martas import martaslog as ml
 ## -----------------------------------------------------------
 import paho.mqtt.client as mqtt
 import sys, getopt, os
+
+## Python Version
+import platform
+pyversion = platform.python_version()
 
 # Some global variables
 global identifier
@@ -181,8 +188,8 @@ def analyse_meta(header,sensorid):
     source:mqtt:
     Interprete header information
     """
-    header = header.decode('utf-8')
-    
+    if pyversion.startswith('2'):
+        header = header.decode('utf-8')
     # some cleaning actions for false header inputs
     header = header.replace(', ',',')
     header = header.replace('deg C','deg')
@@ -209,6 +216,7 @@ def analyse_meta(header,sensorid):
     po.identifier[sensorid+':elemlist'] = elemlist
     po.identifier[sensorid+':unitlist'] = unitlist
     po.identifier[sensorid+':multilist'] = multilist
+
 
 def create_head_dict(header,sensorid):
     """
@@ -319,6 +327,9 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     
+    if pyversion.startswith('3'):
+       msg.payload= msg.payload.decode('ascii')
+
     global verifiedlocation
     arrayinterpreted = False
     if stationid in ['all','All','ALL']:
@@ -365,6 +376,7 @@ def on_message(client, userdata, msg):
                     po.identifier[el] = identdic[el]
 
     metacheck = po.identifier.get(sensorid+':packingcode','')
+
 
     ## ################################################################################
 
@@ -861,7 +873,7 @@ def main(argv):
 
 
     if debug:
-        print ("collector strting with the following parameters:")
+        print ("collector starting with the following parameters:")
         print ("Logs: {}; Broker: {}; Topic/StationID: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, port, user, credentials, destination, location, dbcred, offset))
 
     try:
@@ -903,7 +915,7 @@ def main(argv):
     if not qos in [0,1,2]:
         qos = 0
     if 'stringio' in destination:
-        output = StringIO.StringIO()
+        output = StringIO()
     if 'file' in destination:
         if location in [None,''] and not os.path.exists(location):
             log.msg('destination "file" requires a valid path provided as location')
