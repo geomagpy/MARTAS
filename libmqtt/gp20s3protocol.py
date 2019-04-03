@@ -133,8 +133,8 @@ class GP20S3Protocol(LineReceiver):
                 grad1 = intensity3-intensity1
                 grad2 = intensity3-intensity2
                 grad3 = intensity2-intensity1
-                gpstime = float(data[0])
                 try:
+                    gpstime = float(data[0]) # will fail for old dataformat -> NTP
                     if gpstime > 235900.0: # use date of last day if gpstime > 235900 to prevent next day date for 235959 gps when pctime already is on next day
                         cdate = dateprev
                     else:
