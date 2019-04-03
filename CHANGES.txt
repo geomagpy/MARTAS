@@ -4,13 +4,14 @@ and collection from many different sources.
 ####v<0.1.1>, <2018-xx-xx> --
 
 v0.1.1 additions:
-    - 
+    - deleteold.py added
 
 v0.1.1 fixes:
-    - 
+    - supergrad file
+    - ftp transfer in collectfile accepts port
 
 v0.1.1 improvements:
-    - 
+    - deleteold.py added
 
 v0.1.1 removals:
     -
