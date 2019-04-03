@@ -28,18 +28,17 @@ def main(argv):
     skip = ''
     samplingrateratio=12 # 12 days * samplingperiod (sec) will be kept from today (e.g. 12 days of seconds data. 720 days of minute data.
     try:
-        opts, args = getopt.getopt(argv,"hc:p:b:d:s:gi:a:",["cred=","path=","begin=","depth=","skip=","flag=","sr=","autofilter=",])
+        opts, args = getopt.getopt(argv,"hc:b:s:i:",["cred=","begin=","skip=","sr=",])
     except getopt.GetoptError:
-        print ('archive.py -c <cred> -p <archivepath> -b <begin> -d <depth> -s <skip> -g <flag> -i <sr>')
+        print ('deleteold.py -c <cred> -b <begin> -s <skip> -i <sr>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print ('-------------------------------------')
             print ('Description:')
-            print ('-- archive.py gets data from a databank and archives  --')
-            print ('-- to any accessible repository (e.g. disk)           --')
+            print ('-- deleteold.py gets data from a databank and deletes old data sets  --')
             print ('Old database entries exceding a defined age')
-            print ('are deleted. Optionally archive files can be stored in a user defined format.')
+            print ('are deleted.')
             print ('The databank size is automatically restricted ')
             print ('in dependency of the sampling rate of the input data. Only the last ')
             print ('12 days of second data, the last 720 days of minute data and ')
@@ -48,17 +47,12 @@ def main(argv):
             print ('edit the code - its simple and the MagPy cookbook will help you).')
             print ('-------------------------------------')
             print ('Usage:')
-            print ('archive.py -c <cred> -p <archivepath> -b <begin> -d <depth> -s <skip> -g <flag> -i <sr> ')
+            print ('deleteold.py -c <cred> -b <begin> -s <skip> -i <sr> ')
             print ('-------------------------------------')
             print ('Options:')
             print ('-c (required) : provide the shortcut to the data bank credentials as defined by addcred.py')
-            print ('-p            : archivepath like "/home/max/myarchive"')
-            print ('              : please note: an asterix requires quotes')
-            print ('-d            : depth')
             print ('-b            : begin: end = begin - depth(days)')
-            print ('-f            : archive format - default is PYCDF')
             print ('-s            : list sensor IDs to skip (comma separated list)')
-            print ('-g (no input) : archive flagging information along with data')
             print ('-i            : samplingrateratio for deleting old db entries - default is 12')
             print ('              : deleting data older than samplingrate(sec)*12 days.')
             print ('              : => i=12 : 1sec data older than 12 days is deleted in DB')
@@ -67,28 +61,13 @@ def main(argv):
             print ('              :           1min data older than 60 days is deleted in DB')
             print ('-------------------------------------')
             print ('Example:')
-            print ('every day cron job: python archive.py -c cobsdb -p /srv/archive')
+            print ('every day cron job: python deleteold.py -c cobsdb')
             print ('creating archive of old db entries: python archive.py -c cobsdb -p /media/Samsung/Observatory/data/ -d 30 -b "2012-06-01" -g -i 100 -a 3')
             sys.exit()
         elif opt in ("-c", "--cred"):
             cred = arg
-        elif opt in ("-p", "--archivepath"):
-            path = arg
         elif opt in ("-b", "--begin"):
             startdate = arg
-        elif opt in ("-d", "--depth"):
-            try:
-                depth = int(arg)
-                if not depth >= 2:
-                    print ("depth needs to be positve")
-                    sys.exit()
-            except:
-                print ("depth needs to be an integer")
-                sys.exit()
-        elif opt in ("-f", "--archiveformat"):
-            archiveformat = arg
-        elif opt in ("-g", "--flag"):
-            flagging = True
         elif opt in ("-s", "--skip"):
             skip = arg
         elif opt in ("-i", "--samplingrateratio"):
@@ -128,7 +107,11 @@ def main(argv):
     testdate = datetime.strftime((datetime.strptime(min(datelist),"%Y-%m-%d")-timedelta(days=1)),"%Y-%m-%d")
 
     # get a list with all datainfoids covering the selected time range
-    sql = 'SELECT DataID FROM DATAINFO WHERE DataMaxTime > "'+testdate+'" AND  DataMinTime < "'+max(datelist)+'"'
+    if startdate:
+        start = (datetime.strftime(DataStream()._testtime(startdate),"%Y-%m-%d")) 
+        sql = 'SELECT DataID FROM DATAINFO WHERE DataMaxTime > "'+start+'"'
+    else:
+        sql = 'SELECT DataID FROM DATAINFO WHERE DataMaxTime > "1900-01-01"'
     print (sql)
 
     # skip BLV measurements from cleanup 
@@ -159,60 +142,34 @@ def main(argv):
         print ("Loading data files of", data)
         print (" ---------------------------- ")
         print (" ---------------------------- ")
-        print (datetime.utcnow())
+        print ("Starting at: {}".format(datetime.utcnow()))
+        # Test of dataid table exists
         try:
-            if not startdate == '':
-                stream = readDB(db,data,min(datelist),max(datelist))
-            else:
-                stream = readDB(db,data,min(datelist),None)
+            getline = True
+            amount = dbgetlines(db,data,10000)
         except:
-            stream = DataStream()
-            print (" Error: Could not read database contents of {}".format(data))
-        keys = stream._get_key_headers()
-        lenstream = stream.length()[0]
- 
-        if lenstream > 1:
-            print ("  Found data points:", lenstream)
-            print (datetime.utcnow())
-            print ("  Starting from :", num2date(min(stream.ndarray[0])))
-            if not num2date(max(stream.ndarray[0])).replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None):
-                print ("  Found in-appropriate date in stream!! maxdate = {}".format(num2date(max(stream.ndarray[0]))))
-                print ("  Length stream before:", len(stream.ndarray[0]))
-                stream = stream.trim(endtime=datetime.utcnow())
-                #stream = stream.extract('time',date2num(datetime.utcnow()),'<')
-                print ("  Length stream after:", len(stream.ndarray[0]))
-            print ("  Ending at :", num2date(max(stream.ndarray[0])))
+            print ("Could not get lines from data file")
+            getline = False
 
-            sr = stream.samplingrate()
-            print ("  Sampling rate:", sr)
+        if getline:
+            sr = amount.samplingrate()
+            delete = False
+            if amount.length()[0] > 0:
+                delete = True
+                print (" ---------- Deleting old data for {}".format(data))
+            else:
+                print (" ---------- Doing nothing for table {}".format(data))
+                #sql = 'DELETE FROM DATAINFO WHERE DataID = "{}"'.format(data)
+                #print (sql)
+                #cursor = db.cursor()
+                #cursor.execute(sql)
+                #db.commit()
+                #cursor.close()
 
-            if not path == '':
-                try:
-                    sensorid = stream.header['SensorID']
-                    stationid = stream.header['StationID']
-                    datainfoid = stream.header['DataID']
-                    archivepath = os.path.join(path,stationid,sensorid,stream.header['DataID'])
-                except:
-                    print ("Obviously a problem with insufficient header information")
-                    print (" - check StationID, SensorID and DataID in DB")
-                print ("Archiving unfiltered data of ", data)
-                stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=archiveformat)
-            if not isnan(sr):
-                print ("Now deleting old entries in database older than %s days" % str(int(sr*samplingrateratio)))
-                dbdelete(db,stream.header['DataID'],samplingrateratio=samplingrateratio)
-
-            print ("Please note: flags are not contained in the cdf archive. They are stored separately in the database (and yearly files -> too be done")
-
-            #if flagging and db and sr > 0.9:
-            #    print "Applying flags (only 1 Hz data and below)", datetime.utcnow()
-            #    flaglist = db2flaglist(db,sensorid=stream.header['SensorID'])
-            #    if len(flaglist) > 0:
-            #        for i in range(len(flaglist)):
-            #            stream = stream.flag_stream(flaglist[i][2],flaglist[i][3],flaglist[i][4],flaglist[i][0],flaglist[i][1])
-
-            #    print "Flagging finished", datetime.utcnow()
-            #print sensorid, len(stream)
-
+        if not isnan(sr) and delete and getline:
+            print ("Now deleting old entries in database older than %s days" % str(int(sr*samplingrateratio)))
+            dbdelete(db,data,samplingrateratio=samplingrateratio)
+            print (" -> ... success")
 
 if __name__ == "__main__":
    main(sys.argv[1:])

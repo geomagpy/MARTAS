@@ -146,6 +146,7 @@ def main(argv):
     user=''
     password= ''
     address = ''
+    port = 21
     protocol = ''
     localpath = ''
     remotepath = ''
@@ -299,6 +300,10 @@ def main(argv):
         user=mpcred.lc(credtransfer,'user')
         password=mpcred.lc(credtransfer,'passwd')
         address = mpcred.lc(credtransfer,'address')
+        try:
+            port = int(mpcred.lc(credtransfer,'port'))
+        except:
+            port = 21
     source = ''
     if not protocol in ['','ftp','FTP']:
         source += protocol + "://"
@@ -425,7 +430,15 @@ def main(argv):
         if debug:
             print (" - Getting filelist - by ftp ") 
         import ftplib
-        ftp = ftplib.FTP(address)
+        if debug:
+            print (" - connecting to {} on port {}".format(address,port)) 
+        if not port == 21:
+            ftp = ftplib.FTP()
+            ftp.connect(address,port)
+        else:
+            ftp = ftplib.FTP(address)
+        if debug:
+            print (" - user: {} ".format(user)) 
         ftp.login(user,password)
         ftp.cwd(source)
         lines = []
@@ -491,7 +504,11 @@ def main(argv):
 
         # Open the specific channel
         if protocol in ['ftp','FTP']:
-            ftp = ftplib.FTP(address)
+            if not port == 21:
+                ftp = ftplib.FTP()
+                ftp.connect(address,port)
+            else:
+                ftp = ftplib.FTP(address)
             ftp.login(user,password)
             ftp.cwd(source)
 
