@@ -17,7 +17,6 @@ PYPATH="/home/leon/Software/anaconda2/bin/python"
 PYPATH="/usr/bin/python"
 CFGPATH="/etc/marcos"
 LOGPATH="/var/log/magpy"
-COLLPATH="/home/cobs/MARCOS"
 TELEGRAMPATH="/telegram.conf"
 BROKER="broker"
 BROKERIP="localhost"
@@ -27,6 +26,11 @@ DETAILS="cobsdb"
 MQTTAUTH="no"
 MQTTCRED="mqtt"
 tvar=""
+
+current="$(pwd)"
+cd ..
+COLLPATH="$(pwd)"
+cd "$current"
 
 
 echo "Helper for adding new collector job "
@@ -47,7 +51,7 @@ read -p "Provide path for broker.conf (default = $CFGPATH): " CFGPATHT
 read -p "Provide path to collector.py (default = $COLLPATH): " COLLPATHT
 read -p "Provide path for log files (default = $LOGPATH): " LOGPATHT
 read -p "Provide the name of the broker (default = $BROKER): " BROKERT
-read -p "Provide the address of the broker (default = $BROKER): " BROKERIPT
+read -p "Provide the address of the broker (default = $BROKERIP): " BROKERIPT
 read -p "Provide a station name/topic (default = $STATION): " STATIONT
 read -p "Output destination (stdout, file, db, etc. default = $DESTINATION): " DESTINATIONT
 read -p "Destination details (e.g. path if file, or db credentials if db; default = $DETAILS): " DETAILST

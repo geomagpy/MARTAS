@@ -5,13 +5,16 @@ and collection from many different sources.
 
 v0.1.1 additions:
     - deleteold.py added
+    - added di.py method (app) to access, download, and analysze DI absolutes
 
 v0.1.1 fixes:
     - supergrad file
     - ftp transfer in collectfile accepts port
+    - install.marcos.sh: corrected linking and some spelling errors
+    - cleanup now refers to /srv/mqtt
 
 v0.1.1 improvements:
-    - deleteold.py added
+    - deleteold.py added (app) deleting old inputs in a database exceeding a defined age
 
 v0.1.1 removals:
     -

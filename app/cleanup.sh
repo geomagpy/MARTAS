@@ -4,5 +4,5 @@
 # 15 0 * * * sh /home/leon/MARTAS/UtilityScripts/cleanup.sh
 # to run the job every day 15 minutes past midnight
 
-find /srv/ws -name "*.bin" -mtime +100 -exec rm {} \;
+find /srv/mqtt -name "*.bin" -mtime +100 -exec rm {} \;
 

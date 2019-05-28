@@ -245,7 +245,7 @@ COLLECTOR:
 
 ## 4. Strucure/Files in home directory of MARTAS user
 
-AWithin the MARTAS directory you will find the following files and programs:
+Within the MARTAS directory you will find the following files and programs:
 
         acquisition.py:                 accepts options (-h for help)
         collector.py:                   accepts options (-h for help)
