@@ -55,9 +55,7 @@ class MySQLProtocol(object):
         except:
             self.requestrate = 30
 
-
-        # ------------------- IMPORTANT ------------------------- too be changed
-        self.deltathreshold = 100 # only data not older then x seconds will be considered
+        self.deltathreshold = confdict.get('timedelta')
 
         # debug mode
         debugtest = confdict.get('debug')
@@ -78,7 +76,7 @@ class MySQLProtocol(object):
         self.db = self.sensor
         # get existing sensors for the relevant board
         log.msg("  -> IMPORTANT: MySQL assumes that database credentials ")
-        log.msg("     are saved locally using magpy.cred with the same name as database")
+        log.msg("     are saved locally using magpy.opt.cred with the same name as database")
         try:
             self.db = mdb.mysql.connect(host=mpcred.lc(self.sensor,'host'),user=mpcred.lc(self.sensor,'user'),passwd=mpcred.lc(self.sensor,'passwd'),db=self.sensor)
             self.connectionMade(self.sensor)
@@ -153,11 +151,11 @@ class MySQLProtocol(object):
                     senslist3.append(sens)
             except:
                 if self.debug:
-                    log.msg("No data table?")
+                    log.msg("  -> DEBUG - No data table?")
                 pass
 
         # 6. Obtaining relevant sensor data for each table
-        print ("  -> Appending sensor information to sensors.cfg")
+        log.msg("  -> Appending sensor information to sensors.cfg")
         for sens in senslist3:
             values = {}
             values['sensorid'] = sens
@@ -191,7 +189,7 @@ class MySQLProtocol(object):
         filename = outdate
 
         if self.debug:
-            log.msg("Sending periodic request ...")
+            log.msg("  -> DEBUG - Sending periodic request ...")
 
         def getList(sql):
             cursor = self.db.cursor()
@@ -231,6 +229,8 @@ class MySQLProtocol(object):
             if 'comment' in keystab:
                 keystab.remove('comment')
             keys = ','.join(keystab)
+            if self.debug:
+                log.msg("  -> DEBUG - requesting header {}".format(sensorid))
             sql1 = 'SELECT SensorElements FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
             sql2 = 'SELECT Sensorkeys FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
             sql3 = 'SELECT ColumnUnits FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
@@ -252,6 +252,8 @@ class MySQLProtocol(object):
                     units.append(unit[pos2])
                 except:
                     units.append('None')
+            if self.debug:
+                log.msg("  -> DEBUG - creating head line {}".format(sensorid))
             multplier = '['+','.join(map(str, [10000]*len(keystab)))+']'
             packcode = '6HL'+''.join(['q']*len(keystab))
             header = ("# MagPyBin {} {} {} {} {} {} {}".format(sensorid, '['+','.join(keystab)+']', '['+','.join(elems)+']', '['+','.join(units)+']', multplier, packcode, struct.calcsize('<'+packcode)))
@@ -262,7 +264,7 @@ class MySQLProtocol(object):
             coverage = int(self.requestrate/sr)+5
 
             # 3. Getting data
-            # get data data and create typical message topic
+            # get data and create typical message topic
             # based on sampling rate and collection rate -> define coverage
             
             li = sorted(mdb.dbselect(self.db, 'time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
@@ -296,7 +298,8 @@ class MySQLProtocol(object):
 
                 if not self.confdict.get('bufferdirectory','') == '' and data_bin:
                     acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
-                #print ("Sending", ','.join(list(map(str,datearray))), header)
+                if self.debug:
+                    log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
                 self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
 
             self.lastt[index]=li[-1][0]
