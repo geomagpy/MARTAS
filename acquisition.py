@@ -312,14 +312,7 @@ def main(argv):
         elif opt in ("-m", "--martas"):
             martasfile = arg
         elif opt in ("-c", "--credentials"):
-            try:
-                cred = arg
-                print ("Accessing credential information for {}".format(cred))
-                credhost = mpcred.lc(cred,'address')
-                creduser = mpcred.lc(cred,'user')
-                pwd = mpcred.lc(cred,'passwd')
-            except:
-                pass
+            cred = arg
         elif opt in ("-P", "--password"):
             pwd = arg
 
@@ -337,6 +330,20 @@ def main(argv):
     ##  ----------------------------
     sensorlist = acs.GetSensors(conf.get('sensorsconf'))
 
+
+    ## Check for credentials
+    ## ----------------------------
+    if not cred == '':
+        try:
+            print ("Accessing credential information for {}".format(cred))
+            credpath = conf.get('credentialpath',None)
+            credhost = mpcred.lc(cred,'address',path=credpath)
+            creduser = mpcred.lc(cred,'user',path=credpath)
+            pwd = mpcred.lc(cred,'passwd',path=credpath)
+        except:
+            print ("error when accessing credentials")
+            pass
+
     ## create MQTT client
     ##  ----------------------------
     client = mqtt.Client(clean_session=True)
@@ -346,7 +353,7 @@ def main(argv):
         # 1. check whether credentials are provided
         if not cred == '':
             if not creduser == user:
-                print ('User names provided in credentials and martas.cfg differ. Please check!')
+                print ('User names provided in credentials ({}) and martas.cfg ({}) differ. Please check!'.format(creduser, user))
                 pwd = 'None'
         if pwd == 'None':
             # 2. request pwd input
