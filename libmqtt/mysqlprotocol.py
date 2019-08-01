@@ -261,7 +261,7 @@ class MySQLProtocol(object):
             # 2. Getting dict
             sql = 'SELECT DataSamplingRate FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
             sr = float(getList(sql)[0])
-            coverage = int(self.requestrate/sr)+5
+            coverage = int(self.requestrate/sr)+10
 
             # 3. Getting data
             # get data and create typical message topic
