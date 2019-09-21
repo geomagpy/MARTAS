@@ -405,10 +405,14 @@ def main(argv):
             # Check if provided initscript is existing
             import subprocess
             try:
-                log.msg("  - running initialization .{}".format(initapp))
-                log.msg(subprocess.check_output(['sh',initapp]))
+                log.msg("  - running initialization {}".format(initapp))
+                initcall = "{} {}".format(sys.executable, initapp)
+                #log.msg(subprocess.check_output(['/bin/sh',initapp]))
+                log.msg(subprocess.check_output(initcall))
             except subprocess.CalledProcessError as e:
                 log.msg("  - init command '{}' returned with error (code {}): {}".format(e.cmd, e.returncode, e.output))
+            except:
+                pass
         if sensor.get('mode') in ['p','passive','Passive','P']:
             try:
                 connected = PassiveThread(conf,sensor,client,establishedconnections)

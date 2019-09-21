@@ -411,8 +411,8 @@ def main(argv):
     else:
         datelist = ['dummy']
 
-    if debug:
-        print("2.1 finished - Dealing with time range:\n {}".format(datelist))
+    #if debug:
+    print(" - Dealing with time range:\n {}".format(datelist))
 
     ###   2.2 Select files from source meeting critera 
     ### -------------------------------------
