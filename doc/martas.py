@@ -19,6 +19,74 @@ import socket
 #import telepot
 #from telepot.loop import MessageLoop
 
+try:
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base import MIMEBase
+    from email.mime.text import MIMEText
+    from email.utils import COMMASPACE, formatdate
+    from email import encoders
+    from smtplib import SMTP
+except:
+    pass
+
+"""
+def sendmail(send_from, send_to, **kwargs):
+    #""
+    #Function for sending mails with attachments
+    #""
+    
+    assert type(send_to)==list
+
+    files = kwargs.get('files')
+    user = kwargs.get('user')
+    pwd = kwargs.get('pwd')
+    port = kwargs.get('port')
+    smtpserver = kwargs.get('smtpserver')
+    subject = kwargs.get('subject')
+    text = kwargs.get('text')
+
+    if not smtpserver:
+        smtpserver = 'smtp.web.de'
+    if not files:
+        files = []
+    if not text:
+        text = 'Cheers, Your Analysis-Robot'
+    if not subject:
+        subject = 'Automatic message'
+    if not port:
+        port = 587
+
+    assert type(files)==list
+
+    msg = MIMEMultipart()
+    msg['From'] = send_from
+    msg['To'] = COMMASPACE.join(send_to)
+    msg['Date'] = formatdate(localtime=True)
+    msg['Subject'] = subject
+
+    msg.attach( MIMEText(text) )
+
+    for f in files:
+        part = MIMEBase('application', "octet-stream")
+        part.set_payload( open(f,"rb").read() )
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
+        msg.attach(part)
+
+    #smtp = smtplib.SMTP(server)
+    smtp = SMTP()
+    smtp.set_debuglevel(False)
+    smtp.connect(smtpserver, port)
+    smtp.ehlo()
+    if port == 587:
+        smtp.starttls()
+    smtp.ehlo()
+    if user:
+        smtp.login(user, pwd)
+    smtp.sendmail(send_from, send_to, msg.as_string())
+    smtp.close()
+"""
 
 class martaslog(object):
     """
@@ -28,6 +96,7 @@ class martaslog(object):
     def __init__(self, logfile='/var/log/magpy/martasstatus.log', receiver='mqtt'):
         self.mqtt = {'broker':'localhost','delay':60,'port':1883,'stationid':'wic', 'client':'P1','user':None,'password':None}
         self.telegram = {'config':"/home/leon/telegramtest.conf"}
+        self.email = {'config':"/home/leon/telegramtest.conf"}
         self.logfile = logfile
         self.receiver = receiver
         self.hostname = socket.gethostname()
@@ -79,6 +148,7 @@ class martaslog(object):
         if len(changes) > 0:
             self.notify(changes)
 
+
     def notify(self, dictionary):
         #if receiver == "stdout":
         print ("Changed content:", dictionary)
@@ -117,6 +187,9 @@ class martaslog(object):
                 tgmsg += "{}: {}\n".format(elem, dictionary[elem])
             telegram_send.send(messages=[tgmsg],conf=self.telegram.get('config'),parse_mode="markdown")
             print ('Update sent to telegram')
+        elif self.receiver == 'email':
+            #sendmail(mailconf)
+            print ('Update sent to email - coming soon')
         else:
             print ("Given receiver is not yet supported")
 

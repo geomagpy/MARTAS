@@ -26,6 +26,8 @@ PATH=/bin/sh
 0  22  *  *  *  /etc/init.d/telegrambot restart > /dev/NULL 2&>1
 
 
+# ADD Option to locate configuration file
+
 Tool for interaction with remote systems:
 Commands: external stations: - status, getlog (amount of lines), martas (restart martas), healthstate (disk status, processor), type
 
@@ -60,6 +62,7 @@ class tgpar(object):
     camport = 'None'
     tglogpath = '/var/log/magpy/telegrambot.log'
     version = '1.0.1'
+    martasapp = '/home/cobs/MARTAS/app'
 
 def GetConf(path):
     """
@@ -174,12 +177,14 @@ try:
     bot_id = tgconf.get('bot_id').strip()
     martasconfig = tgconf.get('martasconfig').strip()
     camport = tgconf.get('camport').strip()
+    martasapp = tgconf.get('martasapp').strip()
     if not camport=='None':
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
     tmppath = tgconf.get('tmppath').strip()
     tgpar.camport = camport
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
+    tgpar.martasapp = martasapp
     allowed_users =  [int(el) for el in tgconf.get('allowed_users').replace(' ','').split(',')]
     tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
 except:
@@ -199,7 +204,7 @@ try:
     sqllist = acs.GetSensors(conf.get('sensorsconf'),identifier='$')
     sensorlist.extend(sqllist)
     mqttpath = conf.get('bufferdirectory')
-    apppath = conf.get('initdir').replace('init','app')
+    #apppath = conf.get('initdir').replace('init','app')
     tglogger.debug("Successfully obtained parameters from martas.cfg")
 except:
     print ("Configuration (martas.cfg) could not be extracted - aborting")
@@ -286,6 +291,7 @@ def system():
     #except:
     #    pass
     mesg += "\n\nSoftware versions:\n----------\nMagPy Version: {}".format(magpyversion)
+    mesg += "\nTelegramBot Version: {}".format(tgpar.version)
 
     return mesg
 
@@ -401,7 +407,7 @@ def switch(command):
         tglogger.debug("Running check_call to start switch...")
         python = sys.executable
         #path = '/home/cobs/MARTAS/app/ardcomm.py'
-        path = os.path.join(apppath,'ardcomm.py')
+        path = os.path.join(tgpar.martasapp,'ardcomm.py')
         tglogger.debug("tpath: {}".format(path))
         option = '-c'
         call = "{} {} {} {}".format(python,path,option,command)
