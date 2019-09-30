@@ -336,8 +336,13 @@ def on_message(client, userdata, msg):
         stid = msg.topic.split('/')[0]
     else:
         stid = stationid
-    # TODO 
-    sensorid = msg.topic.replace(stid,"").replace('/','').replace('meta','').replace('data','').replace('dict','')
+    try:
+        sensorind = msg.topic.split('/')[1]
+        sensorid = sensorind.replace('meta','').replace('data','').replace('dict','')
+    except:
+        # Above will fail if msg.topic does not contain /
+        # TODO (previous version was without 1, first occurrence -> the following line should work as well although the code above is more general)
+        sensorid = msg.topic.replace(stid,"",1).replace('/','').replace('meta','').replace('data','').replace('dict','')
     # define a new data stream for each non-existing sensor
     if not instrument == '':
         if not sensorid.find(instrument) > -1:

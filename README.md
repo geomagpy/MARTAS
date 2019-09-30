@@ -113,6 +113,8 @@ b) Modify /etc/martas/sensors.cfg
 
         $ nano /etc/martas/sensors.cfg
 
+      -> IMPORTANT: sensorids should only contain basic characters like 0,1,2,..9,a,b,...,z,A,B,...,Z (no special characters, no underscors, no minus etc)
+      -> IMPORTANT: sensorids should not contain the phrases "data", "meta" or "dict" 
 
 c) Manually: 
       -> Copy configuration files to your home directory
