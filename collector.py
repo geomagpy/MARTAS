@@ -336,6 +336,7 @@ def on_message(client, userdata, msg):
         stid = msg.topic.split('/')[0]
     else:
         stid = stationid
+    # TODO 
     sensorid = msg.topic.replace(stid,"").replace('/','').replace('meta','').replace('data','').replace('dict','')
     # define a new data stream for each non-existing sensor
     if not instrument == '':
@@ -788,6 +789,7 @@ def main(argv):
                 credentials=conf.get('mqttcredentials').strip()
             if not conf.get('station','') in ['','-']:
                 stationid = conf.get('station').strip()
+                stid = stationid
             if not conf.get('destination','') in ['','-']:
                 destination=conf.get('destination').strip()
             if not conf.get('filepath','') in ['','-']:
@@ -907,6 +909,10 @@ def main(argv):
                 print ("Imported library {}: Topic identifiers are {}".format(lib, topic_identifiers[lib]))
     except:
         pass
+
+
+    if debug:
+        log.msg("Logs: {}; Broker: {}; Topic/StationID: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, port, user, credentials, destination, location, dbcred, offset))
 
     log.msg("----------------")
     log.msg(" Starting collector {}".format(__version__))
