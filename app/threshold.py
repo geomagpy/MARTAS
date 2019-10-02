@@ -138,9 +138,9 @@ class sp(object):
     configdict['martasdir'] = '/home/cobs/MARTAS/'
 
     #Testset
-    configdict['startdate'] = datetime(2018,12,6,13)
-    valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
-    valuedict = {'sensorid':'ENV05_2_0001','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
+    #configdict['startdate'] = datetime(2018,12,6,13)
+    #valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
+    #valuedict = {'sensorid':'ENV05_2_0001','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
 
 
 def is_number(s):
@@ -476,7 +476,6 @@ def main(argv):
     if debug:
         print ("Notifications send to: {}, {}".format(receiver,cfg))
 
-    receiver = 'log'
     martaslog = ml(logfile=logfile,receiver=receiver)
     if receiver == 'telegram':
         martaslog.telegram['config'] = cfg
