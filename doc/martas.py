@@ -149,6 +149,7 @@ class martaslog(object):
         changes = self.updatelog(self.logfile,dictionary)
         if len(changes) > 0:
             self.notify(changes)
+        return changes
 
 
     def notify(self, dictionary):
