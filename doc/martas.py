@@ -30,43 +30,42 @@ try:
 except:
     pass
 
-"""
-def sendmail(send_from, send_to, **kwargs):
-    #""
-    #Function for sending mails with attachments
-    #""
+
+def sendmail(dic):
+    """
+    Function for sending mails with attachments
+    """
     
-    assert type(send_to)==list
-
-    files = kwargs.get('files')
-    user = kwargs.get('user')
-    pwd = kwargs.get('pwd')
-    port = kwargs.get('port')
-    smtpserver = kwargs.get('smtpserver')
-    subject = kwargs.get('subject')
-    text = kwargs.get('text')
-
-    if not smtpserver:
-        smtpserver = 'smtp.web.de'
-    if not files:
+    #if not smtpserver:
+    #    smtpserver = 'smtp.web.de'
+    if 'Attach' in dic:
+        files = map(lambda s:s.strip(), dic['Attach'].split(','))
+    else:
         files = []
-    if not text:
+    if not dic['Text']:
         text = 'Cheers, Your Analysis-Robot'
-    if not subject:
-        subject = 'Automatic message'
-    if not port:
-        port = 587
-
-    assert type(files)==list
+    if not 'Subject' in dic:
+        dic['Subject'] = 'Automatic message'
+    if 'port' in dic:
+        port = int(dic['port'])
+    else:
+        port = None
+    if 'user' in dic:
+        user = dic['user']
+    else:
+        user = ''
 
     msg = MIMEMultipart()
-    msg['From'] = send_from
-    msg['To'] = COMMASPACE.join(send_to)
+    msg['From'] = dic['From']
+    send_from = dic['From']
+    #msg['To'] = COMMASPACE.join(send_to)
+    msg['To'] = dic['To']
+    send_to = map(lambda s:s.strip(), dic['To'].split(','))
     msg['Date'] = formatdate(localtime=True)
-    msg['Subject'] = subject
+    msg['Subject'] = dic['Subject']
+    msg.attach( MIMEText(dic['Text']) )
 
-    msg.attach( MIMEText(text) )
-
+    # TODO log if file does not exist
     for f in files:
         part = MIMEBase('application', "octet-stream")
         part.set_payload( open(f,"rb").read() )
@@ -77,16 +76,19 @@ def sendmail(send_from, send_to, **kwargs):
     #smtp = smtplib.SMTP(server)
     smtp = SMTP()
     smtp.set_debuglevel(False)
-    smtp.connect(smtpserver, port)
+    if port:
+        smtp.connect(dic['smtpserver'], port)
+    else:
+        smtp.connect(dic['smtpserver'])
     smtp.ehlo()
     if port == 587:
         smtp.starttls()
     smtp.ehlo()
     if user:
-        smtp.login(user, pwd)
+        smtp.login(user, dic('pwd'))
     smtp.sendmail(send_from, send_to, msg.as_string())
     smtp.close()
-"""
+
 
 class martaslog(object):
     """
@@ -96,7 +98,7 @@ class martaslog(object):
     def __init__(self, logfile='/var/log/magpy/martasstatus.log', receiver='mqtt'):
         self.mqtt = {'broker':'localhost','delay':60,'port':1883,'stationid':'wic', 'client':'P1','user':None,'password':None}
         self.telegram = {'config':"/home/leon/telegramtest.conf"}
-        self.email = {'config':"/home/leon/telegramtest.conf"}
+        self.email = {'config':"/etc/martas/mail.cfg"}
         self.logfile = logfile
         self.receiver = receiver
         self.hostname = socket.gethostname()
@@ -188,8 +190,15 @@ class martaslog(object):
             telegram_send.send(messages=[tgmsg],conf=self.telegram.get('config'),parse_mode="markdown")
             print ('Update sent to telegram')
         elif self.receiver == 'email':
-            #sendmail(mailconf)
-            print ('Update sent to email - coming soon')
+            mailmsg = ''
+            for elem in dictionary:
+                mailmsg += "{}: {}\n".format(elem, dictionary[elem])
+            from magpy.acquisition import acquisitionsupport as acs
+            self.email = acs.GetConf(self.email.get('config'))
+            #print(self.email)
+            self.email['Text'] = mailmsg
+            sendmail(self.email)
+            print ('Update sent to email')
         else:
             print ("Given receiver is not yet supported")
 
