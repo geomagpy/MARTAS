@@ -46,6 +46,10 @@ def sendmail(dic):
         text = 'Cheers, Your Analysis-Robot'
     if not 'Subject' in dic:
         dic['Subject'] = 'Automatic message'
+    if 'mailcred' in dic:
+        ## import credential routine
+        #read credentials
+        pass
     if 'port' in dic:
         port = int(dic['port'])
     else:
@@ -73,19 +77,18 @@ def sendmail(dic):
         part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
         msg.attach(part)
 
-    #smtp = smtplib.SMTP(server)
     smtp = SMTP()
     smtp.set_debuglevel(False)
     if port:
-        smtp.connect(dic['smtpserver'], port)
+        smtp.connect(dic.get('smtpserver'), port)
     else:
-        smtp.connect(dic['smtpserver'])
+        smtp.connect(dic.get('smtpserver'))
     smtp.ehlo()
     if port == 587:
         smtp.starttls()
     smtp.ehlo()
     if user:
-        smtp.login(user, dic('pwd'))
+        smtp.login(user, dic.get('pwd'))
     smtp.sendmail(send_from, send_to, msg.as_string())
     smtp.close()
 
@@ -200,6 +203,8 @@ class martaslog(object):
             self.email['Text'] = mailmsg
             sendmail(self.email)
             print ('Update sent to email')
+        elif self.receiver == 'log':
+            print ('Updating logfile only')
         else:
             print ("Given receiver is not yet supported")
 
@@ -220,11 +225,10 @@ class martaslog(object):
 #     def logfile(path) -> smtp,telegram,mqtt
 #
 # Application:
-# import martaslog
-# martaslog.logfile('/var/log/magpy/statuslog.log') 
-# martaslog.receiver('mqtt',{'broker':'localhost','mqttport':1883,'mqttdelay':60})
-## or martaslog.receiver('telegram',{'telegramconf':'path'})
-## or martaslog.receiver('smtp',{'telegramconf':'path'})
-# status['xxx'] = 'yyy'
-# martaslog.msg(status) -> automatically send all changes to receiver
+# from martas import martaslog as ml
+# martaslog = ml(logfile=logfile,receiver='email')  # other receivers: email, telegram, log, mqtt
+# martaslog.email['config'] = cfg
+# statusdict = {"Measurement1" : "Everything OK"}
+# martaslog.msg(statusdict)
+
 
