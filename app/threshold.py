@@ -57,18 +57,26 @@ notificationconfig   :   /etc/martas/notification.cfg
 reportlevel          :   partial
 
 
-# serial communication for switch commands (based on ardcomm.py (MARTAS/app)
-serialcfg            :   None
+# serial communication for switch commands (making use of ardcomm.py (MARTAS/app)
+#port                :   device to which command is send - default is /dev/ttyACM0
+#baudrate            :   default is 9600
+#parity              :   default is "N"
+#bytesize            :   default is 8
+#stopbits            :   default is 1
+#timeout             :   default is 2
+#eol                 :   end of line - default is \r\n
 
 
 #parameter (all given parameters are checked in the given order, use semicolons for parameter list):
-# sensorid; timerange to check; key to check, value, function, state,statusmessage,switchcommand(optional)
-1  :  DS18B20XX;1800;t1;5;average;below;default;swP:4:1
-2  :  DS18B20XX;1800;t1;10;median;above;default;swP:4:0
+# sensorid; timerange to check; key to check, value, function, state, statusmessage, switchcommand(optional)
+1  :  DS18B20XX;1800;t1;5;average;below;default
+2  :  DS18B20XX;1800;t1;5;average;below;none
 3  :  DS18B20XZ;600;t2;10;max;below;ok
 4  :  DS18B20XZ;600;t2;10;max;above;warning at week
 5  :  DS18B20XZ;600;t2;20;max;above;alarm issued at date
 6  :  DS18B20XZ;600;t2;3;stddev;above;flapping state
+7  :  DS18B20XX;1800;t1;10;median;above;default;swP:1:4
+10  :  DS18B20XX;1800;t1;10;median;below;default;swP:0:4
 
 #to be continued...
 
@@ -85,13 +93,9 @@ serialcfg            :   None
 #                 -> "date" changes the statusmessage every day and thus a daily notification is triggered as long a alarm condition is active
 
 
-#TODO:
-- flapping states -----> use stddev (higher order than regular test, will overwrite message
-- minimum benachrichtigungswiederholung -----> use date
-- moeglichkeit zu quittieren (ueber telegram?)   ------> interact with json, telegram, change config to remove date, etc 
-
-## Description: Parameterset "1":  if t1 average of last 30 min (1800 sec) is falling below 5 degrees
-## then use statusmessage and eventually send switchcommand to serial port
+## Description: Parameterset "1":  if temperature t1 (average of last 30 min (1800 sec)) is falling below 5 degrees
+## then send default statusmessage to the notification system (e.g. email)
+## and eventually send switchcommand to serial port
 ## IMPORTANT: statusmessage should not contain semicolons, colons and commas; generally avoid special characters
  
 """
@@ -112,10 +116,6 @@ except:
     print ("MQTT not available")
 
 
-#from magpy.acquisition import acquisitionsupport as acs
-#import magpy.mpplot as mp
-
-
 if sys.version.startswith('2'):
     pyvers = '2'
 else:
@@ -132,10 +132,19 @@ class sp(object):
     configdict['notification'] = 'email'
     configdict['notification'] = 'log'
     valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
-    valuedict = {'sensorid':'DS18B20','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
-    parameterdict = {'1':valuedict}
+    #valuedict = {'sensorid':'DS18B20','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
+    #parameterdict = {'1':valuedict}
+    parameterdict = {}
     configdict['version'] = '1.0.0' # thresholdversion
     configdict['martasdir'] = '/home/cobs/MARTAS/'
+    # Serial Comm
+    configdict['port'] = '/dev/ttyACM0'
+    configdict['baudrate'] = 9600
+    configdict['parity'] = 'N'
+    configdict['bytesize'] = 8
+    configdict['stopbits'] = 1
+    configdict['timeout'] = 2
+    configdict['eol'] = '"\r\n"'
 
     #Testset
     #configdict['startdate'] = datetime(2018,12,6,13)
@@ -191,7 +200,8 @@ def GetConf(path):
     except:
         print ("Problems when loading conf data from file...")
         #return ({}, {})
-        return (sp.configdict, sp.parameterdict)
+        print ("Could not obtain configuration data - aborting")
+        sys.exit()
 
     return (sp.configdict, sp.parameterdict)
 
@@ -240,7 +250,7 @@ def GetTestValue(data=DataStream(), key='x', function='average', debug=False):
     Returns comparison value(e.g. mean, max etc)
     """
     if debug:
-        print ("Obtaining tested value for key {} with function {}".format(key,function))
+        print ("Obtaining test value for key {} with function {}".format(key,function))
     func = 'mean'
     testvalue = None
     msg = ''
@@ -299,11 +309,11 @@ def CheckThreshold(testvalue, threshold, state, debug=False):
         if eval(tester):
             evaluate = True
             if debug:
-                print (" ... valid")
+                print (" ... positive")
         else:
             evaluate = False
             if debug:
-                print (" ... not valid")
+                print (" ... negative - criteria not met")
     except:
         msg = "Comparison {} failed".format(tester)
 
@@ -317,6 +327,7 @@ def InterpreteStatus(valuedict, debug=False):
     msg = valuedict.get('statusmessage')
     defaultline =  'Current {} {} {}'.format(valuedict.get('function'),valuedict.get('state'),valuedict.get('value'))
     ct = datetime.utcnow()
+    msg = msg.replace('none', '')
     msg = msg.replace('default', defaultline)
     msg = msg.replace('date', datetime.strftime(ct,"%Y-%m-%d"))
     msg = msg.replace('hour', datetime.strftime(ct,"%Y-%m-%d %H:%M"))
@@ -399,7 +410,7 @@ def main(argv):
         print ("Parameter dictionary: \n{}".format(para))
 
     if not (len(para)) > 0:
-        print ("No paarmeters given too be checked - aborting") 
+        print ("No parameters given too be checked - aborting") 
         sys.exit()
 
 
@@ -429,35 +440,30 @@ def main(argv):
 
                 (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
                 (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
-                if testvalue:
+                if is_number(testvalue):
                     (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('state'), debug=debug) # Returns statusmessage
                     if evaluate and msg == '':
                         content = InterpreteStatus(valuedict,debug=debug)
                         # Perform switch and added "switch on/off" to content 
                         if not valuedict.get('switchcommand') in ['None','none',None]:
                             if debug:
-                                print ("Found switching command ... running ardcom")
-                            content = content + ' - switch: {}'.format(valuedict.get('switchcommand'))
+                                print ("Found switching command ... eventually will send serial command (if not done already) after checking all other commands")
+                            content = '{} - switch: {}'.format(content, valuedict.get('switchcommand'))
                             # remember the switchuing command and only issue it if statusdict is changing
-                            #switch = SendSwitchCommand()
                     elif not msg == '':
                         content =  msg
                     else:
                         content = ''
                 else:
-                    content = msg1+msg2
+                    content = msg1+' - '+msg2
 
-                statuskeylist.append('Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key')))
                 if content:
+                    statuskeylist.append('Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key')))
                     statusdict['Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))] = content
 
                 if debug:
                     print ("Finished parameterset {}".format(i))
 
-            #notify = SendNotification(logpath, evaluate, statusmessage, notification, notificationconfig)
-            # notify contains all new statusmessages (eventually reset)
-            #if not para.get('switchcommand') in ['None','none',None]:
-            #    switch = SendSwitchCommand()
 
     if conf.get('reportlevel') == 'full':
         # Get a unique status key list:
@@ -467,14 +473,15 @@ def main(argv):
             if cont == '':
                 statusdict[elem] = "Everything fine"
 
-    print (statusdict)
+    if debug:
+        print ("Statusdict: {}".format(statusdict))
 
     receiver = conf.get('notification')
     cfg = conf.get('notificationconfig')
     logfile = conf.get('logfile')
 
     if debug:
-        print ("Notifications send to: {}, {}".format(receiver,cfg))
+        print ("New notifications will be send to: {} (Config: {})".format(receiver,cfg))
 
     martaslog = ml(logfile=logfile,receiver=receiver)
     if receiver == 'telegram':
@@ -484,14 +491,47 @@ def main(argv):
 
     changes = martaslog.msg(statusdict)
 
+    if not len(changes) > 0:
+        print ("Nothing to report - threshold check successfully finished")
+
     for element in changes:
         line = changes.get(element)
-        print ("Changes:", line)
+        if debug:
+            print ("Changes affecting:", element)
         l = line.split('switch:')
         if len(l) == 2:
+            print (" ... now dealing with switching serial command:")
             comm = l[1].strip()
-            print (comm)
-            ## Ardcomm
+            script = os.path.join(conf.get('martasdir'),'app','ardcomm.py')
+            pythonpath = sys.executable
+            arg1 = "-c {}".format(comm)
+            arg2 = "-p {}".format(conf.get('port'))
+            arg3 = "-b {}".format(conf.get('baudrate'))
+            arg4 = "-a {}".format(conf.get('parity'))
+            arg5 = "-y {}".format(conf.get('bytesize'))
+            arg6 = "-s {}".format(conf.get('stopbits'))
+            arg7 = "-t {}".format(conf.get('timeout'))
+            #arg8 = "-e {}".format(conf.get('eol')) # not used so far
+
+            command = "{} {} {} {} {} {} {} {} {}".format(pythonpath,script,arg1, arg2, arg3, arg4, arg5, arg6, arg7) ## Too be checked
+            command = "{} {} {}".format(pythonpath,script,arg1)
+            if debug:
+                print (" ... sending {}".format(command))
+
+
+            try:
+                import subprocess
+                p = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+                (output, err) = p.communicate()
+                mesg = "{}".format(output)
+            except subprocess.CalledProcessError:
+                mesg = "threshold: sending command didnt work"
+            except:
+                mesg = "threshold: sending command problem"
+
+            print (mesg)
+
+            print (" ... success")
 
 if __name__ == "__main__":
    main(sys.argv[1:])

@@ -1,6 +1,23 @@
 #!/usr/bin/env python
 # coding=utf-8
 
+"""
+contains martaslog class and sendlog method
+
+martaslog can be used to create script logs and deliver them
+
+possible receivers are email, telegram and log
+
+email and telegram require configuration files
+
+telegram.cfg:
+[telegram]
+token = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+chat_id = xxxx
+
+mail.cfg:
+see MARTAS/conf/mail.cfg
+"""
 
 from __future__ import print_function
 from __future__ import unicode_literals
