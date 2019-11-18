@@ -145,7 +145,9 @@ class martaslog(object):
                         changes[el] = logdict[el]
             ## check for element in exlogdict which are not in logdict
             for el in exlogdict:
-                if not el in logdict:
+                if "acknowledge manually!" in  exlogdict[el]:
+                    print ("This signal has to be removed manually:", el)
+                elif not el in logdict:
                     # Sensor has been removed
                     print ("Removed:", el)
                     changes[el] = "removed"
