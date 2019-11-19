@@ -69,14 +69,28 @@ reportlevel          :   partial
 
 #parameter (all given parameters are checked in the given order, use semicolons for parameter list):
 # sensorid; timerange to check; key to check, value, function, state, statusmessage, switchcommand(optional)
-1  :  DS18B20XX;1800;t1;5;average;below;default
+# sensorid; timerange to check; key to check, value, function, operator, statusmessage, nextstatus, action(optional)
+status  :  initial
+1  :  DS18B20XX;1800;t1;5;average;below;temperature below 5;triggered;email
+#1  :  DS18B20XX;1800;t1;5;average;below;default;triggered;email
 2  :  DS18B20XX;1800;t1;5;average;below;none
 3  :  DS18B20XZ;600;t2;10;max;below;ok
 4  :  DS18B20XZ;600;t2;10;max;above;warning at week
 5  :  DS18B20XZ;600;t2;20;max;above;alarm issued at date
 6  :  DS18B20XZ;600;t2;3;stddev;above;flapping state
-7  :  DS18B20XX;1800;t1;10;median;above;default;swP:1:4
-10  :  DS18B20XX;1800;t1;10;median;below;default;swP:0:4
+7  :  DS18B20XX;1800;t1;10;median;below;default;heating;swP:1:4
+
+status  :  triggered
+1  :  DS18B20XX;1800;t1;5;not average;below;temperature reentered to normal range;reentered;email
+  
+status  :  reentered
+1  :  DS18B20XX;1800;t1;5;average;below;temperature seems to be flapping;flapping;email
+
+status  :  flapping
+1  :  DS18B20XX;1800;t1;5;average;below;date: temperature seems to be flapping;flapping;email
+
+status  :  heating
+7  :  DS18B20XX;1800;t1;11;median;below;default;initial;swP:0:4
 
 #to be continued...
 
@@ -131,7 +145,7 @@ class sp(object):
     configdict['reportlevel'] = 'partial'
     configdict['notification'] = 'email'
     configdict['notification'] = 'log'
-    valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
+    valuenamelist = ['status','sensorid','timerange','key','value','function','operator','statusmessage','switchcommand']
     #valuedict = {'sensorid':'DS18B20','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
     #parameterdict = {'1':valuedict}
     parameterdict = {}
@@ -172,6 +186,7 @@ def GetConf(path):
     """
     # Init values
     try:
+        status = ""
         config = open(path,'r')
         confs = config.readlines()
 
@@ -182,6 +197,9 @@ def GetConf(path):
             elif conf.isspace():
                 continue
             elif len(conflst) == 2:
+                if conflst[0] == "status":
+                    # get the status name for the following list
+                    status = conflst[1].strip()
                 if is_number(conflst[0]):
                     # extract parameterlist
                     key = conflst[0].strip()
@@ -283,25 +301,25 @@ def GetTestValue(data=DataStream(), key='x', function='average', debug=False):
     return (testvalue, msg)
 
 
-def CheckThreshold(testvalue, threshold, state, debug=False):
+def CheckThreshold(testvalue, threshold, operator, debug=False):
     """
     DESCRIPTION:
      returns statusmessage
     """
     evaluate = False
     msg = ''
-    if state in ['below','Below','smaller']:
+    if operator in ['below','Below','smaller']:
         comp = '<'
-    elif state in ['above','Above','greater']:
+    elif operator in ['above','Above','greater']:
         comp = '>'
-    elif state in ['equal','Equal']:
+    elif operator in ['equal','Equal']:
         comp = '=='
-    elif state in ['equalabove']:
+    elif operator in ['equalabove']:
         comp = '>='
-    elif state in ['equalbelow']:
+    elif operator in ['equalbelow']:
         comp = '<='
     else:
-        msg = 'state needs to be one of below, above or equal'
+        msg = 'operator needs to be one of below, above or equal'
     tester = "{} {} {}".format(testvalue,comp,threshold)
     if debug:
         print ("Checking: {}".format(tester))
@@ -441,7 +459,7 @@ def main(argv):
                 (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
                 (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
                 if is_number(testvalue):
-                    (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('state'), debug=debug) # Returns statusmessage
+                    (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('operator'), debug=debug) # Returns statusmessage
                     if evaluate and msg == '':
                         content = InterpreteStatus(valuedict,debug=debug)
                         # Perform switch and added "switch on/off" to content 
