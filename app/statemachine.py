@@ -68,7 +68,7 @@ reportlevel          :   partial
 
 #parameter (all given parameters are checked in the given order, use semicolons for parameter list):
 # sensorid; timerange to check; key to check, value, function, state, statusmessage, switchcommand(optional)
-# sensorid; timerange to check; key to check, value, function, operator, statusmessage, nextstatus, action(optional)
+# sensorid; timerange to check; key to check, value, function, operator, statusmessage, nextstatus, [action, args, action, args,...]
 status  :  initial
 1  :  DS18B20XX;1800;t1;5;average;below;temperature below 5;triggered;email;Temperatur unter 5 Grad gefallen;switch;swP:1:4
 #1  :  DS18B20XX;1800;t1;5;average;below;default;triggered;email
@@ -135,34 +135,7 @@ else:
     pyvers = '3'
 
 
-class sp(object):
-    # Structure for switch parameter
-    configdict = {}
-    configdict['bufferpath'] = '/srv/mqtt'
-    configdict['dbcredentials'] = 'cobsdb'
-    configdict['database'] = 'cobsdb'
-    configdict['reportlevel'] = 'partial'
-    configdict['notification'] = 'email'
-    configdict['notification'] = 'log'
-    valuenamelist = ['status','sensorid','timerange','key','value','function','operator','statusmessage','switchcommand']
-    #valuedict = {'sensorid':'DS18B20','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
-    #parameterdict = {'1':valuedict}
-    parameterdict = {}
-    configdict['version'] = '1.0.0' # thresholdversion
-    configdict['martasdir'] = '/home/cobs/MARTAS/'
-    # Serial Comm
-    configdict['port'] = '/dev/ttyACM0'
-    configdict['baudrate'] = 9600
-    configdict['parity'] = 'N'
-    configdict['bytesize'] = 8
-    configdict['stopbits'] = 1
-    configdict['timeout'] = 2
-    configdict['eol'] = '"\r\n"'
-
-    #Testset
-    #configdict['startdate'] = datetime(2018,12,6,13)
-    #valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
-    #valuedict = {'sensorid':'ENV05_2_0001','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
+valuenamelist = ['sensorid','timerange','key','value','function','operator','statusmessage','nextstatus']
 
 
 def is_number(s):
@@ -172,20 +145,17 @@ def is_number(s):
     except ValueError:
         return False
 
-def GetConf(path):
+def readConfig(path):
     """
     DESCRIPTION:
-        read default configuration paths etc from a file
-        Now: just define them by hand
-    PATH:
-        defaults are stored in magpymqtt.conf
-
-        File looks like:
-        # Configuration data for data transmission using MQTT (MagPy/MARTAS)
+        read configuration paths etc from a file
+        read parameters and states of the state machine
     """
-    # Init values
-    try:
+    #try:
+    if 1:
         status = ""
+        configdict = {}
+        parameterdict = {}
         config = open(path,'r')
         confs = config.readlines()
 
@@ -204,23 +174,44 @@ def GetConf(path):
                     key = conflst[0].strip()
                     values = conflst[1].strip().split(';')
                     valuedict = {}
-                    if not len(values) in [len(sp.valuenamelist), len(sp.valuenamelist)-1]:
+                    if len(values) < len(valuenamelist):
+                        # there must be entries in every field, additionally actions with args are possible
                         print ("PARAMETER: provided values differ from the expected amount - please check")
                     else:
-                        for idx,val in enumerate(values):
-                            valuedict[sp.valuenamelist[idx]] = val.strip()
-                        sp.parameterdict[key] = valuedict
+                        for idx,valuename in enumerate(valuenamelist):
+                            # mandatory parameters
+                            valuedict[valuename] = values[idx].strip()
+                        isAction = True
+                        action = []
+                        argument = []
+                        for idx in range(len(valuenamelist),len(values)):
+                            # optional parameters
+                            if isAction:
+                                action.append(values[idx])
+                                isAction = False
+                            else:
+                                argument.append(values[idx])
+                                isAction = True
+                        valuedict['status'] = status
+                        if not action == []:
+                            valuedict['action'] = action
+                            # TODO important that len of action = argument?
+                            valuedict['argument'] = argument
+                        parameterdict[key+'-'+status] = valuedict
                 else:
                     key = conflst[0].strip()
                     value = conflst[1].strip()
-                    sp.configdict[key] = value
-    except:
+                    configdict[key] = value
+    # status is not needed here
+    del configdict['status']
+    #except:
+    if 0:
         print ("Problems when loading conf data from file...")
         #return ({}, {})
         print ("Could not obtain configuration data - aborting")
         sys.exit()
 
-    return (sp.configdict, sp.parameterdict)
+    return (configdict, parameterdict)
 
 
 def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, debug=False):
@@ -358,8 +349,10 @@ def InterpreteStatus(valuedict, debug=False):
 
 def main(argv):
 
-    para = sp.parameterdict
-    conf = sp.configdict
+    #para = sp.parameterdict
+    #conf = sp.configdict
+    para = {}
+    conf = {}
     debug = False
     configfile = None
     statusdict = {}
@@ -413,7 +406,7 @@ def main(argv):
         elif opt in ("-m", "--configfile"):
             configfile = arg
             print ("Getting all parameters from configration file: {}".format(configfile))
-            (conf, para) = GetConf(configfile)
+            (conf, para) = readConfig(configfile)
         elif opt in ("-U", "--debug"):
             debug = True
 
@@ -430,6 +423,12 @@ def main(argv):
         print ("No parameters given too be checked - aborting") 
         sys.exit()
 
+    # TODO weg:
+    print ('para: ')
+    print (para)
+    print ('conf: ')
+    print (conf)
+    exit()
 
     try:
         martaslogpath = os.path.join(conf.get('martasdir'), 'doc')
@@ -554,3 +553,33 @@ if __name__ == "__main__":
    main(sys.argv[1:])
 
 
+"""
+class sp(object):
+    # Structure for switch parameter
+    configdict = {}
+    configdict['bufferpath'] = '/srv/mqtt'
+    configdict['dbcredentials'] = 'cobsdb'
+    configdict['database'] = 'cobsdb'
+    configdict['reportlevel'] = 'partial'
+    configdict['notification'] = 'email'
+    configdict['notification'] = 'log'
+    valuenamelist = ['status','sensorid','timerange','key','value','function','operator','statusmessage','switchcommand']
+    #valuedict = {'sensorid':'DS18B20','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
+    #parameterdict = {'1':valuedict}
+    parameterdict = {}
+    configdict['version'] = '1.0.0' # thresholdversion
+    configdict['martasdir'] = '/home/cobs/MARTAS/'
+    # Serial Comm
+    configdict['port'] = '/dev/ttyACM0'
+    configdict['baudrate'] = 9600
+    configdict['parity'] = 'N'
+    configdict['bytesize'] = 8
+    configdict['stopbits'] = 1
+    configdict['timeout'] = 2
+    configdict['eol'] = '"\r\n"'
+
+    #Testset
+    #configdict['startdate'] = datetime(2018,12,6,13)
+    #valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
+    #valuedict = {'sensorid':'ENV05_2_0001','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
+"""

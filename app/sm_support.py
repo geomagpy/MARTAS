@@ -89,10 +89,14 @@ def sendtelegram(dic):
     # python
     # import telegram_send
     # telegram_send.configure("/path/to/my/telegram.cfg",channel=True)
+    """
+    This must be done before!
     tgmsg = ''
     for elem in dictionary:
         tgmsg += "{}: {}\n".format(elem, dictionary[elem])
-    telegram_send.send(messages=[tgmsg],conf=self.telegram.get('config'),parse_mode="markdown")
+    """
+    #telegram_send.send(messages=[tgmsg],conf=self.telegram.get('config'),parse_mode="markdown")
+    telegram_send.send(messages=[dic['text']],conf=dic['telegramconf'],parse_mode="markdown")
 
 
 def sendswitchcommand(dic):
@@ -103,13 +107,15 @@ def sendswitchcommand(dic):
     # TODO "comm" must be a part of dic, "conf" below must also be got from "dic" above
     script = os.path.join(conf.get('martasdir'),'app','ardcomm.py')
     pythonpath = sys.executable
-    arg1 = "-c {}".format(comm)
-    arg2 = "-p {}".format(conf.get('port'))
-    arg3 = "-b {}".format(conf.get('baudrate'))
-    arg4 = "-a {}".format(conf.get('parity'))
-    arg5 = "-y {}".format(conf.get('bytesize'))
-    arg6 = "-s {}".format(conf.get('stopbits'))
-    arg7 = "-t {}".format(conf.get('timeout'))
+    #arg1 = "-c {}".format(comm)
+    arg1 = "-c {}".format(dic.get('comm'))
+    #arg2 = "-p {}".format(conf.get('port'))
+    arg2 = "-p {}".format(dic.get('port'))
+    arg3 = "-b {}".format(dic.get('baudrate'))
+    arg4 = "-a {}".format(dic.get('parity'))
+    arg5 = "-y {}".format(dic.get('bytesize'))
+    arg6 = "-s {}".format(dic.get('stopbits'))
+    arg7 = "-t {}".format(dic.get('timeout'))
     #arg8 = "-e {}".format(conf.get('eol')) # not used so far
 
     command = "{} {} {} {} {} {} {} {} {}".format(pythonpath,script,arg1, arg2, arg3, arg4, arg5, arg6, arg7) ## To be checked
