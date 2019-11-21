@@ -2,31 +2,32 @@
 # coding=utf-8
 
 """
-MARTAS - threshold application
+MARTAS - threshold state machine
 ################################
 
 DESCRIPTION:
-Threshold application reads data from a defined source 
-(DB or file, eventually MQTT).
-Threshold values can be defined for keys in the data file,
-notifications can be send out when ceratin criteria are met, 
-and switching commands can be send if thresholds are exceeded 
-or undergone.
-All threshold processes can be logged and  can be monitored
-by nagios, icinga or martas.
-Threshold.py can be scheduled in crontab.
+Threshold state machine facilitates user defined finite state machines
+to set defined actions in dependecy of data behavior.
+
+Data is read from a defined source (DB or file, eventually MQTT).
+Certain criteria e.g. when thresholds are exceeded or undergone will change
+the state and create an action like sending an email or actuate a switch.
+Following states can prevent further actions and wait for signals that
+e.g. reset the state machine into the initial state.
+
+statemachine.py can be scheduled in crontab.
+
 
 REQUIREMENTS:
 pip install geomagpy (>= 0.3.99)
 
-
 APPLICATION:
-threshold -m /path/to/threshold.cfg
+statemachine -m /path/to/statemachine.cfg
 
 
-switch.cfg: (looks like)
+statemachine.cfg: (looks like)
 ##  ----------------------------------------------------------------
-##           CONFIGURATION DATA for THRESHOLD.PY
+##           CONFIGURATION DATA for STATEMACHINE.PY
 ##  ----------------------------------------------------------------
 
 # MARTAS directory
@@ -43,12 +44,10 @@ dbcredentials        :   None
 bufferpath           :   /srv/mqtt/
 
 
-# Logfile (a json style dictionary, which contains statusmessages) 
-#logfile              :   /var/log/magpy/threshold.log
-logfile              :   /home/leon/Tmp/threshold.log
+# Statusfile (a json style dictionary, which contains states) 
+statusfile              :   /var/log/magpy/status.log
 
-
-# Notifaction (uses martaslog class, one of email, telegram, mqtt, log) 
+# Notifications (uses martaslog class, one of email, telegram, mqtt, log) 
 notification         :   email
 notificationconfig   :   /etc/martas/notification.cfg
 
@@ -71,7 +70,7 @@ reportlevel          :   partial
 # sensorid; timerange to check; key to check, value, function, state, statusmessage, switchcommand(optional)
 # sensorid; timerange to check; key to check, value, function, operator, statusmessage, nextstatus, action(optional)
 status  :  initial
-1  :  DS18B20XX;1800;t1;5;average;below;temperature below 5;triggered;email
+1  :  DS18B20XX;1800;t1;5;average;below;temperature below 5;triggered;email;Temperatur unter 5 Grad gefallen;switch;swP:1:4
 #1  :  DS18B20XX;1800;t1;5;average;below;default;triggered;email
 2  :  DS18B20XX;1800;t1;5;average;below;none
 3  :  DS18B20XZ;600;t2;10;max;below;ok
