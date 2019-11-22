@@ -218,48 +218,6 @@ def readConfig(path):
 
     return (configdict, statusdict)
 
-"""
-def updateStatus(logfile,para):
-        changes={}
-        if os.path.isfile(logfile):
-            # read log if exists and exentually update changed information
-            # return changes
-            with open(logfile, 'r') as file:
-                exlogdict = json.load(file)
-            print ("Logfile {} loaded".format(logfile))
-            for el in logdict:
-                if not el in exlogdict:
-                    # Adding new sensor and state
-                    print ("Not Existing:", el)
-                    changes[el] = logdict[el]
-                else:
-                    print ("Existing:", el)
-                    # Checking state
-                    if not logdict[el] == exlogdict[el]:
-                        # state changed
-                        changes[el] = logdict[el]
-            ## check for element in exlogdict which are not in logdict
-            for el in exlogdict:
-                if not el in logdict:
-                    # Sensor has been removed
-                    print ("Removed:", el)
-                    changes[el] = "removed"
-
-            if not len(changes) == 0:
-                # overwrite prexsiting logfile
-                print ("-------------")
-                print ("Changes found")
-                print ("-------------")
-                with open(logfile, 'w') as file:
-                    file.write(json.dumps(logdict)) # use `json.loads` to do the reverse
-        else:
-            # write logdict to file
-            with open(logfile, 'w') as file:
-                file.write(json.dumps(logdict)) # use `json.loads` to do the reverse
-            print ("Logfile {} written successfully".format(logfile))
-
-        return changes
-"""
 
 
 def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, debug=False):
@@ -401,6 +359,8 @@ def main(argv):
     #conf = sp.configdict
     para = {}
     conf = {}
+    # necessary configs (may be overwritten):
+    conf['statusfile']='/var/log/magpy/statusfile.log'
     debug = False
     configfile = None
     statusdict = {}
@@ -453,81 +413,80 @@ def main(argv):
             sys.exit()
         elif opt in ("-m", "--configfile"):
             configfile = arg
-            print ("Getting all parameters from configration file: {}".format(configfile))
+            print ("Getting all parameters of the state machine from configuration file: {}".format(configfile))
             (conf, para) = readConfig(configfile)
         elif opt in ("-U", "--debug"):
             debug = True
 
-        # TODO activate in order prevent default values
-        #if not configfile or conf == {}:
-        #    print (' !! Could not read configuration information - aborting')
-        #    sys.exit()
 
     if debug:
         print ("Configuration dictionary: \n{}".format(conf))
         print ("Parameter dictionary: \n{}".format(para))
 
     if not (len(para)) > 0:
-        print ("No parameters given too be checked - aborting") 
+        print ("No parameters given to be checked - aborting") 
         sys.exit()
 
-    # TODO weg:
-    print ('para: ')
-    print (para)
-    print ('conf: ')
-    print (conf)
-    exit()
-
-    try:
-        martaslogpath = os.path.join(conf.get('martasdir'), 'doc')
-        sys.path.insert(1, martaslogpath)
-        from martas import martaslog as ml
-        logpath = conf.get('bufferpath')
-    except:
-        print ("Could not import martas logging routines - check MARTAS directory path")
-
- 
-    # For each parameter
-    for i in range(0,1000):
-            valuedict = para.get(str(i),{})
-            content = ''
-            if not valuedict == {}:
-                if debug:
-                    print ("Checking parameterset {}".format(i))
-                data = DataStream()
-                testvalue = None
-                evaluate = {}
+    laststatusdict = {}
+    if os.path.isfile(conf['statusfile']):
+        # read log if exists and exentually update changed information
+        # return changes
+        with open(conf['statusfile'], 'r') as file:
+            laststatusdict = json.load(file)
+        print ("Statusfile {} loaded".format(conf['statusfile']))
+    
+    # For each machine
+    for i in range(0,1000): 
+        valuedict = {}
+        if not str(i) in laststatusdict and str(i) in para['start']:
+            # machine is not yet in the statusfile, let's add it to the dict
+            laststatusdict[str(i)] = {}
+            laststatusdict[str(i)]['status'] = 'start'
+            laststatusdict[str(i)]['sensorid'] = para['start'][str(i)]['sensorid']
+            laststatusdict[str(i)]['key'] = para['start'][str(i)]['key']
+        if str(i) in laststatusdict:
+            status = laststatusdict[str(i)]['status']
+            # TODO handle deleted statuus!
+            valuedict = para[status].get(str(i),{})
+        if not valuedict == {}:
+            if debug:
+                print ("Checking parameterset {}".format(i))
+            data = DataStream()
+            testvalue = None
+            evaluate = {}
                 
-                # Obtain a magpy data stream of the respective data set
-                if debug:
-                    print ("Accessing data from {} at {}: Sensor {} - Amount: {} sec".format(conf.get('source'),conf.get('bufferpath'),valuedict.get('sensorid'),valuedict.get('timerange') ))
+            # Obtain a magpy data stream of the respective data set
+            if debug:
+                print ("Accessing data from {} at {}: Sensor {} - Amount: {} sec".format(conf.get('source'),conf.get('bufferpath'),valuedict.get('sensorid'),valuedict.get('timerange') ))
 
-                (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
-                (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
-                if is_number(testvalue):
-                    (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('operator'), debug=debug) # Returns statusmessage
-                    if evaluate and msg == '':
-                        content = InterpreteStatus(valuedict,debug=debug)
-                        # Perform switch and added "switch on/off" to content 
-                        if not valuedict.get('switchcommand') in ['None','none',None]:
-                            if debug:
-                                print ("Found switching command ... eventually will send serial command (if not done already) after checking all other commands")
-                            content = '{} - switch: {}'.format(content, valuedict.get('switchcommand'))
-                            # remember the switchuing command and only issue it if statusdict is changing
-                    elif not msg == '':
-                        content =  msg
-                    else:
-                        content = ''
+            (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
+            (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
+            if is_number(testvalue):
+                (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('operator'), debug=debug) # Returns statusmessage
+                if evaluate and msg == '':
+                    content = InterpreteStatus(valuedict,debug=debug)
+                    # Perform switch and added "switch on/off" to content 
+                    if not valuedict.get('switchcommand') in ['None','none',None]:
+                        if debug:
+                            print ("Found switching command ... eventually will send serial command (if not done already) after checking all other commands")
+                        content = '{} - switch: {}'.format(content, valuedict.get('switchcommand'))
+                        # remember the switchuing command and only issue it if statusdict is changing
+                elif not msg == '':
+                    content =  msg
                 else:
-                    content = msg1+' - '+msg2
+                    content = ''
+            else:
+                content = msg1+' - '+msg2
 
-                if content:
-                    statuskeylist.append('Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key')))
-                    statusdict['Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))] = content
+            if content:
+                statuskeylist.append('Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key')))
+                statusdict['Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))] = content
 
-                if debug:
-                    print ("Finished parameterset {}".format(i))
+            if debug:
+                print ("Finished parameterset {}".format(i))
 
+    exit()
+    
 
     if conf.get('reportlevel') == 'full':
         # Get a unique status key list:
@@ -630,4 +589,46 @@ class sp(object):
     #configdict['startdate'] = datetime(2018,12,6,13)
     #valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
     #valuedict = {'sensorid':'ENV05_2_0001','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
+"""
+"""
+def updateStatus(logfile,para):
+        changes={}
+        if os.path.isfile(logfile):
+            # read log if exists and exentually update changed information
+            # return changes
+            with open(logfile, 'r') as file:
+                exlogdict = json.load(file)
+            print ("Logfile {} loaded".format(logfile))
+            for el in logdict:
+                if not el in exlogdict:
+                    # Adding new sensor and state
+                    print ("Not Existing:", el)
+                    changes[el] = logdict[el]
+                else:
+                    print ("Existing:", el)
+                    # Checking state
+                    if not logdict[el] == exlogdict[el]:
+                        # state changed
+                        changes[el] = logdict[el]
+            ## check for element in exlogdict which are not in logdict
+            for el in exlogdict:
+                if not el in logdict:
+                    # Sensor has been removed
+                    print ("Removed:", el)
+                    changes[el] = "removed"
+
+            if not len(changes) == 0:
+                # overwrite prexsiting logfile
+                print ("-------------")
+                print ("Changes found")
+                print ("-------------")
+                with open(logfile, 'w') as file:
+                    file.write(json.dumps(logdict)) # use `json.loads` to do the reverse
+        else:
+            # write logdict to file
+            with open(logfile, 'w') as file:
+                file.write(json.dumps(logdict)) # use `json.loads` to do the reverse
+            print ("Logfile {} written successfully".format(logfile))
+
+        return changes
 """
