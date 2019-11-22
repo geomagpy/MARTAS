@@ -191,26 +191,16 @@ def readConfig(path):
                             # optional parameters
                             if isAction:
                                 action = values[idx].strip()
-                                actionAux = copy.deepcopy(action)
-                                actionlist.append(actionAux)
+                                actionlist.append(action)
                                 isAction = False
                             else:
                                 argument = values[idx].strip()
-                                argumentAux = copy.deepcopy(argument)
-                                argumentlist.append(argumentAux)
+                                argumentlist.append(argument)
                                 isAction = True
                         if not actionlist == []:
                             valuedict['action'] = actionlist
                             # TODO important that len of action = argument?
                             valuedict['argument'] = argumentlist
-
-                        print ()
-                        print (actionlist)
-                        try:
-                            print (valuedict)
-                        except:
-                            pass
-                        print ()
                         parameterdict[key] = copy.deepcopy(valuedict)
                         statusdict[status] = copy.deepcopy(parameterdict)
                 else:
