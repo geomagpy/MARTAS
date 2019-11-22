@@ -123,6 +123,7 @@ from magpy.database import mysql,readDB
 from datetime import datetime, timedelta
 import magpy.opt.cred as mpcred
 import sys, getopt, os
+import copy
 try:
     import paho.mqtt.client as mqtt
 except:
@@ -184,22 +185,34 @@ def readConfig(path):
                             # mandatory parameters
                             valuedict[valuename] = values[idx].strip()
                         isAction = True
-                        action = []
-                        argument = []
+                        actionlist = []
+                        argumentlist = []
                         for idx in range(len(valuenamelist),len(values)):
                             # optional parameters
                             if isAction:
-                                action.append(values[idx])
+                                action = values[idx].strip()
+                                actionAux = copy.deepcopy(action)
+                                actionlist.append(actionAux)
                                 isAction = False
                             else:
-                                argument.append(values[idx])
+                                argument = values[idx].strip()
+                                argumentAux = copy.deepcopy(argument)
+                                argumentlist.append(argumentAux)
                                 isAction = True
-                        if not action == []:
-                            valuedict['action'] = action
+                        if not actionlist == []:
+                            valuedict['action'] = actionlist
                             # TODO important that len of action = argument?
-                            valuedict['argument'] = argument
-                        parameterdict[key] = valuedict
-                        statusdict[status] = parameterdict
+                            valuedict['argument'] = argumentlist
+
+                        print ()
+                        print (actionlist)
+                        try:
+                            print (valuedict)
+                        except:
+                            pass
+                        print ()
+                        parameterdict[key] = copy.deepcopy(valuedict)
+                        statusdict[status] = copy.deepcopy(parameterdict)
                 else:
                     key = conflst[0].strip()
                     value = conflst[1].strip()
@@ -214,6 +227,49 @@ def readConfig(path):
         sys.exit()
 
     return (configdict, statusdict)
+
+"""
+def updateStatus(logfile,para):
+        changes={}
+        if os.path.isfile(logfile):
+            # read log if exists and exentually update changed information
+            # return changes
+            with open(logfile, 'r') as file:
+                exlogdict = json.load(file)
+            print ("Logfile {} loaded".format(logfile))
+            for el in logdict:
+                if not el in exlogdict:
+                    # Adding new sensor and state
+                    print ("Not Existing:", el)
+                    changes[el] = logdict[el]
+                else:
+                    print ("Existing:", el)
+                    # Checking state
+                    if not logdict[el] == exlogdict[el]:
+                        # state changed
+                        changes[el] = logdict[el]
+            ## check for element in exlogdict which are not in logdict
+            for el in exlogdict:
+                if not el in logdict:
+                    # Sensor has been removed
+                    print ("Removed:", el)
+                    changes[el] = "removed"
+
+            if not len(changes) == 0:
+                # overwrite prexsiting logfile
+                print ("-------------")
+                print ("Changes found")
+                print ("-------------")
+                with open(logfile, 'w') as file:
+                    file.write(json.dumps(logdict)) # use `json.loads` to do the reverse
+        else:
+            # write logdict to file
+            with open(logfile, 'w') as file:
+                file.write(json.dumps(logdict)) # use `json.loads` to do the reverse
+            print ("Logfile {} written successfully".format(logfile))
+
+        return changes
+"""
 
 
 def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, debug=False):
