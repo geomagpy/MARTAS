@@ -154,6 +154,8 @@ def readConfig(path):
     #try:
     if 1:
         status = ""
+        # TODO backward compatibility? (-> default status, if not mentioned in the config file...)
+        statusdict = {}
         configdict = {}
         parameterdict = {}
         config = open(path,'r')
@@ -192,12 +194,12 @@ def readConfig(path):
                             else:
                                 argument.append(values[idx])
                                 isAction = True
-                        valuedict['status'] = status
                         if not action == []:
                             valuedict['action'] = action
                             # TODO important that len of action = argument?
                             valuedict['argument'] = argument
-                        parameterdict[key+'-'+status] = valuedict
+                        parameterdict[key] = valuedict
+                        statusdict[status] = parameterdict
                 else:
                     key = conflst[0].strip()
                     value = conflst[1].strip()
@@ -211,7 +213,7 @@ def readConfig(path):
         print ("Could not obtain configuration data - aborting")
         sys.exit()
 
-    return (configdict, parameterdict)
+    return (configdict, statusdict)
 
 
 def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, debug=False):
