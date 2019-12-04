@@ -371,10 +371,11 @@ def main(argv):
     statusdict = {}
     statuskeylist = []
     MachineToReset = None
+    ListMachine = False
 
     usagestring = 'threshold.py -h <help> -m <configpath>'
     try:
-        opts, args = getopt.getopt(argv,"hm:Ur:",["configpath=","reset="])
+        opts, args = getopt.getopt(argv,"hm:Ur:l",["configpath=","reset="])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -392,7 +393,7 @@ def main(argv):
             print ('              ----------------------------')
             print ('              configurationfile')
             print ('              ----------------------------')
-            print ('              threhold.cfg: (looks like)')
+            print ('              status.cfg: (looks like)')
             print ('              # MARTAS directory')
             print ('              martasdir            :   /home/cobs/MARTAS/')
             print ('              # Define data source (file, db)')
@@ -402,8 +403,7 @@ def main(argv):
             print ('              # If source = file define the base path')
             print ('              sensorpath           :   /srv/mqtt/')
             print ('              # Notifaction (uses martaslog class, one of email, telegram, mqtt, log) ')
-            print ('              notification         :   email')
-            print ('              notificationconfig   :   /etc/martas/notification.cfg')
+            print ('              emailconfig   :   /etc/martas/mail.cfg')
             print ('              # serial communication for switch commands (based on ardcomm.py (MARTAS/app)')
             print ('              serialcfg            :   None')
             print ('              #parameter (all given parameters are checked in the given order, use semicolons for parameter list):')
@@ -411,11 +411,13 @@ def main(argv):
             print ('              1  :  DS18B20XX;1800;t1;5;low;average;on;swP:4:1')
             print ('              2  :  DS18B20XY;1800;t1;10;high;median;off;swP:4:0')
             print ('              3  :  DS18B20XZ;600;t2;20;high;max;alarm at date;None')
+            print ('-r            reset a state machine')
+            print ('-l            display states')
             print ('              #to be continued...')
 
             print ('------------------------------------------------------')
             print ('Example:')
-            print ('   python threshold.py -m /etc/martas/threshold.cfg')
+            print ('   python statemachine.py -m /etc/martas/status.cfg')
             sys.exit()
         elif opt in ("-m", "--configfile"):
             configfile = arg
@@ -427,6 +429,8 @@ def main(argv):
             else:
                 print ("--reset must_be_a_number")
                 sys.exit()
+        elif opt in ("-l"):
+            ListMachine = True
         elif opt in ("-U", "--debug"):
             debug = True
 
@@ -446,6 +450,15 @@ def main(argv):
         with open(conf['statusfile'], 'r') as file:
             statusdict = json.load(file)
         print ("Statusfile {} loaded".format(conf['statusfile']))
+
+    if ListMachine:
+        if statusdict == {}:
+            print ('no states but start')
+        else:
+            print (statusdict)
+            for state in statusdict:
+                print (state+": "+statusdict[state]['status'])
+        exit()
 
     if MachineToReset and not statusdict == {}:
         if MachineToReset in statusdict:

@@ -47,8 +47,8 @@ def sendmail(dic):
     msg['To'] = dic['To']
     send_to = map(lambda s:s.strip(), dic['To'].split(','))
     msg['Date'] = formatdate(localtime=True)
-    msg['Subject'] = dic['Subject']
-    msg.attach( MIMEText(dic['Text']) )
+    msg['Subject'] = dic['Subject'].decode('utf-8')
+    msg.attach( MIMEText(dic['Text'],"plain", "utf-8") )
 
     # TODO log if file does not exist
     for f in files:
