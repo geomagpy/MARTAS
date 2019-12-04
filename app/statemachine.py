@@ -123,7 +123,8 @@ from magpy.database import mysql,readDB
 from datetime import datetime, timedelta
 import magpy.opt.cred as mpcred
 import sys, getopt, os
-import copy
+import json, copy
+
 try:
     import paho.mqtt.client as mqtt
 except:
@@ -150,7 +151,9 @@ def readConfig(path):
     """
     DESCRIPTION:
         read configuration paths etc from a file
-        read parameters and states of the state machine
+        this is stored in configdict
+        read parameters and states of the state machines (1,2,3,...)
+        complete info and behavior of the state machines is stored in statusdict
     """
     #try:
     if 1:
@@ -158,7 +161,6 @@ def readConfig(path):
         # TODO backward compatibility? (-> default status, if not mentioned in the config file...)
         statusdict = {}
         configdict = {}
-        parameterdict = {}
         config = open(path,'r')
         confs = config.readlines()
 
@@ -186,23 +188,26 @@ def readConfig(path):
                             valuedict[valuename] = values[idx].strip()
                         isAction = True
                         actionlist = []
-                        argumentlist = []
                         for idx in range(len(valuenamelist),len(values)):
                             # optional parameters
                             if isAction:
                                 action = values[idx].strip()
-                                actionlist.append(action)
+                                actionlist.append({'action':action})
                                 isAction = False
                             else:
                                 argument = values[idx].strip()
-                                argumentlist.append(argument)
+                                actionlist[-1]['argument'] = argument
                                 isAction = True
                         if not actionlist == []:
                             valuedict['action'] = actionlist
                             # TODO important that len of action = argument?
-                            valuedict['argument'] = argumentlist
-                        parameterdict[key] = copy.deepcopy(valuedict)
-                        statusdict[status] = copy.deepcopy(parameterdict)
+                            #valuedict['argument'] = argumentlist
+                        if not status in statusdict:
+                            statusdict[status] = {}
+                        if not key in statusdict[status]:
+                            statusdict[status][key] = [copy.deepcopy(valuedict)]
+                        else:
+                            statusdict[status][key].append(copy.deepcopy(valuedict))
                 else:
                     key = conflst[0].strip()
                     value = conflst[1].strip()
@@ -427,64 +432,92 @@ def main(argv):
         print ("No parameters given to be checked - aborting") 
         sys.exit()
 
-    laststatusdict = {}
+    statusdict = {}
     if os.path.isfile(conf['statusfile']):
         # read log if exists and exentually update changed information
         # return changes
         with open(conf['statusfile'], 'r') as file:
-            laststatusdict = json.load(file)
+            statusdict = json.load(file)
         print ("Statusfile {} loaded".format(conf['statusfile']))
     
     # For each machine
     for i in range(0,1000): 
         valuedict = {}
-        if not str(i) in laststatusdict and str(i) in para['start']:
+        values = []
+        if not str(i) in statusdict and str(i) in para['start']:
             # machine is not yet in the statusfile, let's add it to the dict
-            laststatusdict[str(i)] = {}
-            laststatusdict[str(i)]['status'] = 'start'
-            laststatusdict[str(i)]['sensorid'] = para['start'][str(i)]['sensorid']
-            laststatusdict[str(i)]['key'] = para['start'][str(i)]['key']
-        if str(i) in laststatusdict:
-            status = laststatusdict[str(i)]['status']
+            statusdict[str(i)] = {}
+            statusdict[str(i)]['status'] = 'start'
+            #laststatusdict[str(i)]['sensorid'] = para['start'][str(i)]['sensorid']
+            #laststatusdict[str(i)]['key'] = para['start'][str(i)]['key']
+        if str(i) in statusdict:
+            status = statusdict[str(i)]['status']
             # TODO handle deleted statuus!
-            valuedict = para[status].get(str(i),{})
-        if not valuedict == {}:
+            values = para[status].get(str(i),[])
+        if not values == []:
             if debug:
-                print ("Checking parameterset {}".format(i))
+                print ("Checking state machine {}".format(i))
             data = DataStream()
             testvalue = None
-            evaluate = {}
+            # TODO do I need this? evaluate = {}
                 
             # Obtain a magpy data stream of the respective data set
             if debug:
                 print ("Accessing data from {} at {}: Sensor {} - Amount: {} sec".format(conf.get('source'),conf.get('bufferpath'),valuedict.get('sensorid'),valuedict.get('timerange') ))
 
-            (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
-            (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
-            if is_number(testvalue):
-                (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('operator'), debug=debug) # Returns statusmessage
-                if evaluate and msg == '':
-                    content = InterpreteStatus(valuedict,debug=debug)
-                    # Perform switch and added "switch on/off" to content 
-                    if not valuedict.get('switchcommand') in ['None','none',None]:
+            for valuedict in values:
+                (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
+                (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
+                if is_number(testvalue):
+                    (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('operator'), debug=debug) # Returns statusmessage
+                    if evaluate and msg == '':
+                        # criteria are met - do something
+                        # change status
                         if debug:
-                            print ("Found switching command ... eventually will send serial command (if not done already) after checking all other commands")
-                        content = '{} - switch: {}'.format(content, valuedict.get('switchcommand'))
-                        # remember the switchuing command and only issue it if statusdict is changing
-                elif not msg == '':
-                    content =  msg
-                else:
-                    content = ''
+                            print ("changing status of machine "+str(i)+" from")
+                            print (statusdict[str(i)]['status'])
+                            print ("to")
+                            print (valuedict['nextstatus'])
+                        statusdict[str(i)]['status'] = valuedict['nextstatus']
+                        if 'action' in valuedict:
+                            for action in valuedict['action']:
+                                sm_support_path = os.path.join(conf.get('martasdir'), 'app')
+                                sys.path.insert(1, sm_support_path)
+                                import sm_support
+                                if action['action'] == 'email':
+                                    dic = sm_support.readConfigFromFile(conf.get('emailconfig'))
+                                    dic['Text'] = action['argument']
+                                    sm_support.sendmail(dic)
+
+
+                        # TODO handle content resp. errors
+                        content = InterpreteStatus(valuedict,debug=debug)
+                        # Perform switch and added "switch on/off" to content 
+                        if not valuedict.get('switchcommand') in ['None','none',None]:
+                            if debug:
+                                print ("Found switching command ... eventually will send serial command (if not done already) after checking all other commands")
+                            content = '{} - switch: {}'.format(content, valuedict.get('switchcommand'))
+                            # remember the switchuing command and only issue it if statusdict is changing
+                    elif not msg == '':
+                        content =  msg
+                    else:
+                        content = ''
             else:
                 content = msg1+' - '+msg2
 
-            if content:
+            #if content:
+            if 0:
                 statuskeylist.append('Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key')))
                 statusdict['Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))] = content
 
             if debug:
-                print ("Finished parameterset {}".format(i))
+                print ("Finished state machine {}".format(i))
 
+    with open(conf['statusfile'], 'w') as file:
+        if debug:
+            print ('writing to '+conf['statusfile']+' :')
+            print (statusdict)
+        file.write(json.dumps(statusdict)) # use `json.loads` to do the reverse
     exit()
     
 

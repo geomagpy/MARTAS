@@ -155,22 +155,23 @@ def readConfigFromFile(path):
     """
 
     dic = {}
-    try:
+    #try:
+    if 1:
         config = open(path,'r')
         confs = config.readlines()
 
         for conf in confs:
+            conflst = conf.split(' : ')
             if conf.startswith('#'):
                 continue
             elif conf.isspace():
                 continue
             elif len(conflst) == 2:
-                conflst = conf.split(' : ')
                 key = conflst[0].strip()
                 value = conflst[1].strip()
                 dic[key] = value
-    except:
-        print ("Problems when loading conf data from file.")
+    #except:
+    #    print ("Problems when loading conf data from file.")
 
     return dic
 
