@@ -370,10 +370,11 @@ def main(argv):
     configfile = None
     statusdict = {}
     statuskeylist = []
+    MachineToReset = None
 
     usagestring = 'threshold.py -h <help> -m <configpath>'
     try:
-        opts, args = getopt.getopt(argv,"hm:U",["configpath="])
+        opts, args = getopt.getopt(argv,"hm:Ur:",["configpath=","reset="])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -420,6 +421,12 @@ def main(argv):
             configfile = arg
             print ("Getting all parameters of the state machine from configuration file: {}".format(configfile))
             (conf, para) = readConfig(configfile)
+        elif opt in ("-r", "--reset"):
+            if is_number(arg):
+                MachineToReset = arg
+            else:
+                print ("--reset must_be_a_number")
+                sys.exit()
         elif opt in ("-U", "--debug"):
             debug = True
 
@@ -439,6 +446,19 @@ def main(argv):
         with open(conf['statusfile'], 'r') as file:
             statusdict = json.load(file)
         print ("Statusfile {} loaded".format(conf['statusfile']))
+
+    if MachineToReset and not statusdict == {}:
+        if MachineToReset in statusdict:
+            del statusdict[MachineToReset]
+            print (MachineToReset+" set to 'start'")
+        else:
+            print (MachineToReset+" not found")
+        with open(conf['statusfile'], 'w') as file:
+            if debug:
+                print ('writing to '+conf['statusfile']+' :')
+                print (statusdict)
+            file.write(json.dumps(statusdict)) # use `json.loads` to do the reverse
+        exit()
     
     # For each machine
     for i in range(0,1000): 
@@ -459,7 +479,6 @@ def main(argv):
                 print ("Checking state machine {}".format(i))
             data = DataStream()
             testvalue = None
-            # TODO do I need this? evaluate = {}
                 
             # Obtain a magpy data stream of the respective data set
             if debug:
@@ -480,14 +499,23 @@ def main(argv):
                             print (valuedict['nextstatus'])
                         statusdict[str(i)]['status'] = valuedict['nextstatus']
                         if 'action' in valuedict:
+                            sm_support_path = os.path.join(conf.get('martasdir'), 'app')
+                            sys.path.insert(1, sm_support_path)
+                            import sm_support
                             for action in valuedict['action']:
-                                sm_support_path = os.path.join(conf.get('martasdir'), 'app')
-                                sys.path.insert(1, sm_support_path)
-                                import sm_support
                                 if action['action'] == 'email':
                                     dic = sm_support.readConfigFromFile(conf.get('emailconfig'))
                                     dic['Text'] = action['argument']
                                     sm_support.sendmail(dic)
+                                if action['action'] == 'telegram':
+                                    dic = sm_support.readConfigFromFile(conf.get('telegramconfig'))
+                                    dic['text'] = action['argument']
+                                    sm_support.sendtelegram(dic)
+                                if action['action'] == 'switch:':
+                                    dic = conf
+                                    dic['comm'] = action['argument']
+                                    sm_support.sendswitchcommand(dic)
+
 
 
                         # TODO handle content resp. errors
