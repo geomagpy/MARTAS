@@ -146,6 +146,8 @@ def is_number(s):
         return True
     except ValueError:
         return False
+    except:
+        return False
 
 def readConfig(path):
     """
@@ -485,21 +487,28 @@ def main(argv):
             #laststatusdict[str(i)]['key'] = para['start'][str(i)]['key']
         if str(i) in statusdict:
             status = statusdict[str(i)]['status']
-            # TODO handle deleted statuus!
+            # TODO handle states deleted from the config file!
             values = para[status].get(str(i),[])
         if not values == []:
             if debug:
                 print ("Checking state machine {}".format(i))
             data = DataStream()
-            testvalue = None
                 
             # Obtain a magpy data stream of the respective data set
-            if debug:
-                print ("Accessing data from {} at {}: Sensor {} - Amount: {} sec".format(conf.get('source'),conf.get('bufferpath'),valuedict.get('sensorid'),valuedict.get('timerange') ))
 
             for valuedict in values:
+                if debug:
+                    print ("Accessing data from {} at {}: Sensor {} - Amount: {} sec".format(conf.get('source'),conf.get('bufferpath'),valuedict.get('sensorid'),valuedict.get('timerange') ))
                 (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
-                (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
+                testvalue = None
+                if data._get_key_headers() == []:
+                    # there are no keys in the data
+                    if debug:
+                        print ('no data for testvalue')
+                else:
+                    (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
+                if debug:
+                    print ("testvalue is {}".format(testvalue))
                 if is_number(testvalue):
                     (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('operator'), debug=debug) # Returns statusmessage
                     if evaluate and msg == '':
@@ -544,7 +553,8 @@ def main(argv):
                     else:
                         content = ''
             else:
-                content = msg1+' - '+msg2
+                #content = msg1+' - '+msg2
+                pass
 
             #if content:
             if 0:
