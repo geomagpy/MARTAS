@@ -30,6 +30,9 @@ statemachine.cfg: (looks like)
 ##           CONFIGURATION DATA for STATEMACHINE.PY
 ##  ----------------------------------------------------------------
 
+# run a statemachine best by a cron job
+#   python path_to_MARTAS/app/statemachine.py -m this_config_file 
+
 # MARTAS directory
 martasdir            :   /home/cobs/MARTAS/
 
@@ -39,79 +42,31 @@ source               :   file
 # If source = db then define data base credentials created by addcred (MARTAS)
 dbcredentials        :   None
 
-
 # If source = file define the MARTAS buffer base path
-bufferpath           :   /srv/mqtt/
+bufferpath           :   /srv/mqtt
 
+# statusfile (a json style dictionary, which contains states) 
+statusfile            :   /var/log/magpy/status.log
 
-# Statusfile (a json style dictionary, which contains states) 
-statusfile              :   /var/log/magpy/status.log
+# Path of mail config file
+emailconfig : /etc/martas/mail.cfg
 
-# Notifications (uses martaslog class, one of email, telegram, mqtt, log) 
-notification         :   email
-notificationconfig   :   /etc/martas/notification.cfg
+# serial communication for switch commands (based on ardcomm.py (MARTAS/app))
+serialcfg            :   None
 
-
-# Report level ("full" will report all changes, also within range states)
-reportlevel          :   partial
-
-
-# serial communication for switch commands (making use of ardcomm.py (MARTAS/app)
-#port                :   device to which command is send - default is /dev/ttyACM0
-#baudrate            :   default is 9600
-#parity              :   default is "N"
-#bytesize            :   default is 8
-#stopbits            :   default is 1
-#timeout             :   default is 2
-#eol                 :   end of line - default is \r\n
-
-
-#parameter (all given parameters are checked in the given order, use semicolons for parameter list):
-# sensorid; timerange to check; key to check, value, function, state, statusmessage, switchcommand(optional)
-# sensorid; timerange to check; key to check, value, function, operator, statusmessage, nextstatus, [action, args, action, args,...]
-status  :  initial
-1  :  DS18B20XX;1800;t1;5;average;below;temperature below 5;triggered;email;Temperatur unter 5 Grad gefallen;switch;swP:1:4
-#1  :  DS18B20XX;1800;t1;5;average;below;default;triggered;email
-2  :  DS18B20XX;1800;t1;5;average;below;none
-3  :  DS18B20XZ;600;t2;10;max;below;ok
-4  :  DS18B20XZ;600;t2;10;max;above;warning at week
-5  :  DS18B20XZ;600;t2;20;max;above;alarm issued at date
-6  :  DS18B20XZ;600;t2;3;stddev;above;flapping state
-7  :  DS18B20XX;1800;t1;10;median;below;default;heating;swP:1:4
-
-status  :  triggered
-1  :  DS18B20XX;1800;t1;5;not average;below;temperature reentered to normal range;reentered;email
-  
-status  :  reentered
-1  :  DS18B20XX;1800;t1;5;average;below;temperature seems to be flapping;flapping;email
-
-status  :  flapping
-1  :  DS18B20XX;1800;t1;5;average;below;date: temperature seems to be flapping;flapping;email
-
-status  :  heating
-7  :  DS18B20XX;1800;t1;11;median;below;default;initial;swP:0:4
-
-#to be continued...
-
-# SensorID, key:  if sensorid and key of several lines are identical, always the last valid test line defines the message
-#                 Therefore use warning thresholds before alert thresholds   
-# Function:       can be one of max, min, median, average(mean), stddev 
-# State:          can be one below, above, equal 
-# Statusmessage:  default is replaced by "Current 'function' 'state' 'value', e.g. (1) "Current average below 5"
-#                 the following words (last occurrence) are replace by datetime.utcnow(): date, month, year, (week), hour, minute
-#                 "date" is replaced by current date e.g. 2019-11-22
-#                 "month" is replaced by current month e.g. 2019-11
-#                 "week" is replaced by current calender week e.g. 56
-#                 "minute" looks like 2019-11-22 13:10
-#                 -> "date" changes the statusmessage every day and thus a daily notification is triggered as long a alarm condition is active
-
-
-## Description: Parameterset "1":  if temperature t1 (average of last 30 min (1800 sec)) is falling below 5 degrees
-## then send default statusmessage to the notification system (e.g. email)
-## and eventually send switchcommand to serial port
-## IMPORTANT: statusmessage should not contain semicolons, colons and commas; generally avoid special characters
- 
+# now the parameters of the state machine
+#Nr. : 'sensorid';'timerange';'key';'value';'function';'operator';'statusmessage';'nextstatus'[;action;argument;action;argument...]
+# comment: timerange in seconds, statusmessage is until now a dummy
+status : start
+1  :  SENSOR1_SERNR_0001;180;t1;20;min;below;;triggered;email;t1 below 20°
+2  :  SENSOR1_SERNR_0001;180;t1;25;max;above;;triggered;email;t1 above 25°
+status : triggered
+1  :  SENSOR1_SERNR_0001;180;t1;20;min;above;;start;email;t1 above 20° again - I like to send emails ;-)
+2  :  SENSOR1_SERNR_0001;180;t1;20;min;above;;reentered;email;t1 above 20° again - but that doesn't mean everything is fine again...
+status : reentered
+2  :  SENSOR1_SERNR_0001;120;t1;20;average;below;;reentered;email;it seems like t1 is toggling around 20°C - no more email.
 """
+
 
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -404,19 +359,26 @@ def main(argv):
             print ('              dbcredentials        :   None')
             print ('              # If source = file define the base path')
             print ('              sensorpath           :   /srv/mqtt/')
-            print ('              # Notifaction (uses martaslog class, one of email, telegram, mqtt, log) ')
-            print ('              emailconfig   :   /etc/martas/mail.cfg')
-            print ('              # serial communication for switch commands (based on ardcomm.py (MARTAS/app)')
+            print ('              # statusfile (a json style dictionary, which contains states)')
+            print ('              statusfile           :   /var/log/magpy/status.log')
+            print ('              # Path of mail config file')
+            print ('              emailconfig : /etc/martas/mail.cfg')
+            print ('              # serial communication for switch commands (based on ardcomm.py (MARTAS/app))')
             print ('              serialcfg            :   None')
-            print ('              #parameter (all given parameters are checked in the given order, use semicolons for parameter list):')
-            print ('              # sensorid; timerange to check; key to check, value, lower or upper bound,statusmessage,resetby,switchcommand(optional)')
-            print ('              1  :  DS18B20XX;1800;t1;5;low;average;on;swP:4:1')
-            print ('              2  :  DS18B20XY;1800;t1;10;high;median;off;swP:4:0')
-            print ('              3  :  DS18B20XZ;600;t2;20;high;max;alarm at date;None')
+            print ("              #Nr. : 'sensorid';'timerange';'key';'value';'function';'operator';'statusmessage';'nextstatus'[;action;argument;action;argument...]")
+            print ('              # comment: timerange in seconds, statusmessage is until now a dummy')
+            print ('              status : start')
+            print ('              1  :  SENSOR1_SERNR_0001;180;t1;20;min;below;;triggered;email;t1 below 20°')
+            print ('              2  :  SENSOR1_SERNR_0001;180;t1;25;max;above;;triggered;email;t1 above 25°')
+            print ('              status : triggered')
+            print ('              1  :  SENSOR1_SERNR_0001;180;t1;20;min;above;;start;email;t1 above 20° again - I like to send emails ;-)')
+            print ("              2  :  SENSOR1_SERNR_0001;180;t1;20;min;above;;reentered;email;t1 above 20° again - but not for sure...")
+            print ('              status : reentered')
+            print ('              2  :  SENSOR1_SERNR_0001;120;t1;20;average;below;;reentered;email;it seems like t1 is toggling around 20°C - no more email.')
+            print ('              ----------------------------')
+            print ('')
             print ('-r            reset a state machine')
             print ('-l            display states')
-            print ('              #to be continued...')
-
             print ('------------------------------------------------------')
             print ('Example:')
             print ('   python statemachine.py -m /etc/martas/status.cfg')
@@ -457,7 +419,6 @@ def main(argv):
         if statusdict == {}:
             print ('no states but start')
         else:
-            print (statusdict)
             for state in statusdict:
                 print (state+": "+statusdict[state]['status'])
         exit()
