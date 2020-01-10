@@ -963,9 +963,9 @@ def main(argv):
                     log.msg("Connecting database {} at host {} with user {}".format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
                 db = mysql.connect(host=mpcred.lc(dbcred,'host'),user=mpcred.lc(dbcred,'user'),passwd=mpcred.lc(dbcred,'passwd'),db=mpcred.lc(dbcred,'db'))
             except:
-                log.msg('database could not be connected')
+                log.msg('database {} at host {} with user {} could not be connected'.format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
                 log.msg(' ... aborting ...')
-                sys.exit()            
+                sys.exit()
 
     if debug:
         log.msg("Option u: debug mode switched on ...")

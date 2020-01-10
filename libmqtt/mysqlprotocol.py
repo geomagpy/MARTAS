@@ -261,12 +261,12 @@ class MySQLProtocol(object):
             # 2. Getting dict
             sql = 'SELECT DataSamplingRate FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
             sr = float(getList(sql)[0])
-            coverage = int(self.requestrate/sr)+10
+            coverage = int(self.requestrate/sr)+120
 
             # 3. Getting data
             # get data and create typical message topic
             # based on sampling rate and collection rate -> define coverage
-            
+
             li = sorted(mdb.dbselect(self.db, 'time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
             if not self.lastt[index]:
                 self.lastt[index]=li[0][0]
@@ -275,10 +275,16 @@ class MySQLProtocol(object):
             newdat = False
             newli = []
             for elem in li:
-                if newdat:
-                    newli.append(elem)
                 if elem[0] == self.lastt[index]:
                     newdat = True
+                if newdat:
+                    newli.append(elem)
+
+            if not len(newli) > 0:
+                # if last time not included in li then newli will be empty
+                # in this case just add the list
+                for elem in li:
+                    newli.append(elem)
 
             for dataline in newli:
                 timestamp = dataline[0]

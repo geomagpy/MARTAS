@@ -115,13 +115,15 @@ class martaslog(object):
     Class for dealing with and sending out change notifications
     of acquisition and analysis states
     """
-    def __init__(self, logfile='/var/log/magpy/martasstatus.log', receiver='mqtt'):
+    def __init__(self, logfile='/var/log/magpy/martasstatus.log', receiver='mqtt',loglevel='1'):
         self.mqtt = {'broker':'localhost','delay':60,'port':1883,'stationid':'wic', 'client':'P1','user':None,'password':None}
         self.telegram = {'config':"/home/leon/telegramtest.conf"}
         self.email = {'config':"/etc/martas/mail.cfg"}
         self.logfile = logfile
         self.receiver = receiver
         self.hostname = socket.gethostname()
+        self.loglevel = loglevel  # 1: only mark changes, don't remove non-existing inputs
+                                  # 0: record all changes, remove info, which is not existing any more
         # requires json, socket etc
 
     def updatelog(self,logfile,logdict):
@@ -145,10 +147,13 @@ class martaslog(object):
                         changes[el] = logdict[el]
             ## check for element in exlogdict which are not in logdict
             for el in exlogdict:
+                print ("Checking for elements in existing log too be removed")
+                print ("loglevel: {}".format(self.loglevel))
                 if not el in logdict:
-                    # Sensor has been removed
-                    print ("Removed:", el)
-                    changes[el] = "removed"
+                    if self.loglevel == '0':
+                        # Sensor has been removed
+                        print ("Previously existing input removed:", el)
+                        changes[el] = "removed"
 
             if not len(changes) == 0:
                 # overwrite prexsiting logfile

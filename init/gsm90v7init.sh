@@ -13,6 +13,7 @@
 #      T048.5     -> Tuning field in microT
 #      C          ->
 #      datetime   -> initialize time with PC time (see option k)
+#      h          -> switch to auto-cycle method (sometime necessary)
 #      D          -> sampling rate: D -> down, U -> up, leave out to keep sampling rate
 #      R          -> Run
 
