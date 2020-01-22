@@ -208,7 +208,7 @@ class ArduinoProtocol(LineReceiver):
             log.err('  -> Could not interprete sensor information - skipping')
             return {}
 
-        if not 'SensorRevsion' in metadict:
+        if not 'SensorRevision' in metadict:
             metadict['SensorRevision'] = '0001' # dummy value
         if not 'SensorID' in metadict:
             metadict['SensorID'] = '12345' # dummy value
