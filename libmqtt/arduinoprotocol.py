@@ -314,7 +314,7 @@ class ArduinoProtocol(LineReceiver):
         #    log.msg("Received line: {}".format(line))
 
         # extract only ascii characters 
-        line = ''.join(filter(lambda x: x in string.printable, line))
+        line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         # Create a list of sensors like for OW
         # dipatch with the appropriate sensor

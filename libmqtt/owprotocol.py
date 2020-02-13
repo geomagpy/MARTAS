@@ -121,7 +121,7 @@ if onewire:
                             revision = '0001'
                             values['revision'] = revision
                             values['stack'] = 0
-                            values['sensorid'] = typ+'_'+idel+'_'+revision
+                            values['sensorid'] = '{}_{}_{}'.format(typ,idel,revision)
                             log.msg("OW: Writing new sensor input to sensors.cfg ...")
                             success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
                             #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
