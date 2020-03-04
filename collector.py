@@ -224,7 +224,11 @@ def create_head_dict(header,sensorid):
     Interprete header information
     """
     head_dict={}
-    header = header.decode('utf-8')
+    try:
+        # python2.7
+        header = header.decode('utf-8')
+    except:
+        pass
     # some cleaning actions for false header inputs
     header = header.replace(', ',',')
     header = header.replace('deg C','deg')
@@ -277,7 +281,7 @@ def interprete_data(payload, stream, sensorid):
     source:mqtt:
     """
     # future: check for json payload first
-    
+
     lines = payload.split(';') # for multiple lines send within one payload
     # allow for strings in payload !!
     array = [[] for elem in KEYLIST]
@@ -326,7 +330,6 @@ def on_connect(client, userdata, flags, rc):
     client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
-    
     if pyversion.startswith('3'):
        msg.payload= msg.payload.decode('ascii')
 
