@@ -98,8 +98,13 @@ class EnvProtocol(LineReceiver):
         return ','.join(list(map(str,datearray))), header
 
     def lineReceived(self, line):
-
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+
+        # convert codec (py3)
+        try:
+            line = line.decode("latin")
+        except:
+            pass
         # extract only ascii characters 
         line = ''.join(filter(lambda x: x in string.printable, line))
 

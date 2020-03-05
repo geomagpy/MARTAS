@@ -8,6 +8,7 @@ v0.1.4 additions:
 
 v0.1.4 fixes:
     - collector.py: python3 header interpretation corrected
+    - python3 in envprotocl
 
 v0.1.4 improvements:
 
