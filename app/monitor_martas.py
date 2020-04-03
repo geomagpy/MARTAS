@@ -32,7 +32,7 @@ import paho.mqtt.client as mqtt
 import json
 import socket
 
-from martas import martaslog as ml
+from core.martas import martaslog as ml
 
 logpath='/var/log/magpy/mm.log'
 defaultpath='/srv'

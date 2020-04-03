@@ -62,7 +62,7 @@ from datetime import datetime
 ## Import MagPy packages
 ## -----------------------------------------------------------
 from magpy.opt import cred as mpcred
-from magpy.acquisition import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------

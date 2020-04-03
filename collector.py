@@ -73,12 +73,12 @@ try: # Python2.7
     from StringIO import StringIO
 except ImportError: # Python 3.x
     from io import StringIO
-from magpy.acquisition import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
 from doc.version import __version__
-from doc.martas import martaslog as ml
+from core.martas import martaslog as ml
 
 ## Import MQTT
 ## -----------------------------------------------------------

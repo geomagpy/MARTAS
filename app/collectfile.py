@@ -19,7 +19,7 @@ from dateutil import parser
 from shutil import copyfile
 
 try:
-    from doc.martas import martaslog as ml
+    from core.martas import martaslog as ml
 except:
     print ("Martas logging service not available")
 

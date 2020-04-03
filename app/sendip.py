@@ -1,6 +1,6 @@
 import subprocess
 from magpy.transfer import *
-import cred as mpcred
+import magpy.opt.cred as mpcred
 
 ippath = '/home/cobs/MARTAS/Logs/ip.txt'
 

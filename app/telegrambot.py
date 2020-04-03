@@ -45,7 +45,7 @@ from magpy.stream import *
 from magpy.database import *
 import magpy.mpplot as mp
 import magpy.opt.cred as mpcred
-from magpy.acquisition import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 from pickle import load as pload
 import os
 from os import listdir
