@@ -16,7 +16,7 @@ import struct # for binary representation
 import socket # for hostname identification
 from datetime import datetime, timedelta
 from twisted.python import log
-from magpy.acquisition import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 import threading
 import time
 

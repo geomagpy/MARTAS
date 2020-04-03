@@ -13,7 +13,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from magpy.acquisition import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 
 
 ## GEM -GSM19 protocol

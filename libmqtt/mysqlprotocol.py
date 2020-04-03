@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 
-from magpy.acquisition import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 import magpy.opt.cred as mpcred
 import magpy.database as mdb

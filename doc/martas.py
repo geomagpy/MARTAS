@@ -219,7 +219,7 @@ class martaslog(object):
             mailmsg = ''
             for elem in dictionary:
                 mailmsg += "{}: {}\n".format(elem, dictionary[elem])
-            from magpy.acquisition import acquisitionsupport as acs
+            from core import acquisitionsupport as acs
             self.email = acs.GetConf(self.email.get('config'))
             #print(self.email)
             self.email['Text'] = mailmsg

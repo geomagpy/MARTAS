@@ -42,7 +42,7 @@ import os     # binary data saved directly without acs helper method
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from magpy.acquisition import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 from subprocess import check_call
 
 
