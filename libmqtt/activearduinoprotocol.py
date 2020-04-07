@@ -258,7 +258,6 @@ class ActiveArduinoProtocol(object):
 
 
     def getSensorInfo(self, line):
-        
         log.msg("  -> Received unverified sensor information")
         if self.debug:
             log.msg("DEBUG -> Sensor information line looks like: {}".format(line))
@@ -429,8 +428,8 @@ class ActiveArduinoProtocol(object):
         #if self.debug:
         #    log.msg("Received line: {}".format(line))
 
-        # extract only ascii characters 
-        line = ''.join(filter(lambda x: x in string.printable, line))
+        # extract only ascii characters
+        line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         # Create a list of sensors like for OW
         # dispatch with the appropriate sensor

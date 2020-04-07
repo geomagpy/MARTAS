@@ -176,7 +176,7 @@ class GSM90Protocol(LineReceiver):
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
         # extract only ascii characters 
-        line = ''.join(filter(lambda x: x in string.printable, line))
+        line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         ok = True
         try:

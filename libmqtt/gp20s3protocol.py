@@ -323,8 +323,8 @@ class GP20S3Protocol(LineReceiver):
 
         # Defaulttopic
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        # extract only ascii characters 
-        line = ''.join(filter(lambda x: x in string.printable, line))
+        # extract only ascii characters
+        line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         ok = True
         try:

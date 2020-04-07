@@ -156,7 +156,7 @@ class DisdroProtocol(object):
     def processData(self, line, ntptime):
         """processing and storing data - requires sensorid and meta info
            data looks like (TR00005):
-           
+
            The MARTAS code reads only some parameters and sends them in realtime. The full raw data
            is saved into a ascii file with the bufferdirectory
         """
@@ -305,7 +305,6 @@ class DisdroProtocol(object):
         # disconnect from serial
         #ser.close()
 
-        
     def sendmqtt(self,sensorid,data,head):
         """
             call this method after processing data

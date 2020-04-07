@@ -192,7 +192,6 @@ class ArduinoProtocol(LineReceiver):
 
 
     def getSensorInfo(self, line):
-        
         log.msg("  -> Received unverified sensor information")
         if self.debug:
             log.msg("DEBUG -> Sensor information line looks like: {}".format(line))
@@ -304,7 +303,7 @@ class ArduinoProtocol(LineReceiver):
             # invalid return value found
             if self.debug:
                 log.msg("DEBUG - Invalid return value found: {}".format(line))
-        
+
         return evdict, meta, data
 
 
@@ -313,7 +312,7 @@ class ArduinoProtocol(LineReceiver):
         #if self.debug:
         #    log.msg("Received line: {}".format(line))
 
-        # extract only ascii characters 
+        # extract only ascii characters
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         # Create a list of sensors like for OW

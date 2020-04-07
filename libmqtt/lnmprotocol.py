@@ -89,12 +89,12 @@ class LnmProtocol(LineReceiver):
 
 
     # MOVE SEND COMMAND to acquisition support
-    def sendCommands(sensordict, commands):
+    #def sendCommands(sensordict, commands):
     def sendCommands(self):
         try:
             ser = serial.Serial(sensordict.get('port'), baudrate=sensordict.get('baudrate'), parity=sensordict.get('parity'), bytesize=sensordict.get('bytesize'),  stopbits=sensordict.get('stopbits'), parity='N', bytesize=8, stopbits=1, timeout=10)
             #print 'Connection made.'
-        except: 
+        except:
             log.msg('SerialCall: Connection flopped.')
 
         for item in self.commands:
@@ -118,7 +118,7 @@ class LnmProtocol(LineReceiver):
 
                 log.msg('SerialCall: Restarted martas process')
 
-            ser.close()    
+            ser.close()
 
 
     def processData(self, line, time):
@@ -162,7 +162,6 @@ class LnmProtocol(LineReceiver):
 
             shortcut = sensorid[:3].lower()
 
-            
             try:
                 ##### Write ASCII data file with full output and timestamp
                 # extract time data
@@ -179,5 +178,5 @@ class LnmProtocol(LineReceiver):
                 log.msg('SerialCall - writeDisdro: Error while saving ascii data')
 
 
-            # Send data method                
+            # Send data method
 

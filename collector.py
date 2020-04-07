@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-MQTT collector routine of MARCOS: 
+MQTT collector routine of MARCOS:
 MQTT protocol to be used in the Conrad Observatory.
 written by by Roman Leonhardt
- 
+
 How should it work:
 PURPOSE:
 collector_mqtt.py subscribes to published data from MQTT clients.
@@ -135,7 +135,7 @@ def message_received(ws_client,server,message):
 ws_available = True
 try:
     # available since 0.3.99
-    from magpy.collector.websocket_server import WebsocketServer
+    from core import WebsocketServer
 except:
     ws_available = False
 
@@ -168,12 +168,12 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
         client = mqtt.Client()
         # Authentication part
         if not credentials in ['','-']:
-            # use user and pwd from credential data if not yet set 
-            if user in ['',None,'None','-']: 
+            # use user and pwd from credential data if not yet set
+            if user in ['',None,'None','-']:
                 user = mpcred.lc(credentials,'user')
             if password  in ['','-']:
                 password = mpcred.lc(credentials,'passwd')
-        if not user in ['',None,'None','-']: 
+        if not user in ['',None,'None','-']:
             #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
             client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
         client.on_connect = on_connect
@@ -510,7 +510,7 @@ def on_message(client, userdata, msg):
                         #name = "diff_xxx_0001"
                         keys = sub._get_key_headers(numerical=True)
                         ilst = [KEYLIST.index(key) for key in keys]
-                        keystr = "[{}]".format(",".join(keys))                     
+                        keystr = "[{}]".format(",".join(keys))
                         #takeunits =  ### take from st[0]
                         packcode = "6hL{}".format("".join(['l']*len(keys)))
                         multi = "[{}]".format(",".join(['1000']*len(keys)))

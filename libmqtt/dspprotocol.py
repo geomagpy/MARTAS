@@ -241,7 +241,6 @@ class DSPProtocol(object):
         # get answer
         #print("All commands send")
 
-        
     def sendmqtt(self,sensorid,data,head):
         """
             call this method after processing data

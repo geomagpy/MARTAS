@@ -32,7 +32,7 @@ class TestProtocol(object):
         'confdict' contains a dictionary with general configuration parameters (martas.cfg)
         """
         self.client = client
-        self.sensordict = sensordict    
+        self.sensordict = sensordict
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
@@ -104,7 +104,7 @@ class TestProtocol(object):
                     self.client.publish(topic+"/meta", head, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
-                    self.count = 0            
+                    self.count = 0
         except:
             log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
 

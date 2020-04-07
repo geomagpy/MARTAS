@@ -87,7 +87,7 @@ if onewire:
             for el in notfound:
                 if not el in self.removelist:
                     log.msg("OW: sensor with path {} (as listed in sensors.cfg) is not found".format(el))
-                    self.removelist.append(el)            
+                    self.removelist.append(el)
 
             for el in sensorlst:
                 values = {}

@@ -164,7 +164,6 @@ class POS1Protocol(LineReceiver):
             pass
 
         return ','.join(list(map(str,datearray))), header
-         
 
     def dataReceived(self, data):
 
