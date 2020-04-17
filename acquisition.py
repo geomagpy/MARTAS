@@ -103,7 +103,7 @@ hostname = socket.gethostname()
 msgcount = 0
 
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','vehicledetector'] # should be provided by MagPy
 """
 Protocol types:
 ok		Env   		: passive		: environment
@@ -125,6 +125,7 @@ ok 		Test 	  	: active                : random number
 ok		Lnm		: active 		: environment
 ok		Disdro		: active 		: environment
 ok              AD7714          : autonomous		: general ADC
+ok              vehicledetector : passive		: mag
 """
 
 def SendInit(confdict,sensordict):
