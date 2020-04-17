@@ -939,7 +939,7 @@ def main(argv):
         if ws_available:
             # 0.0.0.0 makes the websocket accessable from anywhere
             global wsserver
-            wsserver = WebsocketServer(socketport, host='0.0.0.0')
+            wsserver = WebsocketServer.WebsocketServer(socketport, host='0.0.0.0')
             wsThr = threading.Thread(target=wsThread,args=(wsserver,))
             # start websocket-server in a thread as daemon, so the entire Python program exits
             wsThr.daemon = True

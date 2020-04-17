@@ -119,6 +119,7 @@ class vehicledetectorProtocol(LineReceiver):
                     datearray.append(int(grad*1))
                     data_bin = struct.pack('<'+packcode,*datearray)
                 except:
+                    log.msg('Error while packing binary data')
             else:
                     log.msg('Vehicle Detector - Protocol: Error while packing binary data')
                     pass
