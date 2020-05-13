@@ -415,7 +415,7 @@ def main(argv):
 
 
     try:
-        martaslogpath = os.path.join(conf.get('martasdir'), 'doc')
+        martaslogpath = os.path.join(conf.get('martasdir'), 'core')
         sys.path.insert(1, martaslogpath)
         from martas import martaslog as ml
         logpath = conf.get('bufferpath')
