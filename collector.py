@@ -73,10 +73,10 @@ try: # Python2.7
     from StringIO import StringIO
 except ImportError: # Python 3.x
     from io import StringIO
-from core import acquisitionsupport as acs
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
+from core import acquisitionsupport as acs
 from doc.version import __version__
 from core.martas import martaslog as ml
 
