@@ -1,0 +1,1 @@
+{"wicadjmin":{"path":"/home/leon/Tmp/Temp","destinations":{"gleave":{"type":"sftp", "path" : "/uploads/all-obs"}},"log":"/home/leon/Tmp/wicadjart.log","endtime":"utcnow","starttime":2}}
