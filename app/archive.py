@@ -142,7 +142,7 @@ def main(argv):
         for sensortoskip in skiplst:
             skipstr += ' AND SensorID != "'+sensortoskip+'"'
         sql = sql + skipstr
-        print sql
+        print (sql)
  
     cursor = db.cursor ()
     try:
