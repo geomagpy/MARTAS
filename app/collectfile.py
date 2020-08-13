@@ -102,7 +102,7 @@ def die(child, errstr):
     child.terminate()
     exit(1)
 
-def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_required=True):
+def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_required=True, timeout=60):
     """
     Method to extract filename with wildcards or date patterns from a directory listing
     """
@@ -126,6 +126,8 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_requir
 
     COMMAND= "ssh %s@%s '%s';" % (cred[0],cred[2],searchstr)
     child = pexpect.spawn(COMMAND)
+    if timeout:
+        child.timeout=timeout
     if pwd_required:
         i = child.expect([pexpect.TIMEOUT, 'assword: '])
         child.sendline(cred[1])
@@ -451,7 +453,7 @@ def main(argv):
             path = dir_extract(lines, filename, date, dateformat)
             if len(path) > 0:
                 filelist.extend(path)
-    elif protocol in ['scp','SCP','rsnyc']:
+    elif protocol in ['scp','SCP','rsync']:
         if debug:
             print (" - Getting filelist - by ssh ") 
         import pexpect
@@ -541,9 +543,9 @@ def main(argv):
                 fhandle.close()                                                     
             elif protocol in ['scp','SCP']:
                 scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
-            elif protocol in ['rysnc']:
+            elif protocol in ['rsync']:
                 # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
-                rsyncstring = "rsyn -avz -e ssh {} {}".format(user+'@'+address+':'+f,destpath) 
+                rsyncstring = "rsync -avz -e ssh {} {}".format(user+'@'+address+':'+f,destpath) 
                 print ("Executing:", rsyncstring)
                 subprocess.call(rsyncstring)
             elif protocol in ['html','HTML']:
