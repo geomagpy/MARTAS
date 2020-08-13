@@ -17,6 +17,7 @@ import zipfile
 import tempfile
 from dateutil import parser
 from shutil import copyfile
+import subprocess
 
 try:
     from core.martas import martaslog as ml
@@ -135,6 +136,8 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_requir
         die(child, 'ERROR!\nIncorrect password Here is what SSH said:')
     elif i == 2:
         result = child.before
+    if sys.version_info.major == 3:
+        result = result.decode('ascii')
     pathlist = result.split('\r\n')
     pathlist = [elem for elem in pathlist if not elem == '' and not elem == ' ']
     return pathlist
@@ -314,12 +317,12 @@ def main(argv):
     if not remotepath == '':
         source += remotepath
 
-    if not protocol in ['','scp','ftp','SCP','FTP','html']:
+    if not protocol in ['','scp','ftp','SCP','FTP','html','rsync']:
         print('Specify a valid protocol:')
         print('-- check collectfile.py -h for more options and requirements')
         sys.exit()
     if walk:
-        if not protocol == '' and not protocol == 'scp': 
+        if not protocol in ['','scp','rsync']: 
             print(' Walk mode only works for local directories and scp access.')
             print(' Switching walk mode off.')
             walk = False
@@ -448,7 +451,7 @@ def main(argv):
             path = dir_extract(lines, filename, date, dateformat)
             if len(path) > 0:
                 filelist.extend(path)
-    elif protocol in ['scp','SCP']:
+    elif protocol in ['scp','SCP','rsnyc']:
         if debug:
             print (" - Getting filelist - by ssh ") 
         import pexpect
@@ -538,6 +541,11 @@ def main(argv):
                 fhandle.close()                                                     
             elif protocol in ['scp','SCP']:
                 scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
+            elif protocol in ['rysnc']:
+                # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
+                rsyncstring = "rsyn -avz -e ssh {} {}".format(user+'@'+address+':'+f,destpath) 
+                print ("Executing:", rsyncstring)
+                subprocess.call(rsyncstring)
             elif protocol in ['html','HTML']:
                 pass
             elif protocol in ['']:
