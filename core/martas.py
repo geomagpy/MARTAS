@@ -2,21 +2,51 @@
 # coding=utf-8
 
 """
-contains martaslog class and sendlog method
+# MARTAS main loggin class
 
-martaslog can be used to create script logs and deliver them
+## 1. INTRODUCTION
 
-possible receivers are email, telegram and log
+Martas.py is a basic logging class for scheduled python jobs (e.g. cron) and sending such logs to different receivers.
+It contains the martaslog class and sendlog methods, which can be used to create 
+logs within scheduled python scripts and deliver any occuring changes to users. Among the possible receivers, to which
+logs can be delivered, are email, telegram and standard log files.
 
-email and telegram require configuration files
+## 2. LOGGING PRINCIPLE
 
-telegram.cfg:
-[telegram]
-token = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-chat_id = xxxx
+The logging class accepts dictionaries with key and values. The dictionary will be saved
+in within a logging file at a defined path. Whenever called again, these dictionary will be loaded
+and checked for changing contents in keys AND values. Any changes will be delivered to the receiver.
 
-mail.cfg:
+## 3. APPLICATION
+
+>from martas import martaslog as ml
+>martaslog = ml(logfile=logfile,receiver='email')  # other receivers: email, telegram, log, mqtt
+>martaslog.email['config'] = cfg
+>statusdict = {"Measurement1" : "Everything OK"}
+>martaslog.msg(statusdict)
+
+In order to use email and telegram, configuration files are requiered. These files need to
+contain information like
+
+## 4. TELEGRAM messages
+
+Telegram messages are based on the python package telegram_send. Firstly, you need to create a telegram channel
+using BotFather. From BotFather you will get the channels token. The chat_id is your account id within the Telegram network,
+a nine digit code for the user sending the command. HOW TO GET THE CHAT_ID?
+
+This information needs to be added into a configuration file. e.g. telegram.cfg:
+
+>[telegram]
+>token = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+>chat_id = xxxx
+
+Contents of a telegram configuration file are produced as follows: The token is established 
+
+
+#### mail.cfg:
+
 see MARTAS/conf/mail.cfg
+
 """
 
 from __future__ import print_function
@@ -65,8 +95,13 @@ def sendmail(dic):
         dic['Subject'] = 'Automatic message'
     if 'mailcred' in dic:
         ## import credential routine
+        import magpy.opt.cred as cred
         #read credentials
-        pass
+        print ("Reading credentials")
+        dic['smtpserver'] = cred.lc(dic.get('mailcred'),'smtp')
+        dic['user'] = cred.lc(dic.get('mailcred'),'user')
+        dic['pwd'] = cred.lc(dic.get('mailcred'),'passwd')
+        #dic['port'] = cred.lc(dic.get('mailcred'),'port') ## port is currently not stored by addcred
     if 'port' in dic:
         port = int(dic['port'])
     else:
@@ -81,7 +116,10 @@ def sendmail(dic):
     send_from = dic['From']
     #msg['To'] = COMMASPACE.join(send_to)
     msg['To'] = dic['To']
-    send_to = map(lambda s:s.strip(), dic['To'].split(','))
+    if len(dic['To'].split(',')) > 1:
+        send_to = map(lambda s:s.strip(), dic['To'].split(','))
+    else:
+        send_to = dic.get('To').strip()
     msg['Date'] = formatdate(localtime=True)
     msg['Subject'] = dic['Subject']
     msg.attach( MIMEText(dic['Text']) )
