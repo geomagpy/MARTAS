@@ -6,6 +6,7 @@ from __future__ import absolute_import
 # ###################################################################
 
 import re     # for interpretation of lines
+import sys    # for version identification
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
@@ -77,6 +78,8 @@ if onewire:
                 #log.msg("  -> one wire: could not contact to owhost")
                 return []
             #log.msg("  -> one wire: {}".format(sensorlst))
+            # Python3 checks
+            #if sys.version_info >= (3, 0):
             # compare currently read sensorlst with original sensorlst (eventually from file)
             existingpathlist = [line.get('path') for line in existinglist]
             # Identify attached sensors and their types
@@ -104,6 +107,13 @@ if onewire:
                     # make a dict for each ID
                     path = el+'type'
                     typ = self.owproxy.read(path)
+                    #log.msg(typ)
+                    # Python3 checks
+                    if sys.version_info >= (3, 0):
+                       try:
+                           typ = typ.decode('ascii')
+                       except:
+                           pass 
                     if not typ == 'DS1420': # do not add dongle
                         if el in self.removelist:
                             # el found again

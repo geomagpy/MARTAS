@@ -325,7 +325,7 @@ class GP20S3Protocol(LineReceiver):
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
         # extract only ascii characters
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
-
+        line = line.replace("b'","").replace("'","")
         ok = True
         try:
             splitline = line.split()
