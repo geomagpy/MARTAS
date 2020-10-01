@@ -81,7 +81,7 @@ def dir_extract(lines, filename, date, dateformat):
         #print ("Checking line {}".format(line))
         tokens = line.split()
         # Not interested in directories
-        if not tokens[0][0] == "d":
+        if not tokens[0][0] == "d" and len(tokens)==9:
             time_str = tokens[5] + " " + tokens[6] + " " + tokens[7]
             if dateformat in ['ctime','mtime']:
                 # cannot distinguish between mtime and ctime here
