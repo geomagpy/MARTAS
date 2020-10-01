@@ -34,6 +34,7 @@ Changelog:
 2016-10-10:   RL updated imports, improved help and checked for pure file access
 2017-03-10:   RL activated force option
 2018-10-22:   RL changed all routines considerably
+2020-10-01:   RL included and tested rsync option (not perfect, but well, its working)
 '''
 
 def walk_dir(directory_path, filename, date, dateformat):
@@ -328,7 +329,7 @@ def main(argv):
             print(' Walk mode only works for local directories and scp access.')
             print(' Switching walk mode off.')
             walk = False
- 
+
     if not creddb == '':
         print("Accessing data bank ...")
         try:
@@ -455,15 +456,19 @@ def main(argv):
                 filelist.extend(path)
     elif protocol in ['scp','SCP','rsync']:
         if debug:
-            print (" - Getting filelist - by ssh ") 
+            print (" - Getting filelist - by ssh ")
+        pwd_required=True
+        if protocol == 'rsync':
+            pwd_required=False
+            print ("Rsync requires passwordless ssh connection to remote system")
         import pexpect
-        if not dateformat in ['','ctime','mtime']: 
+        if not dateformat in ['','ctime','mtime']:
             for date in datelist:
-                path = ssh_getlist(remotepath, filename, date, dateformat, datetime.utcnow(), cred=[user,password,address])
+                path = ssh_getlist(remotepath, filename, date, dateformat, datetime.utcnow(), cred=[user,password,address],pwd_required=pwd_required)
                 if len(path) > 0:
                     filelist.extend(path)
         else:
-            filelist = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=[user,password,address])
+            filelist = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=[user,password,address],pwd_required=pwd_required)
     elif protocol == '':
         if debug:
             print (" - Getting filelist - from local directory ") 
@@ -475,13 +480,13 @@ def main(argv):
     elif protocol == 'html':
         print (filelist)
         sys.exit()
-     
+
     if debug:
         print ("Result")
         print ("-----------------------------")
         print (filelist)
 
-    ###   2.3 Get selected files and copy them to destination 
+    ###   2.3 Get selected files and copy them to destination
     ### -------------------------------------
     ###
     ### only if not protocol == '' and localpath
@@ -539,15 +544,15 @@ def main(argv):
 
             if protocol in ['ftp','FTP']:
                 fhandle = open(destname, 'wb')
-                ftp.retrbinary('RETR ' + f, fhandle.write) 
-                fhandle.close()                                                     
+                ftp.retrbinary('RETR ' + f, fhandle.write)
+                fhandle.close()
             elif protocol in ['scp','SCP']:
                 scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
             elif protocol in ['rsync']:
                 # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
-                rsyncstring = "rsync -avz -e ssh {} {}".format(user+'@'+address+':'+f,destpath) 
+                rsyncstring = "rsync -avz -e ssh {} {}".format(user+'@'+address+':'+f,destpath)
                 print ("Executing:", rsyncstring)
-                subprocess.call(rsyncstring)
+                subprocess.call(rsyncstring.split())
             elif protocol in ['html','HTML']:
                 pass
             elif protocol in ['']:
