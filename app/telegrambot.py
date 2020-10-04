@@ -349,6 +349,9 @@ def reboot():
     try:
         # For some reason restart doesn't work?
         tglogger.debug("Rebooting...")
+        #command = "/sbin/reboot"
+        #subprocess.call(command, shell = True)
+
         call = 'reboot'
         p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
         tglogger.debug("Restart send - getlog for details")
