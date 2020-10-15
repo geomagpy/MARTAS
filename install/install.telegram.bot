@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Get the paths for python and telegram
+# update telegrambot
+PYPATH="/usr/bin/python"
+BOTPATH="/home/user"
+tvar=""
+
+echo "Installation helper for TelegramBot v0.1"
+echo "----------------------------------------"
+echo "Please make sure to edit telegrambot.cfg"
+echo "before continuing"
+echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+
+read -p "Provide python path (default = $PYPATH): " PYPATHT
+read -p "Provide path for bot (default = $BOTPATH): " BOTPATHT
+
+if [ "$PYPATHT" != "$tvar" ]; then
+   PYPATH=$PYPATHT
+fi
+if [ "$BOTPATHT" != "$tvar" ]; then
+   BOTPATH=$BOTPATHT
+fi
+
+# install as service
+# ------------------
+cp telegrambot /etc/init.d/telegrambot
+
+# Replace DUMMY values with paths
+DUMMYBOT="/your/botpath"
+DUMMYPYTHON="/usr/bin/python"
+sed -i "s+${DUMMYPYTHON}+${PYPATH}+g" /etc/init.d/telegrambot
+sed -i "s+${DUMMYBOT}+${BOTPATH}+g" /etc/init.d/telegrambot
+
+chmod 755 /etc/init.d/telegrambot
+chown root:root /etc/init.d/telegrambot
+update-rc.d telegrambot defaults
+
+echo "----------------------------------------"
+echo "telegrambot successfully added as service"
+echo "----------------------------------------"
+echo "usage:"
+echo "/etc/init.d/telegrambot {start|stop|restart|status}"
+echo "----------------------------------------"
+echo "starting now ..."
+
+/etc/init.d/telegrambot start

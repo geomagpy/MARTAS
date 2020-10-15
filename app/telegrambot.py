@@ -34,6 +34,17 @@ Commands: external stations: - status, getlog (amount of lines), martas (restart
 Commands: cobs:              - checkDB, get nagios infi
 
 telegrambot.cfg needs to be in the same directory as the bot
+
+
+
+CHANGES:
+Vers 1.0.2:
+
+Additions:
+    + added method to obtain last data inputs
+Improvements:
+    + hidden reboot function modified - should work now
+
 """
 
 from __future__ import print_function
@@ -61,8 +72,9 @@ class tgpar(object):
     tmppath = '/tmp'
     camport = 'None'
     tglogpath = '/var/log/magpy/telegrambot.log'
-    version = '1.0.1'
+    version = '1.0.2'
     martasapp = '/home/cobs/MARTAS/app'
+
 
 def GetConf(path):
     """
@@ -242,6 +254,38 @@ def sensors():
     return mesg
 
 
+def getdata(interval=None, mean='mean'):
+    """
+    DESCRIPTION
+        get last values of each sensor
+    OPTIONS
+        intervals (int) : define an interval to average last values (in seconds) 
+        mean (string)   : type of average (mean, median) 
+    """
+    if not interval:
+        starttime = datetime.utcnow().date()
+        con = 'at'
+    else:
+        starttime = datetime.utcnow() - timedelta(seconds=interval)
+        con = 'since'
+    mesg = "Current values:\n"
+    for s in sensorlist:
+        sensor = s.get('sensorid').replace('$','').replace('?','').replace('!','')
+        data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime)
+        print (data._get_key_headers())
+        # starttime...
+        mesg += "{} {} {}:\n".format(sensor,con,starttime)
+        for key in data._get_key_headers():
+            value = 0
+            unit = 'arb'
+            pos = KEYLIST.index(key)    
+            if not interval:
+               value = data.ndarray[pos][-1]
+               mesg += "  {}: {} {}\n".format(key,value, unit)
+
+    return mesg
+
+
 def tgplot(sensor, starttime, endtime, keys=None):
     try:
         data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime, endtime=endtime)
@@ -347,26 +391,14 @@ def martas():
 def reboot():
     # Rebooting the system
     try:
-        # For some reason restart doesn't work?
         tglogger.debug("Rebooting...")
-        #command = "/sbin/reboot"
-        #subprocess.call(command, shell = True)
-
-        call = 'reboot'
-        p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
-        tglogger.debug("Restart send - getlog for details")
-        mesg = "Reboot command send "
-        #try:
-        #    (output, err) = p.communicate()
-        #    tglogger.debug("Error codes: {}".format(err))
-        #except:
-        #    pass
+        command = "/sbin/reboot"
+        subprocess.call(command, shell = True)
     except subprocess.CalledProcessError:
         mesg = "martas: check_call didnt work"
     except:
         mesg = "martas: check_call problem"
     return mesg
-
 
 
 def martasupdate():
@@ -390,6 +422,7 @@ def martasupdate():
     except:
         mesg = "martas: check_call problem"
     return mesg
+
 
 def getcam(command):
     camport = tgpar.camport
