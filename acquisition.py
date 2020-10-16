@@ -250,7 +250,7 @@ def onConnect(client, userdata, flags, rc):
         log.msg("Moving on...")
     elif rc == 5 and msgcount < 4:
         log.msg("Authetication required")
-    msgcount += 1 
+    msgcount += 1
     # add a counter here with max logs
 
 def onMessage(client, userdata, message):

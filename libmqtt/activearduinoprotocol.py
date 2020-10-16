@@ -16,6 +16,7 @@ from core import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 import serial
 import subprocess
+import sys
 
 ## Aktive Arduino protocol
 ## -----------------------
@@ -129,16 +130,23 @@ class ActiveArduinoProtocol(object):
         if(ser.isOpen() == False):
             ser.open()
         sendtime = datetime.utcnow()
-        ser.write(command)
+        if sys.version_info >= (3, 0):
+            ser.write(command.encode('ascii'))
+        else:
+            ser.write(command)
         # skipping all empty lines
         try: ## check for exeception in  raise SerialException
-            while response == '': 
+            while response == '':
                 response = ser.readline()
+                if sys.version_info >= (3, 0):
+                    response = response.decode()
             # read until end-of-messageblock signal is obtained (use some break value)
             while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
                 cnt += 1
                 fullresponse += response
                 response = ser.readline()
+                if sys.version_info >= (3, 0):
+                    response = response.decode()
         except serial.SerialException:
             log.msg("SerialException found - restarting martas")
             self.restart()
@@ -350,7 +358,10 @@ class ActiveArduinoProtocol(object):
                         log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
                         success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
                         #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
+                        print ("Add sensor done")
                         self.existinglist.append(values)
+                        print ("sensor added to arduino list")
+
                     elif len(seldict3) > 0:
                         log.msg("Arduino: Sensor {} identified and verified".format(sensoridenti[0]))
                         self.verifiedids.append(idnum)
@@ -376,10 +387,10 @@ class ActiveArduinoProtocol(object):
     def sendRequest(self):
 
         # connect to serial
-        try:
-            ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
-        except:
-            log.msg("Serial connection failed")
+        #try:
+        ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
+        #except:
+        #    log.msg("Serial connection failed")
 
         # send request string()
         for sensordict in self.commands:

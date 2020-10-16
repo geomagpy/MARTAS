@@ -118,6 +118,8 @@ def send_command(ser,command,eol=None,hexify=False,bits=0,report=True):
         command = hexify_command(command,eol)
         ser.write(command)
     else:
+        if sys.version_info >= (3, 0):
+            command = command.encode('ascii')
         if not eol:
             ser.write(command)
         else:
@@ -126,6 +128,8 @@ def send_command(ser,command,eol=None,hexify=False,bits=0,report=True):
         response = lineread(ser,eol)
     else:
         response = ser.read(bits)
+    if sys.version_info >= (3, 0):
+        response = response.decode()
     if report:
         print('-- Response: ', response)
     return response
@@ -236,7 +240,7 @@ def AddSensor(path, dictionary, block=None):
     # 1. if not block in ['OW','Arduino'] abort
     if not block in ['OW','ow','Ow','Arduino','arduino','ARDUINO','SQL','MySQL','mysql','MYSQL','sql']:
         print ("provided block needs to be 'OW', 'Arduino' or 'SQL'")
-        return False 
+        return False
 
     # 2. check whether sensors.cfg existis
     # abort if not
@@ -264,7 +268,7 @@ def AddSensor(path, dictionary, block=None):
         identifier = mysqlidentifier
         headline = mysqlheadline
 
-    # 3. Append/Insert line 
+    # 3. Append/Insert line
     if len(num) > 0:
             cnt = [idx for idx,line in enumerate(sensordata) if line.startswith(identifier) or  line.startswith('#'+identifier)]
             lastline = max(cnt)
@@ -282,7 +286,7 @@ def AddSensor(path, dictionary, block=None):
 
     return True
 
- 
+
 def GetSensors(path, identifier=None, secondidentifier=None):
     """
     DESCRIPTION:
