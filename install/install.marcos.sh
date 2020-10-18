@@ -2,7 +2,7 @@
 
 
 ## Helper methods
-## the helper creates 
+## the helper creates
 ## 1. a startupscript for /etc/init.d
 ##    calling the collector method
 ## 2. a configuration file for the broker
@@ -15,9 +15,9 @@
 # Get the paths for python and config directory
 PYPATH="/home/leon/Software/anaconda2/bin/python"
 PYPATH="/usr/bin/python"
-CFGPATH="/etc/marcos"
+CFGPATH="/etc/martas"
 LOGPATH="/var/log/magpy"
-TELEGRAMPATH="/telegram.conf"
+TELEGRAMPATH="${CFGPATH}/telegram.conf"
 BROKER="broker"
 BROKERIP="localhost"
 STATION="all"
@@ -30,6 +30,8 @@ tvar=""
 current="$(pwd)"
 cd ..
 COLLPATH="$(pwd)"
+cd conf
+CONFPATH="$(pwd)"
 cd "$current"
 
 
@@ -53,7 +55,7 @@ read -p "Provide path for log files (default = $LOGPATH): " LOGPATHT
 read -p "Provide the name of the broker (default = $BROKER): " BROKERT
 read -p "Provide the address of the broker (default = $BROKERIP): " BROKERIPT
 read -p "Provide a station name/topic (default = $STATION): " STATIONT
-read -p "Output destination (stdout, file, db, etc. default = $DESTINATION): " DESTINATIONT
+read -p "Output destination (stdout, file, db, websocket, stringio; default = $DESTINATION): " DESTINATIONT
 read -p "Destination details (e.g. path if file, or db credentials if db; default = $DETAILS): " DETAILST
 read -p "Broker requires authentication? (default = $MQTTAUTH): " MQTTAUTHT
 read -p "Want to use telegram notifications? Please provide config path (default = $TELEGRAMPATH): " TELEGRAMPATHT
@@ -111,7 +113,9 @@ mkdir -p $CFGPATH
 
 CONFFILE=$CFGPATH/$BROKER.cfg
 
-cp marcos.cfg $CONFFILE
+cp $CONFPATH/marcos.cfg $CONFFILE
+cp $CONFPATH/telegram.cfg $TELEGRAMPATH
+
 
 DUMMYLOGPATH="/logpath"
 DUMMYSTATION="myhome"
@@ -172,4 +176,3 @@ echo "/etc/init.d/collect-$BROKER {start|stop|restart|status}"
 echo "----------------------------------------"
 echo "(to remove use: sudo sh removemarcos.sh)"
 echo "----------------------------------------"
-

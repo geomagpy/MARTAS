@@ -62,7 +62,7 @@ from twisted.internet import reactor
 import threading
 from multiprocessing import Process
 import struct
-from datetime import datetime 
+from datetime import datetime
 from matplotlib.dates import date2num, num2date
 import numpy as np
 import json
@@ -135,7 +135,8 @@ def message_received(ws_client,server,message):
 ws_available = True
 try:
     # available since 0.3.99
-    from core import WebsocketServer
+    #from core import WebsocketServer
+    from magpy.collector.websocket_server import WebsocketServer
 except:
     ws_available = False
 
@@ -420,7 +421,7 @@ def on_message(client, userdata, msg):
                 # -------------------
                 #if debug:
                 #    log.msg(sensorid, metacheck, msg.payload)  # payload can be split
-                # Check whether header is already identified 
+                # Check whether header is already identified
                 # -------------------
                 if sensorid in headdict:
                     header = headdict.get(sensorid)
@@ -445,7 +446,7 @@ def on_message(client, userdata, msg):
                             else:
                                 cpack.extend([c] * digit)
                                 digit=1
-                        cpackcode = "".join(cpack) 
+                        cpackcode = "".join(cpack)
                         for i in range(len(cpackcode)):
                             if cpackcode[-i] == 's':
                                 datearray[-i] = datearray[-i]
@@ -455,7 +456,7 @@ def on_message(client, userdata, msg):
                                 datearray[-i] = int(float(datearray[-i]))
                         # pack data using little endian byte order
                         data_bin = struct.pack('<'+packcode,*datearray)
-                        # Check whether destination path has been verified already 
+                        # Check whether destination path has been verified already
                         # -------------------
                         if not verifiedlocation:
                             if not location in [None,''] and os.path.exists(location):
@@ -636,7 +637,7 @@ def on_message(client, userdata, msg):
         #telegram.send(msg)
 
     if msg.topic.endswith('meta') and 'websocket' in destination:
-        # send header info for each element (# sensorid   nr   key   elem   unit) 
+        # send header info for each element (# sensorid   nr   key   elem   unit)
         analyse_meta(str(msg.payload),sensorid)
         for (i,void) in enumerate(po.identifier[sensorid+':keylist']):
             jsonstr={}
@@ -943,13 +944,13 @@ def main(argv):
             wsThr = threading.Thread(target=wsThread,args=(wsserver,))
             # start websocket-server in a thread as daemon, so the entire Python program exits
             wsThr.daemon = True
-            log.msg('starting websocket on port '+str(socketport))
+            log.msg('starting WEBSOCKET on port '+str(socketport))
             wsThr.start()
             # start webserver as process, also as daemon (kills process, when main program ends)
             webPr = Process(target=webProcess, args=(webpath,webport))
             webPr.daemon = True
             webPr.start()
-            log.msg('starting webserver on port '+str(webport))
+            log.msg('starting WEBSERVER on port '+str(webport))
         else:
             print("no webserver or no websocket-server available: remove 'websocket' from destination")
             sys.exit()
