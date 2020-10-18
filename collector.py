@@ -86,21 +86,34 @@ import paho.mqtt.client as mqtt
 import sys, getopt, os
 
 ## Python Version
+## -----------------------------------------------------------
 import platform
 pyversion = platform.python_version()
 
-# Some global variables
-global identifier
+## Import Webserver for displaying data
+## -----------------------------------------------------------
+ws_available = True
+try:
+    # available since MagPy 0.3.99 in magpy.collector
+    # from MARTAS 0.1.9 in core
+    from core.websocket_server import WebsocketServer
+except:
+    ws_available = False
+
+# Some variable initialization
+## -----------------------------------------------------------
+global identifier # Thats probably wrong ... global should be used in functions
 identifier = {} # used to store lists from header lines
+global counter  # use for diffcalc
+counter = 0
+
+qos = 0
 streamdict = {}
 stream = DataStream()
 st = []
 senslst = []
 headdict = {} # store headerlines for all sensors (headerline are firstline for BIN files)
 headstream = {}
-global counter  # use for diffcalc
-counter = 0
-
 verifiedlocation = False
 destination = 'stdout'
 location = '/tmp'
@@ -111,37 +124,31 @@ webpath = './web'
 webport = 8080
 socketport = 5000
 
+
 class protocolparameter(object):
     def __init__(self):
         self.identifier = {}
 
 po = protocolparameter()
 
-## Import WebsocketServer
+## WebServer Methods
 ## -----------------------------------------------------------
 def wsThread(wsserver):
     wsserver.set_fn_new_client(new_wsclient)
     wsserver.set_fn_message_received(message_received)
     wsserver.run_forever()
 
+if ws_available:
+    global wsserver
+
 # TODO: find a way how to use these two functions:
 def new_wsclient(ws_client,server):
     pass
     # for debug: see which threads are running:
     #print(str(threading.enumerate()))
+
 def message_received(ws_client,server,message):
     pass
-
-ws_available = True
-try:
-    # available since 0.3.99
-    #from core import WebsocketServer
-    from magpy.collector.websocket_server import WebsocketServer
-except:
-    ws_available = False
-
-if ws_available:
-    global wsserver
 
 def webProcess(webpath,webport):
     """
@@ -158,7 +165,7 @@ def webProcess(webpath,webport):
     reactor.listenTCP(webport,factory)
     reactor.run()
 
-def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password=''):
+def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0):
         """
     connectclient method
     used to connect to a specific client as defined by the input variables
@@ -317,6 +324,8 @@ def merge_two_dicts(x, y):
 def on_connect(client, userdata, flags, rc):
     log.msg("Connected with result code {}".format(str(rc)))
     #qos = 1
+    # qos variable needs to be global when using this method as is
+    global qos
     log.msg("Setting QOS (Quality of Service): {}".format(qos))
     if str(rc) == '0':
         log.msg("Everything fine - continuing")
@@ -334,6 +343,7 @@ def on_message(client, userdata, msg):
     if pyversion.startswith('3'):
        msg.payload= msg.payload.decode('ascii')
 
+    global qos
     global verifiedlocation
     arrayinterpreted = False
     if stationid in ['all','All','ALL']:
@@ -529,8 +539,8 @@ def on_message(client, userdata, msg):
                         data = "{},{}".format(timestr,valstr)
                         #print (data)
                         topic = "wic/{}".format(name)
-                        client.publish(topic+"/data", data, qos=0)
-                        client.publish(topic+"/meta", head, qos=0)
+                        client.publish(topic+"/data", data, qos=qos)
+                        client.publish(topic+"/meta", head, qos=qos)
                 except:
                     print ("Found error in subtraction")
             if 'stdout' in destination:
@@ -686,8 +696,6 @@ def main(argv):
     addlib = []
     global source
     source='mqtt' # projected sources: mqtt (default), wamp, mysql, postgres, etc
-    global qos
-    qos=0
     global debug
     debug = False
     global output
@@ -704,6 +712,8 @@ def main(argv):
     global socketport
     global number
     number=1
+    global qos
+    qos=0
 
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
     try:
@@ -793,7 +803,10 @@ def main(argv):
             if not conf.get('mqttuser','') in ['','-']:
                 user = conf.get('mqttuser').strip()
             if not conf.get('mqttqos','') in ['','-']:
-                qos = conf.get('mqttqos').strip()
+                try:
+                    qos = int(conf.get('mqttqos').strip())
+                except:
+                    qos = 0
             if not conf.get('mqttcredentials','') in ['','-']:
                 credentials=conf.get('mqttcredentials').strip()
             if not conf.get('station','') in ['','-']:
@@ -819,13 +832,13 @@ def main(argv):
                 try:
                     socketport = int(conf.get('socketport').strip())
                 except:
-                    print('socketport not read properly from marcos config file')
+                    print('socketport could not be extracted from  marcos config file')
                     socketport = 5000
             if not conf.get('webport','') in ['','-']:
                 try:
-                    webport = conf.get('webport').strip()
+                    webport = int(conf.get('webport').strip())
                 except:
-                    print('webport not read properly from marcos config file')
+                    print('webport could not be extracted from marcos config file')
                     webport = 8080
             if not conf.get('webpath','') in ['','-']:
                 webpath = conf.get('webpath').strip()
@@ -882,10 +895,9 @@ def main(argv):
         elif opt in ("-U", "--debug"):
             debug = True
 
-
     if debug:
         print ("collector starting with the following parameters:")
-        print ("Logs: {}; Broker: {}; Topic/StationID: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, port, user, credentials, destination, location, dbcred, offset))
+        print ("Logs: {}; Broker: {}; Topic/StationID: {}; QOS: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, qos, port, user, credentials, destination, location, dbcred, offset))
 
     try:
         ##  Start Twisted logging system
@@ -921,7 +933,7 @@ def main(argv):
 
 
     if debug:
-        log.msg("Logs: {}; Broker: {}; Topic/StationID: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, port, user, credentials, destination, location, dbcred, offset))
+        log.msg("Logs: {}; Broker: {}; Topic/StationID: {}; QOS: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, qos, port, user, credentials, destination, location, dbcred, offset))
 
     log.msg("----------------")
     log.msg(" Starting collector {}".format(__version__))
@@ -929,6 +941,7 @@ def main(argv):
 
     if not qos in [0,1,2]:
         qos = 0
+
     if 'stringio' in destination:
         output = StringIO()
     if 'file' in destination:
@@ -977,7 +990,7 @@ def main(argv):
         log.msg("Destination: {} {}".format(destination, location))
 
     if source == 'mqtt':
-        client = connectclient(broker, port, timeout, credentials, user, password)
+        client = connectclient(broker, port, timeout, credentials, user, password, qos)
         client.loop_forever()
 
     elif source == 'wamp':
