@@ -281,6 +281,35 @@ Select destination "file"
 
 Select destination "db"
 
+Stream data to a database requires a preconfigured MagPy conform database structure. That can be done a few steps:
+
+1) Install MariaDB or MySQL (please follow instructions as given here for a proper setup)
+
+        sudo apt-get install mariadb
+
+2) Create an empty database
+
+        $(sudo) mysql -u root -p mysql
+        sql> CREATE DATABASE mydb;  # please replace mydb with a name of your choice
+
+3) Grant access to this database for a specific user
+
+        sql> GRANT ALL PRIVILEGES to user ...
+        sql> exit;
+
+4) Initialize the database
+
+       $ python3
+       >>> import magpy.database
+       >>> db = mysql.connect()
+       >>> dbinit(db)
+
+5) Eventually add the database credentials with addcred
+
+      $ addcred -d db -c mydb -u user ...
+
+
+On default, meta information is not considered 
 
 #### 6.3.3 Starting a WEB interface with MARCOS
 
@@ -403,6 +432,16 @@ b) start the owserver
 
 ### 10.2  Communicating with an Arduino Microcontroller
 
+An Arduion has to be programmed properly with serial outputs, interpretable from MARTAS (see below).
+Then all sensors connected to the arduino will then be automatically detected and added to sensors.cfg
+automatically with a leading ?
+
+IMPORTANT:
+If you change the sensor configuration of the arduino, then stop martas, delete the eventually existing
+arduino block and restart martas. Make sure to disconnect the arduino, before manipulating its sensor
+configuration. Test its working condition by looking at Arduino/Tools/SerialMonitor.
+
+Additional meta information can always be added to sensors.cfg. 
 
 ### TODO
 

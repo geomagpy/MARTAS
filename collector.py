@@ -95,7 +95,7 @@ pyversion = platform.python_version()
 ws_available = True
 try:
     # available since MagPy 0.3.99 in magpy.collector
-    # from MARTAS 0.1.9 in core
+    # since MARTAS 0.1.9 in core
     from core.websocket_server import WebsocketServer
 except:
     ws_available = False
