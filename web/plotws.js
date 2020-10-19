@@ -96,7 +96,7 @@
             return chart;
         }
     };
-        
+
 
     wsconnection.onmessage = function (e) {
         if (e.data[0] == '#') {
@@ -148,7 +148,7 @@ window.onload = function() {
 
     var maindiv = document.getElementById('maindiv');
     // TODO no need for a table, when no default
-    table = document.createElement('table'); 
+    table = document.createElement('table');
     maindiv.appendChild(table);
 
     debug1 = document.getElementById('debug');

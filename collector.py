@@ -486,6 +486,8 @@ def on_message(client, userdata, msg):
                     time = num2date(el).replace(tzinfo=None)
                     msecSince1970 = int((time - datetime(1970,1,1)).total_seconds()*1000)
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
+                    if debug:
+                        print ("Sending {}: {},{} to webserver".format(sensorid, msecSince1970,datastring))
                     wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
             if 'diff' in destination:
                 global counter
