@@ -598,6 +598,12 @@ def main(argv):
                 print("Webdir not accesible - finishing")
                 pass
 
+
+    print ("----------------------------------------------------------------")
+    print ("di app finished")
+    print ("----------------------------------------------------------------")
+    print ("SUCCESS")
+
 if __name__ == "__main__":
    main(sys.argv[1:])
 

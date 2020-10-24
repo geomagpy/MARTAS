@@ -348,6 +348,11 @@ def main(argv):
         martaslog.telegram['config'] = '/home/cobs/SCRIPTS/telegram_notify.conf'
         martaslog.msg(statusmsg)
 
+    print ("----------------------------------------------------------------")
+    print ("file upload app finished")
+    print ("----------------------------------------------------------------")
+    print ("SUCCESS")
+
 
 if __name__ == "__main__":
    main(sys.argv[1:])

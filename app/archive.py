@@ -80,7 +80,7 @@ def main(argv):
             try:
                 depth = int(arg)
                 if not depth >= 2:
-                    print ("depth needs to be positve")
+                    print ("depth needs to be positve and larger or equal than 2")
                     sys.exit()
             except:
                 print ("depth needs to be an integer")
@@ -160,6 +160,14 @@ def main(argv):
         print (" ---------------------------- ")
         print (" ---------------------------- ")
         print (datetime.utcnow())
+
+        if not db: # check whether db is still connected
+            try:
+                db = mysql.connect(host=mpcred.lc(cred,'host'),user=mpcred.lc(cred,'user'),passwd=mpcred.lc(cred,'passwd'),db =mpcred.lc(cred,'db'))
+            except:
+                pass
+        print ("failure - check your credentials / databank")
+
         try:
             if not startdate == '':
                 stream = readDB(db,data,min(datelist),max(datelist))
@@ -213,6 +221,10 @@ def main(argv):
             #    print "Flagging finished", datetime.utcnow()
             #print sensorid, len(stream)
 
+    print ("----------------------------------------------------------------")
+    print ("archive app finished")
+    print ("----------------------------------------------------------------")
+    print ("SUCCESS")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
