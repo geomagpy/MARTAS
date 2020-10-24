@@ -1,29 +1,29 @@
 #!/usr/bin/env python
 """
 
-DI.PY 
+DI.PY
 Applictaion to analysze di data from different sources
 ######################################################
 
-di.py can analyze data from various sources by considering data from 
-several different variometers and scalar systems. It further supports 
+di.py can analyze data from various sources by considering data from
+several different variometers and scalar systems. It further supports
 data from multiple piers with different characteristics. Please note:
 directional pier differences (dD and dI) are not considered.
- 
+
 
 How does it work:
 
 1. - Needs access to all available variometers
    - Needs access to all available scalar sensors (first is primary)
-   -> Primary access is database 
+   -> Primary access is database
    -> if not present or no data available there go to archive
-   -> no success in archive: test for reported files on ftp accout 
-        (fallback in case the process is not running with servers access) 
+   -> no success in archive: test for reported files on ftp accout
+        (fallback in case the process is not running with servers access)
    => Test access and report any errors
 
    Parameters: -dbcred, id-list-vario, id-list-scalar, path-to-archive, link-to-fallback, fallback-cred
 
-Get files from a remote server (to be reached by nfs, samba, ftp, html or local directory) 
+Get files from a remote server (to be reached by nfs, samba, ftp, html or local directory)
 File content is directly added to a data bank (or local file if preferred).
 """
 from __future__ import print_function
@@ -155,16 +155,16 @@ def main(argv):
             print('--keepremote  : Don t delete remote files after dowloading them')
             print('-------------------------------------')
             print('Examples:')
-            print('1. Running on MARCOS servers:') 
+            print('1. Running on MARCOS servers:')
             print('python di.py -c wic -a cobshome,cobenzlabs -v "FGE_S0252_0001"')
-            print('      -s "POS1_N432_0001" -j 0002 -b 2014-01-01') 
+            print('      -s "POS1_N432_0001" -j 0002 -b 2014-01-01')
             print('      -w /media/DAE2-4808/archive -d 3 -i 64 -t wic -p H1,A7,A2,A16')
             print('      -y di,di,di,autodif -z False,179.8978,180.1391,267.3982')
-            print('2. Running it with manually provided data links:') 
-            print('python di.py -c wic -a /media/DAE2-4808/archive/WIC/DI/analyze') 
+            print('2. Running it with manually provided data links:')
+            print('python di.py -c wic -a /media/DAE2-4808/archive/WIC/DI/analyze')
             print('      -v "FGE_S0252_0001" -s "POS1_N432_0001" -j 0002 -b 2014-02-01')
             print('      -e 2014-05-01 -w /media/DAE2-4808/archive -d 3 -i 64 -t wic')
-            print('      -p H1,A7,A2,A16 -y di,di,di,autodif -r') 
+            print('      -p H1,A7,A2,A16 -y di,di,di,autodif -r')
             print('      -z False,179.8978,180.1391,267.3982 -u user:group')
             print('python di.py -c cobs -a cobshomepage,cobenzlabs ')
             print('      -v DIDD_3121331_0002,LEMI025_1_0002 -s DIDD_3121331_0002')
@@ -218,13 +218,13 @@ def main(argv):
             try:
                 expD = float(arg)
             except:
-                print("expected declination needs to be a float") 
+                print("expected declination needs to be a float")
                 sys.exit()
         elif opt in ("-i", "--expectedI"):
             try:
                 expI = float(arg)
             except:
-                print("expected inclination needs to be a float") 
+                print("expected inclination needs to be a float")
                 sys.exit()
         elif opt in ("-n", "--add2db"):
             dbadd = True
@@ -294,7 +294,7 @@ def main(argv):
         print('Date format for end seems to be wrong: -e 2013-11-22')
         print('-- check dianalysis.py -h for more options and requirements')
         sys.exit()
-  
+
     if pierlist == []:
         print('Specify a list of the measurement piers containing at list one element: -p [Pier2]')
         print('-- check dianalysis.py -h for more options and requirements')
@@ -337,11 +337,11 @@ def main(argv):
     if variolist == []:
         if fallbackvariopath == '':
             print('You have not provided any variometer information at all')
- 
+
     if scalarlist == []:
         if fallbackscalarpath == '':
             print('You have not provided any independent scalar information')
-            print('-- I guess this data is provided along with the DI files') 
+            print('-- I guess this data is provided along with the DI files')
 
     # -----------------------------------------------------
     # a) Basic information
@@ -358,7 +358,7 @@ def main(argv):
         print("No local dipath found")
         try:
             credlist = mpcred.sc()
-            credshort = [elem[0] for elem in credlist] 
+            credshort = [elem[0] for elem in credlist]
             print(credshort)
         except:
             print("dipath %s not existing - credentials not accessible - aborting" % dipath)
@@ -375,7 +375,7 @@ def main(argv):
                 remotepath = ''
             else:
                 print("could not interprete dipath in terms of credential information")
-                sys.exit()            
+                sys.exit()
             if remotecred in credshort:
                 getremote = True
             else:
@@ -400,7 +400,7 @@ def main(argv):
                     os.remove(os.path.join(dipath,os.path.split(infile)[1]))
                 print("Retrieving from webdir: ", infile)
                 shutil.copy(infile,dipath)
-                # Setting permission to defaultuser even if started the job                
+                # Setting permission to defaultuser even if started the job
                 uid = pwd.getpwnam(defaultuser)[2]
                 gid = grp.getgrnam(defaultgroup)[2]
                 os.chown(os.path.join(dipath,os.path.split(infile)[1]),uid,gid)
@@ -429,7 +429,7 @@ def main(argv):
 
     print("Variolist", variolist)
 
-    # copy all files from web directory to the analysis folder    
+    # copy all files from web directory to the analysis folder
 
     # -----------------------------------------------------
     # c) analyze all files in the local analysis directory and put successfully analyzed data to raw
@@ -472,7 +472,7 @@ def main(argv):
                         beta = 0.0
                     deltaF =  dbgetfloat(db, 'DATAINFO', scalar, 'DataDeltaF')
                     if not isNumber(deltaF):
-                        deltaF = 0.0                    
+                        deltaF = 0.0
                 else:
                     # eventually add an input option
                     # load a scalar file from path and get delta F from header
@@ -522,7 +522,7 @@ def main(argv):
                     absstream = absoluteAnalysis(abspath,variopath,scalarpath,expD=expD,expI=expI, diid=diid,stationid=stationid,abstype=abstype,azimuth=azimuth,pier=pier, alpha=alpha,deltaF=deltaF, starttime=begin,endtime=end, db=db,dbadd=dbadd,compensation=compensation,deltaD=0.0000000001,deltaI=0.0000000001)
 
 		# -----------------------------------------------------
-    		# d) write data to a file and sort it, write it again 
+    		# d) write data to a file and sort it, write it again
                 #          (workaround to get sorting correctly)
     		# -----------------------------------------------------
                 if absstream and absstream.length()[0] > 0:
@@ -541,7 +541,7 @@ def main(argv):
                         print("Now adding data to the data bank")
                         #newabsstream.header["SensorID"] = vario
                         writeDB(db,absstream,tablename=identifier+'_'+vario+'_'+scalar+'_'+pier)
-                        #stream2db(db,newabsstream,mode='force',tablename=identifier+'_'+vario+'_'+scalar+'_'+pier) 
+                        #stream2db(db,newabsstream,mode='force',tablename=identifier+'_'+vario+'_'+scalar+'_'+pier)
 
         	    # -----------------------------------------------------
         	    # f) get flags and apply them to data
@@ -552,7 +552,7 @@ def main(argv):
                     else:
                         newabsstream = readDB(db,identifier+'_'+vario+'_'+scalar+'_'+pier)
                         flaglist = []
-        	    if len(flaglist) > 0:
+                    if len(flaglist) > 0:
                         flabsstream = newabsstream.flag(flaglist)
         	        #for i in range(len(flaglist)):
         	        #    flabsstream = newabsstream.flag_stream(flaglist[i][2],flaglist[i][3],flaglist[i][4],flaglist[i][0],flaglist[i][1])
@@ -567,15 +567,15 @@ def main(argv):
                	        pltabsstream.trim(starttime=datetime.utcnow()-timedelta(days=380))
         	        # fit baseline using the parameters defined in db (if parameters not available then skip fitting)
         	        #absstream = absstream.fit(['dx','dy','dz'],poly,4)
-          	        savename = identifier+'_'+vario+'_'+scalar+'_'+pier+ '.png'
+                        savename = identifier+'_'+vario+'_'+scalar+'_'+pier+ '.png'
                         #absstream = absstream.extract('f',98999,'<')
-        	        mp.plot(pltabsstream,['dx','dy','dz'],symbollist=['o','o','o'],plottitle=vario+'_'+scalar+'_'+pier,outfile=os.path.join(archive,stationid,'DI','graphs',savename))
+                        mp.plot(pltabsstream,['dx','dy','dz'],symbollist=['o','o','o'],plottitle=vario+'_'+scalar+'_'+pier,outfile=os.path.join(archive,stationid,'DI','graphs',savename))
         	        #absstream.plot(['dx','dy','dz'],symbollist=['o','o','o'],plottitle=vario+'_'+scalar+'_'+pier,outfile=os.path.join(archive,stationid,'DI','graphs',savename))
                     except:
                         pass
 
     # -----------------------------------------------------
-    # j) move files from analyze folder to web folder 
+    # j) move files from analyze folder to web folder
     # -----------------------------------------------------
     # move only if createarchive is selected
     if createarchive:
@@ -595,7 +595,7 @@ def main(argv):
                     gid = grp.getgrnam(webgroup)[2]
                     os.chown(os.path.join(destination,infilename[1]),uid,gid)
             except:
-                print("Webdir not accesible - finishing")
+                print("Webdir not accessible - finishing")
                 pass
 
 
@@ -606,5 +606,3 @@ def main(argv):
 
 if __name__ == "__main__":
    main(sys.argv[1:])
-
-
