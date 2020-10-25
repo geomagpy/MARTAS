@@ -56,7 +56,6 @@ from magpy.stream import *
 from magpy.database import *
 import magpy.mpplot as mp
 import magpy.opt.cred as mpcred
-from core import acquisitionsupport as acs
 from pickle import load as pload
 import os
 from os import listdir
@@ -67,6 +66,8 @@ from subprocess import check_call
 import telepot
 from telepot.loop import MessageLoop
 import sys, getopt
+
+from core import acquisitionsupport as acs
 
 class tgpar(object):
     logpath = '/var/log/magpy/martas.log'
@@ -187,12 +188,12 @@ import sys, getopt
 try:
     opts, args = getopt.getopt(argv,"hc:",["config="])
 except getopt.GetoptError:
-    print 'telegrambot.py -c <config>'
+    print ('telegrambot.py -c <config>')
     sys.exit(2)
 for opt, arg in opts:
     if opt == '-h':
-        print 'usage:'
-        print 'telegrambot.py -c <config>'
+        print ('usage:')
+        print ('telegrambot.py -c <config>')
         sys.exit()
     elif opt in ("-c", "--config"):
         telegramcfg = arg

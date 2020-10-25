@@ -24,8 +24,9 @@ Currently supported systems are:
 - Lemi025,Lemi036, and most likely all other Lemi systems; 
 - Geometrics Sytems GSM90, GSM19;
 - Quantum Magnetometer Systems POS-1, POS-4
-- Meteolabs BM35 pressure
+- Meteolabs BM35 pressure sensor
 - Thiess LaserNiederschlagsMessgerät - Disdrometer
+- Ultrasonic Anemometer
 - AD7714 general ADC
 - MinGeo PalmDac 24 bit data logger (under development)
 - Campbell Scientific CR800, CR1000 Data loggesr
@@ -34,7 +35,7 @@ Currently supported systems are:
 - Dallas OneWire Sensors
 
 and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
-(requiring a specific serial output format in the self writte microcontroller program - appendix)
+(requiring a specific serial output format in the self written microcontroller program - appendix)
 
 
 Note: in the folling examples we use "user" as username and "users" as group.
@@ -350,9 +351,41 @@ c) Customizing the WEB interface/ports of MARCOS
 
 ### 7.1 The threshold notifyer
 
-### 7.2 Support for NAGIOS/ICACLIENT
+MARTAS comes along with a threshold application. This app reads data from a defined source: a MARTAS buffer files, MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can be monitored independently by mail, nagios, icinga, telegram.
+Threshold.py can be scheduled in crontab.
+
+### 7.2 Support for NAGIOS/ICINGA
+
 
 ### 7.3 Communicating with MARTAS
+
+MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot, referring to your MARTAS.
+
+To setup [Telegram] communication use the following steps:
+
+  a) Use [Telegram Botfather] to create a new BOT
+
+  b) Install addionally required and optional packages
+
+        $ pip install telepot            # required
+        $ pip install psutil             # optional - status of memory and cpu
+        $ pip install platform           # optional for python2.x - system information
+        $ sudo apt-get install fswebcam  # optional - transferring webcam pictures
+
+  c) Install Telegram support for MARTAS
+
+        $ cd MARATS/install
+        $ sudo bash install.telegram.sh
+
+  d) Update /etc/martas/telegrambot.cfg
+
+        $ nano /etc/martas/telegrambot.cfg
+
+      -> you need the BotID, which you obtained when creating the new BOT
+      -> you need at least one UserID. Your UserID
+
+  e) Open Telegram on your Mobile/Webclient and access the TelegramBot Channel 
+
 
 ## 8. Frequently asked questions
 
@@ -451,5 +484,8 @@ Additional meta information can always be added to sensors.cfg.
 - add in how-to for using senddata and addcreds
 
 
+
+   [Telegram] : <https://telegram.org/>
+   [Telegram Botfather] :  <https://core.telegram.org/bots>
 
 
