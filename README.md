@@ -182,6 +182,16 @@ c) Adding a cleanup for the bufferdirectory
 
 	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
 
+d) Adding a start option to crontab 
+
+   In case that the MARTAS acquisition process hangs up or gets terminated by an unkown reason
+   it is advisable to add a start option to crontab, which starts MARTAS in case it is not 
+   running any more
+
+   Add the following line to /etc/crontab
+
+       10  0  *  *  *  root    /etc/init.d/martas start
+
 ### 3.3 Understanding Quality-of-Service (QOS)
 
 The Quality-of-Service (qos) level is an agreement between the sender of a message and the receiver of a message that defines the guarantee of delivery for a specific message. There are three qos levels in MQTT: (0) At most once, (1) At least once and (2) Exactly once. (0) sends out data without testing whether it is received or not. (1) sends out data and requires an aknowledgment that the data was received. Multiple sendings are possible. (2) makes sure that every data is send exactly once. Please refer to MQTT information pages for more details.
@@ -249,6 +259,16 @@ a) Use the MARTAS installation script
 b) Check /etc/martas/broker.cfg   ("broker" might be replaced if you use have chosen a different name) 
 
         $ nano /etc/martas/broker.cfg
+
+c) Adding a start option to crontab 
+
+   In case that the MARCOS collector process hangs up or gets terminated by an unkown reason
+   it is advisable to add a start option to crontab, which starts the collector in case it is not 
+   running any more
+
+   Add the following line to /etc/crontab
+
+      12  0  *  *  *  root    /etc/init.d/collect-broker start
 
 
 ### 6.2 Running the collection sytem
