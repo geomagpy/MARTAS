@@ -67,6 +67,7 @@ from subprocess import check_call
 import telepot
 from telepot.loop import MessageLoop
 import sys, getopt
+import glob
 
 # Relative import of core methods as long as martas is not configured as package
 scriptpath = os.path.dirname(os.path.realpath(__file__))
@@ -326,7 +327,7 @@ def getspace():
 
     total = (statvfs.f_frsize * statvfs.f_blocks / (1024.*1024.))     # Size of filesystem in bytes
     remain = (statvfs.f_frsize * statvfs.f_bavail / (1024.*1024.))     # Number of free bytes that ordinary users
-    mesg = "status:\nDisk-size: {:.0f}MB\nDisk available: {:.0f}MB\nDisk occupied: {:.1f}%".format(total,remain, 100-(remain/total*100.))
+    mesg = "MEMORY status:\n----------\nDisk-size: {:.0f}MB\nDisk available: {:.0f}MB\nDisk occupied: {:.1f}%".format(total,remain, 100-(remain/total*100.))
     try:
         import psutil
         mem = psutil.virtual_memory()
@@ -339,14 +340,13 @@ def getspace():
 
     # Status of MARTAS MARCOS jobs
     try:
-        mesg += "\n\nMARTAS Process:\n----------"
+        mesg += "\n\nMARTAS process(es):\n----------"
         proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
         lines = proc.stdout.readlines()
         if vers=='3':
             lines = [line.decode() for line in lines]
         try:
             # get all collect-* files from init.d
-            import glob
             collectlist = glob.glob('/etc/init.d/collect-*')
             for coll in collectlist:
                 print (coll)
@@ -386,7 +386,6 @@ def system():
             import glob
             collectlist = glob.glob('/etc/init.d/collect-*')
             for coll in collectlist:
-                print (coll)
                 proc = subprocess.Popen([coll,'status'], stdout=subprocess.PIPE)
                 tmplines = proc.stdout.readlines()
                 if vers=='3':
@@ -403,6 +402,7 @@ def system():
     try:
         # get MARTAS version number from logfile
         command = "cat {} | grep 'MARTAS acquisition version' | tail -1 | grep -oE '[^ ]+$'".format(tgpar.logpath)
+        print ("TEST1", command)
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
         lines = proc.stdout.readlines()
         if vers=='3':
@@ -413,6 +413,7 @@ def system():
     try:
         # get MARCOS version number from logfile
         command = "cat {} | grep 'Starting collector' | tail -1 | grep -oE '[^ ]+$'".format(tgpar.marcoslogpath)
+        print ("TEST2", command)
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
         lines = proc.stdout.readlines()
         if vers=='3':
@@ -459,21 +460,49 @@ def sensorstats(sensorid):
     return mesg
 
 
-def martas():
+def martas(job='martas', command='restart'):
     # restart martas process
-    # check_call(['/etc/init.d/martas'],['restart'])
     try:
         # For some reason restart doesn't work?
-        tglogger.debug("Running check_call...")
+        tglogger.debug("Sending MARATS call:".format(command))
+        call = '/etc/init.d/{} {}'.format(job,command)
+        proc = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+        tglogger.debug("{} sent - getlog for further details".format(command))
+        mesg = "Restart command send - check getlog for details (please wait some secs)\n"
+        lines = proc.stdout.readlines()
+        if vers=='3':
+            lines = [line.decode() for line in lines]
+        mesg += ''.join(lines)
+    except subprocess.CalledProcessError:
+        mesg = "martas: check_call didnt work"
+    except:
+        mesg = "martas: check_call problem"
+    return mesg
+
+
+def marcos(broker='', command='restart'):
+    # restarting marcos process
+    try:
+        # For some reason restart doesn't work?
+        tglogger.debug("Sending collector call: {}".format(command))
+        lines=[]
+        # identify all collector jobs
+        collectlist = glob.glob('/etc/init.d/collect-*')
+        if broker:
+            collectlist = [coll for coll in collectlist if coll.find(broker) > -1]
+        if collectlist and len(collectlist)>0:
+            for coll in collectlist:
+                proc = subprocess.Popen([coll,command], stdout=subprocess.PIPE, shell=True)
+                tmplines = proc.stdout.readlines()
+                if vers=='3':
+                    tmplines = [line.decode() for line in tmplines]
+                lines.extend(tmplines)
+
         call = '/etc/init.d/martas restart'
         p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
-        tglogger.debug("Restart send - getlog for details")
-        mesg = "Restart command send - check getlog for details (please wait some secs)"
-        #try:
-        #    (output, err) = p.communicate()
-        #    tglogger.debug("Error codes: {}".format(err))
-        #except:
-        #    pass
+        tglogger.debug("Restart sent - getlog for details")
+        mesg = "{} command sent - check getlog for further details (please wait some secs)\n".format(command)
+        mesg += "".join(lines)
     except subprocess.CalledProcessError:
         mesg = "martas: check_call didnt work"
     except:
