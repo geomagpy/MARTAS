@@ -57,6 +57,7 @@ from magpy.database import *
 import magpy.mpplot as mp
 import magpy.opt.cred as mpcred
 from pickle import load as pload
+import re
 import os
 from os import listdir
 from os.path import isfile, join
@@ -296,7 +297,7 @@ def getdata(interval=None, mean='mean'):
         for key in data._get_key_headers():
             value = 0
             unit = 'arb'
-            pos = KEYLIST.index(key)    
+            pos = KEYLIST.index(key)
             if not interval:
                value = data.ndarray[pos][-1]
                mesg += "  {}: {} {}\n".format(key,value, unit)
@@ -331,7 +332,6 @@ def getspace():
         mesg += "\nMemory total: {}MB\nMemory available: {}MB\nCPU usage: {}%".format(total,avail,cpu)
     except:
         pass
-    
     return mesg
 
 
@@ -359,13 +359,22 @@ def system():
 
 
 def tail(f, n=1):
+    """
+    DESCRIPTION:
+        Obtain the last n line of a file f
+    """
     mesg = "getlog:\n"
     try:
-        proc = subprocess.Popen(['/usr/bin/tail', '-n', str(n), f], stdout=subprocess.PIPE)
+       num_lines = sum(1 for line in open(f))
+        if num_lines < n:
+            n = num_lines
+        proc = subprocess.Popen(['/usr/bin/tail', '-n', str(n), f], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         lines = proc.stdout.readlines()
+        if vers=='3':
+            lines = [line.decode() for line in lines]
         mesg += ''.join(lines)
     except:
-        mesg += "Not enough lines in file"
+        mesg += "An error occured - logfile existing?"
     return mesg
 
 def sensorstats(sensorid):
@@ -501,31 +510,40 @@ def handle(msg):
 
     if not chat_id in allowed_users:
         bot.sendMessage(chat_id, "My mother told me not to speak to strangers, sorry...")
-        tglogger.warning('--------------------- Unauthorized access -------------------------') 
+        tglogger.warning('--------------------- Unauthorized access -------------------------')
         tglogger.warning('!!! unauthorized access from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname)) 
-        tglogger.warning('-------------------------------------------------------------------') 
+        tglogger.warning('-------------------------------------------------------------------')
     else:
         if content_type == 'text':
             tglogger.info('Received command "{}" from ChatID {} (User: {})'.format(command,chat_id,firstname))
 
-            if command.startswith('help'): # == 'help':
+            if command.find('help') > -1:
+               # -----------------------
+               # HELP
+               # -----------------------
                bot.sendMessage(chat_id, help())
-            elif command.startswith('getlog'):
-               cmd = command.split()
-               if len(cmd) > 1:
-                   try:
-                       N = int(cmd[1])
-                   except:
-                       N = 10
-               else:
+            elif command.find('getlog') > -1 or command.find('print log') > -1 or command.find('send log') > -1 or command.find('get log') > -1:
+               # -----------------------
+               # OBTAINNING LOGS
+               # -----------------------
+               cmd = command.replace('getlog','').replace('print log','').replace('send log','').replace('get log','')
+               try:
+                   N = int(re.search(r'\d+', cmd).group())
+                   cmd = cmd.replace(str(N),'')
+               except:
                    N = 10
-               if len(cmd) > 2:
-                   tmpname = cmd[2]
-                   if tmpname in ['syslog', 'dmesg']:
-                       tmppath = os.path.join('/var/log', tmpname)
-                   elif tmpname == 'telegrambot':
+               if not N:
+                   N = 10
+               cmd = cmd.strip()
+               logfiles = ['syslog', 'dmesg', 'messages', 'faillog']
+               if len(cmd) > 3:
+                   tmpname = cmd
+                   for logfile in logfiles:
+                       if cmd.find(logfile) > -1:
+                          tmppath = os.path.join('/var/log', logfile)
+                   if cmd.find('telegrambot') > -1:
                        tmppath = tgpar.tglogpath
-                   elif tmpname == 'martas':
+                   elif cmd.find('martas') > -1:
                        tmppath = tgpar.logpath
                    if os.path.isfile(tmppath):
                        logpath = tmppath
@@ -535,13 +553,14 @@ def handle(msg):
                else:
                    mesg = "getlog:\nlogfile not existing"
                bot.sendMessage(chat_id, mesg)
+
             elif command.startswith('status'):
                mesg = getspace()
                bot.sendMessage(chat_id, mesg)
             elif command.startswith('system'):
                mesg = system()
                bot.sendMessage(chat_id, mesg)
-            elif command.startswith('hello'):
+            elif command.find('hello') > -1:
                mesg = "Hello {}, nice to talk to you.".format(firstname)
                bot.sendMessage(chat_id, mesg)
             elif command.startswith('cam'):
