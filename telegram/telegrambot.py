@@ -219,8 +219,6 @@ try:
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
-    tgpar.marcoslogpath = marcosconfig
-    tgpar.logpath = martasconfig
     allowed_users =  [int(el) for el in tgconf.get('allowed_users').replace(' ','').split(',')]
     tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
 except:
@@ -232,6 +230,8 @@ try:
     if not conf.get('logging').strip() in ['sys.stdout','stdout']:
         logpath = conf.get('logging').strip()
     tgpar.logpath = logpath
+    # assume marcoslogpath to be in the same directory
+    tgpar.marcoslogpath = os.path.join(os.path.dirname(logpath),'marcos.log')
     sensorlist = acs.GetSensors(conf.get('sensorsconf'))
     ardlist = acs.GetSensors(conf.get('sensorsconf'),identifier='?')
     sensorlist.extend(ardlist)
@@ -349,7 +349,6 @@ def getspace():
             # get all collect-* files from init.d
             collectlist = glob.glob('/etc/init.d/collect-*')
             for coll in collectlist:
-                print (coll)
                 proc = subprocess.Popen([coll,'status'], stdout=subprocess.PIPE)
                 tmplines = proc.stdout.readlines()
                 if vers=='3':
@@ -373,36 +372,11 @@ def system():
         mesg += "System:\n----------\nName: {}\nOperating system: {} ({})\nKernel: {}\nArchitecture: {}".format(sysls[1],sysls[0],sysls[3],sysls[2],sysls[4])
     except:
         pass
-    """
-    # Status of MARTAS MARCOS jobs
-    try:
-        mesg += "\n\nMARTAS Process:\n----------"
-        proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
-        lines = proc.stdout.readlines()
-        if vers=='3':
-            lines = [line.decode() for line in lines]
-        try:
-            # get all collect-* files from init.d
-            import glob
-            collectlist = glob.glob('/etc/init.d/collect-*')
-            for coll in collectlist:
-                proc = subprocess.Popen([coll,'status'], stdout=subprocess.PIPE)
-                tmplines = proc.stdout.readlines()
-                if vers=='3':
-                    tmplines = [line.decode() for line in tmplines]
-                lines.extend(tmplines)
-        except:
-            pass
-        mesg += "\n{}".format(''.join(lines))
-    except:
-        pass
-    """
     mesg += "\n\nSoftware versions:\n----------\nMagPy Version: {}".format(magpyversion)
     mesg += "\nTelegramBot Version: {}".format(tgpar.version)
     try:
         # get MARTAS version number from logfile
         command = "cat {} | grep 'MARTAS acquisition version' | tail -1 | grep -oE '[^ ]+$'".format(tgpar.logpath)
-        print ("TEST1", command)
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
         lines = proc.stdout.readlines()
         if vers=='3':
@@ -413,7 +387,6 @@ def system():
     try:
         # get MARCOS version number from logfile
         command = "cat {} | grep 'Starting collector' | tail -1 | grep -oE '[^ ]+$'".format(tgpar.marcoslogpath)
-        print ("TEST2", command)
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
         lines = proc.stdout.readlines()
         if vers=='3':
@@ -461,18 +434,17 @@ def sensorstats(sensorid):
 
 
 def martas(job='martas', command='restart'):
-    # restart martas process
+    """
+    DESCRIPTION:
+       restart martas process
+    """
     try:
         # For some reason restart doesn't work?
         tglogger.debug("Sending MARATS call:".format(command))
         call = '/etc/init.d/{} {}'.format(job,command)
-        proc = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+        subprocess.call(call, shell=True)
         tglogger.debug("{} sent - getlog for further details".format(command))
         mesg = "Restart command send - check getlog for details (please wait some secs)\n"
-        lines = proc.stdout.readlines()
-        if vers=='3':
-            lines = [line.decode() for line in lines]
-        mesg += ''.join(lines)
     except subprocess.CalledProcessError:
         mesg = "martas: check_call didnt work"
     except:
@@ -481,28 +453,24 @@ def martas(job='martas', command='restart'):
 
 
 def marcos(broker='', command='restart'):
-    # restarting marcos process
+    """
+    DESCRIPTION:
+        restarting marcos process
+    """
     try:
         # For some reason restart doesn't work?
         tglogger.debug("Sending collector call: {}".format(command))
-        lines=[]
+        mesg = ''
         # identify all collector jobs
         collectlist = glob.glob('/etc/init.d/collect-*')
         if broker:
             collectlist = [coll for coll in collectlist if coll.find(broker) > -1]
         if collectlist and len(collectlist)>0:
             for coll in collectlist:
-                proc = subprocess.Popen([coll,command], stdout=subprocess.PIPE, shell=True)
-                tmplines = proc.stdout.readlines()
-                if vers=='3':
-                    tmplines = [line.decode() for line in tmplines]
-                lines.extend(tmplines)
-
-        call = '/etc/init.d/martas restart'
-        p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
-        tglogger.debug("Restart sent - getlog for details")
-        mesg = "{} command sent - check getlog for further details (please wait some secs)\n".format(command)
-        mesg += "".join(lines)
+                call = "{} {}".format(coll,command)
+                subprocess.call(call, shell=True)
+                tglogger.debug("Sent {} - check getlog for details".format(call))
+                mesg += "{} command sent to {} - check getlog for further details (please wait some secs)\n".format(command,coll)
     except subprocess.CalledProcessError:
         mesg = "martas: check_call didnt work"
     except:
@@ -523,11 +491,10 @@ def reboot():
     return mesg
 
 
-def martasupdate():
+def martasupdate(user='cobs'):
     # update martas from git
     # check_call(['git -C /home/cobs/MARTAS'],['pull'])
     martaspath = tgconf.get('martaspath').strip()
-    user = 'cobs'
     try:
         # For some reason restart doesn't work?
         mesg = "Sending update command ..."
@@ -684,15 +651,54 @@ def handle(msg):
                    except:
                        mesg = "Cam image not available (fswebcam properly installed?)"
                        bot.sendMessage(chat_id, mesg)
-            elif command =='martasrestart':
-               bot.sendMessage(chat_id, "Restarting acquisition process ...")
-               mesg = martas()
+            elif command.find('martas') > -1 or command.find('MARTAS') > -1:
+               # -----------------------
+               # Send MARTAS process command
+               # -----------------------
+               bot.sendMessage(chat_id, "Sending acquisition process command...")
+               cmd = command.replace('martas','').replace('MARTAS','')
+               cmd = cmd.strip()
+               if cmd.find('update') > -1:
+                   bot.sendMessage(chat_id, "Updating MARTAS ...")
+                   rest = cmd.replace('update','').strip().split()
+                   user = "cobs"
+                   if len(rest) == 1:
+                       user = rest[0]
+                   mesg = martasupdate(user=user)
+                   bot.sendMessage(chat_id, mesg)
+               else:
+                   commds = ['status', 'restart', 'stop', 'start']
+                   for comm in commds:
+                       if cmd.find(comm) > -1:
+                           rest = cmd.replace(comm,'').strip()
+                           job = "martas"
+                           if len(rest) > 2:
+                               job = rest
+                           mesg = martas(job=job,command=comm)
+                           break
                bot.sendMessage(chat_id, mesg)
-            elif command =='martasupdate':
-               bot.sendMessage(chat_id, "Updating MARTAS ...")
-               mesg = martasupdate()
+            elif command.find('marcos') > -1 or command.find('MARCOS') > -1:
+               # -----------------------
+               # Send MARCOS process command
+               # -----------------------
+               bot.sendMessage(chat_id, "Sending collector process command...")
+               cmd = command.replace('marcos','').replace('MARCOS','')
+               cmd = cmd.strip()
+               commds = ['status', 'restart', 'stop', 'start']
+               for comm in commds:
+                   if cmd.find(comm) > -1:
+                       print ("Found", comm)
+                       rest = cmd.replace(comm,'').strip().split()
+                       broker = ""
+                       if len(rest) == 1:
+                           broker = rest[0]
+                       mesg = marcos(broker=broker,command=comm)
+                       break
                bot.sendMessage(chat_id, mesg)
             elif command =='reboot':
+               # -----------------------
+               # Send REBOOT command
+               # -----------------------
                bot.sendMessage(chat_id, "Rebooting ...")
                mesg = reboot()
                bot.sendMessage(chat_id, mesg)
