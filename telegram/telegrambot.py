@@ -67,7 +67,11 @@ import telepot
 from telepot.loop import MessageLoop
 import sys, getopt
 
-from core import acquisitionsupport as acs
+# Relative import of core methods as long as martas is not configured as package
+coredir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'core'))
+sys.path.insert(0, coredir)
+import acquisitionsupport as acs
+
 
 class tgpar(object):
     logpath = '/var/log/magpy/martas.log'
