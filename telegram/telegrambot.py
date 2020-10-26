@@ -80,6 +80,7 @@ telegramcfg = os.path.join(os.path.dirname(scriptpath),"telegrambot.cfg")
 
 class tgpar(object):
     logpath = '/var/log/magpy/martas.log'
+    marcoslogpath = '/var/log/magpy/marcos.log'
     tmppath = '/tmp'
     camport = 'None'
     tglogpath = '/var/log/magpy/telegrambot.log'
@@ -209,6 +210,7 @@ try:
     martasconfig = tgconf.get('martasconfig').strip()
     camport = tgconf.get('camport').strip()
     martasapp = tgconf.get('martasapp').strip()
+    marcosconfig = tgconf.get('marcosconfig').strip()
     if not camport=='None':
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
     tmppath = tgconf.get('tmppath').strip()
@@ -216,6 +218,8 @@ try:
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
+    tgpar.marcoslogpath = marcosconfig
+    tgpar.logpath = martasconfig
     allowed_users =  [int(el) for el in tgconf.get('allowed_users').replace(' ','').split(',')]
     tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
 except:
@@ -332,7 +336,33 @@ def getspace():
         mesg += "\nMemory total: {}MB\nMemory available: {}MB\nCPU usage: {}%".format(total,avail,cpu)
     except:
         pass
+
+    # Status of MARTAS MARCOS jobs
+    try:
+        mesg += "\n\nMARTAS Process:\n----------"
+        proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
+        lines = proc.stdout.readlines()
+        if vers=='3':
+            lines = [line.decode() for line in lines]
+        try:
+            # get all collect-* files from init.d
+            import glob
+            collectlist = glob.glob('/etc/init.d/collect-*')
+            for coll in collectlist:
+                print (coll)
+                proc = subprocess.Popen([coll,'status'], stdout=subprocess.PIPE)
+                tmplines = proc.stdout.readlines()
+                if vers=='3':
+                    tmplines = [line.decode() for line in tmplines]
+                lines.extend(tmplines)
+        except:
+            pass
+        mesg += "\n{}".format(''.join(lines))
+    except:
+        pass
+
     return mesg
+
 
 
 def system():
@@ -343,17 +373,53 @@ def system():
         mesg += "System:\n----------\nName: {}\nOperating system: {} ({})\nKernel: {}\nArchitecture: {}".format(sysls[1],sysls[0],sysls[3],sysls[2],sysls[4])
     except:
         pass
-    # Geht nicht -> liefert immer dead --- checken
-    #try:
-    #    mesg += "\n\nMARTAS Process:\n----------"
-    #    proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
-    #    lines = proc.stdout.readlines()
-    #    #lines = proc.communicate()
-    #    mesg += "\n{}".format(''.join(lines))
-    #except:
-    #    pass
+    """
+    # Status of MARTAS MARCOS jobs
+    try:
+        mesg += "\n\nMARTAS Process:\n----------"
+        proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
+        lines = proc.stdout.readlines()
+        if vers=='3':
+            lines = [line.decode() for line in lines]
+        try:
+            # get all collect-* files from init.d
+            import glob
+            collectlist = glob.glob('/etc/init.d/collect-*')
+            for coll in collectlist:
+                print (coll)
+                proc = subprocess.Popen([coll,'status'], stdout=subprocess.PIPE)
+                tmplines = proc.stdout.readlines()
+                if vers=='3':
+                    tmplines = [line.decode() for line in tmplines]
+                lines.extend(tmplines)
+        except:
+            pass
+        mesg += "\n{}".format(''.join(lines))
+    except:
+        pass
+    """
     mesg += "\n\nSoftware versions:\n----------\nMagPy Version: {}".format(magpyversion)
     mesg += "\nTelegramBot Version: {}".format(tgpar.version)
+    try:
+        # get MARTAS version number from logfile
+        command = "cat {} | grep 'MARTAS acquisition version' | tail -1 | grep -oE '[^ ]+$'".format(tgpar.logpath)
+        proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+        lines = proc.stdout.readlines()
+        if vers=='3':
+            lines = [line.decode() for line in lines]
+        mesg += "\nMARTAS Version: {}".format(lines[0])
+    except:
+        pass
+    try:
+        # get MARCOS version number from logfile
+        command = "cat {} | grep 'Starting collector' | tail -1 | grep -oE '[^ ]+$'".format(tgpar.marcoslogpath)
+        proc = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+        lines = proc.stdout.readlines()
+        if vers=='3':
+            lines = [line.decode() for line in lines]
+        mesg += "\nMARCOS Version: {}".format(lines[0])
+    except:
+        pass
 
     return mesg
 
@@ -365,7 +431,7 @@ def tail(f, n=1):
     """
     mesg = "getlog:\n"
     try:
-       num_lines = sum(1 for line in open(f))
+        num_lines = sum(1 for line in open(f))
         if num_lines < n:
             n = num_lines
         proc = subprocess.Popen(['/usr/bin/tail', '-n', str(n), f], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -545,6 +611,8 @@ def handle(msg):
                        tmppath = tgpar.tglogpath
                    elif cmd.find('martas') > -1:
                        tmppath = tgpar.logpath
+                   elif cmd.find('marcos') > -1:
+                       tmppath = tgpar.marcoslogpath
                    if os.path.isfile(tmppath):
                        logpath = tmppath
                if os.path.isfile(logpath):
@@ -554,16 +622,25 @@ def handle(msg):
                    mesg = "getlog:\nlogfile not existing"
                bot.sendMessage(chat_id, mesg)
 
-            elif command.startswith('status'):
+            elif command.find('status') > -1 or command.find('memory') > -1:
+               # -----------------------
+               # Status messages on memory and disk space
+               # -----------------------
                mesg = getspace()
                bot.sendMessage(chat_id, mesg)
-            elif command.startswith('system'):
+            elif command.find('system') > -1:
+               # -----------------------
+               # System information, software versions and martas marcos jobs
+               # -----------------------
                mesg = system()
                bot.sendMessage(chat_id, mesg)
             elif command.find('hello') > -1:
+               # -----------------------
+               # Welcome statement
+               # -----------------------
                mesg = "Hello {}, nice to talk to you.".format(firstname)
                bot.sendMessage(chat_id, mesg)
-            elif command.startswith('cam'):
+            elif command.find('cam') > -1:
                usedcamport = getcam(command)
                if usedcamport == 'None':
                    mesg = "No camport  (fswebcam properly installed?)"
@@ -573,7 +650,7 @@ def handle(msg):
                        tglogger.debug("Creating image...")
                        tglogger.debug("Selected cam port: {} and temporary path {}".format(usedcamport,tmppath))
                        subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, os.path.join(tmppath,'webimage.jpg')])
-                       tglogger.debug("Subprocess for image creation finished")                       
+                       tglogger.debug("Subprocess for image creation finished")
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))
                    except:
                        mesg = "Cam image not available (fswebcam properly installed?)"
