@@ -68,9 +68,13 @@ from telepot.loop import MessageLoop
 import sys, getopt
 
 # Relative import of core methods as long as martas is not configured as package
-coredir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 'core'))
+scriptpath = os.path.dirname(os.path.realpath(__file__))
+coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
 sys.path.insert(0, coredir)
 import acquisitionsupport as acs
+
+# Default configuration path - modified using options
+telegramcfg = os.path.join(os.path.dirname(scriptpath),"telegrambot.cfg")
 
 
 class tgpar(object):
@@ -78,7 +82,7 @@ class tgpar(object):
     tmppath = '/tmp'
     camport = 'None'
     tglogpath = '/var/log/magpy/telegrambot.log'
-    version = '1.0.2'
+    version = '1.0.3'
     martasapp = '/home/cobs/MARTAS/app'
 
 
@@ -183,14 +187,8 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensors sensorid  (provides some details on the selected sensor)',
                    'help':'print this list'}
 
-
-scriptpath = os.path.realpath(__file__)
-telegramcfg = os.path.join(os.path.dirname(scriptpath),"telegrambot.cfg")
-
-import sys, getopt
-
 try:
-    opts, args = getopt.getopt(argv,"hc:",["config="])
+    opts, args = getopt.getopt(sys.argv[1:],"hc:",["config="])
 except getopt.GetoptError:
     print ('telegrambot.py -c <config>')
     sys.exit(2)
@@ -220,7 +218,7 @@ try:
     allowed_users =  [int(el) for el in tgconf.get('allowed_users').replace(' ','').split(',')]
     tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
 except:
-    print ("error while reading config file - check content and spaces")
+    print ("error while reading config file or writing to log file - check content and spaces")
 
 try:
     conf = acs.GetConf(martasconfig)
