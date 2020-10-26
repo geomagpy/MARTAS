@@ -180,11 +180,12 @@ Available commands:
 #avcommands = {'getmagstat':'statusplot', 'checkDB':'get database information of primary database', 'getgravstat':'get gravity status'}
 
 stationcommands = {'getlog':'obtain last n lines of a log file\n  Command options:\n  getlog  \n  getlog 10  (last 10 lines)  \n  getlog 10 syslog  (telegrambot, martas, syslog, dmesg)', 
-                   'martasrestart':'restart MARTAS process',
+                   'martas restart-stop-start':'e.g. restart MARTAS process',
+                   'marcos restart-stop-start':'e.g. restart MARCOS process',
                    'martasupdate':'update MARTAS',
-                   'status':'get basic information on pc like disk space, memory, usage', 
+                   'status':'get information on disk space, memory, and martas-marcos processes',
                    'hello':'say hello, bot',
-                   'system':'get some basic information an the remote system and its software (hardware, magpy version, MARTAS state)', 
+                   'system':'get some basic information an the remote system and its software (hardware, magpy version)', 
                    'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)', 
                    'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime', 
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensors sensorid  (provides some details on the selected sensor)',
