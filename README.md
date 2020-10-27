@@ -24,8 +24,9 @@ Currently supported systems are:
 - Lemi025,Lemi036, and most likely all other Lemi systems; 
 - Geometrics Sytems GSM90, GSM19;
 - Quantum Magnetometer Systems POS-1, POS-4
-- Meteolabs BM35 pressure
+- Meteolabs BM35 pressure sensor
 - Thiess LaserNiederschlagsMessgerät - Disdrometer
+- Ultrasonic Anemometer
 - AD7714 general ADC
 - MinGeo PalmDac 24 bit data logger (under development)
 - Campbell Scientific CR800, CR1000 Data loggesr
@@ -34,7 +35,7 @@ Currently supported systems are:
 - Dallas OneWire Sensors
 
 and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
-(requiring a specific serial output format in the self writte microcontroller program - appendix)
+(requiring a specific serial output format in the self written microcontroller program - appendix)
 
 
 Note: in the folling examples we use "user" as username and "users" as group.
@@ -181,6 +182,16 @@ c) Adding a cleanup for the bufferdirectory
 
 	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
 
+d) Adding a start option to crontab 
+
+   In case that the MARTAS acquisition process hangs up or gets terminated by an unkown reason
+   it is advisable to add a start option to crontab, which starts MARTAS in case it is not 
+   running any more
+
+   Add the following line to /etc/crontab
+
+       10  0  *  *  *  root    /etc/init.d/martas start
+
 ### 3.3 Understanding Quality-of-Service (QOS)
 
 The Quality-of-Service (qos) level is an agreement between the sender of a message and the receiver of a message that defines the guarantee of delivery for a specific message. There are three qos levels in MQTT: (0) At most once, (1) At least once and (2) Exactly once. (0) sends out data without testing whether it is received or not. (1) sends out data and requires an aknowledgment that the data was received. Multiple sendings are possible. (2) makes sure that every data is send exactly once. Please refer to MQTT information pages for more details.
@@ -248,6 +259,16 @@ a) Use the MARTAS installation script
 b) Check /etc/martas/broker.cfg   ("broker" might be replaced if you use have chosen a different name) 
 
         $ nano /etc/martas/broker.cfg
+
+c) Adding a start option to crontab 
+
+   In case that the MARCOS collector process hangs up or gets terminated by an unkown reason
+   it is advisable to add a start option to crontab, which starts the collector in case it is not 
+   running any more
+
+   Add the following line to /etc/crontab
+
+      12  0  *  *  *  root    /etc/init.d/collect-broker start
 
 
 ### 6.2 Running the collection sytem
@@ -350,9 +371,62 @@ c) Customizing the WEB interface/ports of MARCOS
 
 ### 7.1 The threshold notifyer
 
-### 7.2 Support for NAGIOS/ICACLIENT
+MARTAS comes along with a threshold application. This app reads data from a defined source: a MARTAS buffer files, MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can be monitored independently by mail, nagios, icinga, telegram.
+Threshold.py can be scheduled in crontab.
+
+### 7.2 Support for NAGIOS/ICINGA
+
 
 ### 7.3 Communicating with MARTAS
+
+MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot, referring to your MARTAS.
+
+To setup [Telegram] communication use the following steps:
+
+  a) Use [Telegram Botfather] to create a new BOT
+
+  b) Install Telegram support for MARTAS
+
+        $ cd MARATS/install
+        $ sudo bash install.telegram.sh
+
+      The installer will eventually add the following apckages: telepot, psutil and
+      platform. For webcam support you shoudl install fswebcam.
+
+        $ sudo apt-get install fswebcam  # optional - transferring webcam pictures
+
+
+  c) Update /etc/martas/telegrambot.cfg
+
+        $ nano /etc/martas/telegrambot.cfg
+
+      -> you need the BotID, which you obtained when creating the new BOT
+      -> you need at least one UserID. Your UserID
+
+  d) Open Telegram on your Mobile/Webclient and access the TelegramBot Channel. 
+
+      You can can now talk to your BOT (here are some examples):
+
+        hello bot
+
+        i need help
+
+        what sensors are connected
+
+        give me some details on sensors DS18B20
+
+        i need further details on sensor 
+
+        please provide your current status
+
+        i would like to get some system information
+
+        get the log of martas, last 20 lines
+
+        please restart the martas process
+
+        please restart the marcos process
+
 
 ## 8. Frequently asked questions
 
@@ -451,5 +525,8 @@ Additional meta information can always be added to sensors.cfg.
 - add in how-to for using senddata and addcreds
 
 
+
+   [Telegram] : <https://telegram.org/>
+   [Telegram Botfather] :  <https://core.telegram.org/bots>
 
 

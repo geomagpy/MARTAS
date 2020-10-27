@@ -30,10 +30,10 @@ cd "$current"
 
 read -p "Provide python path (default = $PYPATH): " PYPATHT
 read -p "Provide path for bot (default = $BOTPATH): " BOTPATHT
-read -p "Provide path for configuration file (default = $BOTPATH): " CONFPATHT
+read -p "Provide path for configuration file (default = $CONFPATH): " CONFPATHT
 read -p "Provide MARTAS applications path (default = $MARTASPATH): " MARTASPATHT
 read -p "Provide MARTAS configuration file (default = $MARTASCONF): " MARTASCONFT
-read -p "Provide MARCOS configuration file (default = $MAROCSCONF): " MARCOSCONFT
+read -p "Provide MARCOS configuration file (default = $MARCOSCONF): " MARCOSCONFT
 
 if [ "$PYPATHT" != "$tvar" ]; then
    PYPATH=$PYPATHT
@@ -95,9 +95,9 @@ DUMMYBOT="/your/botpath"
 DUMMYPYTHON="/usr/bin/python"
 sed -i "s+${DUMMYPYTHON}+${PYPATH}+g" /etc/init.d/telegrambot
 sed -i "s+${DUMMYBOT}+${BOTPATH}+g" /etc/init.d/telegrambot
-DUMMYMARTASCONF="/home/cobs/MARTAS/app"
-DUMMYMARCOSCONF="/etc/martas/martas.cfg"
-DUMMYMARTASAPP="/etc/martas/marcos.cfg"
+DUMMYMARTASCONF="/my/path/martas.cfg"
+DUMMYMARCOSCONF="/my/path/marcos.cfg"
+DUMMYMARTASAPP="/my/path/MARTAS/app"
 sed -i "s+${DUMMYMARTASAPP}+${MARTASPATH}+g" $CONFPATH/telegrambot.cfg
 sed -i "s+${DUMMYMARTASCONF}+${MARTASCONF}+g" $CONFPATH/telegrambot.cfg
 sed -i "s+${DUMMYMARCOSCONF}+${MARCOSCONF}+g" $CONFPATH/telegrambot.cfg
@@ -105,6 +105,12 @@ sed -i "s+${DUMMYMARCOSCONF}+${MARCOSCONF}+g" $CONFPATH/telegrambot.cfg
 chmod 755 /etc/init.d/telegrambot
 chown root:root /etc/init.d/telegrambot
 update-rc.d telegrambot defaults
+
+echo "" >> /etc/crontab
+echo "# TelegramBot should be restarted once in while" >> /etc/crontab
+echo "PATH=/bin/sh" >> /etc/crontab
+echo "0  6  *  *  *  /etc/init.d/telegrambot restart > /dev/NULL 2&>1" >> /etc/crontab
+echo "0  14  *  *  *  /etc/init.d/telegrambot restart > /dev/NULL 2&>1" >> /etc/crontab
 
 echo "----------------------------------------"
 echo "telegrambot successfully added as service"
