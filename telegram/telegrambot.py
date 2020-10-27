@@ -180,17 +180,24 @@ Available commands:
 """
 #avcommands = {'getmagstat':'statusplot', 'checkDB':'get database information of primary database', 'getgravstat':'get gravity status'}
 
-stationcommands = {'getlog':'obtain last n lines of a log file\n  Command options:\n  getlog  \n  getlog 10  (last 10 lines)  \n  getlog 10 syslog  (telegrambot, martas, syslog, dmesg)', 
+stationcommands = {'getlog':'obtain last n lines of a log file\n  Command options:\n  getlog  \n  getlog 10  (last 10 lines)  \n  getlog 10 syslog  (telegrambot, martas, syslog, messages)',
                    'martas restart-stop-start':'e.g. restart MARTAS process',
                    'marcos restart-stop-start':'e.g. restart MARCOS process',
                    'martasupdate':'update MARTAS',
                    'status':'get information on disk space, memory, and martas-marcos processes',
                    'hello':'say hello, bot',
-                   'system':'get some basic information an the remote system and its software (hardware, magpy version)', 
-                   'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)', 
+                   'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003'
+                   'system':'get some basic information an the remote system and its software (hardware, magpy version)',
+                   'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)',
                    'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime', 
-                   'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensors sensorid  (provides some details on the selected sensor)',
+                   'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)',
                    'help':'print this list'}
+
+hiddencommands = {'reboot':'reboot the remote computer'}
+
+sensorcommandlist = ['sensors','sensor'] # any
+getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
+getdatacommandlist = ['data','get'] # all
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:",["config="])
@@ -282,36 +289,101 @@ def sensors():
     return mesg
 
 
-def getdata(interval=None, mean='mean'):
+def _identifySensor(text):
+    """
+    DESCRIPTION
+        check whether the text contains valid sensorid and returns a list of them
+    """
+    senslist = []
+    if not text:
+        return []
+    splittext = text.split()
+    validsensors = [s.get('sensorid').replace('$','').replace('?','').replace('!','') for s in sensorlist]
+    for element in splittext:
+        if element in validsensors:
+            # found a sensorid in within the text
+            senslist.append(element)
+    validnames = list(set([s.get('name') for s in sensorlist]))
+    for element in splittext:
+        if element in validnames:
+            # found a sensorname in the text
+            correspondingids = [s.get('sensorid').replace('$','').replace('?','').replace('!','') for s in sensorlist if s.get('name') == element]
+            if len(correspondingids) > 0:
+                for el in correspondingids:
+                    senslist.append(el)
+    if len(senslist) > 0: # remove duplicates
+        senslist = list(set(senslist))
+    return senslist
+
+
+def _identifyDates(text):
+    """
+    DESCRIPTION
+        extract dates from a text
+    """
+    from dateutil.parser import parse
+    try:
+        dt = parse(text, fuzzy=True)
+    except:
+        dt = None
+    return dt
+
+def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
     """
     DESCRIPTION
         get last values of each sensor
     OPTIONS
-        intervals (int) : define an interval to average last values (in seconds) 
-        mean (string)   : type of average (mean, median) 
+        startdate (datetime) : define a specific time
+        intervals (int) : define an interval to average values (default one minute)
+        mean (string)   : type of average (mean, median)
+        sensorid (string) : if no sensorid is given all sensors from sensorlist are used
+    RETURN
+        a dictionary looking like {'SensorID' : {'keys': 't1,t2,var1',
+                                                 't1' : {'element': 'T', 'value': 23.31, 'unit': 'deg C'},
+                                                 ...
+                                                 }
+                                   ...
+                                  }
     """
-    if not interval:
-        starttime = datetime.utcnow().date()
-        con = 'at'
-    else:
-        starttime = datetime.utcnow() - timedelta(seconds=interval)
-        con = 'since'
-    mesg = "Current values:\n"
-    for s in sensorlist:
-        sensor = s.get('sensorid').replace('$','').replace('?','').replace('!','')
-        data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime)
-        print (data._get_key_headers())
-        # starttime...
-        mesg += "{} {} {}:\n".format(sensor,con,starttime)
-        for key in data._get_key_headers():
-            value = 0
-            unit = 'arb'
-            pos = KEYLIST.index(key)
-            if not interval:
-               value = data.ndarray[pos][-1]
-               mesg += "  {}: {} {}\n".format(key,value, unit)
 
-    return mesg
+    def GetVals(header,key):
+         keystr = "col-{}".format(key)
+         element = header.get(keystr,'unkown')
+         unit = header.get('unit-'+keystr,'arb')
+         return element,unit
+
+    if not starttime:
+        starttime = datetime.utcnow() - timedelta(seconds=interval)
+        endtime = None
+    else:
+        endtime = starttime + timedelta(seconds=interval)
+
+    senslist = [s.get('sensorid').replace('$','').replace('?','').replace('!','') for s in sensorlist]
+    if sensorid and sensorid in senslist:
+        senslist = [sensorid]
+    returndict = {}
+    for s in senslist:
+        contentdict = {}
+        try:
+            data = read(os.path.join(mqttpath,s,'*'),starttime=starttime,endtime=endtime)
+            contentdict['keys'] = data._get_key_headers()
+            st, et = data._find_t_limits()
+            contentdict['starttime'] = st
+            contentdict['endtime'] = et
+            for key in data._get_key_headers():
+                valuedict = {}
+                element, unit = GetVals(data.header, key)
+                value = data.mean(key)
+                valuedict['value'] = value
+                valuedict['unit'] = unit
+                valuedict['element'] = element
+                contentdict[key] = valuedict
+            returndict[s] = contentdict
+        except:
+            # e.g. no readable files
+            pass
+
+    return returndict
 
 
 def tgplot(sensor, starttime, endtime, keys=None):
@@ -428,6 +500,10 @@ def tail(f, n=1):
     return mesg
 
 def sensorstats(sensorid):
+    """
+    DESCRIPTION:
+       details on sensors
+    """
     lf = _latestfile(os.path.join(mqttpath,sensorid,'*'))
     data = read(lf)
     mesg = "Sensor info for {}:\n".format(sensorid)
@@ -557,7 +633,7 @@ def switch(command):
     return mesg
 
 
-def help():
+def help(hidden=False):
     """
     DESCRIPTION
         print dictionary of commands
@@ -566,6 +642,10 @@ def help():
     for key in stationcommands:
         mesg += "COMMAND: '/{}'\n".format(key)
         mesg += "{}\n\n".format(stationcommands[key])
+    if hidden:
+        for key in hiddencommands:
+            mesg += "SPECIAL COMMAND: '/{}'\n".format(key)
+            mesg += "{}\n\n".format(hiddencommands[key])
     return mesg
 
 
@@ -595,8 +675,12 @@ def handle(msg):
                # -----------------------
                # HELP
                # -----------------------
-               bot.sendMessage(chat_id, help())
-            elif command.find('getlog') > -1 or command.find('print log') > -1 or command.find('send log') > -1 or command.find('get log') > -1:
+               hidden = False
+               if command.replace('help','').find('hidden') > -1:
+                   hidden = True
+               bot.sendMessage(chat_id, help(hidden=hidden))
+            elif any([word in command for word in getlogcommandlist]):
+               #command.find('getlog') > -1 or command.find('print log') > -1 or command.find('send log') > -1 or command.find('get log') > -1 or command.find('print the log') > -1 or command.find('get the log') > -1:
                # -----------------------
                # OBTAINNING LOGS
                # -----------------------
@@ -772,7 +856,7 @@ def handle(msg):
                    mesg = ''
                    sensordict = {}
                    for se in sensorlist:
-                       se1 = se.get('sensorid')
+                       se1 = se.get('sensorid').replace('$','').replace('?','').replace('!','')
                        se2 = se.get('name')
                        sensordict[se1] = se2
                    for el in cmd:
@@ -808,6 +892,39 @@ def handle(msg):
                    command = 'Status'
                mesg = switch(command)
                bot.sendMessage(chat_id, mesg)
+            elif command.find('data') > -1 and command.find('get') > -1:
+               # -----------------------
+               # Get data, either recent or from a specific time
+               # -----------------------
+               def CreateSensorMsg(valdict):
+                   mesg = ''
+                   for sensor in valdict:
+                       mesg += "Sensor: {}\n".format(sensor)
+                       contentdict = valdict.get(sensor)
+                       keys = contentdict.get('keys')
+                       for key in keys:
+                           keydict = contentdict.get(key)
+                           mesg += "  {}: {} {} (key: {})\n".format(keydict.get('element'),keydict.get('value'),keydict.get('unit',''),key)
+                           mesg += "  at {}\n".format(contentdict.get('starttime').strftime("%Y-%m-%d %H:%M:%S") )
+                   return mesg
+
+               tglogger.info("Got a data request")
+               cmd = command.replace('data','').replace('get','')
+               cmdsplit = cmd.split()
+               mesg = "Data:\n-----------\n"
+               if len(cmdsplit) > 0:
+                   sensoridlist = _identifySensor(cmd)
+                   for sensorid in sensoridlist:
+                       cmd = cmd.replace(sensorid,'')
+                   starttime = _identifyDates(cmd) # dates is a list
+                   for sensorid in sensoridlist:
+                       valdict = getdata(sensorid=sensorid,starttime=starttime)
+                       mesg += CreateSensorMsg(valdict)
+               else:
+                   valdict = getdata()
+                   mesg += CreateSensorMsg(valdict)
+               bot.sendMessage(chat_id, mesg)
+
 
 if vers=='2':
     bot = telepot.Bot(str(bot_id))

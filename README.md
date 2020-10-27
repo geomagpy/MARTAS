@@ -385,26 +385,47 @@ To setup [Telegram] communication use the following steps:
 
   a) Use [Telegram Botfather] to create a new BOT
 
-  b) Install addionally required and optional packages
-
-        $ pip install telepot            # required
-        $ pip install psutil             # optional - status of memory and cpu
-        $ pip install platform           # optional for python2.x - system information
-        $ sudo apt-get install fswebcam  # optional - transferring webcam pictures
-
-  c) Install Telegram support for MARTAS
+  b) Install Telegram support for MARTAS
 
         $ cd MARATS/install
         $ sudo bash install.telegram.sh
 
-  d) Update /etc/martas/telegrambot.cfg
+      The installer will eventually add the following apckages: telepot, psutil and
+      platform. For webcam support you shoudl install fswebcam.
+
+        $ sudo apt-get install fswebcam  # optional - transferring webcam pictures
+
+
+  c) Update /etc/martas/telegrambot.cfg
 
         $ nano /etc/martas/telegrambot.cfg
 
       -> you need the BotID, which you obtained when creating the new BOT
       -> you need at least one UserID. Your UserID
 
-  e) Open Telegram on your Mobile/Webclient and access the TelegramBot Channel 
+  d) Open Telegram on your Mobile/Webclient and access the TelegramBot Channel. 
+
+      You can can now talk to your BOT (here are some examples):
+
+        hello bot
+
+        i need help
+
+        what sensors are connected
+
+        give me some details on sensors DS18B20
+
+        i need further details on sensor 
+
+        please provide your current status
+
+        i would like to get some system information
+
+        get the log of martas, last 20 lines
+
+        please restart the martas process
+
+        please restart the marcos process
 
 
 ## 8. Frequently asked questions
