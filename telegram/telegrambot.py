@@ -388,12 +388,14 @@ def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
 
 
 def tgplot(sensor, starttime, endtime, keys=None):
+    """
+    DESCRIPTION
+       plotting subroutine
+    """
     try:
         data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime, endtime=endtime)
-        #print (os.path.join(mqttpath,sensor,'*'))
-        #if not keys:
-        #    keys = data._get_key
-        mp.plot(data, outfile=os.path.join(tmppath,'tmp.png'))
+        matplotlib.use('Agg')
+        mp.plot(data, confinex=True, outfile=os.path.join(tmppath,'tmp.png'))
         return True
     except:
         return False
@@ -810,28 +812,35 @@ def handle(msg):
                # Plot data, either recent or from a specific time interval
                # -----------------------
                for word in plotcommandlist:
-                   cmd = cmd.replace(word,'')
-               sensoridlist = _identifySensors(cmd)
+                   cmd = command.replace(word,'')
+               sensoridlist = _identifySensor(cmd)
                if len(sensoridlist) > 1:
-                   print ("Too many sensors selected - using only {}".format(sensoridlist[0])
+                   print ("Too many sensors selected - using only {}".format(sensoridlist[0]))
                elif len(sensoridlist) == 0:
-                   bot.sendMessage(chat_id, "You need to specify a sensorid")
+                   bot.sendMessage(chat_id, "You need to specify a sensorid - check 'sensors' to get IDs")
                else:
                    sensorid = sensoridlist[0]
-                   print ("Continue with sensor", sensorid)
                    cmd = cmd.replace(sensorid,'')
                    # Getting time interval
-                   cmd = command.split()
+                   cmd = cmd.split()
                    l = len(cmd)
 
                    # default start and endtime
                    endtime = datetime.utcnow()
                    starttime = datetime.utcnow()-timedelta(days=1)
-                   print ("Remaining command", cmd)
+                   datelist = []
+                   if len(cmd) >=1:
+                       for el in cmd:
+                           newdate = _identifyDates(el)
+                           if newdate:
+                               datelist.append(newdate)
+                       if len(datelist) > 0:
+                           starttime = min(datelist)
+                       if len(datelist) > 1:
+                           endtime = max(datelist)
 
                    suc = tgplot(sensorid,starttime,endtime)
                    if suc:
-                       # ASCII error (python 3.xx)
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'tmp.png'),'rb'))
                    else:
                        mesg = "Plot could not be created" # tgplot
