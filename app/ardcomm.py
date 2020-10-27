@@ -25,15 +25,22 @@ def send_command(ser,command,eol,hex=False):
     command = command+eol
     if(ser.isOpen() == False):
         ser.open()
-    ser.write(command)
-    # skipping all empty lines 
-    while response == '': 
+    if sys.version_info >= (3, 0):
+        ser.write(command.encode('ascii'))
+    else:
+        ser.write(command)
+    # skipping all empty lines
+    while response == '':
         response = ser.readline()
+        if sys.version_info >= (3, 0):
+            response = response.decode()
     # read until end-of-messageblock signal is obtained (use some break value)
     while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
         cnt += 1
         fullresponse += response
         response = ser.readline()
+        if sys.version_info >= (3, 0):
+            response = response.decode()
     if cnt == maxcnt:
         fullresponse = 'Maximum count {} was reached'.format(maxcnt)
     return fullresponse

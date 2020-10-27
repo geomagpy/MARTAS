@@ -199,6 +199,8 @@ sensorcommandlist = ['sensors','sensor'] # any
 getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
 getdatacommandlist = ['data','get'] # all
 plotcommandlist = ['plot'] # any
+switchcommandlist = ['switch'] # any
+switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'] }
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:",["config="])
@@ -616,9 +618,12 @@ def getcam(command):
 
 
 def switch(command):
-    # restart martas process
+    """
+    DESCRIPTION
+        send switching command to  a connected microcontroller
+    """
     try:
-        tglogger.debug("Running check_call to start switch...")
+        tglogger.debug("Running switch command...")
         python = sys.executable
         #path = '/home/cobs/MARTAS/app/ardcomm.py'
         path = os.path.join(tgpar.martasapp,'ardcomm.py')
@@ -626,6 +631,7 @@ def switch(command):
         option = '-c'
         call = "{} {} {} {}".format(python,path,option,command)
         tglogger.debug("Call: {}".format(call))
+        print ("Sending", call)
         p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
         mesg = "{}".format(output)
@@ -700,7 +706,6 @@ def handle(msg):
                martaslog = os.path.dirname(tgpar.logpath)
                martaslogfiles = glob.glob(os.path.join(martaslog,'*.log'))
                martaslogfiles = [os.path.basename(ma) for ma in martaslogfiles]
-               print (martaslogfiles)
                if len(cmd) > 3: # at least three characters remaining
                    tmpname = cmd
                    for logfile in syslogfiles:
@@ -875,22 +880,24 @@ def handle(msg):
                else:
                    mesg = sensors()
                bot.sendMessage(chat_id, mesg)
-            elif command.startswith('switch'):
-               tglogger.info("Switching received")
-               cmd = command.split()
-               tglogger.info("Switching received: {}".format(len(cmd)))
-               l = len(cmd)
-               if l > 1:
-                   # read latest file of selected sensor and return some statistics
-                   tglogger.debug("Switching ... {}".format(cmd[1]))
-                   #if cmd[1].strip() in [u'P:0:4',u'P:1:4',u'P:0:5',u'P:1:5',u'Status']:
-                   command = cmd[1].strip()
-                   print (command)
-                   #else:
-                   #    command = 'Status'
-               else:
-                   command = 'Status'
-               mesg = switch(command)
+            elif any([word in command for word in switchcommandlist]):
+               # -----------------------
+               # Send switch command for mircocontroller
+               # -----------------------
+               tglogger.info("Switching command received")
+               cmd = None
+               if command.find('status') > -1 or command.find('Status') > -1:
+                   cmd = 'Status'
+               for opt in switchcommandoptions:
+                   commlist = switchcommandoptions.get(opt)
+                   if any([command.find(word) > -1 for word in commlist]):
+                       print ("Found ", opt)
+                       cmd = opt
+                       break
+               if not cmd:
+                   cmd = 'Status'
+               tglogger.info(" command extracted: {}".format(len(cmd)))
+               mesg = switch(cmd)
                bot.sendMessage(chat_id, mesg)
             elif command.find('data') > -1 and command.find('get') > -1:
                # -----------------------
