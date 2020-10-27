@@ -273,9 +273,7 @@ def sensors():
                 flag = "inactive since {:.0f} sec".format(diff)
         except:
             flag = "no buffer found"
-
         mesg += "{}: {}\n".format(se,flag)
-
     return mesg
 
 
@@ -324,8 +322,11 @@ def tgplot(sensor, starttime, endtime, keys=None):
 
 
 def getspace():
+    """
+    DESCRIPTION
+        get some memory information and process status reports
+    """
     statvfs = os.statvfs('/home')
-
     total = (statvfs.f_frsize * statvfs.f_blocks / (1024.*1024.))     # Size of filesystem in bytes
     remain = (statvfs.f_frsize * statvfs.f_bavail / (1024.*1024.))     # Number of free bytes that ordinary users
     mesg = "MEMORY status:\n----------\nDisk-size: {:.0f}MB\nDisk available: {:.0f}MB\nDisk occupied: {:.1f}%".format(total,remain, 100-(remain/total*100.))
@@ -364,8 +365,11 @@ def getspace():
     return mesg
 
 
-
 def system():
+    """
+    DESCRIPTION
+        get system information on hardware and software versions
+    """
     mesg = ''
     try:
         import platform
@@ -549,12 +553,14 @@ def switch(command):
 
 
 def help():
-    # print dictionary of commands
+    """
+    DESCRIPTION
+        print dictionary of commands
+    """
     mesg = ''
     for key in stationcommands:
         mesg += "COMMAND: '/{}'\n".format(key)
         mesg += "{}\n\n".format(stationcommands[key])
-    #print ("help called", mesg)
     return mesg
 
 
@@ -598,12 +604,19 @@ def handle(msg):
                if not N:
                    N = 10
                cmd = cmd.strip()
-               logfiles = ['syslog', 'dmesg', 'messages', 'faillog']
-               if len(cmd) > 3:
+               syslogfiles = ['syslog', 'dmesg', 'messages', 'faillog']
+               martaslog = os.path.dirname(tgpar.logpath)
+               print (martaslog)
+               martaslogfiles = glob.glob(os.path.join(martaslog,'*.log'))
+               print ("XXX", martaslogfiles)
+               if len(cmd) > 3: # at least three characters remaining
                    tmpname = cmd
-                   for logfile in logfiles:
+                   for logfile in syslogfiles:
                        if cmd.find(logfile) > -1:
                           tmppath = os.path.join('/var/log', logfile)
+                   for logfile in martaslogfiles:
+                       if cmd.find(logfile) > -1:
+                          tmppath = os.path.join(martaslog, logfile)
                    if cmd.find('telegrambot') > -1:
                        tmppath = tgpar.tglogpath
                    elif cmd.find('martas') > -1:
@@ -618,7 +631,6 @@ def handle(msg):
                else:
                    mesg = "getlog:\nlogfile not existing"
                bot.sendMessage(chat_id, mesg)
-
             elif command.find('status') > -1 or command.find('memory') > -1:
                # -----------------------
                # Status messages on memory and disk space
@@ -748,6 +760,7 @@ def handle(msg):
                cmd = command.split()
                l = len(cmd)
                if l > 1:
+                   # check whether a sensor of the sensorlist is contained in the remaining text
                    # read latest file of selected sensor and return some statistics
                    tglogger.debug("Returning Sensor statistics")
                    mesg = sensorstats(cmd[1])
