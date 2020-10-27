@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # coding=utf-8
 
@@ -262,6 +263,10 @@ def _latestfile(path, date=False, latest=True):
         return latest_file
 
 def sensors():
+    """
+    DESCRIPTION
+        provide basic sensorlist and show whether they are active or not
+    """
     mesg = "Sensors:\n"
     for s in sensorlist:
         se = s.get('sensorid').replace('$','').replace('?','').replace('!','')
@@ -386,7 +391,7 @@ def system():
         lines = proc.stdout.readlines()
         if vers=='3':
             lines = [line.decode() for line in lines]
-        mesg += "\nMARTAS Version: {}".format(lines[0])
+        mesg += "\nMARTAS Version: {}".format(lines[0].strip())
     except:
         pass
     try:
@@ -396,7 +401,7 @@ def system():
         lines = proc.stdout.readlines()
         if vers=='3':
             lines = [line.decode() for line in lines]
-        mesg += "\nMARCOS Version: {}".format(lines[0])
+        mesg += "\nMARCOS Version: {}".format(lines[0].strip())
     except:
         pass
 
@@ -606,9 +611,9 @@ def handle(msg):
                cmd = cmd.strip()
                syslogfiles = ['syslog', 'dmesg', 'messages', 'faillog']
                martaslog = os.path.dirname(tgpar.logpath)
-               print (martaslog)
                martaslogfiles = glob.glob(os.path.join(martaslog,'*.log'))
-               print ("XXX", martaslogfiles)
+               martaslogfiles = [os.path.basename(ma) for ma in martaslogfiles]
+               print (martaslogfiles)
                if len(cmd) > 3: # at least three characters remaining
                    tmpname = cmd
                    for logfile in syslogfiles:
@@ -756,14 +761,33 @@ def handle(msg):
                else:
                    mesg = "Plot could not be created" # tgplot
                    bot.sendMessage(chat_id, mesg)
-            elif command.startswith('sensors'):
-               cmd = command.split()
-               l = len(cmd)
-               if l > 1:
+            elif command.find('sensors') > -1 or command.find('sensor') > -1:
+               # -----------------------
+               # Obtain sensor information and broadcast it
+               # -----------------------
+               tcmd = command.replace('sensors','').replace('sensor','')
+               cmd = tcmd.split()
+               if len(cmd) > 0:
                    # check whether a sensor of the sensorlist is contained in the remaining text
-                   # read latest file of selected sensor and return some statistics
-                   tglogger.debug("Returning Sensor statistics")
-                   mesg = sensorstats(cmd[1])
+                   mesg = ''
+                   sensordict = {}
+                   for se in sensorlist:
+                       se1 = se.get('sensorid')
+                       se2 = se.get('name')
+                       sensordict[se1] = se2
+                   for el in cmd:
+                       if el in sensordict:
+                           tglogger.debug("Returning Sensor statistics for {}".format(el))
+                           mesg += sensorstats(el)
+                       sensorval = list(set([sensordict[ele] for ele in sensordict]))
+                       if el in sensorval:
+                           # get all ids for this name
+                           for ele in sensordict:
+                               if sensordict[ele] == el:
+                                   tglogger.debug("Returning Sensor statistics for {}".format(ele))
+                                   mesg += sensorstats(ele)
+                   if mesg == '':
+                       mesg = sensors()
                else:
                    mesg = sensors()
                bot.sendMessage(chat_id, mesg)
