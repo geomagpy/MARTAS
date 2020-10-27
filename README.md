@@ -427,6 +427,13 @@ To setup [Telegram] communication use the following steps:
 
         please restart the marcos process
 
+        plot data from DS18B20_28616411B2648B6D_0001
+
+        plot data from DS18B20_28616411B2648B6D_0001 between 2020-10-24 and 2020-10-26
+
+      If you have a microcontroller connected programmed with MARTAS specifications (e.g. arduino) you can also send switching commands:
+
+        switch heating on
 
 ## 8. Frequently asked questions
 
