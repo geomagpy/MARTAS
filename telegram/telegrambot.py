@@ -186,7 +186,7 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'martasupdate':'update MARTAS',
                    'status':'get information on disk space, memory, and martas-marcos processes',
                    'hello':'say hello, bot',
-                   'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003'
+                   'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003',
                    'system':'get some basic information an the remote system and its software (hardware, magpy version)',
                    'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)',
                    'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime', 
@@ -198,6 +198,7 @@ hiddencommands = {'reboot':'reboot the remote computer'}
 sensorcommandlist = ['sensors','sensor'] # any
 getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
 getdatacommandlist = ['data','get'] # all
+plotcommandlist = ['plot'] # any
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:",["config="])
@@ -804,47 +805,37 @@ def handle(msg):
                bot.sendMessage(chat_id, "Rebooting ...")
                mesg = reboot()
                bot.sendMessage(chat_id, mesg)
-            elif command.startswith('plot'):
-               cmd = command.split()
-               l = len(cmd)
-               endtime = datetime.utcnow()
-               starttime = datetime.utcnow()-timedelta(days=1)
-               if l >= 2:
-                   sensorid = cmd[1]
+            elif any([word in command for word in plotcommandlist]):
+               # -----------------------
+               # Plot data, either recent or from a specific time interval
+               # -----------------------
+               for word in plotcommandlist:
+                   cmd = cmd.replace(word,'')
+               sensoridlist = _identifySensors(cmd)
+               if len(sensoridlist) > 1:
+                   print ("Too many sensors selected - using only {}".format(sensoridlist[0])
+               elif len(sensoridlist) == 0:
+                   bot.sendMessage(chat_id, "You need to specify a sensorid")
                else:
-                   bot.sendMessage(chat_id, "you need to specify a sensorid")
-                   return
-               if l >= 3:
-                   tglogger.debug("Found three parameter")
-                   try:
-                       st = cmd[2]
-                       if vers=='2':
-                           st = str(st)
-                       starttime = DataStream()._testtime(st)
-                   except:
-                       print ("starttime does not have a appropriate format")
-                       pass
-               if l >= 4:
-                   tglogger.debug("Found four parameter")
-                   try:
-                       et = cmd[3]
-                       if vers=='2':
-                           et = str(et)
-                       endtime = DataStream()._testtime(et)
-                   except:
-                       print ("endtime does not have a appropriate format")
-                       pass
-               if l == 5:
-                   k = cmd[4].split(',')
-                   tglogger.debug(k)
+                   sensorid = sensoridlist[0]
+                   print ("Continue with sensor", sensorid)
+                   cmd = cmd.replace(sensorid,'')
+                   # Getting time interval
+                   cmd = command.split()
+                   l = len(cmd)
 
-               suc = tgplot(sensorid,starttime,endtime)
-               if suc:
-                   # ASCII error (python 3.xx)
-                   bot.sendPhoto(chat_id, open(os.path.join(tmppath,'tmp.png'),'rb'))
-               else:
-                   mesg = "Plot could not be created" # tgplot
-                   bot.sendMessage(chat_id, mesg)
+                   # default start and endtime
+                   endtime = datetime.utcnow()
+                   starttime = datetime.utcnow()-timedelta(days=1)
+                   print ("Remaining command", cmd)
+
+                   suc = tgplot(sensorid,starttime,endtime)
+                   if suc:
+                       # ASCII error (python 3.xx)
+                       bot.sendPhoto(chat_id, open(os.path.join(tmppath,'tmp.png'),'rb'))
+                   else:
+                       mesg = "Plot could not be created" # tgplot
+                       bot.sendMessage(chat_id, mesg)
             elif command.find('sensors') > -1 or command.find('sensor') > -1:
                # -----------------------
                # Obtain sensor information and broadcast it
