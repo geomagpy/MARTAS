@@ -191,6 +191,7 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)',
                    'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime', 
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)',
+                   'cam':'get a live picture from a connected camera',
                    'help':'print this list'}
 
 hiddencommands = {'reboot':'reboot the remote computer'}
@@ -200,6 +201,7 @@ hellocommandlist = ['hello','Hello'] # any
 systemcommandlist = ['System','system'] # any
 martascommandlist = ['Martas','martas','MARTAS'] # any
 marcoscommandlist = ['Marcos','marcos','MARCOS'] # any
+camcommandlist = ['cam','Cam','picture','Picture'] # any
 statuscommandlist = ['Status','status','Memory','memory','disk','space','Disk'] # any
 getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
 getdatacommandlist = ['data', 'get'] # all
@@ -610,15 +612,17 @@ def martasupdate(user='cobs'):
 
 
 def getcam(command):
+    """
+    DESCRIPTION
+        obtain device call for cam port
+    """
     camport = tgpar.camport
-    cmd = command.split()
-    l = len(cmd)
-    if l > 1:
-        try:
-            po = int(cmd[1].replace(' ','').strip())
+    try:
+        po = int(re.search(r'\d+', command).group())
+        if po < 10:
             camport = "/dev/video{}".format(po)
-        except:
-            tglogger.warning("Provided cam port not recognized. Should be 0,1,etc")
+    except:
+        tglogger.warning("No cam port provided or not recognized. Should be 0,1,etc - using default camport from configuration")
     return camport
 
 
@@ -754,7 +758,14 @@ def handle(msg):
                # -----------------------
                mesg = "Hello {}, nice to talk to you.".format(firstname)
                bot.sendMessage(chat_id, mesg)
-            elif command.find('cam') > -1:
+            elif any([word in command for word in camcommandlist]):
+               # -----------------------
+               # Get cam picture
+               # -----------------------
+               #cmd = command
+               #for word in camcommandlist:
+               #    cmd = cmd.replace(word,'')
+               #camport = int(re.search(r'\d+', command).group())
                usedcamport = getcam(command)
                if usedcamport == 'None':
                    mesg = "No camport  (fswebcam properly installed?)"
