@@ -465,7 +465,7 @@ app/collectfile.py    |	access data locally or via rsync/ssh/ftp and add it to f
 app/deleteold.py    |	TODO 
 app/di.py    |	Routine based on MagPys absoluteAnalysis tool to analyse geomagnetic DI measurements from multiple input sources/observatories. 
 app/file_upload.py    |	Wrapper to upload files to remote machine using either ssh, rsync, ftp
-app/monitor_martas.py    |	TODO
+app/monitor.py    |	Monitoring application to check buffer files (martas), database actuality (marcos), disk space and log files; can trigger external scripts
 app/mpconvert.py    |	converts MARTAS binary buffer files to other formats
 app/sendip.py    |	Helper for checking and sending public IP  (via ftp)
 app/senddata.py    |	Send data from MARTAS to any other machine using cron/scheduler
