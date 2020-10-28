@@ -103,7 +103,7 @@ def GetConf(path):
         confdict = {}
         for conf in confs:
             conflst = conf.split(':')
-            if conf.startswith('#'): 
+            if conf.startswith('#'):
                 continue
             elif conf.isspace():
                 continue
@@ -207,7 +207,7 @@ def CheckMARTAS(testpath='/srv', threshold=600, jobname='JOB', statusdict={}, ig
 
 
 def ConnectDB(dbcred):
-    # Connect to test database 
+    # Connect to test database
     # ------------------------------------------------------------
     dbname = mpcred.lc(dbcred,'db')
     dbhost = mpcred.lc(dbcred,'host')
@@ -360,7 +360,7 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
     # 1 Read log file
     # 2 Read copy in tmp
     # 3 Compare both files
-    # or 
+    # or
     # 4 check for specific messages and occurences (if not present in last 4 lines -> ignore)
     # 5 Save log to tmp
 
@@ -514,6 +514,8 @@ def main(argv):
         # create a config file in /etc/martas/appconf/monitor.cfg
         # use default monitorconf
         joblist = monitorconf.get('joblist')
+        if not isinstance(joblist,list):
+            joblist = [joblist]
         joblist = _testJobs(joblist,allowedjobs)
     else:
         if os.path.isfile(configpath):
@@ -521,6 +523,8 @@ def main(argv):
             monitorconf = GetConf(configpath)
             # directly get the joblist
             joblist = monitorconf.get('joblist')
+            if not isinstance(joblist,list):
+                joblist = [joblist]
             joblist = _testJobs(joblist,allowedjobs)
         else:
             print ('Specify a valid path to a configuration file')

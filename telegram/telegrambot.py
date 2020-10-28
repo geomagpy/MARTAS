@@ -195,12 +195,17 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
 
 hiddencommands = {'reboot':'reboot the remote computer'}
 
-sensorcommandlist = ['sensors','sensor'] # any
+sensorcommandlist = ['sensors','sensor','Sensors','Sensor'] # any
+hellocommandlist = ['hello','Hello'] # any
+systemcommandlist = ['System','system'] # any
+martascommandlist = ['Martas','martas','MARTAS'] # any
+marcoscommandlist = ['Marcos','marcos','MARCOS'] # any
+statuscommandlist = ['Status','status','Memory','memory','disk','space','Disk'] # any
 getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
-getdatacommandlist = ['data','get'] # all
-plotcommandlist = ['plot'] # any
-switchcommandlist = ['switch'] # any
-switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'] }
+getdatacommandlist = ['data', 'get'] # all
+plotcommandlist = ['plot','Plot'] # any
+switchcommandlist = ['switch','Switch'] # any
+switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:",["config="])
@@ -631,9 +636,12 @@ def switch(command):
         option = '-c'
         call = "{} {} {} {}".format(python,path,option,command)
         tglogger.debug("Call: {}".format(call))
-        print ("Sending", call)
+        #print ("Sending", call)
         p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
+        #print (output)
+        if vers == '3':
+            output = output.decode()
         mesg = "{}".format(output)
     except subprocess.CalledProcessError:
         mesg = "martas: check_call didnt work"
@@ -728,19 +736,19 @@ def handle(msg):
                else:
                    mesg = "getlog:\nlogfile not existing"
                bot.sendMessage(chat_id, mesg)
-            elif command.find('status') > -1 or command.find('memory') > -1:
+            elif any([word in command for word in statuscommandlist]):
                # -----------------------
                # Status messages on memory and disk space
                # -----------------------
                mesg = getspace()
                bot.sendMessage(chat_id, mesg)
-            elif command.find('system') > -1:
+            elif any([word in command for word in systemcommandlist]):
                # -----------------------
                # System information, software versions and martas marcos jobs
                # -----------------------
                mesg = system()
                bot.sendMessage(chat_id, mesg)
-            elif command.find('hello') > -1:
+            elif any([word in command for word in hellocommandlist]):
                # -----------------------
                # Welcome statement
                # -----------------------
@@ -761,7 +769,7 @@ def handle(msg):
                    except:
                        mesg = "Cam image not available (fswebcam properly installed?)"
                        bot.sendMessage(chat_id, mesg)
-            elif command.find('martas') > -1 or command.find('MARTAS') > -1:
+            elif any([word in command for word in martascommandlist]):
                # -----------------------
                # Send MARTAS process command
                # -----------------------
@@ -787,7 +795,7 @@ def handle(msg):
                            mesg = martas(job=job,command=comm)
                            break
                bot.sendMessage(chat_id, mesg)
-            elif command.find('marcos') > -1 or command.find('MARCOS') > -1:
+            elif any([word in command for word in marcoscommandlist]):
                # -----------------------
                # Send MARCOS process command
                # -----------------------
@@ -816,8 +824,9 @@ def handle(msg):
                # -----------------------
                # Plot data, either recent or from a specific time interval
                # -----------------------
+               cmd = command
                for word in plotcommandlist:
-                   cmd = command.replace(word,'')
+                   cmd = cmd.replace(word,'')
                sensoridlist = _identifySensor(cmd)
                if len(sensoridlist) > 1:
                    print ("Too many sensors selected - using only {}".format(sensoridlist[0]))
@@ -850,11 +859,14 @@ def handle(msg):
                    else:
                        mesg = "Plot could not be created" # tgplot
                        bot.sendMessage(chat_id, mesg)
-            elif command.find('sensors') > -1 or command.find('sensor') > -1:
+            elif any([word in command for word in sensorcommandlist]):
                # -----------------------
                # Obtain sensor information and broadcast it
                # -----------------------
-               tcmd = command.replace('sensors','').replace('sensor','')
+               tcmd = command
+               for word in sensorcommandlist:
+                   tcmd = tcmd.replace(word,'')
+               #tcmd = command.replace('sensors','').replace('sensor','').replace('Sensors','')
                cmd = tcmd.split()
                if len(cmd) > 0:
                    # check whether a sensor of the sensorlist is contained in the remaining text
@@ -886,16 +898,16 @@ def handle(msg):
                # -----------------------
                tglogger.info("Switching command received")
                cmd = None
-               if command.find('status') > -1 or command.find('Status') > -1:
-                   cmd = 'Status'
+               #if command.find('state') > -1 or command.find('State') > -1:
+               #    cmd = 'swD'
                for opt in switchcommandoptions:
                    commlist = switchcommandoptions.get(opt)
                    if any([command.find(word) > -1 for word in commlist]):
-                       print ("Found ", opt)
+                       #print ("Found ", opt)
                        cmd = opt
                        break
                if not cmd:
-                   cmd = 'Status'
+                   cmd = 'swD'
                tglogger.info(" command extracted: {}".format(len(cmd)))
                mesg = switch(cmd)
                bot.sendMessage(chat_id, mesg)
