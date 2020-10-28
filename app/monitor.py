@@ -59,7 +59,7 @@ monitorconf = {'logpath' : '/var/log/magpy/mm-monitor.log',		# path to log file
                'thresholds' : {'RCS':180000,'TILT':100000,'METEO':10800,'WIC':20000,'GAMMA':10800,'GWR':10800, 'LEMI036_3':180000, 'GSM90_6107632':180000, 'BMP085_10085004':180000, 'SHT75_RASHT004':180000, 'GSM90_7':180000, 'GP20S3EWstatus': 180000}, 		# threshold definitions
                'tmpdir' : '/tmp',			 	# for log file to check
                'logfile' : '/var/log/magpy/marcos.log', 	# log file to check
-               'logtesttype' : 'repeat', 			# checks on log file: NEW (new input), REPEATed message (if a certain message is repeated more than x times)
+               'logtesttype' : 'repeat', 			# checks on log file: NEW (new input), REPEATed, LAST message (if a certain message is repeated more than x times)
                'logsearchmessage' : 'writeDB: unknown MySQL error when checking for existing tables!',
                'tolerance'  :  20,  				# tolerated amount of repeated messages
                'joblist' : ['space','martas','marcos','logfile'], 			# basic job list (can be space (only disk space), martas (buffer files), marcos (tables), logfile (logfiles)
@@ -377,6 +377,14 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
             diff = d[-lengthdiff:]
         return diff
 
+    def last(f1):
+        with open(f1,'r') as f:
+            d=f.readlines()
+        if len(d) > 2:
+            return d[-2:]
+        else:
+            return []
+
     testname = "{}-checklog".format(jobname)
     tmplogfilename = "monitor-{}.tmp".format(os.path.basename(logfilepath))
     tmplogfile = os.path.join(tmpdir,tmplogfilename)
@@ -389,7 +397,7 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
         # temporary file existing - running comparison
         res = filecmp.cmp(logfilepath, tmplogfile)
         checkname = "{}-content".format(testname)
-        statusdict[checkname] = "log file did not change"
+        statusdict[checkname] = "log file ok"
         if res:
             if debug:
                 print ("Log file did not change")
@@ -406,6 +414,16 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
                     testamount = sum([el.find(logsearchmessage) > -1 for el in diff])
                     if testamount >= tolerance:
                         statusdict[checkname] = "CRITICAL: execute script"
+        if testtype == 'last':
+            # just check last line - independent from changes
+            #  REQUIRES logsearchmessage to be success
+            lines = last(logfilepath)
+            if any([el.find(logsearchmessage) > -1 for el in lines]):
+                if debug:
+                    print ("Fine - found SUCCESS message")
+            else:
+                statusdict[checkname] = "Did not find SUCCESS in {}".format(os.path.basename(logfilepath))
+
     else:
         # Nothing to do ... create log file first
         pass
