@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Magnetism products and graphs
+Upload files 
 """
 
 from magpy.stream import *   
