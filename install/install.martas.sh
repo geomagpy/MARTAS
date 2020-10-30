@@ -107,6 +107,36 @@ mkdir -p $CFGPATH
 # init
 mkdir -p $INITPATH
 
+# check python packages
+# ------------------
+if $PYPATH -c "import geomagpy" &> /dev/null; then
+    echo 'geomagpy package already installed'
+else
+    echo 'installing geomagpy python package ...'
+    $PYPATH -m pip install geomagpy
+fi
+
+if $PYPATH -c "import pyserial" &> /dev/null; then
+    echo 'pyserial package already installed'
+else
+    echo 'installing telepot pyserial package ...'
+    $PYPATH -m pip install pyserial
+fi
+
+if $PYPATH -c "import paho-mqtt" &> /dev/null; then
+    echo 'paho-mqtt package already installed'
+else
+    echo 'installing paho-mqtt python package ...'
+    $PYPATH -m pip install paho-mqtt
+fi
+
+if $PYPATH -c "import twisted" &> /dev/null; then
+    echo 'twisted package already installed'
+else
+    echo 'installing twisted python package ...'
+    $PYPATH -m pip install twisted
+fi
+
 # update configuration
 # ------------------
 # station
