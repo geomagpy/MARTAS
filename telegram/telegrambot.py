@@ -46,6 +46,16 @@ Additions:
 Improvements:
     + hidden reboot function modified - should work now
 
+Vers 1.0.3:
+
+Additions:
+    + added data request
+Improvements:
+    + running in py3
+    + generalized all methods
+    + prepared communication function with word lists
+    + testet all methods except (TODO): reboot, martas update, cam 
+
 """
 
 from __future__ import print_function
@@ -204,10 +214,11 @@ marcoscommandlist = ['Marcos','marcos','MARCOS'] # any
 camcommandlist = ['cam','Cam','picture','Picture'] # any
 statuscommandlist = ['Status','status','Memory','memory','disk','space','Disk'] # any
 getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
-getdatacommandlist = ['data', 'get'] # all
+getdatacommandlist = ['data'] # all
 plotcommandlist = ['plot','Plot'] # any
 switchcommandlist = ['switch','Switch'] # any
 switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
+badwordcommands = ['fuck','asshole']
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:",["config="])
@@ -700,6 +711,12 @@ def handle(msg):
                if command.replace('help','').find('hidden') > -1:
                    hidden = True
                bot.sendMessage(chat_id, help(hidden=hidden))
+            elif any([word in command for word in badwordcommands]):
+               # -----------------------
+               # JUST FOR FUN
+               # -----------------------
+               text = "Don't be rude.\nI am just a stupid program, not even an AI\n"
+               bot.sendMessage(chat_id, text)
             elif any([word in command for word in getlogcommandlist]):
                #command.find('getlog') > -1 or command.find('print log') > -1 or command.find('send log') > -1 or command.find('get log') > -1 or command.find('print the log') > -1 or command.find('get the log') > -1:
                # -----------------------
@@ -922,7 +939,7 @@ def handle(msg):
                tglogger.info(" command extracted: {}".format(len(cmd)))
                mesg = switch(cmd)
                bot.sendMessage(chat_id, mesg)
-            elif command.find('data') > -1 and command.find('get') > -1:
+            elif any([word in command for word in getdatacommandlist]):
                # -----------------------
                # Get data, either recent or from a specific time
                # -----------------------
@@ -944,11 +961,15 @@ def handle(msg):
                mesg = "Data:\n-----------\n"
                if len(cmdsplit) > 0:
                    sensoridlist = _identifySensor(cmd)
+                   tglogger.info("  found sensors: {}".format(sensoridlist))
                    for sensorid in sensoridlist:
                        cmd = cmd.replace(sensorid,'')
                    starttime = _identifyDates(cmd) # dates is a list
                    for sensorid in sensoridlist:
                        valdict = getdata(sensorid=sensorid,starttime=starttime)
+                       tglogger.info("  got values ...")
+                       if debug:
+                           print ("VALDICT", valdict)
                        mesg += CreateSensorMsg(valdict)
                else:
                    valdict = getdata()
