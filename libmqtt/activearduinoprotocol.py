@@ -69,16 +69,18 @@ class ActiveArduinoProtocol(object):
         self.metacnt = 10
         self.counter = {}
 
-        # Commands (take them from somewhere --- sensordesc)
+        # Commands (take them sensordesc)
+        # i.e. sensordesc : owT-swD 
         commandlist = sensordict.get('sensordesc').strip().replace('\n','').split('-')
         if not 'arduino sensors' in commandlist:
             cdict = {}
             for idx,com in enumerate(commandlist):
                 cdict['data{}'.format(idx)] = com
             self.commands = [cdict]
+            print ("Commands from sensordesc:", self.commands)
         else:
             self.commands = [{'data1':'owT','data2':'swD'}]
-        print ("Commands:", self.commands)
+            print ("Default commands selected")
         self.hexcoding = False
         self.eol = '/r/n'
 
@@ -112,7 +114,6 @@ class ActiveArduinoProtocol(object):
             log.msg("DEBUG - Running on board {}".format(self.board))
         # get existing sensors for the relevant board
         self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
-        print ("SENSCHECK1 - existinglist", self.existinglist)
         self.sensor = ''
 
         # none is verified when initializing
@@ -306,7 +307,8 @@ class ActiveArduinoProtocol(object):
                If not existing and not yet used - ID will be added to sensors.cfg and existing
                If not existing but used so far - ID in file is wrong -> warning
                If existing and ID check OK: continue
-        TODO: problem with sensorID and ID number...
+        TODO: path number might change if a sensor is disconnected
+              problem with sensorID and ID number...
 
         PARAMETER:
             existinglist: [list] [[1,2,...],['BM35_xxx_0001','SH75_xxx_0001',...]]
@@ -323,7 +325,6 @@ class ActiveArduinoProtocol(object):
             idnum = int(lineident[0][1:])
         except:
             idnum = 999
-        print ("CHECK1", idnum, self.verifiedids)
         if not idnum == 999:
             if not idnum in self.verifiedids:
                 if line.startswith('H'):
@@ -335,14 +336,36 @@ class ActiveArduinoProtocol(object):
                     infodict = self.getSensorInfo(line)
                     self.infolist.append(infodict)
                     # add values to metadict
-                    print ("CHECK2", infodict)
+                # at this stage i have the correct sensorid in infodict
                 if idnum in [idict.get('ID') for idict in self.infolist] and idnum in [hdict.get('ID') for hdict in self.headlist]:
-                    # get critical info: sensorname, idnum and board
+                    # idnums found in line, present in head and meta data
                     sensoridenti = [idict.get('SensorName') for idict in self.infolist if str(idict.get('ID')) == str(idnum)]
-                    print ("CHECK3", sensoridenti)
+                    # get sensorid as well for the identificationnumner
+                    sensoridininfo = [idict.get('SensorID') for idict in self.infolist if str(idict.get('ID')) == str(idnum)]
                     # board is already selected
                     seldict2 = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)]
+                    # if a single sensor id is found:
+                    # it might happen that idnum (path in existinglist) is not referring 
+                    # to the correct sensorid. This might happen if e.g. one ow temperature
+                    # sensor is disconnected, when previously two have been attached.
+                    # after restart the remaining sensor will have the lowest id, not
+                    # necessarily matching the originally stored one.
+                    # Therefor we check it and eventually assign a new id/path                  
+                    if len(sensoridininfo) == 1:
+                        sensid = sensoridininfo[0]
+                        seldict1 = [edict for edict in self.existinglist if edict.get('sensorid').find(sensid) > -1]
+                    else:
+                        seldict1 = seldict2
+                    if not seldict1==seldict2:
+                        # sensorid not matching the sensoid stored with this idnum/path
+                        seldict2 = seldict1
+                        # therefore update pathid in selfexistinglist
+                        self.existinglist = [e for e in self.existinglist if not str(e.get('path')) == str(idnum)]
+                        seldicttmp = seldict1[-1]
+                        seldicttmp['path'] = str(idnum)
+                        self.existinglist.append(seldicttmp)
                     seldict3 = [edict for edict in seldict2 if str(edict.get('name')) == str(sensoridenti[0])]
+                    # Select correct idnum, so that sesnorid's are fitting 
                     if not len(seldict3) > 0 and len(sensoridenti) > 0:
                         log.msg("Arduino: Sensor {} not yet existing -> adding to existinglist".format(sensoridenti[0]))
                         relevantdict = [idict for idict in self.infolist if str(idict.get('ID')) == str(idnum)][0]
@@ -376,7 +399,6 @@ class ActiveArduinoProtocol(object):
                 if line.startswith('D'):
                     dataar = line.strip().split(':')
                     dataident = int(dataar[0].strip('D'))
-                    print ("CHECK4:", dataident)
                     meta = [headdict for headdict in self.headlist if str(headdict.get('ID')) == str(dataident)][0]
                     evdict = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)][0]
                     data = dataar[1].strip().split(',')
@@ -451,7 +473,6 @@ class ActiveArduinoProtocol(object):
         # dispatch with the appropriate sensor
         evdict, meta, data = self.GetArduinoSensorList(line)
 
-        print ("SENSCHECK3", line, evdict)
         if len(evdict) > 0:
             sensorid = evdict.get('name')+'_'+evdict.get('serialnumber')+'_'+evdict.get('revision')
             topic = self.confdict.get('station') + '/' + sensorid
