@@ -106,25 +106,24 @@ msgcount = 0
 SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc'] # should be provided by MagPy
 """
 Protocol types:
-ok		Env   		: passive		: environment
-ok		Ow		: active (group)	: environment
-ok		Arduino		: passive (group)	: environment
-current work	Ardactive 	: active (group)	: environment
-ok		BM35		: passive 		: environment
-ok      	Lemi		: passive		: mag
-ok      	GSM90		: passive (init)	: mag
-ok      	POS1		: passive (init)	: mag
-written (time test missing)GSM19: passive 		: mag
-ok	 	Cs		: passive 		: mag
--	   	PalmDac 	: passive		: mag
-ok		MySQL		: active (group)	: general db call
+ok		Env   		: py2,py3	: passive		: environment
+ok		Ow		: py2		: active (group)	: environment
+ok		Arduino		: py2		: passive (group)	: environment
+ok		BM35		: py2		: passive 		: environment
+ok      	Lemi		: py2,py3	: passive		: mag
+ok      	GSM90		: py2		: passive (init)	: mag
+ok      	POS1		: py2		: passive (init)	: mag
+written (time test missing)GSM19: py2		: passive 		: mag
+ok	 	Cs		: py2,py3	: passive 		: mag
+-	   	PalmDac 	: 		: passive		: mag
+ok		MySQL		: py2		: active (group)	: general db call
 -	        Active		: active		: general active call
-current work    ActiveArduino   : active (group)        : all
-current work	CR1000		: active		: all
-ok 		Test 	  	: active                : random number
-ok		Lnm		: active 		: environment
-ok		Disdro		: active 		: environment
-ok              AD7714          : autonomous		: general ADC
+current work    ActiveArduino   : py,py3	: active (group)        : all
+current work	CR1000		: py2		: active		: all
+ok 		Test 	  	: py2		: active                : random number
+ok		Lnm		: py2		: active 		: environment
+ok		Disdro		: py2		: active 		: environment
+ok              AD7714          : py2 		: autonomous		: general ADC
 """
 
 def SendInit(confdict,sensordict):

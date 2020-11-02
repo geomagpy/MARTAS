@@ -112,13 +112,13 @@ class ActiveArduinoProtocol(object):
             log.msg("DEBUG - Running on board {}".format(self.board))
         # get existing sensors for the relevant board
         self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
+        print ("SENSCHECK1 - existinglist", self.existinglist)
         self.sensor = ''
 
         # none is verified when initializing
         self.verifiedids = []
         self.infolist = []
         self.headlist = []
-
 
 
     def send_command(self,ser,command,eol,hex=False):
@@ -153,7 +153,7 @@ class ActiveArduinoProtocol(object):
         except:
             log.msg("Other exception found")
             raise
- 
+
         responsetime = datetime.utcnow()
         if cnt == maxcnt:
             fullresponse = 'Maximum count {} was reached'.format(maxcnt)
@@ -260,7 +260,7 @@ class ActiveArduinoProtocol(object):
         except:
             # in case an incomplete header is available
             # will be read next time completely
-            return {} 
+            return {}
 
         return headdict
 
@@ -296,16 +296,17 @@ class ActiveArduinoProtocol(object):
         """
          DESCRIPTION:
              Will analysze data line and a list of existing IDs.
-             Please note: when initializing, then existing data will be taken from 
-             Arduino Block.  
+             Please note: when initializing, then existing data will be taken from
+             Arduino Block.
              - If ID is existing, this method will return its ID, sensorid, meta info
                as used by process data, and data.
-             - If ID not yet existing: line will be scanned until all meta info is 
-               available. Method will return ID 0 and empty fields. 
+             - If ID not yet existing: line will be scanned until all meta info is
+               available. Method will return ID 0 and empty fields.
              - If meta info is coming: sensorids will be quickly checked against existing.
                If not existing and not yet used - ID will be added to sensors.cfg and existing
                If not existing but used so far - ID in file is wrong -> warning
                If existing and ID check OK: continue
+        TODO: problem with sensorID and ID number...
 
         PARAMETER:
             existinglist: [list] [[1,2,...],['BM35_xxx_0001','SH75_xxx_0001',...]]
@@ -322,6 +323,7 @@ class ActiveArduinoProtocol(object):
             idnum = int(lineident[0][1:])
         except:
             idnum = 999
+        print ("CHECK1", idnum, self.verifiedids)
         if not idnum == 999:
             if not idnum in self.verifiedids:
                 if line.startswith('H'):
@@ -333,9 +335,11 @@ class ActiveArduinoProtocol(object):
                     infodict = self.getSensorInfo(line)
                     self.infolist.append(infodict)
                     # add values to metadict
+                    print ("CHECK2", infodict)
                 if idnum in [idict.get('ID') for idict in self.infolist] and idnum in [hdict.get('ID') for hdict in self.headlist]:
                     # get critical info: sensorname, idnum and board
                     sensoridenti = [idict.get('SensorName') for idict in self.infolist if str(idict.get('ID')) == str(idnum)]
+                    print ("CHECK3", sensoridenti)
                     # board is already selected
                     seldict2 = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)]
                     seldict3 = [edict for edict in seldict2 if str(edict.get('name')) == str(sensoridenti[0])]
@@ -372,6 +376,7 @@ class ActiveArduinoProtocol(object):
                 if line.startswith('D'):
                     dataar = line.strip().split(':')
                     dataident = int(dataar[0].strip('D'))
+                    print ("CHECK4:", dataident)
                     meta = [headdict for headdict in self.headlist if str(headdict.get('ID')) == str(dataident)][0]
                     evdict = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)][0]
                     data = dataar[1].strip().split(',')
@@ -446,6 +451,7 @@ class ActiveArduinoProtocol(object):
         # dispatch with the appropriate sensor
         evdict, meta, data = self.GetArduinoSensorList(line)
 
+        print ("SENSCHECK3", line, evdict)
         if len(evdict) > 0:
             sensorid = evdict.get('name')+'_'+evdict.get('serialnumber')+'_'+evdict.get('revision')
             topic = self.confdict.get('station') + '/' + sensorid
@@ -479,7 +485,7 @@ class ActiveArduinoProtocol(object):
                 cnt = self.counter.get(sensorid)
 
                 if cnt == 0:
-                    ## 'Add' is a string containing dict info like: 
+                    ## 'Add' is a string containing dict info like:
                     ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
                     add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDescription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station','').strip(),evdict.get('pierid','').strip(),evdict.get('protocol','').strip(),evdict.get('sensorgroup','').strip(),evdict.get('sensordesc','').strip(),evdict.get('ptime','').strip() )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
@@ -490,6 +496,6 @@ class ActiveArduinoProtocol(object):
                 if cnt >= self.metacnt:
                     cnt = 0
 
-                # update counter in dict 
+                # update counter in dict
                 self.counter[sensorid] = cnt
 

@@ -961,15 +961,15 @@ def handle(msg):
                mesg = "Data:\n-----------\n"
                if len(cmdsplit) > 0:
                    sensoridlist = _identifySensor(cmd)
-                   tglogger.info("  found sensors: {}".format(sensoridlist))
+                   #tglogger.info("  found sensors: {}".format(sensoridlist))
                    for sensorid in sensoridlist:
                        cmd = cmd.replace(sensorid,'')
                    starttime = _identifyDates(cmd) # dates is a list
                    for sensorid in sensoridlist:
                        valdict = getdata(sensorid=sensorid,starttime=starttime)
-                       tglogger.info("  got values ...")
-                       if debug:
-                           print ("VALDICT", valdict)
+                       #tglogger.info("  got values ...")
+                       #if debug:
+                       #    print ("VALDICT", valdict)
                        mesg += CreateSensorMsg(valdict)
                else:
                    valdict = getdata()

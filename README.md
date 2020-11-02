@@ -369,15 +369,26 @@ c) Customizing the WEB interface/ports of MARCOS
 
 ## 7. Logging and notifications
 
-### 7.1 The threshold notifyer
+
+### 7.1 The threshold notifyer threshold.py
 
 MARTAS comes along with a threshold application. This app reads data from a defined source: a MARTAS buffer files, MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can be monitored independently by mail, nagios, icinga, telegram.
 Threshold.py can be scheduled in crontab.
 
-### 7.2 Support for NAGIOS/ICINGA
+Threshold.py can use the telegram messenager to broadcast notifications. If you want to use that you need to install telegram_send
+
+        $ sudo pip install telegram_send
 
 
-### 7.3 Communicating with MARTAS
+### 7.2 Monitoring MARTAS and MARCOS process with monitor.py
+
+
+
+
+### 7.3 Support for NAGIOS/ICINGA
+
+
+### 7.4 Communicating with MARTAS
 
 MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot, referring to your MARTAS.
 
