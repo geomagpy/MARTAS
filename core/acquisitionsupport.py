@@ -298,14 +298,14 @@ def GetSensors(path, identifier=None, secondidentifier=None):
         # sensors.conf contains specific information for each attached sensor
         # ###################################################################
         # Information which need to be provided comprise:
-        # sensorid: an unique identifier for the specfic sensor consiting of SensorName, 
+        # sensorid: an unique identifier for the specfic sensor consiting of SensorName,
         #           its serial number and a revision number (e.g. GSM90_12345_0001)
         # connection: e.g. the port to which the instument is connected (USB0, S1, ACM0, DB-mydb) 
         # serial specifications: baudrate, bytesize, etc
         # sensor mode: passive (sensor is broadcasting data by itself)
         #              active (sensor is sending data upon request)
-        # initialization info: 
-        #              None (passive sensor broadcasting data without initialization) 
+        # initialization info:
+        #              None (passive sensor broadcasting data without initialization)
         #              [parameter] (passive sensor with initial init e.g. GSM90,POS1)
         #              [parameter] (active sensor, specific call parameters and wait time)
         # protocol:
@@ -320,7 +320,7 @@ def GetSensors(path, identifier=None, secondidentifier=None):
     RETURNS:
         a dictionary containing:
         'sensorid':'ENV05_2_0001', 'port':'USB0', 'baudrate':9600, 'bytesize':8, 'stopbits':1, 'parity':'EVEN', 'mode':'a', 'init':None, 'rate':10, 'protocol':'Env', 'name':'ENV05', 'serialnumber':'2', 'revision':'0001', 'path':'-', 'pierid':'A2', 'ptime':'NTP', 'sensordesc':'Environment sensor measuring temperature and humidity'
-    
+
     """
     sensors = open(path,'r')
     sensordata = sensors.readlines()
@@ -329,21 +329,21 @@ def GetSensors(path, identifier=None, secondidentifier=None):
     elements = SENSORELEMENTS
 
     # add identifier here
-    # 
+    #
 
     for item in sensordata:
         sensordict = {}
         try:
             parts = item.split(',')
-            if item.startswith('#'): 
+            if item.startswith('#'):
                 continue
             elif item.isspace():
                 continue
-            elif item.startswith('!') and not identifier: 
+            elif item.startswith('!') and not identifier:
                 continue
-            elif item.startswith('?') and not identifier: 
+            elif item.startswith('?') and not identifier:
                 continue
-            elif item.startswith('$') and not identifier: 
+            elif item.startswith('$') and not identifier:
                 continue
             elif not identifier and len(item) > 8:
                 for idx,part in enumerate(parts):
