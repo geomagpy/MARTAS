@@ -241,6 +241,7 @@ try:
     martasconfig = tgconf.get('martasconfig').strip()
     camport = tgconf.get('camport').strip()
     martasapp = tgconf.get('martasapp').strip()
+    martaspath = os.path.abspath(martasapp, '..')
     marcosconfig = tgconf.get('marcosconfig').strip()
     if not camport=='None':
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
@@ -811,8 +812,13 @@ def handle(msg):
                    bot.sendMessage(chat_id, "Updating MARTAS ...")
                    rest = cmd.replace('update','').strip().split()
                    user = "cobs"
-                   if len(rest) == 1:
+                   if 'user' in rest:
+                       idx = rest.index('user')
+                       if len(rest) > idx:
+                           user = rest[idx+1]
+                   elif len(rest) == 1:
                        user = rest[0]
+                   print ("Updating for user {}".format(user))
                    mesg = martasupdate(user=user)
                    bot.sendMessage(chat_id, mesg)
                else:
