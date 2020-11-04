@@ -128,27 +128,61 @@ In the following we are setting up MARTAS to acquire measurement data from any c
 
 ### 3.1 Basic setup:
 
-a) Use the MARTAS installation script
+#### 3.1.1 Use the MARTAS installation script
         
         $ cd /path/to/MARTAS/install
         $ sudo sh martas.install.sh
       -> follow the instructions
 
-b) Modify /etc/martas/sensors.cfg
+#### 3.1.2 Modify /etc/martas/sensors.cfg
 
         $ nano /etc/martas/sensors.cfg
 
-      -> IMPORTANT: sensorids should only contain basic characters like 0,1,2,..9,a,b,...,z,A,B,...,Z (no special characters, no underscors, no minus etc)
-      -> IMPORTANT: sensorids should not contain the phrases "data", "meta" or "dict" 
+sensors.cfg is the basic configuration file for all sensors connected to the MARTAS system. It contains a line with a comma separted list for each sensor which looks like:
 
-c) Check /etc/martas/martas.cfg 
+        GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
+
+The following elements are contained in this order:
+
+element  | description | example
+-------- | -------- | ----------
+sensorid | Unique identification string for sensor. Ideally consisting of  fields "name\_serialnumber\_revision" | GSM90\_6107631\_0001
+port | serial communication port (e.g. tty**S1** or tty**USB0**)  |  S1
+baudrate | Serial communication baudrate | 115200
+bytesize | Serial communication bytesize | 8
+stopbits | Serial communication stopbits | 1
+parity | Parity can be set to none (N), odd (O), even (E), mark (M), or space (S) | N
+mode | Can be active (data requests are send) and passive (sensor sends data regularly)  | passive
+init | Sensor initialization (see 3.4 and appendix 10.1)  | gsm90v7init.sh
+rate | Defines the sampling rate for active threads in seconds (integer). Data will be request with this rate. Active threads with more than 1 Hz are not possible. Not used for passive modes. | -
+stack | Amount of data lines too be collected before broadcasting. Default **1**. **1** will broadcast any line as soon it is read. | 1
+protocol | MARTAS protocol to be used with this sensor |  GSM90
+name | Name of the sensors   | GSM90
+serialnumber | Serialnumber of the sensor  | 6107632
+revision | Sensors revision number, i.e. can change after maintainance  | 0002
+path | Specific identification path for automatically determined sensors. Used only by the OW protocol. | -
+pierid | An identification code of the pier/instrument location  | AS-W-36
+ptime | Primary time originates from NTP (MARTAS clock), GNSS, GPS. If the sensors delivers a timestamp e.g. GPS time, then a generated header input **DataTimesDiff** always contains the average difference to the MARTAS clock, in this case GPS-NTP  | GPS
+sensorgroup |  Diszipline or group  | magnetism
+sensordesc |  Description of sensor details | GEM Overhauzer v7.0
+
+
+IMPORTANT: 
+- sensorids should only contain basic characters like 0,1,2,..9,a,b,...,z,A,B,...,Z (no special characters, no underscors, no minus etc)
+- sensorids should not contain the phrases "data", "meta" or "dict" 
+
+Further details and descriptions are found within the created sensors.cfg configuration file. 
+
+#### 3.1.3 Check /etc/martas/martas.cfg 
 
         $ nano /etc/martas/martas.cfg
+
+martas.cfg contains the basic MARTAS configuration data, definitions for broadcasting and paths. Details and descriptions are found within this file. The file is preconfigured during the installation process and does not beed to be changed. 
 
 
 ### 3.2 Running the acquisition sytem
 
-a) When installation is finished you can start the system as follows:
+#### 3.2.1 When installation is finished you can start the system as follows:
 
         $ sudo /etc/init.d/martas start
 
@@ -158,7 +192,7 @@ a) When installation is finished you can start the system as follows:
         $ sudo /etc/init.d/martas restart
         $ sudo /etc/init.d/martas stop
 
-b) Command line
+#### 3.2.2 Command line
 
         $ python acquisition.py
 
@@ -167,7 +201,7 @@ b) Command line
 
         $ python acquisition.py -m /home/user/martas.cfg
 
-c) Adding a cleanup for the bufferdirectory
+#### 3.2.3 Adding a cleanup for the bufferdirectory
 
    Principally, all data is buffered in binary files, by default within the /srv/mqtt directory.
    You can mount a SD card or external memory as such a bufferdirectory.
@@ -182,7 +216,7 @@ c) Adding a cleanup for the bufferdirectory
 
 	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
 
-d) Adding a start option to crontab 
+#### 3.2.4 Adding a start option to crontab 
 
    In case that the MARTAS acquisition process hangs up or gets terminated by an unkown reason
    it is advisable to add a start option to crontab, which starts MARTAS in case it is not 
@@ -196,6 +230,13 @@ d) Adding a start option to crontab
 
 The Quality-of-Service (qos) level is an agreement between the sender of a message and the receiver of a message that defines the guarantee of delivery for a specific message. There are three qos levels in MQTT: (0) At most once, (1) At least once and (2) Exactly once. (0) sends out data without testing whether it is received or not. (1) sends out data and requires an aknowledgment that the data was received. Multiple sendings are possible. (2) makes sure that every data is send exactly once. Please refer to MQTT information pages for more details.
 
+### 3.4 Sensors requiring initialization 
+
+Several sensors currently supported by MARTAS require an initialization. The initialization process defines e.g. sampling rates, filters, etc. in a way that the sensor systems is automatically sending data to the serial port afterwards. MARTAS supports such initialization routines by sending the respective and necessary command sequence to the system. Initialization commands are stored within the MARTAS configuration directory (Default: /etc/martas/init). The contents of the initialization files for supported instruments is outlined in Appendix 10.1. In order to use such initialization, you need to provide the path within the sensors configuration line in sensors.cfg:
+
+sensors.cfg: line for a GSM90 Overhauzr, the initialzation configuration is taken from gsm90v7init.sh (within the martas config directory)
+
+        GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
 ## 4. Experts settings
 
@@ -517,7 +558,18 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 ## 10. Appendix
 
-### 10.1 Dallas OW (One wire) support
+### 10.1 Initialization files
+
+#### 10.1.1 GEM Systems Overhauzr GSM90
+
+#### 10.1.2 Quantum POS1
+
+#### 10.1.3 Meteolabs BM35 pressure
+
+#### 10.1.4 LM
+
+
+### 10.2 Dallas OW (One wire) support
 
 a) modify owfs,conf
         $ sudo nano /etc/owfs.conf 
@@ -533,18 +585,49 @@ b) start the owserver
         $ sudo etc/init.d/owserver start 
 
 
-### 10.2  Communicating with an Arduino Microcontroller
+### 10.3  Communicating with an Arduino Uno Microcontroller
 
-An Arduion has to be programmed properly with serial outputs, interpretable from MARTAS (see below).
-Then all sensors connected to the arduino will then be automatically detected and added to sensors.cfg
-automatically with a leading ?
+An [Arduino Microcontroller] has to be programmed properly with serial outputs, which are interpretable from MARTAS. Such Arduino programs are called sketch.
+MARTAS contains a few example scripts, which show, how these sketches need to work, in order to be used with MARTAS. In principle, two basic acquisition modes are supported
+for Arduinos:
 
-IMPORTANT:
-If you change the sensor configuration of the arduino, then stop martas, delete the eventually existing
-arduino block and restart martas. Make sure to disconnect the arduino, before manipulating its sensor
-configuration. Test its working condition by looking at Arduino/Tools/SerialMonitor.
+   - active mode: the active mode sends periodic data requests to the Arduino. This process is non-blocking and supports communication with the Arduino inbetween data requests. E.g. switching commands can be send.
 
-Additional meta information can always be added to sensors.cfg. 
+   - passive mode: the arduino ins configured to periodically send data to the serial port. This process is blocking. Passive communication is preferable for high sampling rates.
+
+Within the sensors.cfg configuration file the following line need to be added to communicate with an Arduino:
+ 
+      Active mode (port ttyACM0, data request every 30 sec):
+        ARDUINO1,ACM0,9600,8,1,N,active,None,30,1,ActiveArduino,ARDUINO,-,0001,-,M1,NTP,environment,arduino sensors
+
+      Passive mode (port ttyACM0):
+        ARDUINO1,ACM0,9600,8,1,N,passive,None,-,1,Arduino,ARDUINO,-,0001,-,M1,NTP,environment,arduino sensors
+ 
+In both cases, all sensors connected to the Arduino (and properly configured within the sketch) will then be automatically detected and added to sensors.cfg
+automatically with a leading questionmark. You can edit sensors.cfg and update respective meta information for each sensor.
+
+Within the subdirectory MARTAS/sketchbook you will find a few example sketches for the Arduino Uno Rev3 board. The serial number of the Arduino is hardcoded into those scripts. If you are going to use these scripts then please change the serial number accordingly:
+
+   In all sketches you will find a line like:
+
+        String ASERIALNUMBER="75439313637351A08180"
+
+   Replace the serial number with your Arduion number. To find out your serial number you can use something like
+
+        dmesg | grep usb
+ 
+The following sketches are currently contained:
+
+Sketch name |  version | mode  | job
+----------- | ------ | ------ | -------
+sketch\_MARTAS\_ac\_ow\_sw  | 1.0.0 |  active | requesting 1-wire sensor data and enabling remote switching of pin 4 (default: off) and pin 5 (default: on)
+
+
+If you change the sensor configuration of the Arduino, then you need to stop martas, eventually delete the existing
+arduino block (with the leading questionmark), connect the new sensor configuration and restart MARTAS. 
+Make sure to disconnect the Arduino, before manipulating its sensor
+configuration. You can check the Arduino independently by looking at Arduino/Tools/SerialMonitor (make sure that MARTAS processes are not running).
+
 
 ### TODO
 
@@ -555,7 +638,7 @@ Additional meta information can always be added to sensors.cfg.
 
 
 
-   [Telegram] : <https://telegram.org/>
-   [Telegram Botfather] :  <https://core.telegram.org/bots>
-
+[Telegram] : <https://telegram.org/>
+[Telegram Botfather] :  <https://core.telegram.org/bots>
+[Arduino Microcontroller] : <http://www.arduino.cc/>
 

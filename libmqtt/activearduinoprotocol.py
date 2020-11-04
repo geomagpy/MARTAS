@@ -436,8 +436,9 @@ class ActiveArduinoProtocol(object):
                 # disconnect from serial
                 ser.close()
                 # analyze return if data is requested
-                if item.startswith('data'):
+                if item.startswith('data') and not answer.find('-') > -1 and not answer.find('Starting') > -1:
                     # get all lines in answer
+                    print ("Analyzing line")
                     lines = answer.split('\n')
                     for line in lines:
                         if len(line)>2 and (line[2] == ':' or line[3] == ':'):
@@ -463,8 +464,8 @@ class ActiveArduinoProtocol(object):
 
     def analyzeline(self, line):
 
-        #if self.debug:
-        #    log.msg("Received line: {}".format(line))
+        if self.debug:
+            log.msg("Received line: {}".format(line))
 
         # extract only ascii characters
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
