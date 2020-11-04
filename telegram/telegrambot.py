@@ -211,7 +211,7 @@ hellocommandlist = ['hello','Hello'] # any
 systemcommandlist = ['System','system'] # any
 martascommandlist = ['Martas','martas','MARTAS'] # any
 marcoscommandlist = ['Marcos','marcos','MARCOS'] # any
-camcommandlist = ['cam','Cam','picture','Picture'] # any
+camcommandlist = ['cam','Cam','picture','Picture','photo'] # any
 statuscommandlist = ['Status','status','Memory','memory','disk','space','Disk'] # any
 getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
 getdatacommandlist = ['data'] # all
@@ -588,7 +588,10 @@ def marcos(broker='', command='restart'):
 
 
 def reboot():
-    # Rebooting the system
+    """
+    DESCRIPTION:
+        Rebooting the system
+    """
     try:
         tglogger.debug("Rebooting...")
         command = "/sbin/reboot"
