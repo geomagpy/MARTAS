@@ -241,7 +241,7 @@ try:
     martasconfig = tgconf.get('martasconfig').strip()
     camport = tgconf.get('camport').strip()
     martasapp = tgconf.get('martasapp').strip()
-    martaspath = os.path.abspath(martasapp, '..')
+    martaspath = tgconf.get('martaspath')
     marcosconfig = tgconf.get('marcosconfig').strip()
     if not camport=='None':
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
@@ -617,7 +617,9 @@ def martasupdate(user='cobs'):
         p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
         tglogger.debug("Update command send ...")
         (output, err) = p.communicate()
-        mesg += "{}".format(output)
+        if vers=='3':
+            output = output.decode()
+        mesg += "\n{}".format(output)
         mesg += "... done"
     except subprocess.CalledProcessError:
         mesg = "martas: check_call didnt work"
@@ -818,9 +820,8 @@ def handle(msg):
                            user = rest[idx+1]
                    elif len(rest) == 1:
                        user = rest[0]
-                   print ("Updating for user {}".format(user))
+                   #print ("Updating for user {}".format(user))
                    mesg = martasupdate(user=user)
-                   bot.sendMessage(chat_id, mesg)
                else:
                    commds = ['status', 'restart', 'stop', 'start']
                    for comm in commds:

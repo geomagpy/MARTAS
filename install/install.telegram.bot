@@ -8,7 +8,7 @@ CONFPATH="/etc/martas"
 tvar=""
 MARTASCONF="/etc/martas/martas.cfg"
 MARCOSCONF="/etc/martas/marcos.cfg"
-MARTASPATH="/home/cobs/MARTAS/"
+MARTASPATH="/home/cobs/MARTAS"
 
 
 
@@ -24,7 +24,7 @@ current="$(pwd)"
 cd ../telegram
 BOTPATH="$(pwd)"
 cd "$current"
-cd ../app
+cd ..
 MARTASPATH="$(pwd)"
 cd "$current"
 
@@ -95,9 +95,9 @@ DUMMYBOT="/your/botpath"
 DUMMYPYTHON="/usr/bin/python"
 sed -i "s+${DUMMYPYTHON}+${PYPATH}+g" /etc/init.d/telegrambot
 sed -i "s+${DUMMYBOT}+${BOTPATH}+g" /etc/init.d/telegrambot
-DUMMYMARTASCONF="/my/path/martas.cfg"
-DUMMYMARCOSCONF="/my/path/marcos.cfg"
-DUMMYMARTASAPP="/my/home"
+DUMMYMARTASCONF="/my/cfg/martas.cfg"
+DUMMYMARCOSCONF="/my/cfg/marcos.cfg"
+DUMMYMARTASAPP="/my/home/MARTAS"
 sed -i "s+${DUMMYMARTASAPP}+${MARTASPATH}+g" $CONFPATH/telegrambot.cfg
 sed -i "s+${DUMMYMARTASCONF}+${MARTASCONF}+g" $CONFPATH/telegrambot.cfg
 sed -i "s+${DUMMYMARCOSCONF}+${MARCOSCONF}+g" $CONFPATH/telegrambot.cfg
