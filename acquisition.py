@@ -107,18 +107,18 @@ SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','
 """
 Protocol types:
 ok		Env   		: py2,py3	: passive		: environment
-ok		Ow		: py2		: active (group)	: environment
-ok		Arduino		: py2		: passive (group)	: environment
+ok		Ow		: py2 		: active (group)	: environment
+ok		Arduino		: py2,py3	: passive (group)	: environment
+ok              ActiveArduino   : py2,py3	: active (group)        : all
 ok		BM35		: py2		: passive 		: environment
 ok      	Lemi		: py2,py3	: passive		: mag
 ok      	GSM90		: py2		: passive (init)	: mag
-ok      	POS1		: py2		: passive (init)	: mag
+ok      	POS1		: py2,py3	: passive (init)	: mag
 written (time test missing)GSM19: py2		: passive 		: mag
 ok	 	Cs		: py2,py3	: passive 		: mag
 -	   	PalmDac 	: 		: passive		: mag
 ok		MySQL		: py2		: active (group)	: general db call
--	        Active		: active		: general active call
-current work    ActiveArduino   : py,py3	: active (group)        : all
+-	        Active		:		: active		: general active call
 current work	CR1000		: py2		: active		: all
 ok 		Test 	  	: py2		: active                : random number
 ok		Lnm		: py2		: active 		: environment

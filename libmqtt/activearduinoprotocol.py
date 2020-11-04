@@ -438,7 +438,6 @@ class ActiveArduinoProtocol(object):
                 # analyze return if data is requested
                 if item.startswith('data') and not answer.find('-') > -1 and not answer.find('Starting') > -1:
                     # get all lines in answer
-                    print ("Analyzing line")
                     lines = answer.split('\n')
                     for line in lines:
                         if len(line)>2 and (line[2] == ':' or line[3] == ':'):
