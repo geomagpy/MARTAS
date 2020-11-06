@@ -621,6 +621,7 @@ The following sketches are currently contained:
 Sketch name |  version | mode  | job
 ----------- | ------ | ------ | -------
 sketch\_MARTAS\_ac\_ow\_sw  | 1.0.0 |  active | requesting 1-wire sensor data and enabling remote switching of pin 4 (default: off) and pin 5 (default: on)
+sketch\_MARTAS\_pa\_ow  | 1.0.0 |  passive | recording 1-wire sensor data
 
 
 If you change the sensor configuration of the Arduino, then you need to stop martas, eventually delete the existing
@@ -628,6 +629,7 @@ arduino block (with the leading questionmark), connect the new sensor configurat
 Make sure to disconnect the Arduino, before manipulating its sensor
 configuration. You can check the Arduino independently by looking at Arduino/Tools/SerialMonitor (make sure that MARTAS processes are not running).
 
+**IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot.  
 
 ### TODO
 
