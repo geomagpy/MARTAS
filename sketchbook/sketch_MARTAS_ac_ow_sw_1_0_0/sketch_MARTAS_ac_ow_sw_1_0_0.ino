@@ -295,7 +295,7 @@ void interpretecommand(char* comm) {
          Serial.println("<MARTASEND>");
        }
        if (command == "owT") {
-         Serial.println("Reading data: onewire temperatures");
+         //Serial.println("Reading data: onewire temperatures");
          getOWtemp();
        }
        if (command == "owD") {

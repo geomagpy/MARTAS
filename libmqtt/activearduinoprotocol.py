@@ -17,6 +17,7 @@ from magpy.stream import KEYLIST
 import serial
 import subprocess
 import sys
+import time
 
 ## Aktive Arduino protocol
 ## -----------------------
@@ -68,9 +69,10 @@ class ActiveArduinoProtocol(object):
         self.datacnt = 0
         self.metacnt = 10
         self.counter = {}
+        self.initserial = True
 
         # Commands (take them sensordesc)
-        # i.e. sensordesc : owT-swD 
+        # i.e. sensordesc : owT-swD
         commandlist = sensordict.get('sensordesc').strip().replace('\n','').split('-')
         if not 'arduino sensors' in commandlist:
             cdict = {}
@@ -130,6 +132,7 @@ class ActiveArduinoProtocol(object):
         command = command+eol
         if(ser.isOpen() == False):
             ser.open()
+        ser.flush()
         sendtime = datetime.utcnow()
         if sys.version_info >= (3, 0):
             ser.write(command.encode('ascii'))
@@ -137,7 +140,7 @@ class ActiveArduinoProtocol(object):
             ser.write(command)
         # skipping all empty lines
         try: ## check for exeception in  raise SerialException
-            while response == '':
+            while not response or response == '':
                 response = ser.readline()
                 if sys.version_info >= (3, 0):
                     response = response.decode()
@@ -149,7 +152,8 @@ class ActiveArduinoProtocol(object):
                 if sys.version_info >= (3, 0):
                     response = response.decode()
         except serial.SerialException:
-            log.msg("SerialException found - restarting martas")
+            log.msg("SerialException found - restarting martas ...")
+            time.sleep(1)
             self.restart()
         except:
             log.msg("Other exception found")
@@ -345,12 +349,12 @@ class ActiveArduinoProtocol(object):
                     # board is already selected
                     seldict2 = [edict for edict in self.existinglist if str(edict.get('path')) == str(idnum)]
                     # if a single sensor id is found:
-                    # it might happen that idnum (path in existinglist) is not referring 
+                    # it might happen that idnum (path in existinglist) is not referring
                     # to the correct sensorid. This might happen if e.g. one ow temperature
                     # sensor is disconnected, when previously two have been attached.
                     # after restart the remaining sensor will have the lowest id, not
                     # necessarily matching the originally stored one.
-                    # Therefor we check it and eventually assign a new id/path                  
+                    # Therefor we check it and eventually assign a new id/path
                     if len(sensoridininfo) == 1:
                         sensid = sensoridininfo[0]
                         seldict1 = [edict for edict in self.existinglist if edict.get('sensorid').find(sensid) > -1]
@@ -365,7 +369,7 @@ class ActiveArduinoProtocol(object):
                         seldicttmp['path'] = str(idnum)
                         self.existinglist.append(seldicttmp)
                     seldict3 = [edict for edict in seldict2 if str(edict.get('name')) == str(sensoridenti[0])]
-                    # Select correct idnum, so that sesnorid's are fitting 
+                    # Select correct idnum, so that sesnorid's are fitting
                     if not len(seldict3) > 0 and len(sensoridenti) > 0:
                         log.msg("Arduino: Sensor {} not yet existing -> adding to existinglist".format(sensoridenti[0]))
                         relevantdict = [idict for idict in self.infolist if str(idict.get('ID')) == str(idnum)][0]
@@ -414,10 +418,8 @@ class ActiveArduinoProtocol(object):
     def sendRequest(self):
 
         # connect to serial
-        #try:
+
         ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
-        #except:
-        #    log.msg("Serial connection failed")
 
         # send request string()
         for sensordict in self.commands:
@@ -429,7 +431,7 @@ class ActiveArduinoProtocol(object):
                     command += ':'
                 if self.debug:
                     log.msg("DEBUG - sending command key {}: {}".format(item,command))
-
+                #time.sleep(2) # doesnt help
                 answer, actime = self.send_command(ser,command,self.eol,hex=self.hexcoding)
                 if self.debug:
                     log.msg("DEBUG - received {}".format(answer))
@@ -507,7 +509,7 @@ class ActiveArduinoProtocol(object):
 
                 if cnt == 0:
                     ## 'Add' is a string containing dict info like:
-                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
+                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,...
                     add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDescription:{},DataTimeProtocol:{}".format( evdict.get('sensorid',''),self.confdict.get('station','').strip(),evdict.get('pierid','').strip(),evdict.get('protocol','').strip(),evdict.get('sensorgroup','').strip(),evdict.get('sensordesc','').strip(),evdict.get('ptime','').strip() )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
@@ -519,4 +521,3 @@ class ActiveArduinoProtocol(object):
 
                 # update counter in dict
                 self.counter[sensorid] = cnt
-

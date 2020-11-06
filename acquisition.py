@@ -19,22 +19,22 @@ METHODS:
 acquisition_mqtt.py contains the following methods:
 
 GetSensors: read a local definition file (sensors.txt) which contains information
-            on SensorID, Port, Bausrate (better Serial communication details), active/passive, 
+            on SensorID, Port, Bausrate (better Serial communication details), active/passive,
             init requirements, optional SensorDesc
 
 GetDefaults: read initialization file with local paths, publishing server, ports, etc.
 
 SendInit: send eventually necessary initialization data as defined in sensors.txt
 
-GetActive: Continuously obtain serial data from instrument and convert it to an binary 
+GetActive: Continuously obtain serial data from instrument and convert it to an binary
            information line to be published (using libraries)
 
-GetPassive: Send scheduled request to serial port to obtain serial data from instrument 
+GetPassive: Send scheduled request to serial port to obtain serial data from instrument
             and convert it to an binary information line to be published (using libraries)
 
 1. how to convert incoming serial datalines to magpy.stream contents
 2. an eventual initialization protocol too be send to the serial port before
-3.  
+3.
 call method: defined here
 
 Usage:
@@ -178,7 +178,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     do_every(rate, protocol.sendRequest)
 
     activeconnection = {sensorid: protocolname}
-    log.msg("  -> active connection established ... sampling every {} sec".format(rate)) 
+    log.msg("  -> active connection established ... sampling every {} sec".format(rate))
 
     return activeconnection
 

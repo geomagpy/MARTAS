@@ -35,6 +35,8 @@ def lineread(ser,eol=None):
     while True:
         char = ser.read()
         #if char == '\x00':
+        if sys.version_info >= (3,0):
+            char = char.decode()
         if char in eollist:
             break
         ser_str += char
@@ -59,12 +61,6 @@ def hexify_command(command,eol):
     return command_hex
 
 
-def send_command(ser,command,eol):
-    command_hex = hexify_command(command,eol)
-    ser.write(command_hex)
-    response = lineread(ser,eol)
-    print('Response: ', response)
-
 def send_command(ser,command,eol=None,hexify=False,bits=0):
     """
     DESCRIPTION:
@@ -81,6 +77,10 @@ def send_command(ser,command,eol=None,hexify=False,bits=0):
         GSM90Fv7:       hexify=False, line=False, eol
     """
     print('-- Sending command:  ', command)
+    if sys.version_info >= (3,0):
+        command = command.encode('ascii')
+        if eol:
+            eol = eol.encode('ascii')
     if hexify:
         command = hexify_command(command,eol)
         ser.write(command)
@@ -93,6 +93,8 @@ def send_command(ser,command,eol=None,hexify=False,bits=0):
         response = lineread(ser,eol)
     else:
         response = ser.read(bits)
+        if sys.version_info >= (3,0):
+            response = response.decode()
     print('-- Response: ', response)
     return response
 

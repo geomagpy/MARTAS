@@ -25,10 +25,12 @@ def send_command(ser,command,eol,hex=False):
     command = command+eol
     if(ser.isOpen() == False):
         ser.open()
+    ser.flush()
     if sys.version_info >= (3, 0):
         ser.write(command.encode('ascii'))
     else:
         ser.write(command)
+    #time.sleep(0.1)
     # skipping all empty lines
     while response == '':
         response = ser.readline()
@@ -120,10 +122,11 @@ def main(argv):
                 stopbits = arg
 
     ser = serial.Serial(port, baudrate=baudrate , parity=parity, bytesize=bytesize, stopbits=stopbits, timeout=timeout)
-
+    time.sleep(2)
     print("Sending command: {} ...".format(command))
     answer = send_command(ser,command,eol)
     print("Answer: {}".format(answer))
+    ser.close()
 
 if __name__ == "__main__":
    main(sys.argv[1:])
