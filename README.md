@@ -413,12 +413,16 @@ c) Customizing the WEB interface/ports of MARCOS
 
 ### 7.1 The threshold notifyer threshold.py
 
-MARTAS comes along with a threshold application. This app reads data from a defined source: a MARTAS buffer files, MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can be monitored independently by mail, nagios, icinga, telegram.
-Threshold.py can be scheduled in crontab.
+MARTAS comes along with a threshold application. This application can be used to check your data in realtime and trigger certain action in case a defined threshold is met. Among the possible actions are notifications by mail or messenger, switching command to a connected microcontroller, or execution of bash scripts. This app reads data from a defined source: a MARTAS buffer files, MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can be monitored independently by mail, nagios, icinga, telegram.
+Threshold.py can be scheduled in crontab. You can configure Threshold.py to se
 
-Threshold.py can use the telegram messenager to broadcast notifications. If you want to use that you need to install telegram_send
+Threshold.py (and monitor.py) can use the Telegram messenager to broadcast notifications. If you want to use that you need to install telegram_send.
 
         $ sudo pip install telegram_send
+
+        # IMPORTANT: requires Python3.6 !!
+
+Please note that these notification routines are independent of an eventually used TelegramBot (7.4, working also with Python3.5 and smaller) for communication with your MARTAS machine. You can use the same channel, however.
 
 
 ### 7.2 Monitoring MARTAS and MARCOS process with monitor.py

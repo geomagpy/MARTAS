@@ -202,6 +202,13 @@ else
    sed -i "s+${DUMMYCONF}+ -m ${CONFFILE}+g" /etc/init.d/$ACQUISITION
 fi
 
+# Replace DUMMY values in all init files
+INITFILES=$INITPATH/*.sh
+DUMMYMARTASPATH="/my/home/MARTAS"
+sed -i "s+${DUMMYPYTHON}+${PYPATH}+g" $INITFILES
+sed -i "s+${DUMMYMARTASPATH}+${ACQUPATH}+g" $INITFILES
+
+
 chmod 755 /etc/init.d/$ACQUISITION
 chown root:root /etc/init.d/$ACQUISITION
 update-rc.d $ACQUISITION defaults

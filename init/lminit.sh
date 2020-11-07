@@ -1,4 +1,5 @@
 #!/bin/sh
-PYTHONPATH="/home/cobs/anaconda2/bin/python"
+PYTHONPATH="/usr/bin/python"
+MARTASPATH="/my/home/MARTAS"
 
-$PYTHONPATH /home/cobs/MARTAS/MQTT/serialinit.py -p "/dev/ttyUSB0" -c R -i 1024
+$PYTHONPATH $MARTASPATH/app/serialinit.py -p "/dev/ttyUSB0" -c R -i 1024

@@ -17,6 +17,7 @@
 #      D          -> sampling rate: D -> down, U -> up, leave out to keep sampling rate
 #      R          -> Run
 
-PYTHONPATH="/home/cobs/anaconda2/bin/python"
+PYTHONPATH="/usr/bin/python"
+MARTASPATH="/my/home/MARTAS"
 
-$PYTHONPATH /home/cobs/MARTAS/app/serialinit.py -p "/dev/ttyS1" -c S,5,T048.5,C,datetime,D,R -k "%y%m%d%w%H%M%S" -r "z-save,z" -i 1024
+$PYTHONPATH $MARTASPATH/app/serialinit.py -p "/dev/ttyS1" -c S,5,T048.5,C,datetime,D,R -k "%y%m%d%w%H%M%S" -r "z-save,z" -i 1024
