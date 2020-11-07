@@ -388,11 +388,14 @@ def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
         contentdict = {}
         try:
             data = read(os.path.join(mqttpath,s,'*'),starttime=starttime,endtime=endtime)
+            print (s, data.length(), starttime, endtime)
             contentdict['keys'] = data._get_key_headers()
             st, et = data._find_t_limits()
             contentdict['starttime'] = st
             contentdict['endtime'] = et
+            print ("here", st, et)
             for key in data._get_key_headers():
+                print (key)
                 valuedict = {}
                 element, unit = GetVals(data.header, key)
                 value = data.mean(key)

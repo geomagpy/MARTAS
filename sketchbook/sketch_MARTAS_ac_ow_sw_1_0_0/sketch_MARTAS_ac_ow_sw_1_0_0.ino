@@ -26,7 +26,7 @@ COMMANDS
   swS::     : get current switch status
   swD::     : read switch status in MARTAS format
   reS::     : send Reset command
-  deS::     : send Sensor Details
+  owS::     : send Sensor Details
 ***************************************************************************/
 #include <Wire.h>
 #include <OneWire.h>
@@ -100,7 +100,7 @@ void setup(void) {
   //Serial.println("Starting OW in 5 secs...");
   //Serial.println("<MARTASEND>");
   delay(5000);  //important on linux as serial port can lock up otherwise
-  numberOfSensors = discoverOneWireDevices(0);
+  numberOfSensors = discoverOneWireDevices(1);
   Serial.println();
 }
 
@@ -114,7 +114,6 @@ void displaySensorDetails(int n)
     Serial.print("OW:  "); Serial.println(owSensors[i]);
   }
   Serial.println("------------------------------------");
-  Serial.println("");
   Serial.println("<MARTASEND>");
   delay(500);
 }
@@ -146,6 +145,7 @@ int discoverOneWireDevices(int report) {
     owid.toUpperCase();
     owSensors[count] = owid;
     count++;
+    delay(100);
   }
   oneWire.reset_search();
   if (getowseconds < count) {

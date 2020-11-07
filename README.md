@@ -631,7 +631,10 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot.  
 
-### TODO
+
+### 10.4 Issues and TODO
+
+Sometimes, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
 
 - add trigger mode for GSM90 (sending f)
 - add to #5
