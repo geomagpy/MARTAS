@@ -81,7 +81,7 @@ reportlevel          :   partial
 #to be continued...
 
 # SensorID, key:  if sensorid and key of several lines are identical, always the last valid test line defines the message
-#                 Therefore use warning thresholds before alert thresholds   
+#                 Therefore use warning thresholds before alert thresholds
 # Function:       can be one of max, min, median, average(mean), stddev 
 # State:          can be one below, above, equal 
 # Statusmessage:  default is replaced by "Current 'function' 'state' 'value', e.g. (1) "Current average below 5"
@@ -97,13 +97,13 @@ reportlevel          :   partial
 ## then send default statusmessage to the notification system (e.g. email)
 ## and eventually send switchcommand to serial port
 ## IMPORTANT: statusmessage should not contain semicolons, colons and commas; generally avoid special characters
- 
+
 """
 
 from __future__ import print_function
 from __future__ import unicode_literals
 
-# Define packges to be used (local refers to test environment) 
+# Define packges to be used (local refers to test environment)
 # ------------------------------------------------------------
 from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, read
 from magpy.database import mysql,readDB
@@ -177,7 +177,7 @@ def GetConf(path):
 
         for conf in confs:
             conflst = conf.split(' : ')
-            if conf.startswith('#'): 
+            if conf.startswith('#'):
                 continue
             elif conf.isspace():
                 continue
@@ -211,7 +211,7 @@ def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, d
     DESCRIPTION:
     read the appropriate amount of data from the data file, database or mqtt stream
     """
- 
+
     data = DataStream()
     msg = ''
     if not startdate:
@@ -237,12 +237,12 @@ def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, d
                 print (msg)
     elif source in ['db','DB','database','Database']:
         db = mysql.connect()
-        data = readDB(db, sensorid, starttime=starttime)        
+        data = readDB(db, sensorid, starttime=starttime)
 
     if debug:
         print ("Got {} datapoints".format(data.length()[0]))
 
-    return (data, msg) 
+    return (data, msg)
 
 def GetTestValue(data=DataStream(), key='x', function='average', debug=False):
     """
@@ -410,7 +410,7 @@ def main(argv):
         print ("Parameter dictionary: \n{}".format(para))
 
     if not (len(para)) > 0:
-        print ("No parameters given too be checked - aborting") 
+        print ("No parameters given too be checked - aborting")
         sys.exit()
 
 
@@ -422,7 +422,6 @@ def main(argv):
     except:
         print ("Could not import martas logging routines - check MARTAS directory path")
 
- 
     # For each parameter
     for i in range(0,1000):
             valuedict = para.get(str(i),{})
@@ -433,7 +432,7 @@ def main(argv):
                 data = DataStream()
                 testvalue = None
                 evaluate = {}
-                
+
                 # Obtain a magpy data stream of the respective data set
                 if debug:
                     print ("Accessing data from {} at {}: Sensor {} - Amount: {} sec".format(conf.get('source'),conf.get('bufferpath'),valuedict.get('sensorid'),valuedict.get('timerange') ))
@@ -444,7 +443,7 @@ def main(argv):
                     (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('state'), debug=debug) # Returns statusmessage
                     if evaluate and msg == '':
                         content = InterpreteStatus(valuedict,debug=debug)
-                        # Perform switch and added "switch on/off" to content 
+                        # Perform switch and added "switch on/off" to content
                         if not valuedict.get('switchcommand') in ['None','none',None]:
                             if debug:
                                 print ("Found switching command ... eventually will send serial command (if not done already) after checking all other commands")

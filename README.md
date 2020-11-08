@@ -410,6 +410,7 @@ c) Customizing the WEB interface/ports of MARCOS
 
 ## 7. Logging and notifications
 
+Please note: if you want to use threshold testing or monitoring, then you can use the installer "install.addapps.sh" in the install directory to set up/initialize these programs. 
 
 ### 7.1 The threshold notifyer threshold.py
 
@@ -427,7 +428,8 @@ Please note that these notification routines are independent of an eventually us
 
 ### 7.2 Monitoring MARTAS and MARCOS process with monitor.py
 
-
+The martas monitoring routine allows for testing data actuality and in MARTAS and MARCOS systems, can check available buffer memory and allows you to trigger bash scripts if a certain condition is found.
+For basic initialization, please use the install.addapps.sh script. This will preconfigure the configuration data for you. Monitoring is performend periodically using a crontab input.
 
 
 ### 7.3 Support for NAGIOS/ICINGA
@@ -549,6 +551,7 @@ init/bm35init.sh    |	Initialization script Meteolab BM35 pressure
 install/install.marcos.sh    |	Installer for collector jobs  (section 6.0)
 install/install.martas.sh    |	Installer for acquisition jobs  (section 3.0)
 install/install.telegram.sh    |	Installer for Telegram messenger communication (section 7.3)
+install/install.addapps.sh    |   Installer for threshold testing and monitor
 **libraries**  |  contain communication libraries for specific systems/protocols/instruments (required by acquisition.py)
 libmqtt/...    |			library for supported instruments (mqtt streaming)
 libwamp/...    |		library for sup. inst. (wamp streaming) - DISCONTINUED
