@@ -93,13 +93,20 @@ def _latestfile(path, date=False, latest=True):
 def GetConf(path):
     """
     Version 2020-10-28
+    DESCRIPTION:
+       can read a text configuration file and extract lists and dictionaries
+    SUPPORTED:
+       key   :    stringvalue                                 # extracted as { key: str(value) }
+       key   :    intvalue                                    # extracted as { key: int(value) }
+       key   :    item1,item2,item3                           # extracted as { key: [item1,item2,item3] }
+       key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
+       key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
     """
     ok = True
     if ok:
         #try:
         config = open(path,'r')
         confs = config.readlines()
-
         confdict = {}
         for conf in confs:
             conflst = conf.split(':')
@@ -114,27 +121,36 @@ def GetConf(path):
                 # Lists
                 if value.find(',') > -1:
                     value = value.split(',')
+                    value = [el.strip() for el  in value]
                 try:
                     confdict[key] = int(value)
                 except:
                     confdict[key] = value
             elif len(conflst) > 2:
                 # Dictionaries
-                if conf.find(',') > -1:
-                    ele = conf.split(',')
+                if conf.find(';') > -1 or len(conflst) == 3:
+                    ele = conf.split(';')
                     main = ele[0].split(':')[0].strip()
                     cont = {}
                     for el in ele:
                         pair = el.split(':')
+                        # Lists
+                        subvalue = pair[-1].strip()
+                        if subvalue.find(',') > -1:
+                            subvalue = subvalue.split(',')
+                            subvalue = [el.strip() for el  in subvalue]
                         try:
-                            cont[pair[-2].strip()] = int(pair[-1].strip())
+                            cont[pair[-2].strip()] = int(subvalue)
                         except:
-                            cont[pair[-2].strip()] = pair[-1].strip()
+                            cont[pair[-2].strip()] = subvalue
                     confdict[main] = cont
+                else:
+                    print ("Subdictionary expected - but no ; as element divider found")
     #except:
     #    print ("Problems when loading conf data from file. Using defaults")
 
     return confdict
+
 
 def getspace(path,warning=80,critical=90): # path = '/srv'
     """
