@@ -1,0 +1,9 @@
+paho-mqtt
+pyserial
+geomagpy
+twisted
+telegram_send
+psutil
+telepot
+platform
+
