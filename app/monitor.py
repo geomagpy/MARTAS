@@ -50,7 +50,7 @@ coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
 sys.path.insert(0, coredir)
 from martas import martaslog as ml
 
-
+"""
 monitorconf = {'logpath' : '/var/log/magpy/mm-monitor.log',		# path to log file
                'basedirectory' : '/srv', 			# base directory of buffer (MARTAS) and archive (MARCOS)
                'dbcredentials' : 'cobsdb', 			# where to find database credentials
@@ -68,7 +68,7 @@ monitorconf = {'logpath' : '/var/log/magpy/mm-monitor.log',		# path to log file
                'notification'  :  'telegram',  	        	# none,mail,telegram
                'notificationconf' : '/etc/martas/telegram.cfg', # configuration for notification
                'level'   :   3 }
-
+"""
 
 def _latestfile(path, date=False, latest=True):
     """
@@ -476,10 +476,29 @@ def main(argv):
     hostname = socket.gethostname().upper()
     allowedjobs = ['martas','space','marcos','logfile']
     debug = False
+    travistestrun = False
     #testst = DataStream()
+    monitorconf = {'logpath' : '/var/log/magpy/mm-monitor.log',		# path to log file
+               'basedirectory' : '/srv', 			# base directory of buffer (MARTAS) and archive (MARCOS)
+               'dbcredentials' : 'cobsdb', 			# where to find database credentials
+               'defaultthreshold' : '600',  			# accepted age of data in file or database (in seconds)
+               'ignorelist' : ['BASELINE','QUAKES','IPS','PIERS','DATAINFO','SENSORS','STATIONS','DIDATA_WIC','FLAGS'],  # sensors not too be checked
+               'thresholds' : {'RCS':180000,'TILT':100000,'METEO':10800,'WIC':20000,'GAMMA':10800,'GWR':10800, 'LEMI036_3':180000, 'GSM90_6107632':180000, 'BMP085_10085004':180000, 'SHT75_RASHT004':180000, 'GSM90_7':180000, 'GP20S3EWstatus': 180000}, 		# threshold definitions
+               'tmpdir' : '/tmp',			 	# for log file to check
+               'logfile' : '/var/log/magpy/marcos.log', 	# log file to check
+               'logtesttype' : 'repeat', 			# checks on log file: NEW (new input), REPEATed, LAST message (if a certain message is repeated more than x times)
+               'logsearchmessage' : 'writeDB: unknown MySQL error when checking for existing tables!',
+               'tolerance'  :  20,  				# tolerated amount of repeated messages
+               'joblist' : ['space','martas','marcos','logfile'], 			# basic job list (can be space (only disk space), martas (buffer files), marcos (tables), logfile (logfiles)
+               'execute'  :  '/path/execute.sh',  		# bash script to be executed if critical error is found (message contains 'execute'), add execution date to log
+               'executecriteria'  :  'alternating',  	        # day (every day), week (once per week), alternating (try immidiatly, then one day later, finally one week later),
+               'notification'  :  'telegram',  	        	# none,mail,telegram
+               'notificationconf' : '/etc/martas/telegram.cfg', # configuration for notification
+               'level'   :   3 }
+
 
     try:
-        opts, args = getopt.getopt(argv,"hc:n:j:vD",["config=","jobname=","joblist=",])
+        opts, args = getopt.getopt(argv,"hc:n:j:vDT",["config=","jobname=","joblist=",])
     except getopt.GetoptError:
         print ('monitor.py -c <config> -n <jobname> -j <joblist> -v <version>')
         sys.exit(2)
@@ -523,6 +542,8 @@ def main(argv):
             print ("monitor.py version: {}".format(version))
         elif opt in ("-D", "--debug"):
             debug = True
+        elif opt in ("-T", "--test"):
+            travistestrun = True
 
     # Testing inputs
     # --------------------------------
@@ -640,7 +661,8 @@ def main(argv):
     print ("monitoring app finished")
     print ("----------------------------------------------------------------")
     print ("SUCCESS")
-
+    if travistestrun:
+        return True
 
 if __name__ == "__main__":
    main(sys.argv[1:])

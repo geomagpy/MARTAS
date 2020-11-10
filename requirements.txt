@@ -5,5 +5,5 @@ twisted
 telegram_send
 psutil
 telepot
-platform
+
 
