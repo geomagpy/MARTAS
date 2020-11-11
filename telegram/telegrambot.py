@@ -116,12 +116,20 @@ def GetConf(path, confdict={}):
        key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
     """
     exceptionlist = ['bot_id']
+
+    def is_number(s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+
     try:
         config = open(path,'r')
         confs = config.readlines()
         for conf in confs:
             conflst = conf.split(':')
-            if conflst[0].strip() in exceptionlist:
+            if conflst[0].strip() in exceptionlist or is_number(conflst[0].strip()):
                 # define a list where : occurs in the value and is not a dictionary indicator
                 conflst = conf.split(':',1)
             if conf.startswith('#'):

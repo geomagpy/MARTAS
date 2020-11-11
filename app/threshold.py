@@ -129,7 +129,6 @@ class sp(object):
     configdict['dbcredentials'] = 'cobsdb'
     configdict['database'] = 'cobsdb'
     configdict['reportlevel'] = 'partial'
-    configdict['notification'] = 'email'
     configdict['notification'] = 'log'
     valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
     #valuedict = {'sensorid':'DS18B20','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
@@ -159,8 +158,83 @@ def is_number(s):
     except ValueError:
         return False
 
-def GetConf(path):
+
+def GetConf(path, confdict={}):
     """
+    Version 2020-10-28
+    DESCRIPTION:
+       can read a text configuration file and extract lists and dictionaries
+    VARIBALES:
+       path             Obvious
+       confdict         provide default values
+    SUPPORTED:
+       key   :    stringvalue                                 # extracted as { key: str(value) }
+       key   :    intvalue                                    # extracted as { key: int(value) }
+       key   :    item1,item2,item3                           # extracted as { key: [item1,item2,item3] }
+       key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
+       key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
+    """
+    exceptionlist = ['bot_id']
+
+    def is_number(s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+
+    try:
+        config = open(path,'r')
+        confs = config.readlines()
+        for conf in confs:
+            conflst = conf.split(':')
+            if conflst[0].strip() in exceptionlist or is_number(conflst[0].strip()):
+                # define a list where : occurs in the value and is not a dictionary indicator
+                conflst = conf.split(':',1)
+            if conf.startswith('#'):
+                continue
+            elif conf.isspace():
+                continue
+            elif len(conflst) == 2:
+                conflst = conf.split(':',1)
+                key = conflst[0].strip()
+                value = conflst[1].strip()
+                # Lists
+                if value.find(',') > -1:
+                    value = value.split(',')
+                    value = [el.strip() for el  in value]
+                try:
+                    confdict[key] = int(value)
+                except:
+                    confdict[key] = value
+            elif len(conflst) > 2:
+                # Dictionaries
+                if conf.find(';') > -1 or len(conflst) == 3:
+                    ele = conf.split(';')
+                    main = ele[0].split(':')[0].strip()
+                    cont = {}
+                    for el in ele:
+                        pair = el.split(':')
+                        # Lists
+                        subvalue = pair[-1].strip()
+                        if subvalue.find(',') > -1:
+                            subvalue = subvalue.split(',')
+                            subvalue = [el.strip() for el  in subvalue]
+                        try:
+                            cont[pair[-2].strip()] = int(subvalue)
+                        except:
+                            cont[pair[-2].strip()] = subvalue
+                    confdict[main] = cont
+                else:
+                    print ("Subdictionary expected - but no ; as element divider found")
+    except:
+        print ("Problems when loading conf data from file. Using defaults")
+
+    return confdict
+
+"""
+def GetConf(path):
+    #""
     DESCRIPTION:
         read default configuration paths etc from a file
         Now: just define them by hand
@@ -169,7 +243,7 @@ def GetConf(path):
 
         File looks like:
         # Configuration data for data transmission using MQTT (MagPy/MARTAS)
-    """
+    #""
     # Init values
     try:
         config = open(path,'r')
@@ -204,7 +278,7 @@ def GetConf(path):
         sys.exit()
 
     return (sp.configdict, sp.parameterdict)
-
+"""
 
 def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, debug=False):
     """
@@ -339,6 +413,26 @@ def InterpreteStatus(valuedict, debug=False):
     return msg
 
 
+def AssignParameterlist(namelist=[],confdict={}):
+    """
+    DESCRIPTION:
+        assign the threshold parameters to a dictionary
+    EXAMPLE:
+        para = AssignParameterlist(sp.valuenamelist,conf)
+    """
+    para = {}
+    for i in range(1,9999):
+        valuedict = {}
+        valuelist = confdict.get(str(i),[])
+        if len(valuelist) > 0:
+            if not len(valuelist) in [len(namelist), len(namelist)-1]:
+                print ("PARAMETER: provided values differ from the expected amount - please check")
+            else:
+                for idx,val in enumerate(valuelist):
+                    valuedict[namelist[idx]] = val.strip()
+                para[str(i)] = valuedict
+    return para
+
 def main(argv):
 
     para = sp.parameterdict
@@ -347,10 +441,11 @@ def main(argv):
     configfile = None
     statusdict = {}
     statuskeylist = []
+    travistestrun = False
 
     usagestring = 'threshold.py -h <help> -m <configpath>'
     try:
-        opts, args = getopt.getopt(argv,"hm:U",["configpath="])
+        opts, args = getopt.getopt(argv,"hm:DT",["configpath="])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -396,9 +491,14 @@ def main(argv):
         elif opt in ("-m", "--configfile"):
             configfile = arg
             print ("Getting all parameters from configration file: {}".format(configfile))
-            (conf, para) = GetConf(configfile)
-        elif opt in ("-U", "--debug"):
+            conf = GetConf(configfile, confdict=conf)
+            para = AssignParameterlist(sp.valuenamelist,conf)
+        elif opt in ("-D", "--debug"):
             debug = True
+        elif opt in ("-T", "--Test"):
+            travistestrun = True
+            conf = GetConf(os.path.join('..','conf','threshold.cfg'))
+            para = AssignParameterlist(sp.valuenamelist,conf)
 
         # TODO activate in order prevent default values
         #if not configfile or conf == {}:
@@ -439,7 +539,11 @@ def main(argv):
 
                 (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
                 (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
-                if is_number(testvalue):
+                if not testvalue and travistestrun:
+                    print ("Testrun for parameterset {} OK".format(i))
+                elif not testvalue:
+                    print ("Please check your test data set... are bufferfiles existing? Is the sensorid correct?")
+                elif is_number(testvalue):
                     (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('state'), debug=debug) # Returns statusmessage
                     if evaluate and msg == '':
                         content = InterpreteStatus(valuedict,debug=debug)
@@ -478,6 +582,10 @@ def main(argv):
     receiver = conf.get('notification')
     cfg = conf.get('notificationconfig')
     logfile = conf.get('logfile')
+
+    if travistestrun:
+        print ("Skipping send routines in test run - finished successfully")
+        sys.exit()
 
     if debug:
         print ("New notifications will be send to: {} (Config: {})".format(receiver,cfg))
