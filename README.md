@@ -514,6 +514,7 @@ acquisition.py    |             accepts options (-h for help)
 collector.py    |                   accepts options (-h for help)
 README.md    |		You are here.
 LICENSE.md    |		GNU GPL 3.0 License
+requirements.txt   |    for contiunuous integration test runs
 **app**  | 
 app/addcred.py    |	run to add protected credentials to be used e.g. by data sending protocol, database connections etc, avoinding the use of plain text passwords in scripts
 app/archive.py    |	MARCOS job to periodically archive contents of the data base into archive files (e.g. CDF). Remove information from the data base exceeding a defined age. The latter requires additionally to run sql optimze routines in order to prevent an overflow of the local data base storage files. 
@@ -636,7 +637,7 @@ arduino block (with the leading questionmark), connect the new sensor configurat
 Make sure to disconnect the Arduino, before manipulating its sensor
 configuration. You can check the Arduino independently by looking at Arduino/Tools/SerialMonitor (make sure that MARTAS processes are not running).
 
-**IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot.  
+**IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration. 
 
 
 ### 10.4 Issues and TODO

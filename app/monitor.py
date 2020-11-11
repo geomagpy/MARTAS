@@ -90,11 +90,14 @@ def _latestfile(path, date=False, latest=True):
         return ""
 
 
-def GetConf(path):
+def GetConf(path, confdict={}):
     """
     Version 2020-10-28
     DESCRIPTION:
        can read a text configuration file and extract lists and dictionaries
+    VARIBALES:
+       path             Obvious
+       confdict         provide default values
     SUPPORTED:
        key   :    stringvalue                                 # extracted as { key: str(value) }
        key   :    intvalue                                    # extracted as { key: int(value) }
@@ -102,20 +105,21 @@ def GetConf(path):
        key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
        key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
     """
-    ok = True
-    if ok:
-        #try:
+    exceptionlist = ['bot_id']
+    try:
         config = open(path,'r')
         confs = config.readlines()
-        confdict = {}
         for conf in confs:
             conflst = conf.split(':')
+            if conflst[0].strip() in exceptionlist:
+                # define a list where : occurs in the value and is not a dictionary indicator
+                conflst = conf.split(':',1)
             if conf.startswith('#'):
                 continue
             elif conf.isspace():
                 continue
             elif len(conflst) == 2:
-                conflst = conf.split(':')
+                conflst = conf.split(':',1)
                 key = conflst[0].strip()
                 value = conflst[1].strip()
                 # Lists
@@ -146,8 +150,8 @@ def GetConf(path):
                     confdict[main] = cont
                 else:
                     print ("Subdictionary expected - but no ; as element divider found")
-    #except:
-    #    print ("Problems when loading conf data from file. Using defaults")
+    except:
+        print ("Problems when loading conf data from file. Using defaults")
 
     return confdict
 

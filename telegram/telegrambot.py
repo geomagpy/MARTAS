@@ -100,43 +100,66 @@ class tgpar(object):
     martasapp = '/home/cobs/MARTAS/app'
 
 
-def GetConf(path):
+def GetConf(path, confdict={}):
     """
+    Version 2020-10-28
     DESCRIPTION:
-        read default configuration paths etc from a file
-        Now: just define them by hand
-    PATH:
-        defaults are stored in magpymqtt.conf
-
-        File looks like:
-        # Configuration data for data transmission using MQTT (MagPy/MARTAS)
+       can read a text configuration file and extract lists and dictionaries
+    VARIBALES:
+       path             Obvious
+       confdict         provide default values
+    SUPPORTED:
+       key   :    stringvalue                                 # extracted as { key: str(value) }
+       key   :    intvalue                                    # extracted as { key: int(value) }
+       key   :    item1,item2,item3                           # extracted as { key: [item1,item2,item3] }
+       key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
+       key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
     """
-    # Init values:
-    confdict = {}
-    confdict['bot_id'] = ''
-    confdict['tmppath'] = '/tmp'
-    confdict['martasfile'] = '/home/cobs/martas.cfg'
-    confdict['martaspath'] = '/home/cobs/MARTAS'
-    confdict['allowed_users'] = ''
-    confdict['camport'] = 'None'
-    confdict['logging'] = 'stdout'
-    confdict['loglevel'] = 'INFO'
-
+    exceptionlist = ['bot_id']
     try:
         config = open(path,'r')
         confs = config.readlines()
-
         for conf in confs:
-            conflst = conf.split('  :  ')
+            conflst = conf.split(':')
+            if conflst[0].strip() in exceptionlist:
+                # define a list where : occurs in the value and is not a dictionary indicator
+                conflst = conf.split(':',1)
             if conf.startswith('#'):
                 continue
             elif conf.isspace():
                 continue
             elif len(conflst) == 2:
-                conflst = conf.split('  :  ')
+                conflst = conf.split(':',1)
                 key = conflst[0].strip()
                 value = conflst[1].strip()
-                confdict[key] = value
+                # Lists
+                if value.find(',') > -1:
+                    value = value.split(',')
+                    value = [el.strip() for el  in value]
+                try:
+                    confdict[key] = int(value)
+                except:
+                    confdict[key] = value
+            elif len(conflst) > 2:
+                # Dictionaries
+                if conf.find(';') > -1 or len(conflst) == 3:
+                    ele = conf.split(';')
+                    main = ele[0].split(':')[0].strip()
+                    cont = {}
+                    for el in ele:
+                        pair = el.split(':')
+                        # Lists
+                        subvalue = pair[-1].strip()
+                        if subvalue.find(',') > -1:
+                            subvalue = subvalue.split(',')
+                            subvalue = [el.strip() for el  in subvalue]
+                        try:
+                            cont[pair[-2].strip()] = int(subvalue)
+                        except:
+                            cont[pair[-2].strip()] = subvalue
+                    confdict[main] = cont
+                else:
+                    print ("Subdictionary expected - but no ; as element divider found")
     except:
         print ("Problems when loading conf data from file. Using defaults")
 
@@ -204,24 +227,43 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'cam':'get a live picture from a connected camera',
                    'help':'print this list'}
 
+travistestrun = True
+
 hiddencommands = {'reboot':'reboot the remote computer'}
 
-sensorcommandlist = ['sensors','sensor','Sensors','Sensor'] # any
-hellocommandlist = ['hello','Hello'] # any
-systemcommandlist = ['System','system'] # any
-martascommandlist = ['Martas','martas','MARTAS'] # any
-marcoscommandlist = ['Marcos','marcos','MARCOS'] # any
-camcommandlist = ['cam','Cam','picture','Picture','photo'] # any
-statuscommandlist = ['Status','status','Memory','memory','disk','space','Disk'] # any
-getlogcommandlist = ['getlog','get log','get the log', 'print log', 'print the log'] # any
-getdatacommandlist = ['data'] # all
-plotcommandlist = ['plot','Plot'] # any
-switchcommandlist = ['switch','Switch'] # any
+commandlist = {}
+commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'} 
+commandlist['hello'] = {'commands': ['hello','Hello'], 'combination' : 'any'}
+
+commandlist['system'] = {'commands': ['System','system'], 'combination' : 'any'}
+commandlist['martas'] = {'commands': ['Martas','martas','MARTAS'], 'combination' : 'any'}
+commandlist['marcos'] = {'commands': ['Marcos','marcos','MARCOS'], 'combination' : 'any'}
+commandlist['cam'] = {'commands': ['cam','Cam','picture','Picture','photo'], 'combination' : 'any'}
+commandlist['status'] = {'commands': ['Status','status','Memory','memory','disk','space','Disk'], 'combination' : 'any'}
+commandlist['getlog'] = {'commands': ['getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
+commandlist['getdata'] = {'commands': ['data'], 'combination' : 'any'}
+commandlist['plot'] = {'commands': ['plot','Plot'], 'combination' : 'any'}
+commandlist['switch'] = {'commands': ['switch','Switch'], 'combination' : 'any' ,'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }}
+commandlist['badwords'] = {'commands': ['fuck','asshole'], 'combination' : 'any'}
 switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
 badwordcommands = ['fuck','asshole']
 
+
+
+# Init values:
+confdict = {}
+confdict['bot_id'] = ''
+confdict['tmppath'] = '/tmp'
+confdict['martasfile'] = '/home/cobs/martas.cfg'
+confdict['martaspath'] = '/home/cobs/MARTAS'
+confdict['allowed_users'] = ''
+confdict['camport'] = 'None'
+confdict['logging'] = 'stdout'
+confdict['loglevel'] = 'INFO'
+
+
 try:
-    opts, args = getopt.getopt(sys.argv[1:],"hc:",["config="])
+    opts, args = getopt.getopt(sys.argv[1:],"hc:T",["config=","Test="])
 except getopt.GetoptError:
     print ('telegrambot.py -c <config>')
     sys.exit(2)
@@ -232,10 +274,15 @@ for opt, arg in opts:
         sys.exit()
     elif opt in ("-c", "--config"):
         telegramcfg = arg
+    elif opt in ("-T", "--Test"):
+        travistestrun = True
+        telegramcfg = 'telegrambot.cfg'
 
 try:
-    tgconf = GetConf(telegramcfg)
+    tgconf = GetConf(telegramcfg, confdict=confdict)
     tglogger = setuplogger(name='telegrambot',loglevel=tgconf.get('loglevel'),path=tgconf.get('bot_logging').strip())
+    if travistestrun:
+        tglogger = setuplogger(name='telegrambot',loglevel='DEBUG',path='stdout')
     tglogpath = tgconf.get('bot_logging').strip()
     bot_id = tgconf.get('bot_id').strip()
     martasconfig = tgconf.get('martasconfig').strip()
@@ -243,6 +290,16 @@ try:
     martasapp = tgconf.get('martasapp').strip()
     martaspath = tgconf.get('martaspath')
     marcosconfig = tgconf.get('marcosconfig').strip()
+
+    # Extract command lists
+    for command in stationcommands:
+        tglogger.debug("Checking for alternative commands for {}".format(command))
+        try:
+            comlst = [el for el in tgconf.get(command,[]) if not el=='']
+            if len(comlst) > 0:
+                commandlist[command].get('commands').extend(comlst)
+        except:
+            pass
     if not camport=='None':
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
     tmppath = tgconf.get('tmppath').strip()
@@ -250,7 +307,11 @@ try:
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
-    allowed_users =  [int(el) for el in tgconf.get('allowed_users').replace(' ','').split(',')]
+    allusers = tgconf.get('allowed_users')
+    if isinstance(allusers, list):
+        allowed_users =  [el for el in allusers]
+    else:
+        allowed_users =  [tgconf.get('allowed_users')]
     tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
 except:
     print ("error while reading config file or writing to log file - check content and spaces")
@@ -274,9 +335,10 @@ try:
     #apppath = conf.get('initdir').replace('init','app')
     tglogger.debug("Successfully obtained parameters from martas.cfg")
 except:
-    print ("Configuration (martas.cfg) could not be extracted - aborting")
-    tglogger.warning("Configuration (martas.cfg) could not be extracted - aborting")
-    sys.exit()
+    #print ("Configuration (martas.cfg) could not be extracted - aborting")
+    if not travistestrun:
+        tglogger.warning("Configuration (martas.cfg) could not be extracted - aborting")
+        sys.exit()
 
 
 def _latestfile(path, date=False, latest=True):
@@ -720,13 +782,13 @@ def handle(msg):
                if command.replace('help','').find('hidden') > -1:
                    hidden = True
                bot.sendMessage(chat_id, help(hidden=hidden))
-            elif any([word in command for word in badwordcommands]):
+            elif any([word in command for word in commandlist['badwords'].get('commands')]):
                # -----------------------
                # JUST FOR FUN
                # -----------------------
                text = "Don't be rude.\nI am just a stupid program, not even an AI\n"
                bot.sendMessage(chat_id, text)
-            elif any([word in command for word in getlogcommandlist]):
+            elif any([word in command for word in commandlist['getlog'].get('commands')]):
                #command.find('getlog') > -1 or command.find('print log') > -1 or command.find('send log') > -1 or command.find('get log') > -1 or command.find('print the log') > -1 or command.find('get the log') > -1:
                # -----------------------
                # OBTAINNING LOGS
@@ -766,25 +828,25 @@ def handle(msg):
                else:
                    mesg = "getlog:\nlogfile not existing"
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in statuscommandlist]):
+            elif any([word in command for word in commandlist['status'].get('commands')]):
                # -----------------------
                # Status messages on memory and disk space
                # -----------------------
                mesg = getspace()
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in systemcommandlist]):
+            elif any([word in command for word in commandlist['system'].get('commands')]):
                # -----------------------
                # System information, software versions and martas marcos jobs
                # -----------------------
                mesg = system()
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in hellocommandlist]):
+            elif any([word in command for word in commandlist['hello'].get('commands')]):
                # -----------------------
                # Welcome statement
                # -----------------------
                mesg = "Hello {}, nice to talk to you.".format(firstname)
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in camcommandlist]):
+            elif any([word in command for word in commandlist['cam'].get('commands')]):
                # -----------------------
                # Get cam picture
                # -----------------------
@@ -806,7 +868,7 @@ def handle(msg):
                    except:
                        mesg = "Cam image not available (fswebcam properly installed?)"
                        bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in martascommandlist]):
+            elif any([word in command for word in commandlist['martas'].get('commands')]):
                # -----------------------
                # Send MARTAS process command
                # -----------------------
@@ -836,7 +898,7 @@ def handle(msg):
                            mesg = martas(job=job,command=comm)
                            break
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in marcoscommandlist]):
+            elif any([word in command for word in commandlist['marcos'].get('commands')]):
                # -----------------------
                # Send MARCOS process command
                # -----------------------
@@ -861,12 +923,12 @@ def handle(msg):
                bot.sendMessage(chat_id, "Rebooting ...")
                mesg = reboot()
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in plotcommandlist]):
+            elif any([word in command for word in commandlist['plot'].get('commands')]):
                # -----------------------
                # Plot data, either recent or from a specific time interval
                # -----------------------
                cmd = command
-               for word in plotcommandlist:
+               for word in commandlist['plot'].get('commands'):
                    cmd = cmd.replace(word,'')
                sensoridlist = _identifySensor(cmd)
                if len(sensoridlist) > 1:
@@ -900,12 +962,12 @@ def handle(msg):
                    else:
                        mesg = "Plot could not be created" # tgplot
                        bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in sensorcommandlist]):
+            elif any([word in command for word in commandlist['sensor'].get('commands')]):
                # -----------------------
                # Obtain sensor information and broadcast it
                # -----------------------
                tcmd = command
-               for word in sensorcommandlist:
+               for word in commandlist['sensor'].get('commands'):
                    tcmd = tcmd.replace(word,'')
                #tcmd = command.replace('sensors','').replace('sensor','').replace('Sensors','')
                cmd = tcmd.split()
@@ -933,7 +995,7 @@ def handle(msg):
                else:
                    mesg = sensors()
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in switchcommandlist]):
+            elif any([word in command for word in commandlist['switch'].get('commands')]):
                # -----------------------
                # Send switch command for mircocontroller
                # -----------------------
@@ -941,6 +1003,7 @@ def handle(msg):
                cmd = None
                #if command.find('state') > -1 or command.find('State') > -1:
                #    cmd = 'swD'
+               switchcommandoptions = commandlist['switch'].get('options')
                for opt in switchcommandoptions:
                    commlist = switchcommandoptions.get(opt)
                    if any([command.find(word) > -1 for word in commlist]):
@@ -952,7 +1015,7 @@ def handle(msg):
                tglogger.info(" command extracted: {}".format(len(cmd)))
                mesg = switch(cmd)
                bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in getdatacommandlist]):
+            elif any([word in command for word in commandlist['getdata'].get('commands')]):
                # -----------------------
                # Get data, either recent or from a specific time
                # -----------------------
@@ -989,6 +1052,9 @@ def handle(msg):
                    mesg += CreateSensorMsg(valdict)
                bot.sendMessage(chat_id, mesg)
 
+if travistestrun:
+    print ("Test run successfully finished - existing")
+    sys.exit(0)
 
 if vers=='2':
     bot = telepot.Bot(str(bot_id))
