@@ -421,13 +421,13 @@ class ActiveArduinoProtocol(object):
         # Open Connection
         try:
             ser.open()
-            print ("Opening ser ...")
         except Exception as e:
             #if travistestrun:
             #    print ("ardcomm: serial port not available in testrun - finishing")
             #   sys.exit(0)
-            print ("lib activearduino: error open serial port: {}".format(str(e)))
-            #sys.exit(1)
+            #print ("lib activearduino: error open serial port: {}".format(str(e)))
+            # ser is already open dur to serial.Serial command
+            pass
 
         if ser.isOpen():
             # send request string()
@@ -455,7 +455,6 @@ class ActiveArduinoProtocol(object):
 
             # disconnect from serial
             ser.close()
-            print ("... closing ser")
             if ser.isOpen():
                 print ("but seems to be still open")
         else:
