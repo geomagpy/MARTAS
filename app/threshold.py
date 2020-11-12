@@ -6,11 +6,11 @@ MARTAS - threshold application
 ################################
 
 DESCRIPTION:
-Threshold application reads data from a defined source 
+Threshold application reads data from a defined source
 (DB or file, eventually MQTT).
 Threshold values can be defined for keys in the data file,
-notifications can be send out when ceratin criteria are met, 
-and switching commands can be send if thresholds are exceeded 
+notifications can be send out when ceratin criteria are met,
+and switching commands can be send if thresholds are exceeded
 or undergone.
 All threshold processes can be logged and  can be monitored
 by nagios, icinga or martas.
@@ -43,12 +43,12 @@ dbcredentials        :   None
 bufferpath           :   /srv/mqtt/
 
 
-# Logfile (a json style dictionary, which contains statusmessages) 
+# Logfile (a json style dictionary, which contains statusmessages)
 #logfile              :   /var/log/magpy/threshold.log
 logfile              :   /home/leon/Tmp/threshold.log
 
 
-# Notifaction (uses martaslog class, one of email, telegram, mqtt, log) 
+# Notifaction (uses martaslog class, one of email, telegram, mqtt, log)
 notification         :   email
 notificationconfig   :   /etc/martas/notification.cfg
 

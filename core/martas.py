@@ -82,7 +82,7 @@ def sendmail(dic):
     """
     Function for sending mails with attachments
     """
-    
+
     #if not smtpserver:
     #    smtpserver = 'smtp.web.de'
     if 'Attach' in dic:
@@ -257,7 +257,7 @@ class martaslog(object):
             mailmsg = ''
             for elem in dictionary:
                 mailmsg += "{}: {}\n".format(elem, dictionary[elem])
-            from core import acquisitionsupport as acs
+            import acquisitionsupport as acs
             self.email = acs.GetConf(self.email.get('config'))
             #print(self.email)
             self.email['Text'] = mailmsg
