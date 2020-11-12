@@ -173,7 +173,8 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
                 import json
                 altbro = json.loads(altbrocker)
         """
-        client = mqtt.Client()
+        clientid = "{}".format(broker)
+        client = mqtt.Client(clientid,False)
         # Authentication part
         if not credentials in ['','-']:
             # use user and pwd from credential data if not yet set
@@ -402,7 +403,7 @@ def on_message(client, userdata, msg):
 
     if msg.topic.endswith('meta') and metacheck == '':
         log.msg("Found basic header:{}".format(str(msg.payload)))
-        log.msg("Quality od Service (QOS):{}".format(str(msg.qos)))
+        log.msg("Quality of Service (QOS):{}".format(str(msg.qos)))
         analyse_meta(str(msg.payload),sensorid)
         if not sensorid in headdict:
             headdict[sensorid] = msg.payload
@@ -435,6 +436,8 @@ def on_message(client, userdata, msg):
                 # -------------------
                 if sensorid in headdict:
                     header = headdict.get(sensorid)
+                    if sys.version_info >= (3,0):
+                        metacheck = metacheck.decode()
                     if metacheck.endswith('B'):
                         packcode = metacheck.strip('<')[:-1] # drop leading < and final B
                     else:

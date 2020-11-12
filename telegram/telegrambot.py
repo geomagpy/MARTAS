@@ -730,10 +730,10 @@ def switch(command):
         option = '-c'
         call = "{} {} {} {}".format(python,path,option,command)
         tglogger.debug("Call: {}".format(call))
-        print ("Sending", call)
+        #print ("Sending", call)
         p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
-        print (output)
+        #print (output)
         if vers == '3':
             output = output.decode()
         mesg = "{}".format(output)
