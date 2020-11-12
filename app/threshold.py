@@ -159,7 +159,7 @@ def is_number(s):
         return False
 
 
-def GetConf(path, confdict={}):
+def GetConf2(path, confdict={}):
     """
     Version 2020-10-28
     DESCRIPTION:
@@ -232,53 +232,6 @@ def GetConf(path, confdict={}):
 
     return confdict
 
-"""
-def GetConf(path):
-    #""
-    DESCRIPTION:
-        read default configuration paths etc from a file
-        Now: just define them by hand
-    PATH:
-        defaults are stored in magpymqtt.conf
-
-        File looks like:
-        # Configuration data for data transmission using MQTT (MagPy/MARTAS)
-    #""
-    # Init values
-    try:
-        config = open(path,'r')
-        confs = config.readlines()
-
-        for conf in confs:
-            conflst = conf.split(' : ')
-            if conf.startswith('#'):
-                continue
-            elif conf.isspace():
-                continue
-            elif len(conflst) == 2:
-                if is_number(conflst[0]):
-                    # extract parameterlist
-                    key = conflst[0].strip()
-                    values = conflst[1].strip().split(';')
-                    valuedict = {}
-                    if not len(values) in [len(sp.valuenamelist), len(sp.valuenamelist)-1]:
-                        print ("PARAMETER: provided values differ from the expected amount - please check")
-                    else:
-                        for idx,val in enumerate(values):
-                            valuedict[sp.valuenamelist[idx]] = val.strip()
-                        sp.parameterdict[key] = valuedict
-                else:
-                    key = conflst[0].strip()
-                    value = conflst[1].strip()
-                    sp.configdict[key] = value
-    except:
-        print ("Problems when loading conf data from file...")
-        #return ({}, {})
-        print ("Could not obtain configuration data - aborting")
-        sys.exit()
-
-    return (sp.configdict, sp.parameterdict)
-"""
 
 def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, debug=False):
     """
@@ -491,13 +444,13 @@ def main(argv):
         elif opt in ("-m", "--configfile"):
             configfile = arg
             print ("Getting all parameters from configration file: {}".format(configfile))
-            conf = GetConf(configfile, confdict=conf)
+            conf = GetConf2(configfile, confdict=conf)
             para = AssignParameterlist(sp.valuenamelist,conf)
         elif opt in ("-D", "--debug"):
             debug = True
         elif opt in ("-T", "--Test"):
             travistestrun = True
-            conf = GetConf(os.path.join('..','conf','threshold.cfg'))
+            conf = GetConf2(os.path.join('..','conf','threshold.cfg'))
             para = AssignParameterlist(sp.valuenamelist,conf)
 
         # TODO activate in order prevent default values

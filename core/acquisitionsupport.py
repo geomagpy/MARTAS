@@ -453,4 +453,77 @@ def GetConf(path):
     return confdict
 
 
+def GetConf2(path, confdict={}):
+    """
+    Version 2020-10-28
+    DESCRIPTION:
+       can read a text configuration file and extract lists and dictionaries
+    VARIBALES:
+       path             Obvious
+       confdict         provide default values
+    SUPPORTED:
+       key   :    stringvalue                                 # extracted as { key: str(value) }
+       key   :    intvalue                                    # extracted as { key: int(value) }
+       key   :    item1,item2,item3                           # extracted as { key: [item1,item2,item3] }
+       key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
+       key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
+    """
+    exceptionlist = ['bot_id']
+
+    def is_number(s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
+
+    try:
+        config = open(path,'r')
+        confs = config.readlines()
+        for conf in confs:
+            conflst = conf.split(':')
+            if conflst[0].strip() in exceptionlist or is_number(conflst[0].strip()):
+                # define a list where : occurs in the value and is not a dictionary indicator
+                conflst = conf.split(':',1)
+            if conf.startswith('#'):
+                continue
+            elif conf.isspace():
+                continue
+            elif len(conflst) == 2:
+                conflst = conf.split(':',1)
+                key = conflst[0].strip()
+                value = conflst[1].strip()
+                # Lists
+                if value.find(',') > -1:
+                    value = value.split(',')
+                    value = [el.strip() for el  in value]
+                try:
+                    confdict[key] = int(value)
+                except:
+                    confdict[key] = value
+            elif len(conflst) > 2:
+                # Dictionaries
+                if conf.find(';') > -1 or len(conflst) == 3:
+                    ele = conf.split(';')
+                    main = ele[0].split(':')[0].strip()
+                    cont = {}
+                    for el in ele:
+                        pair = el.split(':')
+                        # Lists
+                        subvalue = pair[-1].strip()
+                        if subvalue.find(',') > -1:
+                            subvalue = subvalue.split(',')
+                            subvalue = [el.strip() for el  in subvalue]
+                        try:
+                            cont[pair[-2].strip()] = int(subvalue)
+                        except:
+                            cont[pair[-2].strip()] = subvalue
+                    confdict[main] = cont
+                else:
+                    print ("Subdictionary expected - but no ; as element divider found")
+    except:
+        print ("Problems when loading conf data from file. Using defaults")
+
+    return confdict
+
 

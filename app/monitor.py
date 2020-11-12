@@ -90,7 +90,7 @@ def _latestfile(path, date=False, latest=True):
         return ""
 
 
-def GetConf(path, confdict={}):
+def GetConf2(path, confdict={}):
     """
     Version 2020-10-28
     DESCRIPTION:
@@ -569,7 +569,7 @@ def main(argv):
     else:
         if os.path.isfile(configpath):
             print ("read file with GetConf")
-            monitorconf = GetConf(configpath)
+            monitorconf = GetConf2(configpath)
             # directly get the joblist
             joblist = monitorconf.get('joblist')
             if not isinstance(joblist,list):
