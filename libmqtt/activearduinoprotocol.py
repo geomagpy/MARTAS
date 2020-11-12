@@ -130,8 +130,6 @@ class ActiveArduinoProtocol(object):
         maxcnt = 50
         cnt = 0
         command = command+eol
-        if(ser.isOpen() == False):
-            ser.open()
         ser.flush()
         sendtime = datetime.utcnow()
         if sys.version_info >= (3, 0):
@@ -418,50 +416,50 @@ class ActiveArduinoProtocol(object):
     def sendRequest(self):
 
         # connect to serial
-
         ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
 
-        # send request string()
-        for sensordict in self.commands:
-            for item in sensordict:
-                command = sensordict.get(item)
-                n = command.count(":")
-                miss=-(n-2)
-                for n in range(miss):
-                    command += ':'
-                if self.debug:
-                    log.msg("DEBUG - sending command key {}: {}".format(item,command))
-                #time.sleep(2) # doesnt help
-                answer, actime = self.send_command(ser,command,self.eol,hex=self.hexcoding)
-                if self.debug:
-                    log.msg("DEBUG - received {}".format(answer))
-                # disconnect from serial
-                ser.close()
-                # analyze return if data is requested
-                if item.startswith('data') and not answer.find('-') > -1 and not answer.find('Starting') > -1:
-                    # get all lines in answer
-                    lines = answer.split('\n')
-                    for line in lines:
-                        if len(line)>2 and (line[2] == ':' or line[3] == ':'):
-                            self.analyzeline(line)
+        # Open Connection
+        try:
+            ser.open()
+            print ("Opening ser ...")
+        except Exception as e:
+            #if travistestrun:
+            #    print ("ardcomm: serial port not available in testrun - finishing")
+            #   sys.exit(0)
+            print ("lib activearduino: error open serial port: {}".format(str(e)))
+            #sys.exit(1)
 
-                """
-                if not success and self.errorcnt < 5:
-                    self.errorcnt = self.errorcnt + 1
-                    log.msg('SerialCall: Could not interpret response of system when sending %s' % item) 
-                elif not success and self.errorcnt == 5:
-                    try:
-                        check_call(['/etc/init.d/martas', 'restart'])
-                    except subprocess.CalledProcessError:
-                        log.msg('SerialCall: check_call didnt work')
-                        pass # handle errors in the called executable
-                    except:
-                        log.msg('SerialCall: check call problem')
-                        pass # executable not found
-                    #os.system("/etc/init.d/martas restart")
-                    log.msg('SerialCall: Restarted martas process')
-                """
+        if ser.isOpen():
+            # send request string()
+            for sensordict in self.commands:
+                for item in sensordict:
+                    command = sensordict.get(item)
+                    n = command.count(":")
+                    miss=-(n-2)
+                    for n in range(miss):
+                        command += ':'
+                    if self.debug:
+                        log.msg("DEBUG - sending command key {}: {}".format(item,command))
+                    #time.sleep(2) # doesnt help
+                    answer, actime = self.send_command(ser,command,self.eol,hex=self.hexcoding)
+                    if self.debug:
+                        log.msg("DEBUG - received {}".format(answer))
 
+                    # analyze return if data is requested
+                    if item.startswith('data') and not answer.find('-') > -1 and not answer.find('Starting') > -1:
+                        # get all lines in answer
+                        lines = answer.split('\n')
+                        for line in lines:
+                            if len(line)>2 and (line[2] == ':' or line[3] == ':'):
+                                self.analyzeline(line)
+
+            # disconnect from serial
+            ser.close()
+            print ("... closing ser")
+            if ser.isOpen():
+                print ("but seems to be still open")
+        else:
+            print ("lib activearduino: Could not open serial port")
 
     def analyzeline(self, line):
 

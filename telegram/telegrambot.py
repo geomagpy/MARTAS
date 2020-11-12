@@ -235,7 +235,7 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'cam':'get a live picture from a connected camera',
                    'help':'print this list'}
 
-travistestrun = True
+travistestrun = False
 
 hiddencommands = {'reboot':'reboot the remote computer'}
 
@@ -253,8 +253,8 @@ commandlist['getdata'] = {'commands': ['data'], 'combination' : 'any'}
 commandlist['plot'] = {'commands': ['plot','Plot'], 'combination' : 'any'}
 commandlist['switch'] = {'commands': ['switch','Switch'], 'combination' : 'any' ,'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }}
 commandlist['badwords'] = {'commands': ['fuck','asshole'], 'combination' : 'any'}
-switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
-badwordcommands = ['fuck','asshole']
+#switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
+#badwordcommands = ['fuck','asshole']
 
 
 
@@ -730,10 +730,10 @@ def switch(command):
         option = '-c'
         call = "{} {} {} {}".format(python,path,option,command)
         tglogger.debug("Call: {}".format(call))
-        #print ("Sending", call)
+        print ("Sending", call)
         p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
         (output, err) = p.communicate()
-        #print (output)
+        print (output)
         if vers == '3':
             output = output.decode()
         mesg = "{}".format(output)
@@ -1014,13 +1014,14 @@ def handle(msg):
                switchcommandoptions = commandlist['switch'].get('options')
                for opt in switchcommandoptions:
                    commlist = switchcommandoptions.get(opt)
+                   #print ("Test", opt, commlist)
                    if any([command.find(word) > -1 for word in commlist]):
                        #print ("Found ", opt)
                        cmd = opt
                        break
                if not cmd:
                    cmd = 'swD'
-               tglogger.info(" command extracted: {}".format(len(cmd)))
+               tglogger.info(" command extracted: {}".format(cmd))
                mesg = switch(cmd)
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['getdata'].get('commands')]):

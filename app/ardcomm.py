@@ -23,14 +23,13 @@ def send_command(ser,command,eol,hex=False):
     maxcnt = 50
     cnt = 0
     command = command+eol
-    if(ser.isOpen() == False):
-        ser.open()
+    #if(ser.isOpen() == False):
+    #    ser.open()
     ser.flush()
     if sys.version_info >= (3, 0):
         ser.write(command.encode('ascii'))
     else:
         ser.write(command)
-    #time.sleep(0.1)
     # skipping all empty lines
     while response == '':
         response = ser.readline()
@@ -54,14 +53,16 @@ def main(argv):
     parity='N'
     bytesize=8
     stopbits=1
-    timeout=2
+    timeout=3   # 0 for non-blocking read, does not work
     command = 'Status'
     port = '/dev/ttyACM0'
     eol = '\r\n'
+    debug = False
+    travistestrun = False
 
     usagestring = 'ardcomm.py -c <command> -p <port> -b <baudrate> -a <parity> -y <bytesize> -s <stopbits> -t <timeout> -e <eol>'
     try:
-        opts, args = getopt.getopt(argv,"hc:p:b:a:y:s:te:",["command=","port=","baudrate=","parity=","bytesize=","stopbits=","timeout=","eol="])
+        opts, args = getopt.getopt(argv,"hc:p:b:a:y:s:te:DT",["command=","port=","baudrate=","parity=","bytesize=","stopbits=","timeout=","eol=","debug=","Test=",])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -81,8 +82,8 @@ def main(argv):
             print ('-b                             baudrate - default is 9600')
             print ('-a                             parity - default is "N"')
             print ('-y                             bytesize - default is 8')
-            print ('-s                             stopbits - default is 1') 
-            print ('-t                             timeout - default is 2')
+            print ('-s                             stopbits - default is 1')
+            print ('-t                             timeout - default is 0')
             print ('-e                             end of line - default is /r')
             print ('------------------------------------------------------')
             print ('Examples:')
@@ -120,13 +121,56 @@ def main(argv):
                 stopbits = int(arg)
             except:
                 stopbits = arg
+        elif opt in ("-D", "--debug"):
+            debug = True
+        elif opt in ("-T", "--Test"):
+            travistestrun = True
 
     ser = serial.Serial(port, baudrate=baudrate , parity=parity, bytesize=bytesize, stopbits=stopbits, timeout=timeout)
-    time.sleep(2)
-    print("Sending command: {} ...".format(command))
-    answer = send_command(ser,command,eol)
-    print("Answer: {}".format(answer))
-    ser.close()
+
+    # Additional configs:
+    ser.writeTimeout = 2     #timeout for write or write_timeout
+    ser.write_timeout = 2
+
+    # Open Connection
+    # try it 10 time, then close and reopen serial - likely not necessary
+    count = 0
+    portopened = False
+    while count < 10:
+        try:
+            ser.open()
+            count = 10
+            if debug:
+                print ("ardcomm: serial port opened")
+            portopened = True
+        except Exception as e:
+            count += 1
+            #print ("ardcomm: error open serial port {}: {}".format(count,str(e)))
+            if count == 8:
+                try:
+                    #closing if already open, so that it is reopenning for last try...
+                    ser.close()
+                except:
+                    pass
+
+    if not portopened and travistestrun:
+        print ("ardcomm: serial port not available in testrun - finishing")
+        sys.exit(0)
+
+
+    if ser.isOpen():
+        #try:
+        #if debug:
+        print("Sending command: {} ...".format(command))
+        answer = send_command(ser,command,eol)
+        #if debug:
+        print("Answer: {}".format(answer))
+        ser.close()
+        #except Exception as e1:
+        #    print ("ardcomm: communication error: {}".format(e1))
+    else:
+        print ("ardcomm: cannot open serial port - aborting")
+        sys.exit(0)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
