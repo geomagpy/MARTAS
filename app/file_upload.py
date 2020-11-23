@@ -26,8 +26,16 @@ JOBLIST:
                      "starttime":2},
    } 
 
+## FTP Upload from a directory using files not older than 2 days
+{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"}}
+## FTP Upload a single file 
 {"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
-{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}, "extensions" : ["png"]}
+## FTP Upload all files with extensions
+{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
+## Test environment
+{"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
+## RSYNC upload
+{"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
 
 
 APPLICTAION:
@@ -180,7 +188,6 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=dateti
         mtime = datetime.fromtimestamp(os.path.getmtime(name))
         stat=os.stat(os.path.join(basepath, name))
         mtime=stat.st_mtime
-        print ("HERE")
         #ctime=stat.st_ctime
         #size=stat.st_size
         if datetime.utcfromtimestamp(mtime) > startdate and datetime.utcfromtimestamp(mtime) <= enddate:
