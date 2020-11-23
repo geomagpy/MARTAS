@@ -22,14 +22,15 @@ MARTAS contains a communication library which supports many commonly used instru
 Currently supported systems are:
 
 - Lemi025,Lemi036, and most likely all other Lemi systems; 
-- Geometrics Sytems GSM90, GSM19;
+- Geometrics G823 Cs Magnetometers
+- GEM Systems GSM-90, GSM-19
 - Quantum Magnetometer Systems POS-1, POS-4
 - Meteolabs BM35 pressure sensor
 - Thiess LaserNiederschlagsMessgerät - Disdrometer
 - Ultrasonic Anemometer
 - AD7714 general ADC
 - MinGeo PalmDac 24 bit data logger (under development)
-- Campbell Scientific CR800, CR1000 Data loggesr
+- Campbell Scientific CR800, CR1000 Data logger
 - ENV05 Environment sensors
 - MySQL/MariaDB databases
 - Dallas OneWire Sensors
@@ -155,7 +156,7 @@ parity | Parity can be set to none (N), odd (O), even (E), mark (M), or space (S
 mode | Can be active (data requests are send) and passive (sensor sends data regularly)  | passive
 init | Sensor initialization (see 3.4 and appendix 10.1)  | gsm90v7init.sh
 rate | Defines the sampling rate for active threads in seconds (integer). Data will be request with this rate. Active threads with more than 1 Hz are not possible. Not used for passive modes. | -
-stack | Amount of data lines too be collected before broadcasting. Default **1**. **1** will broadcast any line as soon it is read. | 1
+stack | Amount of data lines to be collected before broadcasting. Default **1**. **1** will broadcast any line as soon it is read. | 1
 protocol | MARTAS protocol to be used with this sensor |  GSM90
 name | Name of the sensors   | GSM90
 serialnumber | Serialnumber of the sensor  | 6107632
@@ -526,7 +527,7 @@ app/di.py    |	Routine based on MagPys absoluteAnalysis tool to analyse geomagne
 app/file_upload.py    |	Wrapper to upload files to remote machine using either ssh, rsync, ftp
 app/monitor.py    |	Monitoring application to check buffer files (martas), database actuality (marcos), disk space and log files; can trigger external scripts
 app/mpconvert.py    |	converts MARTAS binary buffer files to other formats
-app/optimzetables.py    |	application too be used with archive.py or deleteold.py; uses SQL Optimze methods to clear the table space after data has been removed - non-blocking
+app/optimzetables.py    |	application to be used with archive.py or deleteold.py; uses SQL Optimze methods to clear the table space after data has been removed - non-blocking
 app/senddata.py    |	Send data from MARTAS to any other machine using cron/scheduler - OLD
 app/sendip.py    |	Helper for checking and sending public IP  (via ftp) - OLD
 app/serialinit.py    |	Load initialization file (in init) to activate continuous serial data delivery (passive mode)

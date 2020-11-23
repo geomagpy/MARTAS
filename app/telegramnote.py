@@ -5,7 +5,11 @@
 Send telegram notes
 """
 
-from magpy.stream import 
+from magpy.stream import *
+
+scriptpath = os.path.dirname(os.path.realpath(__file__))
+coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
+sys.path.insert(0, coredir)
 from martas import martaslog as ml
 from martas import sendmail as sm
 
