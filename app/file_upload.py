@@ -3,7 +3,37 @@
 
 """
 Upload files 
+
+DESCRIPTION
+   upload data to a destination using various different protocols
+   supported are FTP, SFTP, RSYNC, SCP
+
+JOBLIST:
+   Jobs are listed in a json structure and read by the upload process.
+   You can have multiple jobs. Each job refers to a local path. Each job
+   can have multiple destinations.
+   
+
+   {"graphmag" :  {"path":"/home/leon/Tmp/Upload/graph/aut.png",
+                    "destinations": {"conradpage": { "type":"ftp", "path" : "/images/graphs/magnetism"} },
+                    "log":"/home/leon/Tmp/Upload/testupload.log",
+                    "endtime":"utcnow",
+                     "starttime":2},
+    "wicadjmin" :  {"path":"/home/leon/Tmp/Temp",
+                    "destinations": {"gleave": { "type":"sftp", "path" : "/uploads/all-obs"} },
+                    "log":"/home/leon/Tmp/wicadjart.log",
+                    "endtime":"utcnow",
+                     "starttime":2},
+   } 
+
+{"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
+{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}, "extensions" : ["png"]}
+
+
+APPLICTAION:
+   python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
 """
+
 
 from magpy.stream import *   
 from magpy.database import *   
@@ -76,17 +106,21 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
     """
     success = True
     print ("Running upload to {} (as {}) via {}: {} -> {}, logging to {}".format(address, user, typus, localpath, destinationpath, logfile)) 
-    #typus = "TEST"
     if typus == 'ftpback':
-           Thread(target=ftpdatatransfer, kwargs={'localfile':localpath,'ftppath':destinationpath,'myproxy':address,'port':port,'login':user,'passwd':pwd,'logfile':logfile}).start()
+           Thread(target=ftptransfer, kwargs={'source':localpath,'destination':destinationpath,'host':address,'port':port,'user':user,'password':pwd,'logfile':logfile}).start()
     elif typus == 'ftp':
-           ftpdatatransfer(localfile=localpath,ftppath=destinationpath,myproxy=address,port=port,login=user,passwd=pwd,logfile=logfile)
+           success = ftptransfer(source=localpath,destination=destinationpath,host=address,port=port,user=user,password=pwd,logfile=logfile)
     elif typus == 'sftp':
            success = sftptransfer(source=localpath,destination=destinationpath,host=address,user=user,password=pwd,proxy=proxy,logfile=logfile)
     elif typus == 'scp':
            timeout = 60
            destina = "{}:{}".format(address,destinationpath)
            scptransfer(localpath,destina,pwd,timeout=timeout)
+    elif typus == 'rsync':
+           # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
+           rsyncstring = "rsync -avz -e ssh {} {}".format(localpath, user+'@'+address+':'+destinationpath)
+           print ("Executing:", rsyncstring)
+           subprocess.call(rsyncstring.split())
     elif typus == 'gin':
         if not active_pid('curl'):
             print ("  -- Uploading minute data to GIN - active now")
@@ -96,13 +130,15 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
             success = ginupload(localpath, user, passwd, address, stdout=stdout)
         else:
             print ("curl is active")
+    elif typus == 'test':
+           print ("No file transfer - just a test run")
     else:
         print ("Selected type of transfer is not supported")
 
     return success
 
 
-def getchangedfiles(basepath,memory,startdate=datetime(1840,4,4),enddate=datetime.utcnow(), add="newer"):
+def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=datetime.utcnow(), extensions=[], add="newer"):
     """
     DESCRIPTION
         Will compare contents of basepath and memory and create a list of paths with changed information
@@ -120,24 +156,39 @@ def getchangedfiles(basepath,memory,startdate=datetime(1840,4,4),enddate=datetim
 
     filelist=[]
     try:
-        for file in os.listdir(basepath):
-            fullpath=os.path.join(basepath, file)
-            if os.path.isfile(fullpath):
-                filelist.append(fullpath)
+        if os.path.isfile(basepath):
+            filelist = [basepath]
+        else:
+            for file in os.listdir(basepath):
+                fullpath=os.path.join(basepath, file)
+                filename, file_extension = os.path.splitext(fullpath)
+                if isinstance(extensions,list) and len(extensions) > 0 and any([file_extension.find(ext)>-1 for ext in extensions]):
+                    if os.path.isfile(fullpath):
+                        filelist.append(fullpath)
+                else:
+                    if os.path.isfile(fullpath):
+                        filelist.append(fullpath)
     except:
         print ("Directory not found")
         return {}, {}
+
+    print (filelist, startdate, enddate)
+
 
     retrievedSet={}
     for name in filelist:
         mtime = datetime.fromtimestamp(os.path.getmtime(name))
         stat=os.stat(os.path.join(basepath, name))
         mtime=stat.st_mtime
+        print ("HERE")
         #ctime=stat.st_ctime
         #size=stat.st_size
         if datetime.utcfromtimestamp(mtime) > startdate and datetime.utcfromtimestamp(mtime) <= enddate:
             retrievedSet[name] = mtime
 
+    print (retrievedSet)
+
+    print (memory)
     if memory:
         if sys.version_info >= (3,):
             newdict = dict(retrievedSet.items() - memory.items())
@@ -211,6 +262,91 @@ def sftptransfer(source, destination, host="yourserverdomainorip.com", user="roo
     return True
 
 
+def ftptransfer (source, destination, host="yourserverdomainorip.com", user="root", password="12345", port=22, proxy=None, logfile='stdout', cleanup=False, debug=False):
+    """
+    DEFINITION:
+        Tranfering data to an ftp server
+
+    PARAMETERS:
+    Variables:
+        - source:       (str) Path within ftp to send file to.
+        - destination:  (str) full file path to send to.
+        - host:         (str) address of reciever
+        - user:
+        - password:
+        - proxy         (tuple) like ("123.123.123.123",8080)
+        - logfile:      (str) not used so far
+        - cleanup:      (bool) If True, transfered files are removed from the local directory.
+
+    RETURNS:
+        - True/False.
+
+    EXAMPLE:
+        >>> ftpdatatransfer(
+                localfile='/home/me/file.txt',
+                ftppath='/data/magnetism/this',
+                myproxy='www.example.com',
+                login='mylogin',
+                passwd='mypassword',
+                logfile='/home/me/Logs/magpy-transfer.log'
+                            )
+
+    APPLICATION:
+        >>>
+    """
+
+    if not source:
+        return False
+    else:
+        try:
+            filename = os.path.split(source)[1]
+        except:
+            print ("Could not determine filename of source")
+            return False
+
+    if debug:
+        print ("ftptransfer: running ftp transfer")
+
+    def ftpjob(site,source,destination,filename):
+        site.set_debuglevel(1)
+        site.cwd(destination)
+        try:
+            site.delete(filename)
+        except:
+            print ("File not yet existing")
+        if debug:
+            print ("Uploading file ... {}".format(filename))
+        with open(source, 'rb') as image_file:
+            site.storbinary('STOR {}'.format(filename), image_file)
+
+
+    transfersuccess = False
+    tlsfailed = False
+    # First try to connect via TLS
+    try:
+        with ftplib.FTP_TLS(host, user, password) as ftp:
+            print ("FTP TLS connection established...")
+            ftpjob(ftp,source,destination,filename)
+            transfersuccess = True
+    except:
+        tlsfailed = True
+
+    # First try to connect via TLS
+    if tlsfailed:
+        try:
+            with ftplib.FTP(host, user, password) as ftp:
+                print ("FTP connection established...")
+                ftpjob(ftp,source,destination,filename)
+                transfersuccess = True
+        except:
+            pass
+
+    if cleanup and transfersuccess:
+        os.remove(source)
+
+    return transfersuccess
+
+
 def main(argv):
     statusmsg = {}
     jobs = ''
@@ -261,12 +397,12 @@ def main(argv):
         #          Telegram Logging
         # ################################################
 
-        ## New Logging features 
+        ## New Logging features
+        coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
+        sys.path.insert(0, coredir)
         from martas import martaslog as ml
         # tele needs to provide logpath, and config path ('/home/cobs/SCRIPTS/telegram_notify.conf')
         logpath = '/var/log/magpy/mm-fu-uploads.log'
-
-
 
 
     if jobs == '':
@@ -303,17 +439,19 @@ def main(argv):
                 # lastfiles looks like: {'/path/to/my/file81698.txt' : '2019-01-01T12:33:12', ...}
 
         if not lastfiles == {}:
-            print ("write memory")
+            print ("opened memory")
             pass
 
         sourcepath = workdictionary.get(key).get('path')
-        starttime = workdictionary.get(key).get('starttime')
-        endtime = workdictionary.get(key).get('endtime')
+        extensions = workdictionary.get(key).get('extensions',[])
+        # Test if sourcepath is file
+        starttime = workdictionary.get(key).get('starttime',datetime(1777,4,30))
+        endtime = workdictionary.get(key).get('endtime',datetime.utcnow())
         if endtime in ["utc","now","utcnow"]:
             endtime = datetime.utcnow()
         if isinstance(starttime, int):
             starttime = datetime.utcnow()-timedelta(days=starttime)
-        newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime)
+        newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime, extensions)
 
         print ("Found new: {} and all {}".format(newfiledict, alldic))
 

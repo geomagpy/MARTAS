@@ -11,6 +11,6 @@ script:
   - python app/monitor.py -D -T
   - python telegram/telegrambot.py -T
   - python app/threshold.py -D -T
-  - python app/telegramnote.py
+  - python app/file_upload.py -j conf/fileuploadjobs.json
   - python core/acquisitionsupport.py
   - python core/martas.py
