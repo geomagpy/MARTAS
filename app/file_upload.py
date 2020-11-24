@@ -36,8 +36,13 @@ JOBLIST:
 {"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
 ## RSYNC upload
 {"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
+## JOB on BROKER
+{ "magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}
+
+"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title_"]}, 
 
 
+ 
 APPLICTAION:
    python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
 """
@@ -178,7 +183,7 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=dateti
                         filelist.append(fullpath)
                     elif isinstance(namefractions,list) and len(namefractions) > 0 and any([filename.find(frac)>-1 for frac in namefractions]) and len(extensions) == 0:
                         filelist.append(fullpath)
-                    else:
+                    elif len(extensions) == 0 and len(namefractions) == 0:
                         filelist.append(fullpath)
     except:
         print ("Directory not found")
