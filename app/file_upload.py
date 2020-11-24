@@ -27,7 +27,7 @@ JOBLIST:
    } 
 
 ## FTP Upload from a directory using files not older than 2 days
-{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"}}
+{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
 ## FTP Upload a single file 
 {"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
 ## FTP Upload all files with extensions
@@ -146,7 +146,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
     return success
 
 
-def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=datetime.utcnow(), extensions=[], add="newer"):
+def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=datetime.utcnow(), extensions=[], namefractions=[], add="newer"):
     """
     DESCRIPTION
         Will compare contents of basepath and memory and create a list of paths with changed information
@@ -170,11 +170,15 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=dateti
             for file in os.listdir(basepath):
                 fullpath=os.path.join(basepath, file)
                 filename, file_extension = os.path.splitext(fullpath)
-                if isinstance(extensions,list) and len(extensions) > 0 and any([file_extension.find(ext)>-1 for ext in extensions]):
-                    if os.path.isfile(fullpath):
+                if os.path.isfile(fullpath):
+                    if isinstance(extensions,list) and len(extensions) > 0 and any([file_extension.find(ext)>-1 for ext in extensions]) and len(namefractions) > 0:
+                        if isinstance(namefractions,list) and len(namefractions) > 0 and any([filename.find(frac)>-1 for frac in namefractions]):
+                            filelist.append(fullpath)
+                    elif isinstance(extensions,list) and len(extensions) > 0 and any([file_extension.find(ext)>-1 for ext in extensions]) and len(namefractions) == 0:
                         filelist.append(fullpath)
-                else:
-                    if os.path.isfile(fullpath):
+                    elif isinstance(namefractions,list) and len(namefractions) > 0 and any([filename.find(frac)>-1 for frac in namefractions]) and len(extensions) == 0:
+                        filelist.append(fullpath)
+                    else:
                         filelist.append(fullpath)
     except:
         print ("Directory not found")
@@ -451,6 +455,7 @@ def main(argv):
 
         sourcepath = workdictionary.get(key).get('path')
         extensions = workdictionary.get(key).get('extensions',[])
+        namefractions = workdictionary.get(key).get('namefractions',[])
         # Test if sourcepath is file
         starttime = workdictionary.get(key).get('starttime',datetime(1777,4,30))
         endtime = workdictionary.get(key).get('endtime',datetime.utcnow())
@@ -458,7 +463,7 @@ def main(argv):
             endtime = datetime.utcnow()
         if isinstance(starttime, int):
             starttime = datetime.utcnow()-timedelta(days=starttime)
-        newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime, extensions)
+        newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime, extensions,namefractions)
 
         print ("Found new: {} and all {}".format(newfiledict, alldic))
 
