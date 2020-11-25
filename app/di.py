@@ -76,6 +76,7 @@ def main(argv):
     defaultuser = 'cobs'
     defaultgroup = 'cobs'
 
+    flaglist = []
     keepremote = False
     getremote = False
     remotecred = ''
