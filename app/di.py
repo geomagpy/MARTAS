@@ -546,10 +546,10 @@ def main(argv):
         	    # -----------------------------------------------------
         	    # f) get flags and apply them to data
         	    # -----------------------------------------------------
-                    if db and flagging:
+                    if db and flagging and addBLVdb:
                         newabsstream = readDB(db,identifier+'_'+vario+'_'+scalar+'_'+pier)
        	                flaglist = db2flaglist(db,identifier+'_'+vario+'_'+scalar+'_'+pier)
-                    else:
+                    elif addBLVdb:
                         newabsstream = readDB(db,identifier+'_'+vario+'_'+scalar+'_'+pier)
                         flaglist = []
                     if len(flaglist) > 0:
