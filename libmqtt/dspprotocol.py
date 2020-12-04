@@ -43,34 +43,12 @@ def datetime2array(t):
 
 class DSPProtocol(object):
     """
-    Protocol to read Arduino data (usually from ttyACM0)
-    Tested so far only for Arduino Uno on a Linux machine
-    The protocol works only if the serial output follows the MagPy convention:
-    Up to 99 Sensors are supported identified by unique sensor names and ID's.
+    Protocol to read DSP Winddata
 
-    ARDUINO OUTPUT:
-        - serial output on ttyACM0 needs to follow the MagPy definition:
-            Three data sequences are supported:
-            1.) The meta information
-                The meta information line contains all information for a specific sensor.
-                If more than one sensor is connected, then several meta information
-                lines should be sent (e.g. M1:..., M2:..., M99:...)
-                Meta lines should be resent once in a while (e.g. every 10-100 data points)
-                Example:
-                     M1: SensorName: MySensor, SensorID: 12345, SensorRevision: 0001
-            2.) The header line
-                The header line contains information on the provided data for each sensor.
-                The typical format includes the MagPy key, the actual Variable and the unit.
-                Key and Variable are separeted by an underscore, unit is provided in brackets.
-                Like the Meta information the header should be sent out once in a while
-                Example:
-                     H1: f_F [nT], t1_Temp [degC], var1_Quality [None], var2_Pressure [mbar]
-            3.) The data line:
-                The data line containes all data from a specific sensor
-                Example:
-                     D1: 46543.7898, 6.9, 10, 978.000
+    Active protocol
 
-         - recording starts after meta and header information have been received
+    Example sensor.cfg
+    ULTRASONICDSP_0009009195_0001,S0,115200,8,1,N,active,None,60,1,DSP,ULTRASONICDSP,0009009195,0001,...
 
     """
 

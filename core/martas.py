@@ -132,7 +132,8 @@ def sendmail(dic):
         part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
         msg.attach(part)
 
-    smtp = SMTP()
+    # seems as if server name needs to be specified in py3.7 and 3.8, should work in older versions as well
+    smtp = SMTP(dic.get('smtpserver'))
     smtp.set_debuglevel(False)
     if port:
         smtp.connect(dic.get('smtpserver'), port)
