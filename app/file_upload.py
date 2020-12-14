@@ -2,7 +2,7 @@
 # coding=utf-8
 
 """
-Upload files 
+Upload files
 
 DESCRIPTION
    upload data to a destination using various different protocols
@@ -12,7 +12,7 @@ JOBLIST:
    Jobs are listed in a json structure and read by the upload process.
    You can have multiple jobs. Each job refers to a local path. Each job
    can have multiple destinations.
-   
+
 
    {"graphmag" :  {"path":"/home/leon/Tmp/Upload/graph/aut.png",
                     "destinations": {"conradpage": { "type":"ftp", "path" : "/images/graphs/magnetism"} },
@@ -24,11 +24,11 @@ JOBLIST:
                     "log":"/home/leon/Tmp/wicadjart.log",
                     "endtime":"utcnow",
                      "starttime":2},
-   } 
+   }
 
 ## FTP Upload from a directory using files not older than 2 days
 {"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
-## FTP Upload a single file 
+## FTP Upload a single file
 {"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
 ## FTP Upload all files with extensions
 {"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
@@ -38,14 +38,14 @@ JOBLIST:
 {"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
 ## JOB on BROKER
 {"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
- 
+
 APPLICTAION:
    python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
 """
 
 
-from magpy.stream import *   
-from magpy.database import *   
+from magpy.stream import *
+from magpy.database import *
 from magpy.transfer import *
 import magpy.mpplot as mp
 import magpy.opt.emd as emd
@@ -58,6 +58,7 @@ from subprocess import check_output   # used for checking whether send process a
 
 import getopt
 import pwd
+import sys
 
 
 # ################################################
@@ -73,7 +74,7 @@ def getcurrentdata(path):
     >>> valdict['k'] = [kval,'']
     >>> valdict['k-time'] = [kvaltime,'']
     >>> fulldict[u'magnetism'] = valdict
-    >>> writecurrentdata(path, fulldict) 
+    >>> writecurrentdata(path, fulldict)
     """
     if os.path.isfile(path):
         with open(path, 'r') as file:
@@ -111,7 +112,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
         sftp     (requires sftp)
         ftpback (background process)
         scp  (please consider using rsync)  scp transfer requires a established key, therefor connect to the server once using ssh to create it
-        gin   (curl based ftp upload to data gins)    
+        gin   (curl based ftp upload to data gins)
     """
     success = True
     print ("Running upload to {} (as {}) via {}: {} -> {}, logging to {}".format(address, user, typus, localpath, destinationpath, logfile)) 
@@ -136,7 +137,10 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
             stdout = False
             if logfile == 'stdout':
                 stdout = True
-            success = ginupload(localpath, user, passwd, address, stdout=stdout)
+            print (" -- calling GINUPLOAD")
+            stdout = True
+            success = ginupload(localpath, user, pwd, address, stdout=stdout)
+            print ("   -> Done GINUPLOAD")
         else:
             print ("curl is active")
     elif typus == 'test':
@@ -158,7 +162,7 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=dateti
         memory    (list/dict)   :  a dictionary with filepath and last change date (use getcurrentdata)
         startdate (datetime)    :  changes after startdate will be considered
         enddate   (datetime)    :  changes before enddate will be considered
-        add       (string)      :  either "all" or "newer" (default)   
+        add       (string)      :  either "all" or "newer" (default)
     RETURNS
         dict1, dict2   : dict1 contains all new data sets to be uploaded, dict2 all analyzed data files for storage
     """
@@ -253,7 +257,7 @@ def sftptransfer(source, destination, host="yourserverdomainorip.com", user="roo
 
 
     if not proxy:
-        transport = paramiko.Transport((host, port)) 
+        transport = paramiko.Transport((host, port))
     else:
         print ("Using proxy (needs to a tuple (paddr,pport)): {}".format(proxy))  
         import socks
@@ -264,13 +268,13 @@ def sftptransfer(source, destination, host="yourserverdomainorip.com", user="roo
               port=proxy[1]
         )
         s.connect((host,port))
-        transport = paramiko.Transport(s) 
+        transport = paramiko.Transport(s)
 
     transport.connect(username=user,password=password)
     with paramiko.SFTPClient.from_transport(transport) as client:
         destina = os.path.join(destination,os.path.basename(source))
         client.put(source, destina)
- 
+
     return True
 
 
@@ -358,6 +362,57 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
 
     return transfersuccess
 
+def ginupload(filename, user, password, url, stdout=True):
+    """
+    DEFINITION:
+        Method to upload data to the Intermagnet GINs using curl
+        tries to upload data to the gin - if not succesful ...
+    PARAMETERS:
+      required:
+        filename        (string) filename including path
+        user            (string) GIN user
+        password        (string) GIN passwd
+        url             (string) url address (e.g. http://app.geomag.bgs.ac.uk/GINFileUpload/Cache)
+        stdout          (bool) if True the return will be printed
+    REQUIRES:
+        - a working installation of curl
+        - the package subprocess
+    """
+    print ("  Starting ginupload")
+    print ("  ------------------")
+    faillog = ''
+    logpath = ''
+    success = False
+
+    if not logpath:
+        logpath = "/tmp/ginupload.log"
+
+    commandlist = []
+
+    print ("Running ginupload")
+
+    curlstring = 'curl -F "File=@'+filename+';type=text/plain" -F "Format=plain" -F "Request=Upload" -u '+user+':'+password+' --digest '+url
+    print ("CURL command looks like {}".format(curlstring))
+    if not curlstring in commandlist:
+        commandlist.append(curlstring)
+
+    # Process each upload
+    # -----------------------------------------------------
+    for command in commandlist:
+        print ("Running command:", command)
+        p = subprocess.Popen(command,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, error = p.communicate()
+        print (" -> Done")
+        if sys.version_info.major >= 3:
+            out = out.decode('ascii')
+            error = error.decode('ascii')
+        if stdout:
+            print(out, error)
+        if "Success" in out:
+            success = True
+
+    return success
+
 
 def main(argv):
     statusmsg = {}
@@ -436,7 +491,7 @@ def main(argv):
 
 
     """
-    Main Prog    
+    Main Prog
     """
     try:
       for key in workdictionary:
@@ -483,7 +538,7 @@ def main(argv):
                     success = uploaddata(nfile, destdict.get('path'), destdict.get('type'), address, user, passwd, port, proxy=proxy, logfile=destdict.get('logfile','stdout'))
                     print ("    -> Success", success)
                     if not success:
-                        #remove nfile from alldic 
+                        #remove nfile from alldic
                         # thus it will be retried again next time
                         print (" !---> upload of {} not successful: keeping it in todo list".format(nfile))
                         del alldic[nfile]
