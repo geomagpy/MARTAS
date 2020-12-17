@@ -117,7 +117,7 @@ def sendmail(dic):
     #msg['To'] = COMMASPACE.join(send_to)
     msg['To'] = dic['To']
     if len(dic['To'].split(',')) > 1:
-        send_to = map(lambda s:s.strip(), dic['To'].split(','))
+        send_to = list(map(lambda s:s.strip(), dic['To'].split(',')))
     else:
         send_to = dic.get('To').strip()
     msg['Date'] = formatdate(localtime=True)
