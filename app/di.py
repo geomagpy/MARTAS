@@ -544,7 +544,7 @@ def main(argv):
                 else:
                     azimuth = False
                 if azimuth:
-                    print (" -> Overriding (eventual) DI files data with an azimuth of {} deg".format())
+                    print (" -> Overriding (eventual) DI files data with an azimuth of {} deg".format(azimuth))
                 else:
                     print (" -> Using azimuth from DI file") 
                 if len(abstypelist) > 0:
@@ -554,7 +554,7 @@ def main(argv):
                 else:
                     abstype = False
                 if abstype:
-                    print (" -> Selected type of absolute measurements is {}".format())
+                    print (" -> Selected type of absolute measurements is {}".format(abstype))
                 else:
                     print (" -> Absolute measurement type taken from DI file")
                 # TODO ... Get azimuth data from PIERS table
