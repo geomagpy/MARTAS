@@ -38,6 +38,10 @@ import getopt
 import fnmatch
 import pwd, grp  # for changing ownership of web files
 
+scriptpath = os.path.dirname(os.path.realpath(__file__))
+docdir = os.path.abspath(os.path.join(scriptpath, '..', 'doc'))
+sys.path.insert(0, docdir)
+from version import __version__
 
 def walkdir(filepat,top):
     for path, dirlist, filelist in os.walk(top):
@@ -75,6 +79,7 @@ def main(argv):
     webgroup = 'www-data'
     defaultuser = 'cobs'
     defaultgroup = 'cobs'
+    debug=False
 
     flaglist = []
     keepremote = False
@@ -85,7 +90,7 @@ def main(argv):
     scalarpath = ''			# 
 
     try:
-        opts, args = getopt.getopt(argv,"hc:a:v:j:s:k:o:mql:b:e:t:z:d:i:p:y:w:f:ngrx:u:",["cred=","dipath=","variolist=","variodataidlist=","scalarlist=","scalardataidlist=","variopath=","compensation=","rotation=","scalarpath=","begin=","end=","stationid=","pierlist=","abstypelist=","azimuthlist=","expD=","expI=","write=","identifier=","add2DB=","flag=","createarchive=","webdir=","keepremote"])
+        opts, args = getopt.getopt(argv,"hc:a:v:j:s:k:o:mql:b:e:t:z:d:i:p:y:w:f:ngrx:u:D",["cred=","dipath=","variolist=","variodataidlist=","scalarlist=","scalardataidlist=","variopath=","compensation=","rotation=","scalarpath=","begin=","end=","stationid=","pierlist=","abstypelist=","azimuthlist=","expD=","expI=","write=","identifier=","add2DB=","flag=","createarchive=","webdir=","keepremote","debug="])
     except getopt.GetoptError:
         print('di.py -c <creddb> -a <dipath> -v <variolist>  -j <variodataidlist> -s <scalarlist> -o <variopath> -m <compensation> -q <rotation> -l <scalarpath> -b <startdate>  -e <enddate> -t <stationid>  -p <pierlist> -z <azimuthlist> -y <abstypelist> -d <expectedD> -i <expectedI> -w <writepath> -f<identifier> -n <add2DB>  -g  <flag> -r <createarchive> -x <webdir> -u <user> --keepremote')
         sys.exit(2)
@@ -236,15 +241,21 @@ def main(argv):
             keepremote=True
         elif opt in ("-r", "--createarchive"):
            createarchive=True
+        elif opt in ("-D", "--debug"):
+           debug=True
+
+    print ("-------------------------------------")
+    print ("Starting di analysis ... MARTAS version {}".format(__version__))
+    print ("-------------------------------------")
 
     if dipath == '':
-        print('Specify the path to the DI data: -a /path/to/my/data !')
-        print('-- check dianalysis.py -h for more options and requirements')
+        print(' Specify the path to the DI data: -a /path/to/my/data !')
+        print(' -- check dianalysis.py -h for more options and requirements')
         sys.exit()
 
     if archive == '':
-        print('Specify an Archive path for writing results: -w /path/to/my/archive !')
-        print('-- check dianalysis.py -h for more options and requirements')
+        print(' Specify an Archive path for writing results: -w /path/to/my/archive !')
+        print(' -- check dianalysis.py -h for more options and requirements')
         sys.exit()
 
     if variolist == '':
@@ -263,64 +274,64 @@ def main(argv):
         variodataidlist = ['0002' for elem in variolist]
     else:
         if not len(variolist) == len(variodataidlist):
-            print('You need to specify a specific DataID for each variometer: e.g. -j 0002,0001')
-            print('-- check dianalysis.py -h for more options and requirements')
+            print(' You need to specify a specific DataID for each variometer: e.g. -j 0002,0001')
+            print(' -- check dianalysis.py -h for more options and requirements')
             sys.exit()
     if len(scalardataidlist) == 0:
         scalardataidlist = ['0002' for elem in scalarlist]
     else:
         if not len(scalarlist) == len(scalardataidlist):
-            print('You need to specify a specific DataID for each variometer: e.g. -j 0002,0001')
-            print('-- check dianalysis.py -h for more options and requirements')
+            print(' You need to specify a specific DataID for each variometer: e.g. -j 0002,0001')
+            print(' -- check dianalysis.py -h for more options and requirements')
             sys.exit()
 
 
     if not len(abstypelist) == 0:
         if not len(abstypelist) == len(pierlist):
-            print('Abstypelist needs to have the same order and length of the pierlist')
-            print('-- check dianalysis.py -h for more options and requirements')
+            print(' Abstypelist needs to have the same order and length of the pierlist')
+            print(' -- check dianalysis.py -h for more options and requirements')
             sys.exit()
 
     try:
         test = datetime.strptime(begin,"%Y-%m-%d")
         print(test)
     except:
-        print('Date format for begin seems to be wrong: -b 2013-11-22')
-        print('-- check dianalysis.py -h for more options and requirements')
+        print(' Date format for begin seems to be wrong: -b 2013-11-22')
+        print(' -- check dianalysis.py -h for more options and requirements')
         sys.exit()
 
     try:
         datetime.strptime(end,"%Y-%m-%d")
     except:
-        print('Date format for end seems to be wrong: -e 2013-11-22')
-        print('-- check dianalysis.py -h for more options and requirements')
+        print(' Date format for end seems to be wrong: -e 2013-11-22')
+        print(' -- check dianalysis.py -h for more options and requirements')
         sys.exit()
 
     if pierlist == []:
-        print('Specify a list of the measurement piers containing at list one element: -p [Pier2]')
-        print('-- check dianalysis.py -h for more options and requirements')
+        print(' Specify a list of the measurement piers containing at list one element: -p [Pier2]')
+        print(' -- check dianalysis.py -h for more options and requirements')
         sys.exit()
 
     if not len(azimuthlist) == 0:
         if not len(azimuthlist) == len(pierlist):
-            print('Azimuthlist needs to have the same order and length of the pierlist')
-            print('-- check dianalysis.py -h for more options and requirements')
+            print(' Azimuthlist needs to have the same order and length of the pierlist')
+            print(' -- check dianalysis.py -h for more options and requirements')
             sys.exit()
 
     if stationid == '':
-        print('Specify a station name e.g. your observatory code')
-        print('-- check dianalysis.py -h for more options and requirements')
+        print(' Specify a station name e.g. your observatory code')
+        print(' -- check dianalysis.py -h for more options and requirements')
         sys.exit()
     else:
         stationid = stationid.upper()
 
     if not creddb == '':
-        print("Accessing data bank ...")
+        print("  Accessing data bank ...")
         try:
             db = mysql.connect (host=mpcred.lc(creddb,'host'),user=mpcred.lc(creddb,'user'),passwd=mpcred.lc(creddb,'passwd'),db =mpcred.lc(creddb,'db'))
-            print("success")
+            print("  ... success")
         except:
-            print("failure - check your credentials")
+            print("  ... failure - check your credentials")
             sys.exit()
     else:
         db = False
@@ -337,32 +348,36 @@ def main(argv):
 
     if variolist == []:
         if fallbackvariopath == '':
-            print('You have not provided any variometer information at all')
+            print('  !! You have not provided any variometer information at all')
 
     if scalarlist == []:
         if fallbackscalarpath == '':
-            print('You have not provided any independent scalar information')
-            print('-- I guess this data is provided along with the DI files')
+            print('  You have not provided any independent scalar information')
+            print('  -> we asume this data is provided along with the DI files')
 
     # -----------------------------------------------------
     # a) Basic information
     # -----------------------------------------------------
-    print(archive)
-    print(variolist)
-    print(abstypelist)
-    print(dipath)
+    if debug:
+        print (" -------------------------------------")
+        print (" Archive", archive)
+        print (" Variolist", variolist)
+        print (" Abstypelist", abstypelist)
+        print (" Dipath", dipath)
 
     # -----------------------------------------------------
     # b) Getting new raw data from the input server
     # -----------------------------------------------------
+    print (" -------------------------------------")
+    print (" Identifying DI data source")
     if not os.path.exists(dipath):
-        print("No local dipath found")
+        print("  Checking given DI path for credential information ...")
         try:
             credlist = mpcred.sc()
             credshort = [elem[0] for elem in credlist]
-            print(credshort)
+            print("  ... found credentials")
         except:
-            print("dipath %s not existing - credentials not accessible - aborting" % dipath)
+            print(" dipath {} not existing - credentials not accessible - aborting".format(dipath))
             sys.exit()
         try:
             dic = dipath.split(',')
@@ -371,35 +386,39 @@ def main(argv):
             if len(dic) == 2:
                 remotecred = dic[0]
                 remotepath = dic[1]
+                print("  Using credentials {} to get DI data from the remote path {}".format(dic[0],dic[1]))
             elif len(dic) == 1:
                 remotecred = dic[0]
                 remotepath = ''
+                print("  Using credentials {} to get DI data".format(dic[0]))
             else:
-                print("could not interprete dipath in terms of credential information")
+                print("  -> could not interprete dipath in terms of credential information")
                 sys.exit()
             if remotecred in credshort:
                 getremote = True
             else:
-                print("dipath %s not existing - credentials not existing - aborting" % dipath)
+                print("  -> dipath %s not existing - credentials not existing - aborting" % dipath)
         except:
-            print("dipath %s not existing - credentials not existing - aborting" % dipath)
+            print("  -> dipath %s not existing - credentials not existing - aborting" % dipath)
             sys.exit()
         if getremote == False:
             sys.exit()
     else:
-        print("Found directory with specified dipath")
+        print("  Found directory at specified dipath location")
 
     # Getting data from the webdir (eventually edited and corrected)
     if createarchive and not webdir == '':
+        print (" -------------------------------------")
+        print (" Createarchive and webdir selected ...")
         dipath = os.path.join(archive,stationid,'DI','analyze')
         for pier in pierlist:
             diid = pier + '_' + stationid + '.txt'
             for infile in iglob(os.path.join(webdir,'*'+diid)):
                 # Testing whether file exists:
                 if os.path.exists(os.path.join(dipath,os.path.split(infile)[1])):
-                    print("Deleting:", os.path.join(dipath,os.path.split(infile)[1]))
+                    print("  Deleting:", os.path.join(dipath,os.path.split(infile)[1]))
                     os.remove(os.path.join(dipath,os.path.split(infile)[1]))
-                print("Retrieving from webdir: ", infile)
+                print("  Retrieving from webdir: ", infile)
                 shutil.copy(infile,dipath)
                 # Setting permission to defaultuser even if started the job
                 uid = pwd.getpwnam(defaultuser)[2]
@@ -409,14 +428,17 @@ def main(argv):
                 try:
                     os.remove(os.path.join(webdir,os.path.split(infile)[1]))
                 except:
-                    print("No persmissions to modify webdirectory")
+                    print("  !! No permissions to modify webdirectory")
                     pass
 
 
+    # copy all files from web directory to the analysis folder
     if getremote:
         delete = True
         if keepremote:
             delete = False
+        print (" -------------------------------------")
+        print (" Getting remote data - deleting downloaded data from remote source set to {}".format(delete)) 
         dipath = os.path.join(archive,stationid,'DI','analyze')
         for pier in pierlist:
             if not os.path.exists(dipath):
@@ -428,9 +450,11 @@ def main(argv):
                 port = 21
             ftpget(mpcred.lc(remotecred,'address'),mpcred.lc(remotecred,'user'),mpcred.lc(remotecred,'passwd'),remotepath,os.path.join(archive,stationid,'DI','analyze'),diid,port= port, delete=delete)
 
-    print("Variolist", variolist)
+    if debug:
+        print (" -------------------------------------")
+        print(" DI data defined and collected - now starting the analysis for variometer: {}".format(variolist))
 
-    # copy all files from web directory to the analysis folder
+    print (" ")
 
     # -----------------------------------------------------
     # c) analyze all files in the local analysis directory and put successfully analyzed data to raw
@@ -448,9 +472,9 @@ def main(argv):
             else:
                 variopath = vario
                 if not os.path.exists(variopath):
-                    print("No variometerdata found in the specified paths/IDs - using dummy path")
+                    print(" -> No variometerdata found in the specified paths/IDs - using dummy path")
                     variopath = '/tmp/*'
-            print("Using Variometerdata at:", variopath)
+            print(" -> Using Variometerdata at:", variopath)
             for scalar in scalarlist:
                 # Define paths for variometer and scalar data
                 scalarid = scalardataidlist[scalarlist.index(scalar)]
@@ -459,12 +483,20 @@ def main(argv):
                 else:
                     scalarpath = scalar
                     if not os.path.exists(scalarpath):
-                        print("No scalar data found in the specified paths/IDs - using dummy path")
+                        print(" -> No scalar data found in the specified paths/IDs - using dummy path")
                         scalarpath = '/tmp/*'
-                print("Using Scalar data at:", scalarpath)
+                print(" -> Using Scalar data at:", scalarpath)
                 # ALPHA and delta needs to be provided with the database
+
+                print (" -------------------------------------")
+                print(" Extracting delta and rotation parameters ... should not be necessary as this is be done by absoluteAnalysis provided a database is connected")
+                deltaF = 0.0
+                alpha = 0.0
+                beta = 0.0
+
+                """
                 if db:
-                    print("Getting parameter:")
+                    print(" ")
                     alpha =  dbgetfloat(db, 'DATAINFO', vario, 'DataSensorAzimuth')
                     if not isNumber(alpha):
                         alpha = 0.0
@@ -492,12 +524,17 @@ def main(argv):
                             var = applyDeltas(db,var)
                         except:
                             pass
-                        alpha = scal.header['DataSensorAzimuth']
-                        beta = scal.header['DataSensorTilt']
+                        # TODO this is wrong -> but clarify whether a correction is necessary at all 
+                        alpha = var.header['DataSensorAzimuth']
+                        beta = var.header['DataSensorTilt']
                     except:
                         alpha = 0.0
                         beta = 0.0
                 print("using alpha, beta, deltaF:", alpha, beta, deltaF)
+                """
+
+                print (" -------------------------------------")
+                print(" Extracting azimuth data ... should be contained in DI files, can be provided as option, is contained in PIERS table of DB")
                 # Azimuths are usually contained in the DI files
                 ## Eventually overriding azimuths in DI files
                 if len(azimuthlist) > 0:
@@ -506,28 +543,44 @@ def main(argv):
                         azimuth = False
                 else:
                     azimuth = False
+                if azimuth:
+                    print (" -> Overriding (eventual) DI files data with an azimuth of {} deg".format())
+                else:
+                    print (" -> Using azimuth from DI file") 
                 if len(abstypelist) > 0:
                     abstype = abstypelist[pierlist.index(pier)]
                     if abstype == 'False' or abstype == 'false':
                         abstype = False
                 else:
                     abstype = False
-                print("Abolute type:", abstype, abstypelist)
-
-
-                if createarchive and variolist.index(vario) == len(variolist)-1  and scalarlist.index(scalar) == len(scalarlist)-1:
-                    print("adding to archive")
-                    absstream = absoluteAnalysis(abspath,variopath,scalarpath,expD=expD,expI=expI, diid=diid,stationid=stationid,abstype=abstype,azimuth=azimuth,pier=pier, alpha=alpha,deltaF=deltaF, starttime=begin,endtime=end, db=db,dbadd=dbadd,compensation=compensation,magrotation=rotation,movetoarchive=os.path.join(archive,stationid,'DI','raw'),deltaD=0.0000000001,deltaI=0.0000000001)
+                if abstype:
+                    print (" -> Selected type of absolute measurements is {}".format())
                 else:
-                    print("just analyzing")
-                    absstream = absoluteAnalysis(abspath,variopath,scalarpath,expD=expD,expI=expI, diid=diid,stationid=stationid,abstype=abstype,azimuth=azimuth,pier=pier, alpha=alpha,deltaF=deltaF, starttime=begin,endtime=end, db=db,dbadd=dbadd,compensation=compensation,deltaD=0.0000000001,deltaI=0.0000000001)
+                    print (" -> Absolute measurement type taken from DI file")
+                # TODO ... Get azimuth data from PIERS table
+                if db:
+                    print (" Checking azimuth in PIERS table of the database ...")
+                    val = dbselect(db,'AzimuthDictionary','PIERS','PierID like "{}"'.format(pier))[0]
+                    print ("Found ", val)
+
+
+                print (" -------------------------------------")
+                movetoarchive=False
+                if createarchive and variolist.index(vario) == len(variolist)-1  and scalarlist.index(scalar) == len(scalarlist)-1:
+                    print(" Running analysis - and moving successfully analyzed files to raw directory")
+                    movetoarchive=os.path.join(archive,stationid,'DI','raw')
+                else:
+                    print(" Running analysis - and keeping files in analyze directory")
+                absstream = absoluteAnalysis(abspath,variopath,scalarpath,expD=expD,expI=expI, diid=diid,stationid=stationid,abstype=abstype,azimuth=azimuth,pier=pier, alpha=alpha,deltaF=deltaF,starttime=begin,endtime=end,db=db,dbadd=dbadd,compensation=compensation,magrotation=rotation, movetoarchive=movetoarchive,deltaD=0.0000000001,deltaI=0.0000000001)
+                print(" -> Done")
 
 		# -----------------------------------------------------
     		# d) write data to a file and sort it, write it again
                 #          (workaround to get sorting correctly)
     		# -----------------------------------------------------
+                print (" -------------------------------------")
                 if absstream and absstream.length()[0] > 0:
-                    print("Writing data", absstream.length())
+                    print(" Writing {} data line(s) ...".format(absstream.length()[0]))
                     absstream.write(os.path.join(archive,stationid,'DI','data'),coverage='all', mode='replace',filenamebegins=identifier+'_'+vario+'_'+scalar+'_'+pier)
                     try:
                         # Reload all data, delete old file and write again to get correct ordering
@@ -536,13 +589,14 @@ def main(argv):
                         newabsstream.write(os.path.join(archive,stationid,'DI','data'),coverage='all',mode='replace',filenamebegins=identifier+'_'+vario+'_'+scalar+'_'+pier)
                     except:
                         print (" Stream apparently not existing...")
-                    print("Stream written - checking for DB")
+                    print(" -> Done")
                     if addBLVdb:
                         # SensorID necessary....
-                        print("Now adding data to the data bank")
+                        print(" Adding data to the data bank ... ")
                         #newabsstream.header["SensorID"] = vario
                         writeDB(db,absstream,tablename=identifier+'_'+vario+'_'+scalar+'_'+pier)
                         #stream2db(db,newabsstream,mode='force',tablename=identifier+'_'+vario+'_'+scalar+'_'+pier)
+                        print(" -> Done")
 
         	    # -----------------------------------------------------
         	    # f) get flags and apply them to data
@@ -580,7 +634,8 @@ def main(argv):
     # -----------------------------------------------------
     # move only if createarchive is selected
     if createarchive:
-        print("Dont mind the error message - works only if su at cron is running this job")
+        print (" -------------------------------------")
+        print(" Dont mind the error message - works only if su at cron is running this job")
         filelst = []
         for infile in iglob(os.path.join(archive,stationid,'DI','analyze','*.txt')):
             print("Processing ", infile)
@@ -601,7 +656,7 @@ def main(argv):
 
 
     print ("----------------------------------------------------------------")
-    print ("di app finished")
+    print ("di.py app finished")
     print ("----------------------------------------------------------------")
     print ("SUCCESS")
 

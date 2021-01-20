@@ -49,6 +49,7 @@ scriptpath = os.path.dirname(os.path.realpath(__file__))
 coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
 sys.path.insert(0, coredir)
 from martas import martaslog as ml
+from acquisitionsupport import GetConf2 as GetConf2
 
 """
 monitorconf = {'logpath' : '/var/log/magpy/mm-monitor.log',		# path to log file
