@@ -444,6 +444,10 @@ To setup [Telegram] communication use the following steps:
 
   a) Use [Telegram Botfather] to create a new BOT
 
+        /newbot
+
+        /setuserpic
+
   b) Install Telegram support for MARTAS
 
         $ cd MARATS/install
@@ -495,6 +499,12 @@ To setup [Telegram] communication use the following steps:
         switch heating on
 
 ## 8. Frequently asked questions
+
+#### During installation of pip packages dependency problems are occuring
+
+If you observe such problems (problems occured in the past with matplotlib, numpy and/or scipy) then it is advisable
+to install the recommended packages for your system. Please remove the pip packages (pip remove..) and install system
+packages using e.g. sudo apt install python3-scipy
 
 #### I want to send out data periodically from ma MARTAS acquisition machine using FTP or similar. Is this easily possible?
 

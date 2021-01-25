@@ -93,8 +93,11 @@ cp $BOTPATH/telegrambot.cfg $CONFPATH/telegrambot.cfg
 # Replace DUMMY values with paths
 DUMMYBOT="/your/botpath"
 DUMMYPYTHON="/usr/bin/python"
+DUMMYCONF=" -c /etc/martas/telegrambot.cfg"
+NEWCONF=" -c $CONFPATH/telegrambot.cfg"
 sed -i "s+${DUMMYPYTHON}+${PYPATH}+g" /etc/init.d/telegrambot
 sed -i "s+${DUMMYBOT}+${BOTPATH}+g" /etc/init.d/telegrambot
+sed -i "s+${DUMMYCONF}+${NEWCONF}+g" /etc/init.d/telegrambot
 DUMMYMARTASCONF="/my/cfg/martas.cfg"
 DUMMYMARCOSCONF="/my/cfg/marcos.cfg"
 DUMMYMARTASAPP="/my/home/MARTAS"

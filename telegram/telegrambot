@@ -30,8 +30,9 @@ BOTPATH='/your/botpath'
 
 # # The main acquisition program
 # # Please consider the space before options if provided"
-BOT="telegrambot.py"
-PIDTEST="[t]elegrambot.py"
+BOTOPT=" -c /etc/martas/telegrambot.cfg"
+BOT="telegrambot.py$BOTOPT"
+PIDTEST="[t]elegrambot.py$BOTOPT"
 
 
 # # change delay (necessary for systemstart and proper restart)
