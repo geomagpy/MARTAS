@@ -235,10 +235,22 @@ class MySQLProtocol(object):
             sql2 = 'SELECT Sensorkeys FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
             sql3 = 'SELECT ColumnUnits FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
             sql4 = 'SELECT ColumnContents FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
-            elem = getList(sql1)[0].split(',')
-            keyssens = getList(sql2)[0].split(',')
-            unit = getList(sql3)[0].split(',')
-            cont = getList(sql4)[0].split(',')
+            try:
+                elem = getList(sql1)[0].split(',')
+            except:
+                elem =[]
+            try:
+                keyssens = getList(sql2)[0].split(',')
+            except:
+                keyssens =[]
+            try:
+                unit = getList(sql3)[0].split(',')
+            except:
+                unit =[]
+            try:
+                cont = getList(sql4)[0].split(',')
+            except:
+                cont =[]
             units, elems = [], []
             for key in keystab:
                 try:
