@@ -156,7 +156,8 @@ def is_number(s):
     try:
         float(s)
         return True
-    except ValueError:
+    except:
+    #except ValueError:
         return False
 
 def GetConf(path):
