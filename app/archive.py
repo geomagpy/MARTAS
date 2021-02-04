@@ -46,6 +46,7 @@ def main(argv):
             print ('approximately 118 years of hourly data are kept. To modify these default')
             print ('settings please contact the developers (or learn python and')
             print ('edit the code - its simple and the MagPy cookbook will help you).')
+            print ('IMPORTANT: take care about depth - needs to be large enough to find data')
             print ('-------------------------------------')
             print ('Usage:')
             print ('archive.py -c <cred> -p <archivepath> -b <begin> -d <depth> -s <skip> -g <flag> -i <sr> ')
@@ -165,8 +166,7 @@ def main(argv):
             try:
                 db = mysql.connect(host=mpcred.lc(cred,'host'),user=mpcred.lc(cred,'user'),passwd=mpcred.lc(cred,'passwd'),db =mpcred.lc(cred,'db'))
             except:
-                pass
-        print ("failure - check your credentials / databank")
+                print ("failure - check your credentials / databank")
 
         try:
             if not startdate == '':
