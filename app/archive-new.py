@@ -18,6 +18,7 @@ from acquisitionsupport import GetConf2 as GetConf2
 
 import getopt
 import pwd
+import socket
 
 
 """
@@ -215,6 +216,7 @@ def main(argv):
     obssenslist = []
     startdate = ''
     statusmsg = {}
+    hostname = socket.gethostname().upper()
     try:
         opts, args = getopt.getopt(argv,"hc:b:d:s:gi:a:D",["config=","begin=","depth=","sensors=","debug=",])
     except getopt.GetoptError:
@@ -288,18 +290,28 @@ def main(argv):
             print ('-- check archive.py -h for more options and requirements')
             sys.exit()
 
+    ## Logger configuration data
+    logpath = config.get('logpath')
+    receiver = config.get('notification')
+    receiverconf = config.get('notificationconf')
 
-    db = connectDB(config.get('credentials'))
 
-    sql = createDataSelectionList(blacklist=config.get('blacklist',[]), debug=debug)
+    try:
+        name1 = "{}-archive-preamble".format(hostname)
+        db = connectDB(config.get('credentials'))
 
-    datainfoiddict = gettingDataDictionary(db,sql,debug=False)
+        sql = createDataSelectionList(blacklist=config.get('blacklist',[]), debug=debug)
+
+        datainfoiddict = gettingDataDictionary(db,sql,debug=False)
+        statusmsg[name1] = "success"
+    except:
+        statusmsg[name1] = "failure"
 
 
     for data in datainfoiddict:
         print (" ---------------------------- ")
         print (" Checking data set {}".format(data))
-        name = "archiving-{}".format(data)
+        name = "{}-archiving-{}".format(hostname,data.replace("_","-"))
         msg = "checking"
         if debug:
             print ("  Times: {}".format(datainfoiddict.get(data)))
@@ -317,11 +329,12 @@ def main(argv):
         depth,fo,wa,af,cdb,ratio = getparameter(para)
 
         # Modify parameters if DataID specifications are give
-        if data in config.get('sensordict'):
-            print ("  Found data specific parameters:") 
-            para = config.get('sensordict').get(data)
-            depth,fo,wa,af,cdb,ratio = getparameter(para)
-            print (para)
+        for sensd in config.get('sensordict',{}): 
+            if data.find(sensd) >= 0:
+                print ("  Found data specific parameters for sensorgroup {}:".format(sensd)) 
+                para = config.get('sensordict').get(data)
+                depth,fo,wa,af,cdb,ratio = getparameter(para)
+                print ("   -> {}".format(para))
 
         # Manual specifications
         if obsdepth:
@@ -389,7 +402,17 @@ def main(argv):
 
         statusmsg[name] = msg
 
-    print (statusmsg)
+    if debug:
+        print (statusmsg)
+    else:
+        martaslog = ml(logfile=logpath,receiver=receiver)
+        martaslog.telegram['config'] = receiverconf
+        martaslog.msg(statusmsg)
+
+    print ("----------------------------------------------------------------")
+    print ("archiving app finished")
+    print ("----------------------------------------------------------------")
+    print ("SUCCESS")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
