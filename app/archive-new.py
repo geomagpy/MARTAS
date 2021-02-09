@@ -296,17 +296,11 @@ def main(argv):
     receiverconf = config.get('notificationconf')
 
 
-    try:
-        name1 = "{}-archive-preamble".format(hostname)
-        db = connectDB(config.get('credentials'))
+    db = connectDB(config.get('credentials'))
 
-        sql = createDataSelectionList(blacklist=config.get('blacklist',[]), debug=debug)
+    sql = createDataSelectionList(blacklist=config.get('blacklist',[]), debug=debug)
 
-        datainfoiddict = gettingDataDictionary(db,sql,debug=False)
-        statusmsg[name1] = "success"
-    except:
-        statusmsg[name1] = "failure"
-
+    datainfoiddict = gettingDataDictionary(db,sql,debug=False)
 
     for data in datainfoiddict:
         print (" ---------------------------- ")
