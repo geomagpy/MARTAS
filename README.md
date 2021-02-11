@@ -498,7 +498,126 @@ To setup [Telegram] communication use the following steps:
 
         switch heating on
 
-## 8. Frequently asked questions
+
+## 8. Applications and Scripts
+
+### 8.1 Overview of applications 
+
+MARTAS comes along with a number of application scripts to support data acquisition, collection of data, access of remote data sources and organizations tools for databases. All these scripts can be found within the directory MARTAS/apps. Below you will find a comprehensive list of these scripts and their purpose. In the following you will find subsections with detailed instructions and example applications for all of these programs.
+
+Script           |   Purpose                                         | Configuration  | py2/py3   |  Section
+---------------- | ------------------------------------------------- | -------------- | --------- | --------
+addcred.py       | Create credential information for scripts         |                | py3       | 8.2
+archive.py       | Read database tables and create archive files     | archive.cfg    | py3       | 8.3
+ardcomm.py       |       |     |    |
+file_download.py |      |     |    |
+file_upload.py   |      |     |    |
+threshold.py     |      |     |    | 7.1
+monitor.py       |      |     |    | 7.2
+
+
+### 8.2 addcred.py
+
+#### DESCRIPTION:
+Sending data to a remote host by scp or ftp.
+Requires existing credential information (see cred.py).
+-------------------------------------
+Usage:
+addcred.py -v <listexisting> -t <type> -c <credentialshortcut>
+ -d <database> -u <user> -p <password> -s <smtp> -a <address> -o <host>
+ -l <port>
+-------------------------------------
+Options:
+-v       : view all existing credentials
+-t       : define type of data: db, transfer or mail
+-c       : shortcut to access stored information
+-d       : name of a database for db type
+-u       : user name
+-p       : password (will be encrypted)
+-s       : smtp address for mail types
+-a       : address for transfer type
+-o       : host of database
+-l       : port of transfer protocol
+-------------------------------------
+
+#### APPLICATION:
+python addcred.py -t transfer -c zamg -u max -p geheim -a "ftp://ftp.remote.ac.at" -l 21
+!!!!  please note: put path in quotes !!!!!!
+
+
+### 8.3 archive.py
+
+#### DESCRIPTION:
+Archive.py gets data from a databank and stores it to any accessible repository (e.g. disk). Old database entries exceeding a defined age can be deleted in dependency of data resolution. Archive files can be stored in a user defined format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly data are kept. Settings are given in a configuration file. 
+IMPORTANT: take care about depth - needs to be large enough to find data
+
+#### APPLICATION:
+        # Auomatic
+        python3 archive.py -c config.cfg
+
+        # Manual for specific sensors and time range
+        python3 archive.py -c /config.cfg -b 2020-11-22 -s Sensor1,Sensor2 -d 30
+
+
+#### CONFIGURATION:
+
+        MARTAS/conf/archive.cfg
+
+provides credentials, path, defaultdepth, archiveformat, writearchive, applyflags, cleandb, cleanratio
+and lists and dictionaries to modify criteria for specific sensors:
+sensordict      :    Sensor1:depth,format,writeDB,writeArchive,applyFlags,cleanratio;
+blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
+
+
+### 8.4 ardcomm
+
+#### DESCRIPTION:
+Communication program for microcontrollers (here ARDUINO) e.g. used for reomte switching commands
+
+### 8.x file_download.py
+
+#### DESCRIPTION:
+Downloads data by default in to an archive "raw" structure like /srv/archive/STATIONID/SENSORID/raw
+Adds data into a MagPy database (if writedatabase is True)
+Adds data into a basic archive structure (if writearchive is True)
+The application requires credentials of remote source and local database created by addcred
+
+#### APPLICATION:
+
+   1) Getting binary data from a FTP Source every, scheduled day
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             sourcedatapath        :      /remote/data
+             filenamestructure     :      *%s.bin
+
+   2) Getting binary data from a FTP Source every, scheduled day, using seconday time column and an offset of 2.3 seconds
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             sourcedatapath        :      /remote/data
+             filenamestructure     :      *%s.bin
+             LEMI025_28_0002       :      defaulttimecolumn:sectime;time:-2.3
+
+   3) Just download raw data to archive
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             writedatabase     :      False
+             writearchive      :      False
+
+   4) Rsync from a ssh server (passwordless access to remote machine is necessary, cred file does not need to contain a pwd) 
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             protocol          :      rsync
+             writedatabase     :      False
+             writearchive      :      False
+
+
+### 8.y file_upload.py
+
+
+
+
+
+## 9. Frequently asked questions
 
 #### During installation of pip packages dependency problems are occuring
 
@@ -515,7 +634,7 @@ use app/senddata.py within crontab:
 use app/collectfile.py within crontab:
 
 
-## 9. Strucure/Files in home directory of MARTAS user
+## 10. Strucure/Files in home directory of MARTAS user
 
 Within the MARTAS directory you will find the following files and programs:
 

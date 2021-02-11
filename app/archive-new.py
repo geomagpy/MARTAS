@@ -24,7 +24,7 @@ import socket
 """
 #configuration:
 
-cred            :      cobsdb
+credentials     :      cobsdb
 
 path            :      /srv/archive
 
@@ -169,7 +169,9 @@ def gettingDataDictionary(db,sql,debug=False):
 
     return resultdict
 
-def getparameter(plist):
+def getparameter(plist, debug=False):
+    if debug:
+        print ("Found the following parameters: {}".format(plist))
     try:
         depth = int(plist[0])
     except:
@@ -217,6 +219,7 @@ def main(argv):
     startdate = ''
     statusmsg = {}
     hostname = socket.gethostname().upper()
+    debug=False
     try:
         opts, args = getopt.getopt(argv,"hc:b:d:s:gi:a:D",["config=","begin=","depth=","sensors=","debug=",])
     except getopt.GetoptError:
@@ -309,6 +312,7 @@ def main(argv):
         msg = "checking"
         if debug:
             print ("  Times: {}".format(datainfoiddict.get(data)))
+        # TODO create a warning if mintime is much younger as it should be after cleaning
 
         if obssenslist and not data in obssenslist:
             print ("  Not in observers specified dataid list - this DataID will be skipped")
@@ -323,10 +327,10 @@ def main(argv):
         depth,fo,wa,af,cdb,ratio = getparameter(para)
 
         # Modify parameters if DataID specifications are give
-        for sensd in config.get('sensordict',{}): 
+        for sensd in config.get('sensordict',{}):
             if data.find(sensd) >= 0:
                 print ("  Found data specific parameters for sensorgroup {}:".format(sensd)) 
-                para = config.get('sensordict').get(data)
+                para = config.get('sensordict').get(sensd)
                 depth,fo,wa,af,cdb,ratio = getparameter(para)
                 print ("   -> {}".format(para))
 
@@ -376,27 +380,33 @@ def main(argv):
                         archivepath = None
 
                 if af and sr > 0.9:
-                    print ("Please note: flags are by default not contained in the cdf archive. They are stored separately in the database.")
+                    print ("You selected to apply flags and save them along with the cdf archive.")
                     flaglist = db2flaglist(db,sensorid=stream.header['SensorID'],begin=tup[0],end=tup[1])
                     if len(flaglist) > 0:
                         print ("  Found {} flags in database for the selected time range - adding them to the archive file".format(len(flaglist)))
                         stream = stream.flag(flaglist)
 
-                if not debug and wf and archivepath and af:
+                if not debug and wa and archivepath:
                     stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=fo)
                 else:
                     print ("   Debug: skip writing")
+                    print ("    -> without debug a file with {} inputs would be written to {}".format(stream.length()[0],archivepath))
 
                 if not debug and cdb:
                     print ("Now deleting old entries in database older than {} days".format(sr*ratio))
+                    # TODO get coverage before
                     dbdelete(db,stream.header['DataID'],samplingrateratio=ratio)
+                    # TODO get coverage after
                 else:
                     print ("   Debug: skip deleting DB")
+                    print ("    -> without debug all entries older than {} days would be deleted".format(sr*ratio))
                 msg = "successfully finished"
+            else:
+                print ("No data between {} and {}".format(tup[0],tup[1]))
 
         statusmsg[name] = msg
 
-    if debug:
+    if debug or obssenslist:   #No update of statusmessages if only a selected sensor list is analyzed
         print (statusmsg)
     else:
         martaslog = ml(logfile=logpath,receiver=receiver)
