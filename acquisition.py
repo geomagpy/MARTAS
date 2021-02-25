@@ -387,7 +387,7 @@ def main(argv):
         client.connect(broker, mqttport, mqttdelay)
         client.loop_start()
     except:
-        log.msg("Critical error - no network connection available during startup - check whether data is recorded")
+        log.msg("Critical error - no network connection available during startup or mosquitto server not running - check whether data is recorded")
 
     establishedconnections = {}
     ## Connect to serial port (sensor dependency) -> returns publish 

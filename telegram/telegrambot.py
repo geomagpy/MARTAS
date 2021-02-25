@@ -414,6 +414,13 @@ def _identifyDates(text):
         extract dates from a text
     """
     from dateutil.parser import parse
+
+    # For old parse date versions
+    def hasNumbers(inputString):
+        return any(char.isdigit() for char in inputString)
+    if not hasNumbers(text):
+        return None
+
     try:
         dt = parse(text, fuzzy=True)
     except:

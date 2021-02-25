@@ -510,8 +510,8 @@ Script           |   Purpose                                         | Configura
 addcred.py       | Create credential information for scripts         |                | py3       | 8.2
 archive.py       | Read database tables and create archive files     | archive.cfg    | py3       | 8.3
 ardcomm.py       |       |     |    |
-file_download.py |      |     |    |
-file_upload.py   |      |     |    |
+file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs     |  collect.cfg   |  py3  |
+file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   |
 threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
 
@@ -582,6 +582,8 @@ Adds data into a MagPy database (if writedatabase is True)
 Adds data into a basic archive structure (if writearchive is True)
 The application requires credentials of remote source and local database created by addcred
 
+file_donwload replaces the old collectfile.py routine which is still contained in the package
+
 #### APPLICATION:
 
    1) Getting binary data from a FTP Source every, scheduled day
@@ -609,6 +611,15 @@ The application requires credentials of remote source and local database created
              protocol          :      rsync
              writedatabase     :      False
              writearchive      :      False
+
+   5) Uploading raw data from local raw archive
+    python3 collectfile-new.py -c ../conf/collect-localsource.cfg
+    in config "collect-localsource.cfg":
+             protocol          :      
+             sourcedatapath    :      /srv/archive/DATA/SENSOR/raw
+             writedatabase     :      False
+             writearchive      :      True
+             forcerevision     :      0001
 
 
 ### 8.y file_upload.py

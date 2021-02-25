@@ -64,6 +64,15 @@ APPLICATION
              writedatabase     :      False
              writearchive      :      False
 
+   5) Uploading raw data from local raw archive
+    python3 collectfile-new.py -c ../conf/collect-localsource.cfg
+    in config "collect-localsource.cfg":
+             protocol          :      
+             sourcedatapath    :      /srv/archive/DATA/SENSOR/raw
+             writedatabase     :      False
+             writearchive      :      True
+             forcerevision     :      0001
+
 
     python3 collectfile-new.py -c ../conf/collect-source.cfg -d 10 -e 2020-10-20
 
@@ -481,8 +490,8 @@ def GetDatelist(config={},current=datetime.utcnow(),debug=False):
     else:
         datelist = ['dummy']
 
-    if debug:
-        print("   -> Dealing with time range:\n {}".format(datelist))
+    #if debug:
+    print("   -> Dealing with time range:\n {}".format(datelist))
 
     return datelist
 
@@ -568,11 +577,11 @@ def CreateTransferList(config={},datelist=[],debug=False):
         print (filelist)
         print ("  HTML access not supported - use MagPy directly to access webservices")
 
-    if debug:
-        print ("Files to be transferred")
-        print ("-----------------------------")
-        print (filelist)
-        print ("-----------------------------")
+    #if debug:
+    print ("Files to be transferred")
+    print ("-----------------------------")
+    print (filelist)
+    print ("-----------------------------")
 
     return filelist
 

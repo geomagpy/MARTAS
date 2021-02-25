@@ -305,7 +305,9 @@ def main(argv):
 
     datainfoiddict = gettingDataDictionary(db,sql,debug=False)
 
-    for data in datainfoiddict:
+    for data in datainfoiddict:v
+        sr = 1
+        datainfoid = ''
         print (" ---------------------------- ")
         print (" Checking data set {}".format(data))
         name = "{}-archiving-{}".format(hostname,data.replace("_","-"))
@@ -325,6 +327,7 @@ def main(argv):
         para = [config.get('defaultdepth'), config.get('archiveformat'),config.get('writearchive'),config.get('applyflags'), config.get('cleandb'),config.get('cleanratio')]
         # Get default parameter from config
         depth,fo,wa,af,cdb,ratio = getparameter(para)
+        writemode = config.get('writemode','replace')
 
         # Modify parameters if DataID specifications are give
         for sensd in config.get('sensordict',{}):
@@ -355,6 +358,7 @@ def main(argv):
 
             # Data found
             if stream.length()[0] > 0:
+                dataidnum = stream.header.get('DataID')
                 if not num2date(max(stream.ndarray[0])).replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None):
                     print ("  Found in-appropriate date in stream - maxdate = {} - cutting off".format(num2date(max(stream.ndarray[0]))))
                     stream = stream.trim(endtime=datetime.utcnow())
@@ -387,22 +391,23 @@ def main(argv):
                         stream = stream.flag(flaglist)
 
                 if not debug and wa and archivepath:
-                    stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=fo)
+                    stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=fo,mode=writemode)
                 else:
                     print ("   Debug: skip writing")
                     print ("    -> without debug a file with {} inputs would be written to {}".format(stream.length()[0],archivepath))
 
-                if not debug and cdb:
-                    print ("Now deleting old entries in database older than {} days".format(sr*ratio))
-                    # TODO get coverage before
-                    dbdelete(db,stream.header['DataID'],samplingrateratio=ratio)
-                    # TODO get coverage after
-                else:
-                    print ("   Debug: skip deleting DB")
-                    print ("    -> without debug all entries older than {} days would be deleted".format(sr*ratio))
                 msg = "successfully finished"
             else:
                 print ("No data between {} and {}".format(tup[0],tup[1]))
+
+        if not debug and cdb and not datainfoid == '':
+                    print ("Now deleting old entries in database older than {} days".format(sr*ratio))
+                    # TODO get coverage before
+                    dbdelete(db,datainfoid,samplingrateratio=ratio)
+                    # TODO get coverage after
+        else:
+                    print ("   Debug: skip deleting DB")
+                    print ("    -> without debug all entries older than {} days would be deleted".format(sr*ratio))
 
         statusmsg[name] = msg
 
