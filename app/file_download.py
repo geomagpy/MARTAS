@@ -690,7 +690,10 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             elif protocol in ['html','HTML']:
                 pass
             elif protocol in ['']:
-                copyfile(f, destname)
+                if not os.path.exists(destname):
+                    copyfile(f, destname)
+                else:
+                    print ("   -> raw file already existing - skipping write")
             if zipping:
                 if debug:
                     print (" raw data wil be zipped")
