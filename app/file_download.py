@@ -737,6 +737,12 @@ def WriteData(config={},localpathlist=[],debug=False):
     stationid = config.get('stationid','')
     sensorid = config.get('sensorid','')
     force = config.get('forcerevision','')
+    writemode = config.get('writemode','replace')
+    if not writemode in ['replace','overwrite']:
+        # replace will replace existing data and leave the rest unchanged
+        # overwrite will delete the file and write a new one
+        writemode = 'replace'
+
 
     for f in localpathlist:
         data = DataStream()
@@ -886,7 +892,7 @@ def WriteData(config={},localpathlist=[],debug=False):
                             # LEMI bin files contains str1 column which cannot be written to PYCDF (TODO) - column contains GPS state
                             data = data._drop_column('str1')
                         if archivepath:
-                            data.write(archivepath,filenamebegins=datainfoid+'_',format_type=config.get('archiveformat'),mode='replace')
+                            data.write(archivepath,filenamebegins=datainfoid+'_',format_type=config.get('archiveformat'),mode=writemode)
                 else:
                     print ("  Writing to archive requires forcerevision")
             elif debug:
