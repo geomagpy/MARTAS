@@ -1,18 +1,17 @@
 MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
-####v<0.1.4>, <2020-03-03> --
+####v<1.0.1>, <2020-03-03> --
 
-v0.1.4 additions:
-    - 
+v1.0.1 additions:
+    - blacklist support in collector
 
-v0.1.4 fixes:
-    - collector.py: python3 header interpretation corrected
-    - python3 in envprotocl
 
-v0.1.4 improvements:
+####v<1.0.0>, <2020-03-03> --
 
-v0.1.4 removals:
+v1.0.0 additions:
+    - new start, fully dosumented
+    - python3
 
 
 ####v<0.1.3>, <2019-09-30> --

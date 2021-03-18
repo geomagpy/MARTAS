@@ -14,5 +14,5 @@ script:
   - python app/file_upload.py -j conf/fileuploadjobs.json
   - python core/acquisitionsupport.py
   - python core/martas.py
-  - python app/archive-new.py -c conf/archive.cfg -D
+  - python app/archive.py -c conf/archive.cfg -D
  
