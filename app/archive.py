@@ -305,7 +305,7 @@ def main(argv):
 
     datainfoiddict = gettingDataDictionary(db,sql,debug=False)
 
-    for data in datainfoiddict:v
+    for data in datainfoiddict:
         sr = 1
         datainfoid = ''
         print (" ---------------------------- ")
