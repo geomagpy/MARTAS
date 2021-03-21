@@ -432,9 +432,9 @@ def main(argv):
             print ('              serialcfg            :   None')
             print ('              #parameter (all given parameters are checked in the given order, use semicolons for parameter list):')
             print ('              # sensorid; timerange to check; key to check, value, lower or upper bound,statusmessage,resetby,switchcommand(optional)')
-            print ('              1  :  DS18B20XX;1800;t1;5;low;average;on;swP:4:1')
-            print ('              2  :  DS18B20XY;1800;t1;10;high;median;off;swP:4:0')
-            print ('              3  :  DS18B20XZ;600;t2;20;high;max;alarm at date;None')
+            print ('              1  :  DS18B20XX,1800,t1,5,low,average,on,swP:4:1')
+            print ('              2  :  DS18B20XY,1800,t1,10,high,median,off,swP:4:0')
+            print ('              3  :  DS18B20XZ,600,t2,20,high,max,alarm at date,None')
             print ('              #to be continued...')
 
             print ('------------------------------------------------------')
