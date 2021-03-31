@@ -15,7 +15,7 @@ from twisted.python import log
 from core import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 import serial
-
+import sys
 
 def send_command_ascii(ser,command,eol):
     #use printable here
@@ -24,10 +24,18 @@ def send_command_ascii(ser,command,eol):
     if(ser.isOpen() == False):
         ser.open()
     sendtime = datetime.utcnow()
-    ser.write(command)
-    # skipping all empty lines 
-    while response == '': 
+    # encode to binary if python3
+    if sys.version_info >= (3, 0):
+        ser.write(command.encode('ascii'))
+    else:
+        ser.write(command)
+    # skipping all empty lines
+    while response == '':
         response = ser.readline()
+    responsetime = datetime.utcnow()
+    # decode from binary if py3
+    if sys.version_info >= (3, 0):
+        response = response.decode('ascii')
     responsetime = datetime.utcnow()
     # return only ascii
     line = ''.join(filter(lambda x: x in string.printable, response))
