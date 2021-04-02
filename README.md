@@ -325,6 +325,10 @@ a) When installation is finished you can start the system as follows:
         $ sudo /etc/init.d/collect-broker restart
         $ sudo /etc/init.d/collect-broker stop
 
+   Please note: if database outputis selected: on default on the data table will be written. If you want to create/update DATAINFO and SENSOR information, then run the collector with the -v option at least once.
+        e.g. python3 collector.py -m /etc/martas/broker.cfg -v
+
+
 b) Running the collector from the commandline:
 
         python collector.py -b brokeradress -u myuser -P mypassword
