@@ -310,7 +310,7 @@ def interprete_data(payload, stream, sensorid):
                 else:
                     array[index].append(data[idx+7])
 
-    return np.asarray([np.asarray(elem) for elem in array])
+    return np.asarray([np.asarray(elem) for elem in array],dtype=object)
 
 def datetime2array(t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
