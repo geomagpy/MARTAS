@@ -436,6 +436,26 @@ Please note that these notification routines are independent of an eventually us
 The martas monitoring routine allows for testing data actuality and in MARTAS and MARCOS systems, can check available buffer memory and allows you to trigger bash scripts if a certain condition is found.
 For basic initialization, please use the install.addapps.sh script. This will preconfigure the configuration data for you. Monitoring is performend periodically using a crontab input.
 
+The following jobtypes are supported by the monitoring app: martas, marcos, space, logfile
+
+#### 7.2.1 Installation
+
+Use the installation script "install.addapps.sh" to install monitoring support. This script will also create a default monitor configuration file.
+
+#### 7.2.2 logfile monitoring
+
+To apply monitoring to watch contents of specfic log files change the following lines within the monitor.cfg configuration file:
+
+        logfile   :   /var/log/magpy/acrhive.log
+        logtesttype   :   last
+        logsearchmessage   :   SUCCESS
+
+The above example will scan the archive.log file for a string "SUCCESS" in the last line. 
+
+To schedule such monitoring use crontab e.g.
+        5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/archivemonitor.cfg -n ARCHIVEMONITOR -j logfile  > /dev/NULL 2&>1
+
+
 
 ### 7.3 Support for NAGIOS/ICINGA
 
