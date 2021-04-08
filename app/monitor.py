@@ -599,7 +599,7 @@ def main(argv):
 
     if jobs:
         tjoblist = jobs.split(',')
-        tjoblist = _testJobs(joblist,allowedjobs)
+        tjoblist = _testJobs(tjoblist,allowedjobs)
         if tjoblist:
            joblist = tjoblist
     if not joblist:
@@ -660,7 +660,7 @@ def main(argv):
             statusmsg = CheckMARCOS(db, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, excludelist=ignorelist,acceptedoffsets=thresholddict, debug=debug)
         if 'logfile' in joblist:
             if debug:
-                print ("Running logfile job")
+                print ("Running logfile job on {}".format(logfile))
             statusmsg = CheckLogfile(logfile, tmpdir=tmpdir, jobname=jobname, statusdict=statusmsg, testtype=logtesttype, logsearchmessage=logsearchmessage, tolerance=testamount, debug=debug)
         if execute:
             # scan statusmessages for execute call
