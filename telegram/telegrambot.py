@@ -317,9 +317,9 @@ try:
     tgpar.martasapp = martasapp
     allusers = tgconf.get('allowed_users')
     if isinstance(allusers, list):
-        allowed_users =  [el for el in allusers]
+        allowed_users =  [str(el) for el in allusers]
     else:
-        allowed_users =  [tgconf.get('allowed_users')]
+        allowed_users =  [str(tgconf.get('allowed_users'))]
     tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
 except:
     print ("error while reading config file or writing to log file - check content and spaces")
@@ -780,7 +780,7 @@ def handle(msg):
     camport = tgpar.camport
     tmppath = tgpar.tmppath
 
-    if not chat_id in allowed_users:
+    if not str(chat_id) in allowed_users:
         bot.sendMessage(chat_id, "My mother told me not to speak to strangers, sorry...")
         tglogger.warning('--------------------- Unauthorized access -------------------------')
         tglogger.warning('!!! unauthorized access from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname)) 
