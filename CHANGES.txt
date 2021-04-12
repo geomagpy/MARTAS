@@ -5,12 +5,18 @@ and collection from many different sources.
 
 v1.0.1 additions:
     - blacklist support in collector
+    - multiple users for telegrambot
+    - updated descriptions in README 
+
+v1.0.1 corrections:
+    - disdrometer and ultrasonic support
+    - monitor method for logfiles
 
 
 ####v<1.0.0>, <2020-03-03> --
 
 v1.0.0 additions:
-    - new start, fully dosumented
+    - new start, fully documented
     - python3
 
 
