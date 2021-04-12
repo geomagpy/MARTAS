@@ -841,7 +841,7 @@ def WriteData(config={},localpathlist=[],debug=False):
                     newcomment = ", ".join(comments) 
                     data.header['DataComments'] = newcomment
                 elif len(comments) > 0:
-                    newcomment = comment[0]
+                    newcomment = comments[0]
                     data.header['DataComments'] = newcomment
                 print ("  => modifications done")
 
