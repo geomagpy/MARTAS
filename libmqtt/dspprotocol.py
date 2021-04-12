@@ -78,6 +78,7 @@ class DSPProtocol(object):
         self.count = 0  ## counter for sending header information
 
         self.sensorname = sensordict.get('name')
+        self.sensorid = sensordict.get('sensorid')
         self.baudrate=int(sensordict.get('baudrate'))
         self.port = confdict['serialport']+sensordict.get('port')
         self.parity=sensordict.get('parity')
@@ -189,7 +190,8 @@ class DSPProtocol(object):
                     print ("got answer: {}".format(answer))
                 self.serialnum = self.serial1+self.serial2
                 if item == 'data': # and len(self.serialnum) > 7:  # serialnum taken from sensors.cfg
-                    sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
+                    #sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
+                    sensorid = self.sensorid
                     data, head = self.processData(sensorid, answer, actime)
                     # send data via mqtt
                     if not data == '':
