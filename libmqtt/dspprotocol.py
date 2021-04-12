@@ -188,7 +188,7 @@ class DSPProtocol(object):
                 if self.debug:
                     print ("got answer: {}".format(answer))
                 self.serialnum = self.serial1+self.serial2
-                if item == 'data' and len(self.serialnum) > 7:
+                if item == 'data': # and len(self.serialnum) > 7:  # serialnum taken from sensors.cfg
                     sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
                     data, head = self.processData(sensorid, answer, actime)
                     # send data via mqtt

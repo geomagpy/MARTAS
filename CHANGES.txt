@@ -9,7 +9,7 @@ v1.0.1 additions:
     - updated descriptions in README 
 
 v1.0.1 corrections:
-    - disdrometer and ultrasonic support
+    - disdrometer and ultrasonic support - Py3
     - monitor method for logfiles
 
 
