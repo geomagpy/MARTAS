@@ -346,15 +346,28 @@ def main(argv):
         dateslist = createDatelist(startdate=startdate, depth=depth, debug=debug)
 
         # check time range
-        if not validtimerange(dateslist, datainfoiddict.get(data).get('mintime'), datainfoiddict.get(data).get('maxtime')):
+        try:
+            # This method might fail if datainfodict does not contain dates - in this case just proceed with normal analysis
+            gettrstate = validtimerange(dateslist, datainfoiddict.get(data).get('mintime'), datainfoiddict.get(data).get('maxtime'))
+        except:
+            print ("   -> Could not extract time ranges from datainfo dictionary")
+            gettrstate = True
+
+        if not gettrstate:
             print ("  Apparently no data is existing for the seleceted days - skipping")
             continue
 
         # run the following in a daily manner? to save memory... check
         for tup in dateslist:
+            if debug:
+                print ("  Running for range", tup)
             stream = DataStream()
             #tup = (day,nextday)
+            if debug:
+                print ("  Reading data from DB ...")
             stream = readDB(db,data,starttime=tup[0],endtime=tup[1])
+            if debug:
+                print ("    -> Done ({} data points)".format(stream.length()[0]))
 
             # Data found
             if stream.length()[0] > 0:
@@ -396,9 +409,10 @@ def main(argv):
                     print ("   Debug: skip writing")
                     print ("    -> without debug a file with {} inputs would be written to {}".format(stream.length()[0],archivepath))
 
-                msg = "successfully finished"
+                #msg = "successfully finished"
             else:
                 print ("No data between {} and {}".format(tup[0],tup[1]))
+            msg = "successfully finished"
 
         if not debug and cdb and not datainfoid == '':
                     print ("Now deleting old entries in database older than {} days".format(sr*ratio))
