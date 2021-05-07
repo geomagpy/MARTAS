@@ -123,7 +123,7 @@ stid = stationid
 webpath = './web'
 webport = 8080
 socketport = 5000
-
+blacklist = []
 
 class protocolparameter(object):
     def __init__(self):
@@ -310,7 +310,7 @@ def interprete_data(payload, stream, sensorid):
                 else:
                     array[index].append(data[idx+7])
 
-    return np.asarray([np.asarray(elem) for elem in array])
+    return np.asarray([np.asarray(elem) for elem in array],dtype=object)
 
 def datetime2array(t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
@@ -362,6 +362,11 @@ def on_message(client, userdata, msg):
     if not instrument == '':
         if not sensorid.find(instrument) > -1:
             return
+
+    if sensorid in blacklist:
+        if debug:
+            print ("Sensor {} in blacklist - not collecting".format(sensorid))
+        return
 
     ## ################################################################################
     ## ####            Eventually check for additional format libraries       #########
@@ -719,6 +724,8 @@ def main(argv):
     number=1
     global qos
     qos=0
+    global blacklist
+    blacklist = []
 
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
     try:
@@ -814,6 +821,9 @@ def main(argv):
                     qos = 0
             if not conf.get('mqttcredentials','') in ['','-']:
                 credentials=conf.get('mqttcredentials').strip()
+            if not conf.get('blacklist','') in ['','-']:
+                blacklist=conf.get('blacklist').split(',')
+                blacklist = [el.strip() for el in blacklist]
             if not conf.get('station','') in ['','-']:
                 stationid = conf.get('station').strip()
                 stid = stationid

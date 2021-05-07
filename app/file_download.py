@@ -64,6 +64,15 @@ APPLICATION
              writedatabase     :      False
              writearchive      :      False
 
+   5) Uploading raw data from local raw archive
+    python3 collectfile-new.py -c ../conf/collect-localsource.cfg
+    in config "collect-localsource.cfg":
+             protocol          :      
+             sourcedatapath    :      /srv/archive/DATA/SENSOR/raw
+             writedatabase     :      False
+             writearchive      :      True
+             forcerevision     :      0001
+
 
     python3 collectfile-new.py -c ../conf/collect-source.cfg -d 10 -e 2020-10-20
 
@@ -485,8 +494,8 @@ def GetDatelist(config={},current=datetime.utcnow(),debug=False):
     else:
         datelist = ['dummy']
 
-    if debug:
-        print("   -> Dealing with time range:\n {}".format(datelist))
+    #if debug:
+    print("   -> Dealing with time range:\n {}".format(datelist))
 
     return datelist
 
@@ -572,11 +581,11 @@ def CreateTransferList(config={},datelist=[],debug=False):
         print (filelist)
         print ("  HTML access not supported - use MagPy directly to access webservices")
 
-    if debug:
-        print ("Files to be transferred")
-        print ("-----------------------------")
-        print (filelist)
-        print ("-----------------------------")
+    #if debug:
+    print ("Files to be transferred")
+    print ("-----------------------------")
+    print (filelist)
+    print ("-----------------------------")
 
     return filelist
 
@@ -687,7 +696,10 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             elif protocol in ['html','HTML']:
                 pass
             elif protocol in ['']:
-                copyfile(f, destname)
+                if not os.path.exists(destname):
+                    copyfile(f, destname)
+                else:
+                    print ("   -> raw file already existing - skipping write")
             if zipping:
                 if debug:
                     print (" raw data wil be zipped")
@@ -731,6 +743,12 @@ def WriteData(config={},localpathlist=[],debug=False):
     stationid = config.get('stationid','')
     sensorid = config.get('sensorid','')
     force = config.get('forcerevision','')
+    writemode = config.get('writemode','replace')
+    if not writemode in ['replace','overwrite']:
+        # replace will replace existing data and leave the rest unchanged
+        # overwrite will delete the file and write a new one
+        writemode = 'replace'
+
 
     for f in localpathlist:
         data = DataStream()
@@ -829,7 +847,7 @@ def WriteData(config={},localpathlist=[],debug=False):
                     newcomment = ", ".join(comments) 
                     data.header['DataComments'] = newcomment
                 elif len(comments) > 0:
-                    newcomment = comment[0]
+                    newcomment = comments[0]
                     data.header['DataComments'] = newcomment
                 print ("  => modifications done")
 
@@ -880,7 +898,7 @@ def WriteData(config={},localpathlist=[],debug=False):
                             # LEMI bin files contains str1 column which cannot be written to PYCDF (TODO) - column contains GPS state
                             data = data._drop_column('str1')
                         if archivepath:
-                            data.write(archivepath,filenamebegins=datainfoid+'_',format_type=config.get('archiveformat'),mode='replace')
+                            data.write(archivepath,filenamebegins=datainfoid+'_',format_type=config.get('archiveformat'),mode=writemode)
                 else:
                     print ("  Writing to archive requires forcerevision")
             elif debug:

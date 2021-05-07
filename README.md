@@ -325,6 +325,10 @@ a) When installation is finished you can start the system as follows:
         $ sudo /etc/init.d/collect-broker restart
         $ sudo /etc/init.d/collect-broker stop
 
+   Please note: if database outputis selected: on default on the data table will be written. If you want to create/update DATAINFO and SENSOR information, then run the collector with the -v option at least once.
+        e.g. python3 collector.py -m /etc/martas/broker.cfg -v
+
+
 b) Running the collector from the commandline:
 
         python collector.py -b brokeradress -u myuser -P mypassword
@@ -432,6 +436,26 @@ Please note that these notification routines are independent of an eventually us
 The martas monitoring routine allows for testing data actuality and in MARTAS and MARCOS systems, can check available buffer memory and allows you to trigger bash scripts if a certain condition is found.
 For basic initialization, please use the install.addapps.sh script. This will preconfigure the configuration data for you. Monitoring is performend periodically using a crontab input.
 
+The following jobtypes are supported by the monitoring app: martas, marcos, space, logfile
+
+#### 7.2.1 Installation
+
+Use the installation script "install.addapps.sh" to install monitoring support. This script will also create a default monitor configuration file.
+
+#### 7.2.2 logfile monitoring
+
+To apply monitoring to watch contents of specfic log files change the following lines within the monitor.cfg configuration file:
+
+        logfile   :   /var/log/magpy/acrhive.log
+        logtesttype   :   last
+        logsearchmessage   :   SUCCESS
+
+The above example will scan the archive.log file for a string "SUCCESS" in the last line. 
+
+To schedule such monitoring use crontab e.g.
+        5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/archivemonitor.cfg -n ARCHIVEMONITOR -j logfile  > /dev/NULL 2&>1
+
+
 
 ### 7.3 Support for NAGIOS/ICINGA
 
@@ -510,8 +534,8 @@ Script           |   Purpose                                         | Configura
 addcred.py       | Create credential information for scripts         |                | py3       | 8.2
 archive.py       | Read database tables and create archive files     | archive.cfg    | py3       | 8.3
 ardcomm.py       |       |     |    |
-file_download.py |      |     |    |
-file_upload.py   |      |     |    |
+file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs     |  collect.cfg   |  py3  |
+file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   |
 threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
 
@@ -582,6 +606,8 @@ Adds data into a MagPy database (if writedatabase is True)
 Adds data into a basic archive structure (if writearchive is True)
 The application requires credentials of remote source and local database created by addcred
 
+file_donwload replaces the old collectfile.py routine which is still contained in the package
+
 #### APPLICATION:
 
    1) Getting binary data from a FTP Source every, scheduled day
@@ -609,6 +635,15 @@ The application requires credentials of remote source and local database created
              protocol          :      rsync
              writedatabase     :      False
              writearchive      :      False
+
+   5) Uploading raw data from local raw archive
+    python3 collectfile-new.py -c ../conf/collect-localsource.cfg
+    in config "collect-localsource.cfg":
+             protocol          :      
+             sourcedatapath    :      /srv/archive/DATA/SENSOR/raw
+             writedatabase     :      False
+             writearchive      :      True
+             forcerevision     :      0001
 
 
 ### 8.y file_upload.py

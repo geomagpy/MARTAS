@@ -15,7 +15,7 @@ from twisted.python import log
 from core import acquisitionsupport as acs
 from magpy.stream import KEYLIST
 import serial
-
+import sys
 
 def send_command_ascii(ser,command,eol):
     #use printable here
@@ -24,10 +24,18 @@ def send_command_ascii(ser,command,eol):
     if(ser.isOpen() == False):
         ser.open()
     sendtime = datetime.utcnow()
-    ser.write(command)
-    # skipping all empty lines 
-    while response == '': 
+    # encode to binary if python3
+    if sys.version_info >= (3, 0):
+        ser.write(command.encode('ascii'))
+    else:
+        ser.write(command)
+    # skipping all empty lines
+    while response == '':
         response = ser.readline()
+    responsetime = datetime.utcnow()
+    # decode from binary if py3
+    if sys.version_info >= (3, 0):
+        response = response.decode('ascii')
     responsetime = datetime.utcnow()
     # return only ascii
     line = ''.join(filter(lambda x: x in string.printable, response))
@@ -70,6 +78,7 @@ class DSPProtocol(object):
         self.count = 0  ## counter for sending header information
 
         self.sensorname = sensordict.get('name')
+        self.sensorid = sensordict.get('sensorid')
         self.baudrate=int(sensordict.get('baudrate'))
         self.port = confdict['serialport']+sensordict.get('port')
         self.parity=sensordict.get('parity')
@@ -180,8 +189,9 @@ class DSPProtocol(object):
                 if self.debug:
                     print ("got answer: {}".format(answer))
                 self.serialnum = self.serial1+self.serial2
-                if item == 'data' and len(self.serialnum) > 7:
-                    sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
+                if item == 'data': # and len(self.serialnum) > 7:  # serialnum taken from sensors.cfg
+                    #sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
+                    sensorid = self.sensorid
                     data, head = self.processData(sensorid, answer, actime)
                     # send data via mqtt
                     if not data == '':
