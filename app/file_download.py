@@ -153,6 +153,10 @@ walksubdirs     :      False
 # e.g. WIC/LEMI025_22_0003
 rawpath            :      /srv/archive
 
+# If forcedirectory, then rawpath is used for saving data
+forcedirectory     :      False
+
+
 # Zip data in archive directory
 zipdata            :      False
 
@@ -607,13 +611,14 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
     address = config.get('rmaddress')
     port = config.get('rmport')
     zipping = GetBool(config.get('zipdata'))
+    forcelocal = GetBool(config.get('forcedirectory',False))
 
     #filename = config.get('filenamestructure')
     #dateformat = config.get('dateformat')
 
-    def createdestinationpath(localpath,stationid,sensorid):
+    def createdestinationpath(localpath,stationid,sensorid, forcelocal=False):
             subdir = 'raw'
-            if not stationid and not sensorid:
+            if not stationid and not sensorid or forcelocal:
                 destpath = os.path.join(localpath)
             elif not stationid:
                 destpath = os.path.join(localpath,sensorid,'raw')
@@ -658,7 +663,8 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             else:
                 sensid = sensorid
 
-            destpath = createdestinationpath(destination,stationid,sensid)
+            
+            destpath = createdestinationpath(destination,stationid,sensid,forcelocal=forcelocal)
 
             destname = os.path.join(destpath,li[-1])
 
