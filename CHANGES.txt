@@ -7,6 +7,7 @@ v1.0.1 additions:
     - blacklist support in collector
     - multiple users for telegrambot
     - updated descriptions in README 
+    - added statemachine app
 
 v1.0.1 corrections:
     - disdrometer and ultrasonic support - Py3
