@@ -885,12 +885,12 @@ def handle(msg):
                    except:
                        mesg = "Cam image not available (fswebcam properly installed?)"
                        bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['fig1'].get('commands')]):
+            elif any([word in command for word in commandlist['figure1'].get('commands')]):
                # -----------------------
                # Send a figure
                # -----------------------
                bot.sendPhoto(chat_id, open(tgconf.get('fig1'),'rb'))
-            elif any([word in command for word in commandlist['fig2'].get('commands')]):
+            elif any([word in command for word in commandlist['figure2'].get('commands')]):
                # -----------------------
                # Send a figure
                # -----------------------
