@@ -255,8 +255,8 @@ commandlist['switch'] = {'commands': ['switch','Switch'], 'combination' : 'any' 
 commandlist['badwords'] = {'commands': ['fuck','asshole'], 'combination' : 'any'}
 #switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
 #badwordcommands = ['fuck','asshole']
-commandlist['fig1'] = {'commands': ['figure1','Figure1','fig1','Fig1'], 'combination' : 'any'}
-commandlist['fig2'] = {'commands': ['figure2','Figure2','fig2','Fig2'], 'combination' : 'any'}
+commandlist['figure1'] = {'commands': ['figure1','Figure1','fig1','Fig1'], 'combination' : 'any'}
+commandlist['figure2'] = {'commands': ['figure2','Figure2','fig2','Fig2'], 'combination' : 'any'}
 
 
 
