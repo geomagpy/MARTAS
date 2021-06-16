@@ -132,27 +132,31 @@ class ActiveArduinoProtocol(object):
         command = command+eol
         ser.flush()
         sendtime = datetime.utcnow()
+        #print ("Sending command ... {}".format(command))
         if sys.version_info >= (3, 0):
             ser.write(command.encode('ascii'))
         else:
             ser.write(command)
+        #print (" ... waiting for response")
         # skipping all empty lines
         try: ## check for exeception in  raise SerialException
             while not response or response == '':
                 response = ser.readline()
                 if sys.version_info >= (3, 0):
-                    response = response.decode()
+                    response = response.decode('ascii')
             # read until end-of-messageblock signal is obtained (use some break value)
             while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
                 cnt += 1
                 fullresponse += response
+                #time.sleep(0.01)
                 response = ser.readline()
                 if sys.version_info >= (3, 0):
-                    response = response.decode()
-        except serial.SerialException:
-            log.msg("SerialException found - restarting martas ...")
-            time.sleep(1)
-            self.restart()
+                    response = response.decode('ascii')
+        except serial.SerialException as e:
+            if self.debug:
+                log.msg("SerialException found ({})".format(e)) # - restarting martas ...")
+            time.sleep(0.5)
+            #self.restart()
         except:
             log.msg("Other exception found")
             raise
@@ -450,8 +454,11 @@ class ActiveArduinoProtocol(object):
                         # get all lines in answer
                         lines = answer.split('\n')
                         for line in lines:
-                            if len(line)>2 and (line[2] == ':' or line[3] == ':'):
-                                self.analyzeline(line)
+                            try:
+                                if line and len(line)>2 and (line[2] == ':' or line[3] == ':'):
+                                    self.analyzeline(line)
+                            except:
+                                pass
 
             # disconnect from serial
             ser.close()

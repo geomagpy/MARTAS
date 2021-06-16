@@ -171,6 +171,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
 
     try:
         rate = int(sensordict.get('rate'))
+        log.msg("  -> using provided sampling rate of {} sec".format(rate))
     except:
         log.msg("  -> did not find appropriate sampling rate - using 30 sec")
         rate = 30
