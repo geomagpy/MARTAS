@@ -303,12 +303,16 @@ def interprete_data(payload, stream, sensorid):
         time = datetime(timear[0],timear[1],timear[2],timear[3],timear[4],timear[5],timear[6])
         array[0].append(date2num(time))
         for idx, elem in enumerate(keylist):
-            index = KEYLIST.index(elem)
-            if not elem.endswith('time'):
-                if elem in NUMKEYLIST:
-                    array[index].append(float(data[idx+7])/float(multilist[idx]))
-                else:
-                    array[index].append(data[idx+7])
+            try:
+                index = KEYLIST.index(elem)
+                if not elem.endswith('time'):
+                    if elem in NUMKEYLIST:
+                        array[index].append(float(data[idx+7])/float(multilist[idx]))
+                    else:
+                        array[index].append(data[idx+7])
+            except:
+                # might fail with list index out of range - take all others
+                pass
 
     return np.asarray([np.asarray(elem) for elem in array],dtype=object)
 
