@@ -34,6 +34,7 @@ Currently supported systems are:
 - ENV05 Environment sensors
 - MySQL/MariaDB databases
 - Dallas OneWire Sensors
+- DIGIBASE MCA Gamma sensors
 
 and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
 (requiring a specific serial output format in the self written microcontroller program - appendix)
@@ -533,12 +534,12 @@ Script           |   Purpose                                         | Configura
 ---------------- | ------------------------------------------------- | -------------- | --------- | --------
 addcred.py       | Create credential information for scripts         |                | py3       | 8.2
 archive.py       | Read database tables and create archive files     | archive.cfg    | py3       | 8.3
-ardcomm.py       |       |     |    |
-file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs     |  collect.cfg   |  py3  |
-file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   |
+ardcomm.py       | Communicating with arduino microcontroller        |                | py2/py3   | 8.4
+file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs     |  collect.cfg   |  py3  |  8.5
+file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   | 8.6
 threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
-
+gamma.py         | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3  | 8.7
 
 ### 8.2 addcred.py
 
@@ -598,7 +599,7 @@ blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
 #### DESCRIPTION:
 Communication program for microcontrollers (here ARDUINO) e.g. used for reomte switching commands
 
-### 8.x file_download.py
+### 8.5 file_download.py
 
 #### DESCRIPTION:
 Downloads data by default in to an archive "raw" structure like /srv/archive/STATIONID/SENSORID/raw
@@ -646,9 +647,39 @@ file_donwload replaces the old collectfile.py routine which is still contained i
              forcerevision     :      0001
 
 
-### 8.y file_upload.py
+### 8.6 file_upload.py
 
 
+### 8.7 gamma.py
+
+#### DESCRIPTION:
+Working with Spectral radiometric data: The gamma script can be used to extract spectral measurements, reorganize the data and to analyze such spectral data as obtained by a DIGIBASE RH. 
+
+#### APPLICATION:
+Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
+1) Please install linux drivers as provided and described here:
+   https://github.com/kjbilton/libdbaserh
+   
+2) Use a script to measure spectral data periodically (almost 1h)
+
+        #!/bin/bash
+        DATUM=$(date '+%Y-%m-%d')
+        SN=$(/home/pi/Software/digibase/dbaserh -l | grep : | cut -f 2)
+        NAME="/srv/mqtt/DIGIBASE_16272059_0001/raw/DIGIBASE_"$SN"_0001.Chn"
+        /home/pi/Software/digibase/dbaserh -set hvt 710
+        /home/pi/Software/digibase/dbaserh -q -hv on -start -i 3590 -t 3590 >> $NAME
+
+3) Use crontab to run this script every hour
+
+        0  *  *  *  *  root  bash /home/pi/Software/gammascript.sh > /var/log/magpy/gamma.log
+
+4) use gamma.py to extract spectral data and store it in daily json structures
+
+        58 5   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/DIGIBASE_16272059_0001.Chn  -c /home/pi/SCRIPTS/gamma.cfg -j extract,cleanup -o /srv/mqtt/DIGIBASE_16272059_0001/raw/ > /var/log/magpy/digiextract.log  2>&1
+
+4) use gamma.py to analyse spectral data and create graphs
+
+        30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
 
 
 
