@@ -1086,6 +1086,8 @@ def energycalibration(x, count, ch=[], e=[], n=1,  use= 2, plot=False, addzero=F
     isotopelst = config.get('isotopelst',[])
     graphdir = config.get('graphdir',[])
     caliblst = config.get('caliblst',[])
+    ch = ch[:len(caliblst)]
+    e = e[:len(caliblst)]
     if len(caliblst) > 0:
         usech = [x for x, y in zip(ch, caliblst) if y in [True,'True']]
         usee = [x for x, y in zip(e, caliblst) if y in [True,'True']]
