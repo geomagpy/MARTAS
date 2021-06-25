@@ -310,11 +310,21 @@ try:
     tglogpath = tgconf.get('bot_logging').strip()
     bot_id = tgconf.get('bot_id').strip()
     martasconfig = tgconf.get('martasconfig').strip()
+    if martasconfig:
+        martasconfig = martasconfig.strip()
     camport = tgconf.get('camport').strip()
-    martasapp = tgconf.get('martasapp').strip()
+    if camport:
+        camport = camport.strip()
+    martasapp = tgconf.get('martasapp')
+    if martasapp:
+        martasapp = martasapp.strip()
     martaspath = tgconf.get('martaspath')
-    marcosconfig = tgconf.get('marcosconfig').strip()
-    proxy = tgconf.get('proxy').strip()
+    marcosconfig = tgconf.get('marcosconfig')
+    if marcosconfig:
+        marcosconfig = marcosconfig.strip()
+    proxy = tgconf.get('proxy')
+    if proxy:
+        proxy = proxy.strip()
     proxyport = tgconf.get('proxyport')
 
     if proxy:
