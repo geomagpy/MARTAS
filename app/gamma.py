@@ -845,7 +845,7 @@ def singlespecanalysis(data, config={}, plot=False, name='example', background=N
             if elem == 291:
                 xs = xw
                 ys = yw
-            #print (len(xw), len(yw))
+            print (len(xw), len(yw))
             max_x, max_y, I, Iuncert, wi = fitpeak(xw,yw,n=4,plot=plot)
             width = 5 # the practical measure of resolution is the width of the photopeak at  half  its  amplitude  known  as  the  Full  Width  at  Half  Ma
             count = sum(datacorr[elem-width:elem+width])
@@ -1101,12 +1101,12 @@ def energycalibration(x, count, ch=[], e=[], n=1,  use= 2, plot=False, addzero=F
     if addzero:
         x = np.asarray(x)
         zero = [0]
-        zero.extend(ch)
-        ch = zero
+        zero.extend(usech)
+        usech = zero
         zero = [0]
-        zero.extend(e)
-        e = zero
-        use = use+1
+        zero.extend(usee)
+        usee = zero
+        #use = use+1
 
     coefs, C_p = np.polyfit(usech, usee, n, cov=True)
     #x_new = np.linspace(0, 500, num=len(x)*10)
