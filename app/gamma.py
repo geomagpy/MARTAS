@@ -65,7 +65,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.dates as mdates
 import matplotlib.image as mpimg
-matplotlib.use('Agg')
+#matplotlib.use('Agg')
 
 
 def get_sensors(mqttpath):
@@ -155,7 +155,7 @@ def read_linux_gamma(path, debug=False):
     def roundSeconds(dateTimeObject):
         newDateTime = dateTimeObject + timedelta(seconds=.5)
         return newDateTime.replace(microsecond=0)
-    
+
     def getName(path):
         nameinfo={}
         name = 'dummy'
@@ -173,13 +173,13 @@ def read_linux_gamma(path, debug=False):
         if len(tl) > 2:
             srevison = tl[2]
         sensorid = "{}_{}_{}".format(name,sn,srevision)
-        
+
         nameinfo['SensorID'] = sensorid
         nameinfo['SensorName'] = name
         nameinfo['SensorRevision'] = srevision
         nameinfo['SensorSerialNumber'] = sn
         return nameinfo
- 
+
     getdate = False
     starttime = None
     endtime = None
@@ -209,7 +209,7 @@ def read_linux_gamma(path, debug=False):
         elif line.startswith('End'):
             getdata = True
             endtime = dparser.parse(line,fuzzy=True)
-        elif line.startswith('Counting'):    
+        elif line.startswith('Counting'):
             # get sampling rate
             vals = line.split(':')
             samprate = vals[1].replace(' ','').strip()
@@ -239,7 +239,7 @@ def read_linux_gamma(path, debug=False):
     resultdict['spectraldata'] = spectraldata
     contentdict['DataContent'] = resultdict
     fi.close()
-    
+
     return contentdict
 
 
@@ -512,15 +512,15 @@ def hl_envelopes_idx(s, dmin=1, dmax=1, split=False):
     lmin,lmax : high/low envelope idx of input signal s
     """
 
-    # locals min      
+    # locals min
     lmin = (np.diff(np.sign(np.diff(s))) > 0).nonzero()[0] + 1 
     # locals max
     lmax = (np.diff(np.sign(np.diff(s))) < 0).nonzero()[0] + 1 
-    
+
 
     if split:
         # s_mid is zero if s centered around x-axis or more generally mean of signal
-        s_mid = np.mean(s) 
+        s_mid = np.mean(s)
         # pre-sorting of locals min based on relative position with respect to s_mid 
         lmin = lmin[s[lmin]<s_mid]
         # pre-sorting of local max based on relative position with respect to s_mid 
@@ -531,9 +531,9 @@ def hl_envelopes_idx(s, dmin=1, dmax=1, split=False):
     lmin = lmin[[i+np.argmin(s[lmin[i:i+dmin]]) for i in range(0,len(lmin),dmin)]]
     # global min of dmin-chunks of locals min 
     lmax = lmax[[i+np.argmax(s[lmax[i:i+dmax]]) for i in range(0,len(lmax),dmax)]]
-    
+
     return lmin,lmax
-    
+
 def get_envelope(signal):
 
     N=10
@@ -594,7 +594,7 @@ def clean_counts(data):
     # fill with zeros until 1024 channels
     while not len(cleandata) == 1024:
         cleandata.append(0)
-    
+
     return cleandata
 
 def despike(yi, th=100000):
@@ -604,7 +604,7 @@ def despike(yi, th=100000):
    the neigboring points is higher than th.
    https://stackoverflow.com/questions/37556487/remove-spikes-from-signal-in-python
    """
-   
+
    y = np.copy(yi) # use y = y1 if it is OK to modify input array
    n = len(y)
    x = np.arange(n)
@@ -656,7 +656,7 @@ def plot_background(data,maxx,interp):
         plt.plot(range(0,len(data)),data,color='black',linewidth=0.6)
         plt.plot(np.arange(0,maxx), interp,color='purple',linewidth=0.6)
         plt.show()
-        
+
 def fit_between_intervals(data,indices,debug=False):
         """
         DESCRIPTION
@@ -706,8 +706,9 @@ def fit_background(data,startstep=100,steps=3,channels=1024, debug=False):
             print ("Length", len(datacorr), len(newintervals))
 
         #######################
-        # step 3: add an additional step to get max 
-        datacorr, newintervals, interp, maxx = append_intervals(newintervals, datacorr, extend=True,add=[list(datacorr).index(max(datacorr))],debug=debug)
+        # step 3: add an additional step to get max
+        # removed this step because of problem with peak fits
+        #datacorr, newintervals, interp, maxx = append_intervals(newintervals, datacorr, extend=True,add=[list(datacorr).index(max(datacorr))],debug=debug)
 
         #######################
         # step 4: iterate until length stays constant
@@ -759,7 +760,7 @@ def append_intervals(intervals, dataset, extend=True, add=[], minwindow = 20, de
             return datacorr, newintervals, interp, maxx
         else:
             return dataset, intervals, interp, maxx
-        
+
 
 def singlespecanalysis(data, config={}, plot=False, name='example', background=None, energycalib=True, plotname='Spectra', debug=False):
     """
@@ -796,7 +797,7 @@ def singlespecanalysis(data, config={}, plot=False, name='example', background=N
     if debug:
         s = smooth_data(data)
         u,l = get_envelope(data)
-        
+
         fig = plt.figure()
         ax = fig.add_subplot(1,1,1)
         ax.set_yscale('log')
@@ -808,7 +809,7 @@ def singlespecanalysis(data, config={}, plot=False, name='example', background=N
         plt.plot(range(0,len(l)),l,color='blue',linewidth=0.6)
         plt.plot(range(0,len(u)),u,color='red',linewidth=0.6)
         plt.show()
-    
+
     # 3. determine dataset corrected for background
     if not background:
         s = smooth_data(data)
@@ -837,9 +838,11 @@ def singlespecanalysis(data, config={}, plot=False, name='example', background=N
         print (" continue with roi")
     # 4. ROIS
     for elem in roi:
+        #print ("ROI", elem)
         if isinstance(elem, int):
             peak = max(datacorr[elem-searchrange:elem+searchrange+1])
             # Fit peak
+            #print (peak, datacorr)
             xw,yw = getdatawin(datacorr, peak)
             # store xw and yw for rectangle in datacorr plot
             if elem == 291:
@@ -865,7 +868,7 @@ def singlespecanalysis(data, config={}, plot=False, name='example', background=N
     if debug:
         print ("     -> done")
         #print ("result", result)
-    
+
     if debug:
         print ("  Step 3: energy calibration")
 
@@ -1167,7 +1170,7 @@ def energycalibration(x, count, ch=[], e=[], n=1,  use= 2, plot=False, addzero=F
     x_new = range(int(np.ceil(min(yi))),int(np.floor(max(yi))),1)
     return func(x_new), coefs
 
-     
+
 def length(datadictionary):
     contd = datadictionary.get('DataContent')
     times = contd.get('time')
@@ -1212,7 +1215,7 @@ def update_configuration(conf, joblist=None, path=None, export=None):
     if joblist:
         conf['export'] = export
     return conf
-    
+
 def extract_paths(path, startdate=(datetime.utcnow()-timedelta(days=1)).date(), enddate=datetime.utcnow().date(),debug=False):
     """
     DESCRIPTION
@@ -1308,6 +1311,8 @@ def main(argv):
         elif opt in ("-D", "--debug"):
             debug = True
 
+    if not debug:
+        matplotlib.use('Agg')
     # Testing inputs
     # --------------------------------
     #read config
@@ -1325,13 +1330,13 @@ def main(argv):
     if debug:
         print ("Configuration looks like:")
         print (conf)
-    
+
     # test inputpath
     # if json then eventually skip extract and use load
     if 'load' in joblist and 'extract' in joblist:
         print (" you need to choose either load (json) or extract (raw) - aborting")
         sys.exit() 
-    
+
     if 'extract' in joblist:
         if debug:
             print ("Extract job:")
@@ -1380,13 +1385,13 @@ def main(argv):
         if debug:
              print (" Calling merge ...")
         #mergedstream = merge_data(conf, startdate, enddate)
-        
+
         def get_list(value):
             if isinstance(value,list):
                 return value
             else:
                 return [value]
-                
+
         starttime = datetime(startdate.year, startdate.month, startdate.day)
         endtime = datetime(enddate.year, enddate.month, enddate.day,23,59,59)
         print (starttime, endtime)
