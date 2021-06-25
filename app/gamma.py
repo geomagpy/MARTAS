@@ -1085,6 +1085,13 @@ def energycalibration(x, count, ch=[], e=[], n=1,  use= 2, plot=False, addzero=F
     #colorlst = config.get('colorlst',[])
     isotopelst = config.get('isotopelst',[])
     graphdir = config.get('graphdir',[])
+    caliblst = config.get('caliblst',[])
+    if len(caliblst) > 0:
+        usech = [x for x, y in zip(ch, caliblst) if y in [True,'True']]
+        usee = [x for x, y in zip(e, caliblst) if y in [True,'True']]
+    else:
+        usech = ch[:use]
+        usee = e[:use]
 
     if not plotmax:
         plotmax = x[-1]
@@ -1099,7 +1106,7 @@ def energycalibration(x, count, ch=[], e=[], n=1,  use= 2, plot=False, addzero=F
         e = zero
         use = use+1
 
-    coefs, C_p = np.polyfit(ch[:use], e[:use], n, cov=True)
+    coefs, C_p = np.polyfit(usech, usee, n, cov=True)
     #x_new = np.linspace(0, 500, num=len(x)*10)
     TT = np.vstack([x**(n-i) for i in range(n+1)]).T
     yi = np.dot(TT, coefs)  # matrix multiplication calculates the polynomial values
@@ -1119,16 +1126,15 @@ def energycalibration(x, count, ch=[], e=[], n=1,  use= 2, plot=False, addzero=F
         ax.fill_between(x, yi+sig_yi, yi-sig_yi, alpha=.25)
         #plt.plot(yi+sig_yi, x, '-',color='blue')
         if addzero:
-            e = e[1:]
-            ch = ch[1:]
-            use = use-1
-        ax.plot(ch[:use],e[:use],'o')
+            usee = usee[1:]
+            usech = usech[1:]
+        ax.plot(usech, usee,'o')
         try:
-            ax.plot(ch[use:],e[use:],'o',color='red')
+            ax.plot(usech, usee,'o',color='red')
         except:
             pass
         #isotopelst = ['^{133}Ba','^{137}Cs','^{40}Ka','^{214}Bi']
-        for idx, xy in enumerate(zip(ch[:use], e[:use])):
+        for idx, xy in enumerate(zip(usech, usee)):
             ax.annotate('(${}$)'.format(isotopelst[idx]), xy=xy, xytext=(5, -7), textcoords='offset points')
         plt.grid()
         pylab.savefig(os.path.join(graphdir,'calibration.png')) # Speichert den spectra-plot als pdf-Datei
