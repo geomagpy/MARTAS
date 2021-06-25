@@ -845,7 +845,7 @@ def singlespecanalysis(data, config={}, plot=False, name='example', background=N
             if elem == 291:
                 xs = xw
                 ys = yw
-            print (len(xw), len(yw))
+            #print (len(xw), len(yw))
             max_x, max_y, I, Iuncert, wi = fitpeak(xw,yw,n=4,plot=plot)
             width = 5 # the practical measure of resolution is the width of the photopeak at  half  its  amplitude  known  as  the  Full  Width  at  Half  Ma
             count = sum(datacorr[elem-width:elem+width])
