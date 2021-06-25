@@ -301,7 +301,9 @@ if proxy:
         print (" ... established")
 """
 
-try:
+ok = True
+#try:
+if ok:
     proxy = ''
     tgconf = GetConf(telegramcfg, confdict=confdict)
     tglogger = setuplogger(name='telegrambot',loglevel=tgconf.get('loglevel'),path=tgconf.get('bot_logging').strip())
@@ -357,8 +359,8 @@ try:
     else:
         allowed_users =  [str(tgconf.get('allowed_users'))]
     tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
-except:
-    print ("error while reading config file or writing to log file - check content and spaces")
+#except:
+#    print ("error while reading config file or writing to log file - check content and spaces")
 
 try:
     conf = acs.GetConf(martasconfig)
