@@ -5,6 +5,7 @@
     console.log(serveraddr);
     var wsconnection = new WebSocket('ws://' +serveraddr+ ':5000/');
     var signals = {};
+    var descrFields = {};
     var table;
     var smoothieloaded = 0;
 
@@ -75,6 +76,7 @@
                 // a new cell in the table
                 var descrField = document.createElement('td');
                 row.appendChild(descrField);
+                descrFields[signalid] = descrField;
                 iH = signals[signalid];
                 descrField.innerHTML = iH.sensorid +'<BR>'+ iH.key +' : '+ iH.elem +' ['+ signals[signalid].unit +']';
             }
@@ -128,6 +130,13 @@
                     // catch not selected signals in non default mode
                     try {
                         signals[signalid].chart.timeSeries.append((data_arr[0]),Number(data_arr[i+1]));
+                        var mydate = new Date(Number(data_arr[0]));
+                        debug.innerHTML = mydate.toString()+'  '+data_arr.slice(1);
+			iH = signals[signalid];
+			text = iH.sensorid +'<BR>'+ iH.key +' : '+ iH.elem +' ['+ signals[signalid].unit +']<BR>';
+			text = text + data_arr[1+i] + ' ' + signals[signalid].unit;
+                        descrFields[signalid].innerHTML = text;
+
                     }
                     catch (e) {}
                     //debug.innerHTML = data_arr[i+1];
