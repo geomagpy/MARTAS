@@ -15,4 +15,5 @@ script:
   - python core/acquisitionsupport.py
   - python core/martas.py
   - python app/archive.py -c conf/archive.cfg -D
+  - python app/testnote.py -D
  

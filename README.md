@@ -457,11 +457,62 @@ To schedule such monitoring use crontab e.g.
         5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/archivemonitor.cfg -n ARCHIVEMONITOR -j logfile  > /dev/NULL 2&>1
 
 
+### 7.3 Sending notifications
 
-### 7.3 Support for NAGIOS/ICINGA
+### 7.3.1 e-mail notifications
 
 
-### 7.4 Communicating with MARTAS
+In order to setup e-mail notifications the following steps need to be performed. Firstly, you should use the provided installer to generally setup monitoring and all necessary configuration files:
+
+        cd MARTAS/install
+        sudo bash install.addapps.sh
+
+This command will create a number of configuration files for notifications within the default folder /etc/martas.
+Secondly, it is necessary to locally save obsfuscated smtp server information on the MARTAS/MARCOS machine:
+
+        python3 addcred.py -t mail -c mymailservice -u info@mailservice.at -p secret -s smtp.mailservice.at -l 25
+
+Now we will need to update the configuration files accordingly.
+
+        sudo nano /etc/martas/mail.cfg
+        
+You only need to change the input for mailcred, and enter the shortcut for the mailservice defined with option c in the command above. Please also enter the other information as listed below with your correct data:
+
+        mailcred    :     mymailservice
+
+        From        :  info@mailservice.at
+        To          :  defaultreceiver@example.com
+        smtpserver  :  smtp.mailservice.at
+        porrt       :  25
+
+
+Finally, use the application testnote.py for testing the validity of your configuration (please update the following line with your paths):
+
+        python3 MARTAS/app/testnote.py -n email -m "Hello World" -c /etc/martas/mail.cfg -l TestMessage -p /home/user/test.log
+
+Pleasenote: calling testnote the first time will create the log file but don't send anything. From then on, a message will be send whenever you change the message content.
+
+### 7.3.1 telegram notifications
+
+MARTAS can send notifications directly to the [Telegram] messenger. You need a Telegram Bot and a user id to setup simple notifications. See section 7.5 for some hints of setting up such environment.
+
+For sending notifications yoz then just need to edit the basic configuration files:
+
+        # if not done install addapps
+        cd MARTAS/install
+        sudo bash install.addapps.sh
+
+        sudo nano /etc/martas/telegram.cfg
+        
+Insert your bot_id (token) and the user_id. Thats it. Then you can use testnote.py to for testing whether its working.
+
+        python3 MARTAS/app/testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
+
+
+### 7.4 Support for NAGIOS/ICINGA
+
+
+### 7.5 Communicating with MARTAS
 
 MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot, referring to your MARTAS.
 
@@ -682,6 +733,25 @@ Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
         30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
 
 
+### 8.7 testnote.py
+
+#### DESCRIPTION:
+Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, please install addapps.
+
+#### OPTIONS:
+
+        -m            : path for telegram configuration file
+        -n            : email, telegram or log
+        -c            : configuration path
+        -l            : logname
+        -p            : logpath
+
+#### APPLICATION:
+
+        python3 testnote.py -n email -m "Hello World" -c /etc/martas/mail.cfg -l TestMessage -p /home/user/test.log
+        python3 testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
+        python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
+
 
 ## 9. Frequently asked questions
 
@@ -727,6 +797,7 @@ app/senddata.py    |	Send data from MARTAS to any other machine using cron/sched
 app/sendip.py    |	Helper for checking and sending public IP  (via ftp) - OLD
 app/serialinit.py    |	Load initialization file (in init) to activate continuous serial data delivery (passive mode)
 app/telegramnote.py    |	Small program to send notes to a Telegram Messenger BOT. Useful for periodic information as an alternative to e-mail. 
+app/testnote.py    |	Small routine to test notification sending via email, telegram, etc. 
 app/testserial.py    |	Small routine to test serial communication. 
 app/threshold.py    |	Threshold tester (see section 7.1) 
 **core**  |  Core methods used by the most runtime scripts and applications 

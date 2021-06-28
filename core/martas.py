@@ -73,7 +73,7 @@ try:
     from email.mime.text import MIMEText
     from email.utils import COMMASPACE, formatdate
     from email import encoders
-    from smtplib import SMTP
+    from smtplib import SMTP, SMTP_SSL
 except:
     pass
 
@@ -133,14 +133,18 @@ def sendmail(dic):
         msg.attach(part)
 
     # seems as if server name needs to be specified in py3.7 and 3.8, should work in older versions as well
-    smtp = SMTP(dic.get('smtpserver'))
+    if port in [465]:
+        smtp = SMTP_SSL(dic.get('smtpserver'))
+    else:
+        smtp = SMTP(dic.get('smtpserver'))
     smtp.set_debuglevel(False)
     if port:
         smtp.connect(dic.get('smtpserver'), port)
     else:
         smtp.connect(dic.get('smtpserver'))
     smtp.ehlo()
-    if port == 587:
+    if port in [587]:
+        print ("Using tls")
         smtp.starttls()
     smtp.ehlo()
     if user:
