@@ -1094,6 +1094,7 @@ def energycalibration(x, count, ch=[], e=[], n=1,  use= 2, plot=False, addzero=F
     if len(caliblst) > 0:
         usech = [x for x, y in zip(ch, caliblst) if y in [True,'True']]
         usee = [x for x, y in zip(e, caliblst) if y in [True,'True']]
+        isotopelst = [x for x, y in zip(isotopelst, caliblst) if y in [True,'True']]
     else:
         usech = ch[:use]
         usee = e[:use]
