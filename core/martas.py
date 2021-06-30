@@ -147,7 +147,7 @@ def sendmail(dic):
         print ("Using tls")
         smtp.starttls()
     smtp.ehlo()
-    if user:
+    if user and not user in ['None','False']:
         smtp.login(user, dic.get('pwd'))
     smtp.sendmail(send_from, send_to, msg.as_string())
     smtp.close()
