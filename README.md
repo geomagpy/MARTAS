@@ -740,11 +740,11 @@ Send notifications via email and telegram. testnote.py will create a log file wi
 
 #### OPTIONS:
 
-        -m            : path for telegram configuration file
-        -n            : email, telegram or log
-        -c            : configuration path
-        -l            : logname
-        -p            : logpath
+        -m            : message to be send
+        -n            : notification type: email, telegram or log
+        -c            : path to configuration file
+        -l            : key value of the log dictionary (value will be the message)
+        -p            : path to the logfile (will contains a dictionary)
 
 #### APPLICATION:
 
@@ -758,10 +758,10 @@ Send notifications via email and telegram. testnote.py will create a log file wi
 #### During installation of pip packages dependency problems are occuring
 
 If you observe such problems (problems occured in the past with matplotlib, numpy and/or scipy) then it is advisable
-to install the recommended packages for your system. Please remove the pip packages (pip remove..) and install system
+to install the recommended packages for your system using apt instead of pip. Please remove the pip packages (pip remove..) and install system
 packages using e.g. sudo apt install python3-scipy
 
-#### I want to send out data periodically from ma MARTAS acquisition machine using FTP or similar. Is this easily possible?
+#### I want to send out data periodically from a MARTAS acquisition machine using FTP or similar. Is this easily possible?
 
 use app/senddata.py within crontab:
 
