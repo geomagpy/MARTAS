@@ -244,6 +244,7 @@ hiddencommands = {'reboot':'reboot the remote computer'}
 commandlist = {}
 commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'} 
 commandlist['hello'] = {'commands': ['hello','Hello'], 'combination' : 'any'}
+commandlist['imbot'] = {'commands': ['imbot','IMBOT'], 'combination' : 'any'}
 
 commandlist['system'] = {'commands': ['System','system'], 'combination' : 'any'}
 commandlist['martas'] = {'commands': ['Martas','martas','MARTAS'], 'combination' : 'any'}
@@ -929,6 +930,20 @@ def handle(msg):
                # Send a figure
                # -----------------------
                bot.sendPhoto(chat_id, open(tgconf.get('fig2'),'rb'))
+           elif any([word in command for word in commandlist['imbot'].get('commands')]):
+               # -----------------------
+               # Send MARTAS process command
+               # -----------------------
+               bot.sendMessage(chat_id, "Sending result request to IMBOT...")
+               cmd = command.replace('martas','').replace('MARTAS','')
+               cmd = cmd.strip()
+               yearl = re.findall(r'\d+', cmd)
+               if len(yearl) > 0:
+                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis{a}.json -l /srv/DataCheck/IMBOT/{a}/level".format(a=yearl[-1])
+               else:
+                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis2020.json -l /srv/DataCheck/IMBOT/2020/level"
+               #subprocess.call([command])
+               os.system(command)
             elif any([word in command for word in commandlist['martas'].get('commands')]):
                # -----------------------
                # Send MARTAS process command
