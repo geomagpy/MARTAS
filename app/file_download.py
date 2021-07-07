@@ -647,6 +647,9 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
 
     print("  Writing data to a local directory (or tmp)")
 
+    if deleteremote in [True,'True']:
+        print("  IMPORTANT: deleting remote data has been activated")
+
     if debug:
         print ("   Please Note: files will be copied to local filesystem even when debug is selected")
   
