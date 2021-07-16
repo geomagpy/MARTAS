@@ -169,6 +169,11 @@ forcedirectory     :      False
 # Zip data in archive directory
 zipdata            :      False
 
+
+# delete from remote source after successful transfer
+# (doesnt work with scp)
+deleteremote       :      False
+
 # Force data to the given revision number
 #forcerevision      :      0001
 
@@ -615,12 +620,14 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
     protocol = config.get('protocol')
     source = config.get('source')
     destination = config.get('destination')
+    deleteremote = config.get('deleteremote',False)
     user = config.get('rmuser')
     password = config.get('rmpassword')
     address = config.get('rmaddress')
     port = config.get('rmport')
     zipping = GetBool(config.get('zipdata'))
     forcelocal = GetBool(config.get('forcedirectory',False))
+    deleteopt = " "
 
     #filename = config.get('filenamestructure')
     #dateformat = config.get('dateformat')
@@ -639,6 +646,9 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
 
 
     print("  Writing data to a local directory (or tmp)")
+
+    if deleteremote in [True,'True']:
+        print("  IMPORTANT: deleting remote data has been activated")
 
     if debug:
         print ("   Please Note: files will be copied to local filesystem even when debug is selected")
@@ -686,11 +696,17 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                 fhandle = open(destname, 'wb')
                 ftp.retrbinary('RETR ' + f, fhandle.write)
                 fhandle.close()
+                if deleteremote in [True,'True']:
+                    ftp.delete(f)
             elif protocol in ['scp','SCP']:
                 scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
             elif protocol in ['rsync']:
                 # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
-                rsyncstring = "rsync -avz -e ssh {} {}".format(user+'@'+address+':'+f,destpath)
+                if deleteremote in [True,'True']:
+                    deleteopt = " --remove-source-files "
+                else:
+                    deleteopt = " "
+                rsyncstring = "rsync -avz -e ssh{}{} {}".format(deleteopt, user+'@'+address+':'+f,destpath)
                 print ("Executing:", rsyncstring)
                 subprocess.call(rsyncstring.split())
             elif protocol in ['html','HTML']:
@@ -698,6 +714,8 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             elif protocol in ['']:
                 if not os.path.exists(destname):
                     copyfile(f, destname)
+                    if deleteremote in [True,'True']:
+                        os.remove(f)
                 else:
                     print ("   -> raw file already existing - skipping write")
             if zipping:
