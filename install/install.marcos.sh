@@ -14,10 +14,10 @@
 
 # Get the paths for python and config directory
 PYPATH="/home/leon/Software/anaconda2/bin/python"
-PYPATH="/usr/bin/python"
+PYPATH="/usr/bin/python3"
 CFGPATH="/etc/martas"
 LOGPATH="/var/log/magpy"
-TELEGRAMPATH="${CFGPATH}/telegram.conf"
+TELEGRAMPATH="${CFGPATH}/telegram.cfg"
 BROKER="broker"
 BROKERIP="localhost"
 STATION="all"
