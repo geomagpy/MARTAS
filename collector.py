@@ -66,6 +66,7 @@ from datetime import datetime
 from matplotlib.dates import date2num, num2date
 import numpy as np
 import json
+import socket
 
 # For file export
 ## -----------------------------------------------------------
@@ -173,7 +174,9 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
                 import json
                 altbro = json.loads(altbrocker)
         """
-        clientid = "{}".format(broker)
+        ## TODO neen a unique clientid (add name of client (socket.hostname)
+        hostname = socket.gethostname()
+        clientid = "{}{}".format(broker,hostname)
         client = mqtt.Client(clientid,False)
         # Authentication part
         if not credentials in ['','-']:
