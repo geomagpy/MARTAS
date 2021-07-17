@@ -297,16 +297,20 @@ def die(child, errstr):
     child.terminate()
     exit(1)
 
-def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_required=True, timeout=60,debug=False):
+def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_required=True, timeout=60, debug=False):
     """
     Method to extract filename with wildcards or date patterns from a directory listing
     """
     pathlist = []
-    filename = filename.replace('*','')
+    #filename = filename.replace('*','')
+    print (filename, date)
     if dateformat in ['','ctime','mtime']:
         filepat = filename
     else:
         filepat = filename % date
+
+    if debug:
+        print ("Running ssh_getlist for {}".format(filepat))
 
     def _obtain_search_criteria(fn):
         # BASIC search string
@@ -332,9 +336,10 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_requir
 
     opt, grep = _obtain_search_criteria(filepat)
     #searchstr = 'find %s -type f{}{}'.format(opt, grep)
+    #grep += ' | grep -v "#"' #eventually add this exclude
 
     if not dateformat in ['','ctime','mtime']:
-        searchstr = 'find %s -type f | grep "%s"' % (source,filepat)
+        searchstr = 'find {} -type f{}{}'.format(source,opt,grep)
     elif dateformat in ['ctime','mtime']:
         mindate = (datetime.utcnow() - date).days
         maxdate = (datetime.utcnow() - maxdate).days
@@ -473,6 +478,10 @@ def CheckConfiguration(config={},debug=False):
 
     dateformat = config.get('dateformat')
     filename = config.get('filenamestructure')
+    if isinstance(filename,list):
+        # necessary if brackets with options are contained
+        filename = ",".join(filename)
+    config['filenamestruc'] = filename
 
     if dateformat == "" and filename == "":
         print('   Specify either a fileformat: -f myformat.dat or a dateformat -d "%Y",ctime !')
@@ -559,7 +568,7 @@ def CreateTransferList(config={},datelist=[],debug=False):
     protocol = config.get('protocol','')
     source = config.get('source','')
     remotepath = config.get('sourcedatapath')
-    filename = config.get('filenamestructure')
+    filename = config.get('filenamestruc')
     user = config.get('rmuser')
     password = config.get('rmpassword')
     address = config.get('rmaddress')
@@ -1063,12 +1072,12 @@ def main(argv):
 
         # Obtain list of files to be transferred
         # -----------------------
-        try:
-            filelist = CreateTransferList(config=config,datelist=datelist,debug=debug)
-            moveon = True
-        except:
-            statusmsg[name] = 'could not obtain remote file list - aborting'
-            moveon = False
+        #try:
+        filelist = CreateTransferList(config=config,datelist=datelist,debug=debug)
+        moveon = True
+        #except:
+        #    statusmsg[name] = 'could not obtain remote file list - aborting'
+        #    moveon = False
 
         if moveon:
             # Obtain list of files to be transferred
