@@ -133,6 +133,8 @@ dateformat             :      %Y-%m-%d
 #       examples: "WIC_%s.bin"
 #                 "*%s*"
 #                 "WIC_%s.*"
+                  "*.[bin,asc,cdf]" -> define possible variants within brackets 
+                  "CALY*[LFZ,LFY,LFX]*%s*" -> brackets can also be used in filename in combiation with date
 #                 "WIC_2013.all" - no dateformat -> single file will be read
 filenamestructure      :      *%s*
 
@@ -218,6 +220,7 @@ Changelog:
    - simple creation of MagPy archive without database tables (but making use of DB meta info)
    - just download files using ftp, scp, rsync etc
    - use a configuration file
+2021-07-17    RL complex placeholders for file identifications
 
 """
 
@@ -294,7 +297,7 @@ def die(child, errstr):
     child.terminate()
     exit(1)
 
-def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_required=True, timeout=60):
+def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_required=True, timeout=60,debug=False):
     """
     Method to extract filename with wildcards or date patterns from a directory listing
     """
@@ -304,17 +307,46 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_requir
         filepat = filename
     else:
         filepat = filename % date
+
+    def _obtain_search_criteria(fn):
+        # BASIC search string
+        # fn = filepat
+        #grep = 'grep "%s"'
+        #search = 'find %s -type f{}{}'.format(find, grep)
+        optstr=""
+        grepstr=""
+        if fn.find("[") >= 0:
+            brack = fn[fn.find("[")+1:fn.find("]")]
+            opt = brack.split(',')
+            for o in opt:
+                if o == opt[-1]:
+                    optstr += ' -name "*{}*"'.format(o)
+                else:
+                    optstr += ' -name "*{}*" -o'.format(o)
+            fn = fn.replace(brack,'').replace('[]','*')
+        el = fn.split('*')
+        el = [e for e in el if len(e) > 0]
+        for e in el:
+            grepstr += ' | grep "{}"'.format(e)
+        return optstr, grepstr
+
+    opt, grep = _obtain_search_criteria(filepat)
+    #searchstr = 'find %s -type f{}{}'.format(opt, grep)
+
     if not dateformat in ['','ctime','mtime']:
         searchstr = 'find %s -type f | grep "%s"' % (source,filepat)
     elif dateformat in ['ctime','mtime']:
         mindate = (datetime.utcnow() - date).days
         maxdate = (datetime.utcnow() - maxdate).days
         if maxdate == 0:
-            searchstr = 'find {} -type f -{} -{} | grep "{}"'.format(source,dateformat, mindate,filepat)
+            searchstr = 'find {} -type f -{} -{}{}{}'.format(source,dateformat, mindate,opt,grep)
         else:
-            searchstr = 'find {} -type f -{} -{} -{} +{} | grep "{}"'.format(source,dateformat,mindate,dateformat,(mindate-maxdate),filepat)
+            searchstr = 'find {} -type f -{} -{} -{} +{}{}{}'.format(source,dateformat,mindate,dateformat,(mindate-maxdate),opt,grep)
     else:
-        searchstr = 'find {} -type f | grep "{}"'.format(source,filepat)
+        searchstr = 'find {} -type f{}{}'.format(source,opt,grep)
+
+    if debug:
+        print ("Searchstring to indentify files to copy: {}".format(searchstr))
 
     COMMAND= "ssh %s@%s '%s';" % (cred[0],cred[2],searchstr)
     child = pexpect.spawn(COMMAND)
@@ -569,11 +601,11 @@ def CreateTransferList(config={},datelist=[],debug=False):
         import pexpect
         if not dateformat in ['','ctime','mtime']:
             for date in datelist:
-                path = ssh_getlist(remotepath, filename, date, dateformat, datetime.utcnow(), cred=[user,password,address],pwd_required=pwd_required)
+                path = ssh_getlist(remotepath, filename, date, dateformat, datetime.utcnow(), cred=[user,password,address],pwd_required=pwd_required,debug=debug)
                 if len(path) > 0:
                     filelist.extend(path)
         else:
-            filelist = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=[user,password,address],pwd_required=pwd_required)
+            filelist = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=[user,password,address],pwd_required=pwd_required,debug=debug)
     elif protocol == '':
         if debug:
             print (" Local directory access ") 
