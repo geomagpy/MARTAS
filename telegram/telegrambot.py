@@ -235,6 +235,8 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime', 
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)',
                    'cam':'get a live picture from a connected camera',
+                   'figure1':'open a preconfigured figure',
+                   'figure2':'open an alternative figure',
                    'help':'print this list'}
 
 travistestrun = False
@@ -930,7 +932,7 @@ def handle(msg):
                # Send a figure
                # -----------------------
                bot.sendPhoto(chat_id, open(tgconf.get('fig2'),'rb'))
-           elif any([word in command for word in commandlist['imbot'].get('commands')]):
+            elif any([word in command for word in commandlist['imbot'].get('commands')]):
                # -----------------------
                # Send MARTAS process command
                # -----------------------
