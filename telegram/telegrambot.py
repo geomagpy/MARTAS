@@ -100,6 +100,7 @@ class tgpar(object):
     tglogpath = '/var/log/magpy/telegrambot.log'
     version = '1.0.3'
     martasapp = '/home/cobs/MARTAS/app'
+    purpose = 'MARTAS'
 
 
 def GetConf(path, confdict={}):
@@ -312,6 +313,7 @@ try:
         tglogger = setuplogger(name='telegrambot',loglevel='DEBUG',path='stdout')
     tglogpath = tgconf.get('bot_logging').strip()
     bot_id = tgconf.get('bot_id').strip()
+    purpose = tgconf.get('purpose')
     martasconfig = tgconf.get('martasconfig').strip()
     if martasconfig:
         martasconfig = martasconfig.strip()
@@ -354,6 +356,8 @@ try:
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
+    if purpose:
+        tgpar.purpose = purpose
     allusers = tgconf.get('allowed_users')
     if isinstance(allusers, list):
         allowed_users =  [str(el) for el in allusers]
@@ -363,7 +367,8 @@ try:
 except:
     print ("error while reading config file or writing to log file - check content and spaces")
 
-try:
+if tgpar.pupose in ['martas','Martas','MARTAS']:
+  try:
     conf = acs.GetConf(martasconfig)
     logpath = '/var/log/syslog'
     if not conf.get('logging').strip() in ['sys.stdout','stdout']:
@@ -381,7 +386,7 @@ try:
     mqttpath = conf.get('bufferdirectory')
     #apppath = conf.get('initdir').replace('init','app')
     tglogger.debug("Successfully obtained parameters from martas.cfg")
-except:
+  except:
     #print ("Configuration (martas.cfg) could not be extracted - aborting")
     if not travistestrun:
         tglogger.warning("Configuration (martas.cfg) could not be extracted - aborting")
