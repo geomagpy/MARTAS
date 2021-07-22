@@ -367,7 +367,7 @@ try:
 except:
     print ("error while reading config file or writing to log file - check content and spaces")
 
-if tgpar.pupose in ['martas','Martas','MARTAS']:
+if tgpar.purpose in ['martas','Martas','MARTAS']:
   try:
     conf = acs.GetConf(martasconfig)
     logpath = '/var/log/syslog'
