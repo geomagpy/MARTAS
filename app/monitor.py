@@ -260,7 +260,7 @@ def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', st
             state = "recent file found"
             if diff > threshold:
                 state = "no recent file"
-            msgname = "{}-{}".format(jobname,dname.replace('_',''))
+            msgname = "{}-{}".format(jobname,dname.replace('_','').replace('*',''))
             statusdict[msgname] = state
             if debug:
                 print ("{}: {}".format(dname,state))
