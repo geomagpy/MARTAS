@@ -235,6 +235,41 @@ def CheckMARTAS(testpath='/srv', threshold=600, jobname='JOB', statusdict={}, ig
     return statusdict
 
 
+def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', statusdict={}, ignorelist=[], thresholddict={}, debug=False):
+    """
+    DESCRIPTION:
+        Git to the directory testpath and check for latest files
+        add active or inactive to a log file
+        if log file not exists: just add data
+        if exists: check for changes and create message with all changes
+    """
+
+    ld = _latestfile(os.path.join(testpath,'*'),date=True)
+    lf = _latestfile(os.path.join(testpath,'*'))
+    if os.path.isfile(lf):
+        if debug:
+            print (" Latest file: {} ...".format(lf))
+            
+        # check white and blacklists
+        performtest = False
+        if not any([lf.find(ig) > -1 for ig in ignorelist]):
+            if debug:
+                print ("   -> not containd in ignorelist - continuing")
+            diff = (datetime.utcnow()-ld).total_seconds()
+            dname = testpath.split('/')[-1]
+            state = "recent file found"
+            if diff > threshold:
+                state = "no recent file"
+            msgname = "{}-{}".format(jobname,dname.replace('_',''))
+            statusdict[msgname] = state
+            if debug:
+                print ("{}: {}".format(dname,state))
+        else:
+            print ("    -> containd in ignorelist - passing")
+
+    return statusdict
+
+
 def ConnectDB(dbcred):
     # Connect to test database
     # ------------------------------------------------------------
@@ -498,7 +533,7 @@ def main(argv):
     configpath = ''
     jobname = 'MARTASMONITOR'
     hostname = socket.gethostname().upper()
-    allowedjobs = ['martas','space','marcos','logfile']
+    allowedjobs = ['martas','space','marcos','logfile','datafile']
     debug = False
     travistestrun = False
     #testst = DataStream()
@@ -555,6 +590,7 @@ def main(argv):
             print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n DATABASE -j marcos')
             print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n MARTAS -j martas,space')
             print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n MARCOSLOG -j log')
+            print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n AGEOFDATAFILE -j datafile'
             sys.exit()
         elif opt in ("-c", "--config"):
             configpath = arg
@@ -653,6 +689,10 @@ def main(argv):
             if debug:
                 print ("Running martas job")
             statusmsg = CheckMARTAS(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+        elif 'datafile' in joblist:
+            if debug:
+                print ("Running datafile job on {}".format(basedirectory))
+            statusmsg = CheckDATAFILE(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
         if 'marcos' in joblist:
             if debug:
                 print ("Running marcos job")
@@ -700,7 +740,7 @@ if __name__ == "__main__":
 # path to log file
 logpath   :   /var/log/magpy/mm-monitor.log
 
-# base directory of buffer (MARTAS) and archive (MARCOS)
+# base directory of buffer (MARTAS) and archive (MARCOS; or directory to check for file dates
 basedirectory   :   /srv
 
 # where to find database credentials
@@ -729,7 +769,7 @@ logsearchmessage   :   writeDB: unknown MySQL error when checking for existing t
 # tolerated amount of repeated messages
 tolerance   :   20
 
-# basic job list (can be space (only disk space), martas (buffer files), marcos (tables), logfile (logfiles)
+# basic job list (can be space (only disk space), martas (buffer files), marcos (tables), logfile (logfiles), datafile (age of file in directory)
 joblist   :   space,martas,marcos,logfile
 
 # bash script to be executed if critical error is found (message contains 'execute'), add execution date to log

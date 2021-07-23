@@ -447,7 +447,7 @@ Use the installation script "install.addapps.sh" to install monitoring support. 
 
 To apply monitoring to watch contents of specfic log files change the following lines within the monitor.cfg configuration file:
 
-        logfile   :   /var/log/magpy/acrhive.log
+        logfile   :   /var/log/magpy/archive.log
         logtesttype   :   last
         logsearchmessage   :   SUCCESS
 
@@ -455,6 +455,18 @@ The above example will scan the archive.log file for a string "SUCCESS" in the l
 
 To schedule such monitoring use crontab e.g.
         5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/archivemonitor.cfg -n ARCHIVEMONITOR -j logfile  > /dev/NULL 2&>1
+
+#### 7.2.3 file date monitoring
+
+To apply monitoring to watch for recent files in a directory change the following lines within the monitor.cfg configuration file:
+
+        basedirectory      :   /home/user/datadirectory
+        defaultthreshold   :   600
+
+The above example will scan the directory '/home/user/datadirectory' and check if a file younger then '600' seconds is present. (Ignorelist is not yet working)
+
+To schedule such monitoring use crontab e.g.
+        5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/uploadmonitor.cfg -n UPLOADMONITOR -j datafile  > /dev/NULL 2&>1
 
 
 ### 7.3 Sending notifications
