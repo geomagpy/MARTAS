@@ -244,8 +244,8 @@ def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', st
         if exists: check for changes and create message with all changes
     """
 
-    ld = _latestfile(os.path.join(testpath,'*'),date=True)
-    lf = _latestfile(os.path.join(testpath,'*'))
+    ld = _latestfile(testpath,date=True)
+    lf = _latestfile(testpath)
     if os.path.isfile(lf):
         if debug:
             print (" Latest file: {} ...".format(lf))
@@ -590,7 +590,7 @@ def main(argv):
             print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n DATABASE -j marcos')
             print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n MARTAS -j martas,space')
             print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n MARCOSLOG -j log')
-            print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n AGEOFDATAFILE -j datafile'
+            print ('python3 monitor.py -c /etc/martas/appconf/monitor.cfg -n AGEOFDATAFILE -j datafile')
             sys.exit()
         elif opt in ("-c", "--config"):
             configpath = arg

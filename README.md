@@ -460,10 +460,10 @@ To schedule such monitoring use crontab e.g.
 
 To apply monitoring to watch for recent files in a directory change the following lines within the monitor.cfg configuration file:
 
-        basedirectory      :   /home/user/datadirectory
+        basedirectory      :   /home/user/datadirectory/*.cdf
         defaultthreshold   :   600
 
-The above example will scan the directory '/home/user/datadirectory' and check if a file younger then '600' seconds is present. (Ignorelist is not yet working)
+The above example will scan the directory '/home/user/datadirectory' and check if a file '*.cdf' younger then '600' seconds is present. (Ignorelist is not yet working properly as it is not applied to overall file selection)
 
 To schedule such monitoring use crontab e.g.
         5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/uploadmonitor.cfg -n UPLOADMONITOR -j datafile  > /dev/NULL 2&>1
