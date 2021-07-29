@@ -559,29 +559,33 @@ def getspace():
 def jobprocess(typ='MARTAS'):
     # Status of MARTAS MARCOS jobs
     lines = []
+    print (" -checking {}".format(typ))
     if typ in ['martas','Martas','MARTAS']:
         try:
-            mesg += "\n\nMARTAS process(es):\n----------"
+            mesg = "MARTAS process(es):\n----------"
             proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
             lines = proc.stdout.readlines()
         except:
             pass
     elif typ in ['marcos','Marcos','MARCOS']:
         try:
+            mesg = "MARCOS process(es):\n----------"
             # get all collect-* files from init.d
             collectlist = glob.glob('/etc/init.d/collect-*')
             for coll in collectlist:
                 proc = subprocess.Popen([coll,'status'], stdout=subprocess.PIPE)
                 tmplines = proc.stdout.readlines()
-                if vers=='3':
-                    tmplines = [line.decode() for line in tmplines]
                 lines.extend(tmplines)
         except:
             pass
     else:
-        lines = ['Requested job type: {}'.format(typ),' -> not yet supported']
-    if vers=='3':
-       lines = [line.decode() for line in lines]
+        mesg = "{} process(es):\n----------".format(typ)
+        lines = ['Requested job type','is not yet supported']
+    try:
+        if vers=='3':
+           lines = [line.decode() for line in lines]
+    except:
+        pass
 
     mesg += "\n{}".format(''.join(lines))
 
