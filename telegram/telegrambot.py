@@ -293,17 +293,6 @@ for opt, arg in opts:
         travistestrun = True
         telegramcfg = 'telegrambot.cfg'
 
-"""
-print ("Hello World")
-proxy = True
-if proxy:
-        print (" found proxy")
-        import urllib3
-        proxy_url="http://138.22.188.129:3128"
-        telepot.api._pools = {'default': urllib3.ProxyManager(proxy_url=proxy_url, num_pools=3, maxsize=10, retries=False, timeout=30),}
-        telepot.api._onetime_pool_spec = (urllib3.ProxyManager, dict(proxy_url=proxy_url, num_pools=1, maxsize=1, retries=False, timeout=30))
-        print (" ... established")
-"""
 
 try:
     proxy = ''
@@ -565,13 +554,19 @@ def getspace():
     except:
         pass
 
+    return mesg
+
+def jobprocess(typ='MARTAS'):
     # Status of MARTAS MARCOS jobs
-    try:
-        mesg += "\n\nMARTAS process(es):\n----------"
-        proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
-        lines = proc.stdout.readlines()
-        if vers=='3':
-            lines = [line.decode() for line in lines]
+    lines = []
+    if typ in ['martas','Martas','MARTAS']:
+        try:
+            mesg += "\n\nMARTAS process(es):\n----------"
+            proc = subprocess.Popen(['/etc/init.d/martas','status'], stdout=subprocess.PIPE)
+            lines = proc.stdout.readlines()
+        except:
+            pass
+    elif typ in ['marcos','Marcos','MARCOS']:
         try:
             # get all collect-* files from init.d
             collectlist = glob.glob('/etc/init.d/collect-*')
@@ -583,9 +578,12 @@ def getspace():
                 lines.extend(tmplines)
         except:
             pass
-        mesg += "\n{}".format(''.join(lines))
-    except:
-        pass
+    else:
+        lines = ['Requested job type: {}'.format(typ),' -> not yet supported']
+    if vers=='3':
+       lines = [line.decode() for line in lines]
+
+    mesg += "\n{}".format(''.join(lines))
 
     return mesg
 
@@ -892,6 +890,8 @@ def handle(msg):
                # Status messages on memory and disk space
                # -----------------------
                mesg = getspace()
+               bot.sendMessage(chat_id, mesg)
+               mesg = jobprocess(typ=tgpar.purpose)
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['system'].get('commands')]):
                # -----------------------
