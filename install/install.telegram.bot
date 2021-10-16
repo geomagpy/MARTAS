@@ -112,8 +112,9 @@ update-rc.d telegrambot defaults
 echo "" >> /etc/crontab
 echo "# TelegramBot should be restarted once in while" >> /etc/crontab
 echo "# please make sure that PATH is available" >> /etc/crontab
-echo "0  6  *  *  *  /etc/init.d/telegrambot restart > /dev/NULL 2&>1" >> /etc/crontab
-echo "0  14  *  *  *  /etc/init.d/telegrambot restart > /dev/NULL 2&>1" >> /etc/crontab
+echo "# evenually add a python environment" >> /etc/crontab
+echo "0 6    * * *   root /etc/init.d/telegrambot restart > /dev/NULL 2&>1" >> /etc/crontab
+echo "0 14   * * *   root /etc/init.d/telegrambot restart > /dev/NULL 2&>1" >> /etc/crontab
 
 echo "----------------------------------------"
 echo "telegrambot successfully added as service"

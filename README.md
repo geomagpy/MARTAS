@@ -602,6 +602,7 @@ file_download.py | Used to download files, store them in a raw directory amd con
 file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   | 8.6
 threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
+speedtest.py     | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files     |     |    | 8.8
 gamma.py         | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3  | 8.7
 
 ### 8.2 addcred.py
@@ -744,8 +745,27 @@ Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
 
         30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
 
+### 8.8 speedtest.py
 
-### 8.7 testnote.py
+#### DESCRIPTION:
+Perform a speedtest based on speedtest-cli
+(https://www.speedtest.net/de/apps/cli)
+
+#### PREREQUISITES:
+
+        sudo apt install speedtest-cli
+
+
+#### APPLICATION:
+1) Run
+        python3 speedtest.py -n speed_starlink01_0001
+2) Run periodically
+        sudo crontab -e
+        
+        */5  *  *  *  *  /usr/bin/python3 /path/to/speedtest.py -c /path/to/conf.cfg -n speed_starlink01_0001  > /dev/NULL 2&>1
+
+
+### 8.9 testnote.py
 
 #### DESCRIPTION:
 Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, please install addapps.
