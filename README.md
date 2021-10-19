@@ -29,13 +29,12 @@ Currently supported systems are:
 - Thiess LaserNiederschlagsMessgerät - Disdrometer
 - Ultrasonic Anemometer
 - AD7714 general ADC
-- MinGeo PalmDac 24 bit data logger (under development)
 - Campbell Scientific CR800, CR1000 Data logger
 - ENV05 Environment sensors
 - MySQL/MariaDB databases
 - Dallas OneWire Sensors
 - DIGIBASE MCA Gamma sensors
-- Mingeo ObsDAQ in combination with PalmAcq
+- Mingeo ObsDAQ 24bit-ADC in combination with PalmAcq logger
 
 and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
 (requiring a specific serial output format in the self written microcontroller program - appendix)
@@ -884,23 +883,17 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 #### 10.1.5 ObsDAQ / PalmAcq
 Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
-1) Use
-palmacq.py -h  and
-obsdaq.py -h for further information.
-These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
-2) This step is optional:
-obsdaqinit_without_conf_file.sh can be used to test the initialization of PalmAcq and ObsDAQ. (edit to set MARTAS dir)
-Final settings should be written into obsdaq.cfg.
-3)
-obsdaqinit.sh uses obsdaq.cfg for initialization (edit to set MARTAS dir and path to obsdaq.cfg)
+1) Use palmacq.py -h  and obsdaq.py -h for further information. These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
+2) This step is optional: obsdaqinit_without_conf_file.sh can be used to test the initialization of PalmAcq and ObsDAQ. (edit to set MARTAS dir) Final settings should be written into obsdaq.cfg.
+3) edit obsdaqinit.sh (set MARTAS dir and path to obsdaq.cfg)
+and obsdaq.cfg (needed for initialization)
 4) Edit martas.cfg to tell MARTAS where to find obsdaqinit.sh e.g.
-initdir  :  /etc/martas/init/
+  initdir  :  /etc/martas/init/
 5) Add following line to martas.cfg, e.g.: 
-obsdaqconfpath  :  /etc/martas/obsdaq.cfg
+  obsdaqconfpath  :  /etc/martas/obsdaq.cfg
 6) Edit sensors.cfg e.g. like following line:
-FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
-7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time.
-From now on NTP time will be recorded additionally in the sectime column
+  FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
+7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time. From now on NTP time will be recorded additionally in the sectime column
 
 ### 10.2 Dallas OW (One wire) support
 
