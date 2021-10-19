@@ -2,7 +2,7 @@
 
 MARTASPATH="/home/pi/MARTAS"
 APPPATH=$MARTASPATH"/app"
-CONF=$MARTASPATH"/conf/obsdaq.cfg"
+CONF="/etc/martas/obsdaq.cfg"
 
 # set PalmAcq into idle mode (command mode)
 python $APPPATH/palmacq.py -m $CONF -qp

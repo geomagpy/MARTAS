@@ -35,6 +35,7 @@ Currently supported systems are:
 - MySQL/MariaDB databases
 - Dallas OneWire Sensors
 - DIGIBASE MCA Gamma sensors
+- Mingeo ObsDAQ in combination with PalmAcq
 
 and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
 (requiring a specific serial output format in the self written microcontroller program - appendix)
@@ -604,6 +605,8 @@ threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
 speedtest.py     | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files     |     |    | 8.8
 gamma.py         | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3  | 8.7
+obsdaq.py        | communicate with ObsDAQ ADC | obsdaq.cfg | py2/py3  | 10.1.5
+palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3  | 10.1.5
 
 ### 8.2 addcred.py
 
@@ -832,13 +835,16 @@ app/telegramnote.py    |	Small program to send notes to a Telegram Messenger BOT
 app/testnote.py    |	Small routine to test notification sending via email, telegram, etc. 
 app/testserial.py    |	Small routine to test serial communication. 
 app/threshold.py    |	Threshold tester (see section 7.1) 
+app/obsdaq.py        | communicate with ObsDAQ ADC (see section 10.1.5)
+app/palmacq.py       | communicate with PalmAcq datalogger (see section 10.1.5)
 **core**  |  Core methods used by the most runtime scripts and applications 
 core/martas.py    |	basic logging routines for MARTAS/MARCOS and wrapper for e-mail,logfile,telegram notifications 
 core/acquisitionsupport.py    |	contains general communication methods and configuration file interpreters
 **conf**  | Basic initialization files - used by installer 
 conf/sensors.cfg    |	skeleton for sensors configuration information
-conf/martas.cfg    |	skeleton for basic MARTAS confifuration -> acquisition
-conf/marcos.cfg    |	skeleton for basic MARCOS confifuration -> collector
+conf/martas.cfg    |	skeleton for basic MARTAS configuration -> acquisition
+conf/marcos.cfg    |	skeleton for basic MARCOS configuration -> collector
+conf/obsdaq.cfg    |	skeleton for basic obsdaq configuration - enter path in martas.cfg (see 10.1.5)
 **init**  | Basic initialization files - used by installer 
 init/martas.sh    |	Start script to be used in /etc/init.d
 init/autostart.sh    |	Run to add and sctivate /etc/init.d/martas
@@ -847,6 +853,7 @@ init/gsm90v7init.sh    |	Initialization script GEM GSM90 v7
 init/gsm90v6init.sh    |	Initialization script GEM GSM90 v6
 init/pos1init.sh    |	Initialization script Quantum POS1 
 init/bm35init.sh    |	Initialization script Meteolab BM35 pressure
+init/obsdaqinit.sh  |   Initialization script for PalmAcq and ObsDAQ
 **install**  | Installer scripts. Will update configuration and copy job specific information to /etc/martas (default)
 install/install.marcos.sh    |	Installer for collector jobs  (section 6.0)
 install/install.martas.sh    |	Installer for acquisition jobs  (section 3.0)
@@ -875,6 +882,25 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 #### 10.1.4 LM
 
+#### 10.1.5 ObsDAQ / PalmAcq
+Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
+1) Use
+palmacq.py -h  and
+obsdaq.py -h for further information.
+These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
+2) This step is optional:
+obsdaqinit_without_conf_file.sh can be used to test the initialization of PalmAcq and ObsDAQ. (edit to set MARTAS dir)
+Final settings should be written into obsdaq.cfg.
+3)
+obsdaqinit.sh uses obsdaq.cfg for initialization (edit to set MARTAS dir and path to obsdaq.cfg)
+4) Edit martas.cfg to tell MARTAS where to find obsdaqinit.sh e.g.
+initdir  :  /etc/martas/init/
+5) Add following line to martas.cfg, e.g.: 
+obsdaqconfpath  :  /etc/martas/obsdaq.cfg
+6) Edit sensors.cfg e.g. like following line:
+FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
+7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time.
+From now on NTP time will be recorded additionally in the sectime column
 
 ### 10.2 Dallas OW (One wire) support
 

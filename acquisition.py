@@ -406,7 +406,9 @@ def main(argv):
             import subprocess
             try:
                 log.msg("  - running initialization {}".format(initapp))
-                initcall = "{} {}".format(sys.executable, initapp)
+                #initcall = "{} {}".format(sys.executable, initapp) # if using python scripts
+                # subprocess.check_output needs command as list except when there is only one entry (e.g. /etc/martas/init.sh)
+                initcall = initapp
                 #log.msg(subprocess.check_output(['/bin/sh',initapp]))
                 log.msg(subprocess.check_output(initcall))
             except subprocess.CalledProcessError as e:
