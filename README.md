@@ -888,11 +888,11 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
 3) edit obsdaqinit.sh (set MARTAS dir and path to obsdaq.cfg)
 and obsdaq.cfg (needed for initialization)
 4) Edit martas.cfg to tell MARTAS where to find obsdaqinit.sh e.g.
-  initdir  :  /etc/martas/init/
+    initdir  :  /etc/martas/init/
 5) Add following line to martas.cfg, e.g.: 
-  obsdaqconfpath  :  /etc/martas/obsdaq.cfg
+    obsdaqconfpath  :  /etc/martas/obsdaq.cfg
 6) Edit sensors.cfg e.g. like following line:
-  FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
+    FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time. From now on NTP time will be recorded additionally in the sectime column
 
 ### 10.2 Dallas OW (One wire) support
