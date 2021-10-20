@@ -604,8 +604,8 @@ threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
 speedtest.py     | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files     |     |    | 8.8
 gamma.py         | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3  | 8.7
-obsdaq.py        | communicate with ObsDAQ ADC | obsdaq.cfg | py2/py3  | 10.1.5
-palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3  | 10.1.5
+obsdaq.py        | communicate with ObsDAQ ADC | obsdaq.cfg | py2  | 10.1.5
+palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2  | 10.1.5
 
 ### 8.2 addcred.py
 
