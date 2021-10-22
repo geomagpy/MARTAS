@@ -347,7 +347,7 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
     except:
         tlsfailed = True
 
-    # First try to connect via TLS
+    # First try to connect without TLS
     if tlsfailed:
         try:
             with ftplib.FTP(host, user, password) as ftp:
@@ -355,7 +355,15 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
                 ftpjob(ftp,source,destination,filename)
                 transfersuccess = True
         except:
-            pass
+            try:
+                # fallback without with (seems to be problemtic on some old py2 machines
+                ftp = ftplib.FTP(host, user, password):
+                print ("FTP connection established...")
+                ftpjob(ftp,source,destination,filename)
+                ftp.close()
+                transfersuccess = True                
+            except:
+                pass
 
     if cleanup and transfersuccess:
         os.remove(source)
