@@ -356,7 +356,6 @@ def on_message(client, userdata, msg):
     if pyversion.startswith('3'):
        msg.payload= msg.payload.decode('ascii')
 
-    #print ("TEST", msg.topic)
     global qos
     global verifiedlocation
     arrayinterpreted = False
