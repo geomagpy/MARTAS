@@ -192,6 +192,7 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
         # on message needs: stationid, destination, location
         client.on_message = on_message
         client.connect(broker, port, timeout)
+
         return client
 
 
@@ -344,13 +345,18 @@ def on_connect(client, userdata, flags, rc):
         substring = '#'
     else:
         substring = stationid+'/#'
-    log.msg("Subscribing to: {}".format(substring))
+    log.msg("Subscribing to {} with qos {}".format(substring,qos))
     client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
+    if not stationid in ['all','All','ALL']:
+        if not msg.topic.startswith(stationid):
+            return
+
     if pyversion.startswith('3'):
        msg.payload= msg.payload.decode('ascii')
 
+    #print ("TEST", msg.topic)
     global qos
     global verifiedlocation
     arrayinterpreted = False
