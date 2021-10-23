@@ -280,7 +280,7 @@ def ConnectDB(dbcred):
     print (dbname,dbhost,dbuser)
     try:
         print("Connecting to DATABASE...")
-        db = mpdb.mysql.connect(host="localhost",user=dbuser,passwd=dbpasswd,db=dbname)
+        db = mpdb.mysql.connect(host=dbhost,user=dbuser,passwd=dbpasswd,db=dbname)
         print("... success")
     except:
         print("... failed")
@@ -488,7 +488,7 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
                 if debug:
                     print ("Fine - found success message")
             else:
-                statusdict[checkname] = "Did not find SUCCESS in {}".format(os.path.basename(logfilepath))
+                statusdict[checkname] = "Did not find SUCCESS in {}".format(os.path.basename(logfilepath).replace("_",""))
         elif testtype == 'contain':
             # check all lines - independent from changes
             #  REQUIRES logsearchmessage to be success
@@ -497,7 +497,7 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
                 if debug:
                     print ("Fine - found message {}".format(logsearchmessage))
             else:
-                statusdict[checkname] = "Did not find message in {}".format(os.path.basename(logfilepath))
+                statusdict[checkname] = "Did not find message in {}".format(os.path.basename(logfilepath).replace("_",""))
 
     else:
         # Nothing to do ... create log file first
