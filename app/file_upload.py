@@ -332,8 +332,13 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
             print ("File not yet existing")
         if debug:
             print ("Uploading file ... {}".format(filename))
-        with open(source, 'rb') as image_file:
+        try:
+            with open(source, 'rb') as image_file:
+                site.storbinary('STOR {}'.format(filename), image_file)
+        except:
+            image_file = open(source, 'rb')
             site.storbinary('STOR {}'.format(filename), image_file)
+            image_file.close()
 
 
     transfersuccess = False
@@ -357,7 +362,7 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
         except:
             try:
                 # fallback without with (seems to be problemtic on some old py2 machines
-                ftp = ftplib.FTP(host, user, password):
+                ftp = ftplib.FTP(host, user, password)
                 print ("FTP connection established...")
                 ftpjob(ftp,source,destination,filename)
                 ftp.close()
