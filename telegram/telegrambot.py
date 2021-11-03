@@ -276,6 +276,7 @@ confdict['allowed_users'] = ''
 confdict['camport'] = 'None'
 confdict['logging'] = 'stdout'
 confdict['loglevel'] = 'INFO'
+confdict['outlier'] = {}
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:T",["config=","Test="])
@@ -316,6 +317,7 @@ try:
     marcosconfig = tgconf.get('marcosconfig')
     if marcosconfig:
         marcosconfig = marcosconfig.strip()
+    outlier = tgconf.get('outlier')
     proxy = tgconf.get('proxy')
     if proxy:
         proxy = proxy.strip()
@@ -521,13 +523,16 @@ def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
     return returndict
 
 
-def tgplot(sensor, starttime, endtime, keys=None):
+def tgplot(sensor, starttime, endtime, keys=None, outlier={}):
     """
     DESCRIPTION
        plotting subroutine
     """
     try:
         data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime, endtime=endtime)
+        if outlier:
+            data = data.flag_outlier(threshold=int(outlier.get('threshold',5)))
+            data = data.remove_flagged()
         matplotlib.use('Agg')
         mp.plot(data, confinex=True, outfile=os.path.join(tmppath,'tmp.png'))
         return True
@@ -1043,7 +1048,7 @@ def handle(msg):
                        if len(datelist) > 1:
                            endtime = max(datelist)
 
-                   suc = tgplot(sensorid,starttime,endtime)
+                   suc = tgplot(sensorid,starttime,endtime,outlier=outlier)
                    if suc:
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'tmp.png'),'rb'))
                    else:

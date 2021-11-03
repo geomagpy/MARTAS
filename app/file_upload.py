@@ -124,7 +124,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
            success = sftptransfer(source=localpath,destination=destinationpath,host=address,user=user,password=pwd,proxy=proxy,logfile=logfile)
     elif typus == 'scp':
            timeout = 60
-           destina = "{}:{}".format(address,destinationpath)
+           destina = "{}@{}:{}".format(user,address,destinationpath)
            scptransfer(localpath,destina,pwd,timeout=timeout)
     elif typus == 'rsync':
            # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
