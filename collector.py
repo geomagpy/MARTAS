@@ -126,6 +126,7 @@ webport = 8080
 socketport = 5000
 blacklist = []
 
+
 class protocolparameter(object):
     def __init__(self):
         self.identifier = {}
@@ -166,7 +167,7 @@ def webProcess(webpath,webport):
     reactor.listenTCP(webport,factory)
     reactor.run()
 
-def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, destinationid=''):
+def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, destinationid='',debug=False):
         """
     connectclient method
     used to connect to a specific client as defined by the input variables
@@ -331,14 +332,12 @@ def merge_two_dicts(x, y):
 
 
 def on_connect(client, userdata, flags, rc):
-    if str(rc) != '0':
-        debug = True
-    if debug:
+    global concount
+    global debug
+    if debug or not concount:
         log.msg("Connected with result code {}".format(str(rc)))
-    #qos = 1
-    # qos variable needs to be global when using this method as is
     global qos
-    if debug:
+    if debug or not concount:
         log.msg("Setting QOS (Quality of Service): {}".format(qos))
     if str(rc) == '0':
         pass
@@ -349,8 +348,9 @@ def on_connect(client, userdata, flags, rc):
         substring = '#'
     else:
         substring = stationid+'/#'
-    if debug:
+    if debug or not concount:
         log.msg("Subscribing to {} with qos {}".format(substring,qos))
+    concount += 1
     client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
@@ -743,6 +743,9 @@ def main(argv):
     qos=0
     global blacklist
     blacklist = []
+    global concount
+    concount = 0
+
 
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
     try:
@@ -1022,7 +1025,7 @@ def main(argv):
         log.msg("Destination: {} {}".format(destination, location))
 
     if source == 'mqtt':
-        client = connectclient(broker, port, timeout, credentials, user, password, qos, destinationid=dbcred) # dbcred is used for clientid
+        client = connectclient(broker, port, timeout, credentials, user, password, qos, destinationid=dbcred, debug=debug) # dbcred is used for clientid
         client.loop_forever()
 
     elif source == 'wamp':
