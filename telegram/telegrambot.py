@@ -17,10 +17,6 @@ pip install platform  # system definitions
 Optional linux packages
 sudo apt-get install fswebcam   # getting cam pictures
 
-TODO:
-
-PROXY: add proxy in configuration file - currently it is hardcoded
-
 add cronstop to regularly restart the bot (root)
 sudo crontab -e
 PATH=/bin/sh
@@ -97,6 +93,7 @@ class tgpar(object):
     marcoslogpath = '/var/log/magpy/marcos.log'
     tmppath = '/tmp'
     camport = 'None'
+    camoptions = ''
     tglogpath = '/var/log/magpy/telegrambot.log'
     version = '1.0.3'
     martasapp = '/home/cobs/MARTAS/app'
@@ -310,6 +307,7 @@ try:
     camport = tgconf.get('camport').strip()
     if camport:
         camport = camport.strip()
+    camoptions = tgconf.get('camoptions','')
     martasapp = tgconf.get('martasapp')
     if martasapp:
         martasapp = martasapp.strip()
@@ -344,6 +342,7 @@ try:
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
     tmppath = tgconf.get('tmppath').strip()
     tgpar.camport = camport
+    tgpar.camoptions = camoptions
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
@@ -930,6 +929,8 @@ def handle(msg):
                    try:
                        tglogger.debug("Creating image...")
                        tglogger.debug("Selected cam port: {} and temporary path {}".format(usedcamport,tmppath))
+                       #TODO add camoptions here
+                       #subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, tgpar.camoptions, os.path.join(tmppath,'webimage.jpg')])
                        subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, os.path.join(tmppath,'webimage.jpg')])
                        tglogger.debug("Subprocess for image creation finished")
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))

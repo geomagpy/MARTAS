@@ -1,6 +1,16 @@
 MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
+####v<1.0.2>, <2021-11-11> --
+
+v1.0.2 additions:
+    - webcam options
+    - monitor data
+
+v1.0.2 corrections:
+    - collectors clientid is better determined
+    - telegrambot allows for cam options
+
 ####v<1.0.1>, <2020-03-03> --
 
 v1.0.1 additions:
