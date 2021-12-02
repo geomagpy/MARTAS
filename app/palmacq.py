@@ -108,6 +108,7 @@ def main(argv):
     global ser
     port = PORT
     baudrate = BAUDRATE
+    targetleapsecond = LEAPSECOND
     for opt, arg in opts:
         if opt == '-h':
             print ('-------------------------------------')
@@ -142,6 +143,11 @@ def main(argv):
             configfile = os.path.abspath(arg)
             conf = GetConf2(configfile)
             port = conf.get('port')
+            if 'LEAPSECOND' in conf:
+                try:
+                    targetleapsecond = int(conf.get('LEAPSECOND'))
+                except:
+                    print('could not read LEAPSECOND from config file '+configfile)
 
         ser = serial.Serial(port, baudrate=baudrate , parity='N', bytesize=8, stopbits=1, timeout=2)
 
@@ -189,7 +195,7 @@ def main(argv):
         elif opt in ("-g", "--gpsinfo"):
             # GPS sends amount of leap seconds, 2017 it was 18
             leapsecond = 0
-            while leapsecond < LEAPSECOND:
+            while leapsecond < targetleapsecond:
                 command('TP:G:L,$PMTK457*34')
                 command('GB')
                 result = ''
@@ -200,7 +206,7 @@ def main(argv):
                         leapsecond = int(l[1].split('.')[0])
                         print ('PalmAcq: Leapsecond according to GPS signal: '+ str(leapsecond))
                 time.sleep(2)
-                if leapsecond < LEAPSECOND:
+                if leapsecond < targetleapsecond:
                     print ('..trying once again')
         elif opt in ("-i", "--info"):
             command('GI:PORTS')
