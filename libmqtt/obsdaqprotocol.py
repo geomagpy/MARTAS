@@ -25,7 +25,6 @@ import string # for ascii selection
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from magpy.acquisition import acquisitionsupport as acs
 import math
 import serial # for initializing command
 import os,sys
@@ -34,7 +33,9 @@ import os,sys
 scriptpath = os.path.dirname(os.path.realpath(__file__))
 coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
 sys.path.insert(0, coredir)
-from acquisitionsupport import GetConf2 as GetConf2
+# import support for GetConf2 and dataToFile (can also be obtained from magpy) 
+#from magpy.acquisition import acquisitionsupport as acs
+import acquisitionsupport as acs
 
 
 def datetime2array(t):
@@ -112,7 +113,7 @@ class obsdaqProtocol(LineReceiver):
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
         # get obsdaq specific constants
-        self.obsdaqconf = GetConf2(self.confdict.get('obsdaqconfpath'))
+        self.obsdaqconf = acs.GetConf2(self.confdict.get('obsdaqconfpath'))
         
         self.headernames = '[{},{},{},{}]'.format(self.obsdaqconf.get('NAME_X'),self.obsdaqconf.get('NAME_Y'),self.obsdaqconf.get('NAME_Z'),'ntptime')
         self.headerunits = '[{},{},{},{}]'.format(self.obsdaqconf.get('UNIT_X'),self.obsdaqconf.get('UNIT_Y'),self.obsdaqconf.get('UNIT_Z'),'none')
