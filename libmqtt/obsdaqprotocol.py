@@ -90,7 +90,10 @@ class obsdaqProtocol(LineReceiver):
         self.parity=sensordict.get('parity')
         self.bytesize=int(sensordict.get('bytesize'))
         self.stopbits=int(sensordict.get('stopbits'))
-        self.delimiter='\r'
+        if sys.version_info >= (3, 0):
+            self.delimiter='\r'.encode('ascii')
+        else:
+            self.delimiter='\r'
         self.timeout=2 # should be rate dependend
         sensorSuplst = self.sensor.split('_')
         if len(sensorSuplst) == 3:
@@ -313,6 +316,8 @@ class obsdaqProtocol(LineReceiver):
     def lineReceived(self, line):
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
         topicSup = self.confdict.get('station') + '/' + self.sensoridSup
+        if sys.version_info >= (3, 0):
+            line = line.decode('ascii')
         # extract only ascii characters 
         line = ''.join(filter(lambda x: x in string.printable, line))
         ok = True

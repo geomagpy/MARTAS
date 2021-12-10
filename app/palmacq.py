@@ -64,7 +64,10 @@ def lineread(ser,eol):
                     if time.time() > timeout:
                         print ('Timeout')
                         break
-                    ser_str += byte.decode('ascii')
+                    try:
+                        ser_str += byte.decode('ascii')
+                    except:
+                        print('palmacq.py: decode error, got '+str(byte))
             else:
                 while True:
                     char = ser.read()
