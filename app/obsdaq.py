@@ -97,22 +97,28 @@ QUIET = False
 
 def lineread(ser,eol):
             # FUNCTION 'LINEREAD'
-            # Does the same as readline(), but does not require a standard 
-            # linebreak character ('\r' in hex) to know when a line ends.
-            # Variable 'eol' determines the end-of-line char: '\x00'
-            # for the POS-1 magnetometer, '\r' for the envir. sensor.
-            # (Note: required for POS-1 because readline() cannot detect    
-            # a linebreak and reads a never-ending line.)
+            # Does the same as readline() plus timeout
             ser_str = ''
             timeout = time.time()+2
-            while True:
-                char = ser.read()
-                if char == eol:
-                    break
-                if time.time() > timeout:
-                    print ('Timeout')
-                    break
-                ser_str += char
+            if sys.version_info >= (3, 0):
+                eol=eol.encode('ascii')
+                while True:
+                    byte = ser.read()
+                    if byte == eol:
+                        break
+                    if time.time() > timeout:
+                        print ('Timeout')
+                        break
+                    ser_str += byte.decode('ascii')
+            else:
+                while True:
+                    char = ser.read()
+                    if char == eol:
+                        break
+                    if time.time() > timeout:
+                        print ('Timeout')
+                        break
+                    ser_str += char
             return ser_str
 
 def send_command(ser,command,eol,hex=False):
@@ -121,7 +127,10 @@ def send_command(ser,command,eol,hex=False):
     #print 'Command:  %s \n ' % command.replace(eol,'')
     sendtime = date2num(datetime.utcnow())
     #print "Sending"
-    ser.write(command)
+    if sys.version_info >= (3, 0):
+        ser.write(command.encode('ascii'))
+    else:
+        ser.write(command)
     #print "Received something - interpretation"
     response = lineread(ser,eol)
     #print "interprete"
