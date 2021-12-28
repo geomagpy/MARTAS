@@ -334,12 +334,14 @@ class obsdaqProtocol(LineReceiver):
                 self.metacnt = 1 # send meta data with every block
                 if self.datacnt < coll:
                     self.datalst.append(data)
-                    self.datalstSup.append(dataSup)
+                    if dataSup:
+                        self.datalstSup.append(dataSup)
                     self.datacnt += 1
                 else:
                     senddata = True
                     data = ';'.join(self.datalst)
-                    dataSup = ';'.join(self.datalstSup)
+                    if len(self.datalstSup)>0:
+                        dataSup = ';'.join(self.datalstSup)
                     self.datalst = []
                     self.datalstSup = []
                     self.datacnt = 0
@@ -348,12 +350,14 @@ class obsdaqProtocol(LineReceiver):
 
             if senddata:
                 self.client.publish(topic+"/data", data, qos=self.qos)
-                self.client.publish(topicSup+"/data", dataSup, qos=self.qos)
+                if dataSup:
+                    self.client.publish(topicSup+"/data", dataSup, qos=self.qos)
                 if self.count == 0:
                     add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
-                    self.client.publish(topicSup+"/meta", headSup, qos=self.qos)
+                    if headSup:
+                        self.client.publish(topicSup+"/meta", headSup, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
