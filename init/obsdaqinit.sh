@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PYTHON="/usr/bin/python3"
+PYTHON="/usr/bin/python"
 MARTASPATH="/home/pi/MARTAS"
 APPPATH=$MARTASPATH"/app"
 # run without config file: CONF="" otherwise CONF="-m /config/file"
