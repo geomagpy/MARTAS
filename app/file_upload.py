@@ -124,7 +124,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
            success = sftptransfer(source=localpath,destination=destinationpath,host=address,user=user,password=pwd,proxy=proxy,logfile=logfile)
     elif typus == 'scp':
            timeout = 60
-           destina = "{}:{}".format(address,destinationpath)
+           destina = "{}@{}:{}".format(user,address,destinationpath)
            scptransfer(localpath,destina,pwd,timeout=timeout)
     elif typus == 'rsync':
            # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
@@ -332,8 +332,13 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
             print ("File not yet existing")
         if debug:
             print ("Uploading file ... {}".format(filename))
-        with open(source, 'rb') as image_file:
+        try:
+            with open(source, 'rb') as image_file:
+                site.storbinary('STOR {}'.format(filename), image_file)
+        except:
+            image_file = open(source, 'rb')
             site.storbinary('STOR {}'.format(filename), image_file)
+            image_file.close()
 
 
     transfersuccess = False
@@ -347,7 +352,7 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
     except:
         tlsfailed = True
 
-    # First try to connect via TLS
+    # First try to connect without TLS
     if tlsfailed:
         try:
             with ftplib.FTP(host, user, password) as ftp:
@@ -355,7 +360,15 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
                 ftpjob(ftp,source,destination,filename)
                 transfersuccess = True
         except:
-            pass
+            try:
+                # fallback without with (seems to be problemtic on some old py2 machines
+                ftp = ftplib.FTP(host, user, password)
+                print ("FTP connection established...")
+                ftpjob(ftp,source,destination,filename)
+                ftp.close()
+                transfersuccess = True                
+            except:
+                pass
 
     if cleanup and transfersuccess:
         os.remove(source)

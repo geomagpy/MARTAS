@@ -126,6 +126,7 @@ webport = 8080
 socketport = 5000
 blacklist = []
 
+
 class protocolparameter(object):
     def __init__(self):
         self.identifier = {}
@@ -166,7 +167,7 @@ def webProcess(webpath,webport):
     reactor.listenTCP(webport,factory)
     reactor.run()
 
-def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0):
+def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, destinationid='',debug=False):
         """
     connectclient method
     used to connect to a specific client as defined by the input variables
@@ -174,9 +175,9 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
                 import json
                 altbro = json.loads(altbrocker)
         """
-        ## TODO neen a unique clientid (add name of client (socket.hostname)
+        ## create a unique clientid consisting of broker, client and destination
         hostname = socket.gethostname()
-        clientid = "{}{}".format(broker,hostname)
+        clientid = "{}{}{}".format(broker,hostname,destinationid)
         client = mqtt.Client(clientid,False)
         # Authentication part
         if not credentials in ['','-']:
@@ -192,6 +193,7 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
         # on message needs: stationid, destination, location
         client.on_message = on_message
         client.connect(broker, port, timeout)
+
         return client
 
 
@@ -330,13 +332,15 @@ def merge_two_dicts(x, y):
 
 
 def on_connect(client, userdata, flags, rc):
-    log.msg("Connected with result code {}".format(str(rc)))
-    #qos = 1
-    # qos variable needs to be global when using this method as is
+    global concount
+    global debug
+    if debug or not concount:
+        log.msg("Connected with result code {}".format(str(rc)))
     global qos
-    log.msg("Setting QOS (Quality of Service): {}".format(qos))
+    if debug or not concount:
+        log.msg("Setting QOS (Quality of Service): {}".format(qos))
     if str(rc) == '0':
-        log.msg("Everything fine - continuing")
+        pass
     elif str(rc) == '5':
         log.msg("Broker eventually requires authentication - use options -u and -P")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
@@ -344,10 +348,16 @@ def on_connect(client, userdata, flags, rc):
         substring = '#'
     else:
         substring = stationid+'/#'
-    log.msg("Subscribing to: {}".format(substring))
+    if debug or not concount:
+        log.msg("Subscribing to {} with qos {}".format(substring,qos))
+    concount += 1
     client.subscribe(substring,qos=qos)
 
 def on_message(client, userdata, msg):
+    if not stationid in ['all','All','ALL']:
+        if not msg.topic.startswith(stationid):
+            return
+
     if pyversion.startswith('3'):
        msg.payload= msg.payload.decode('ascii')
 
@@ -733,6 +743,9 @@ def main(argv):
     qos=0
     global blacklist
     blacklist = []
+    global concount
+    concount = 0
+
 
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
     try:
@@ -1012,7 +1025,7 @@ def main(argv):
         log.msg("Destination: {} {}".format(destination, location))
 
     if source == 'mqtt':
-        client = connectclient(broker, port, timeout, credentials, user, password, qos)
+        client = connectclient(broker, port, timeout, credentials, user, password, qos, destinationid=dbcred, debug=debug) # dbcred is used for clientid
         client.loop_forever()
 
     elif source == 'wamp':
