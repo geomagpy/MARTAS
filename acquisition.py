@@ -406,9 +406,10 @@ def main(argv):
             import subprocess
             try:
                 log.msg("  - running initialization {}".format(initapp))
-                initcall = "{} {}".format(sys.executable, initapp)
-                #log.msg(subprocess.check_output(['/bin/sh',initapp]))
-                log.msg(subprocess.check_output(initcall))
+                # initcall = "{} {}".format(sys.executable, initapp)  # only for python scripts
+                # log.msg(subprocess.check_output(['/bin/sh',initapp])) # only for shell scripts
+                # first line of init script has to be #!/bin/sh or #!/bin/sh , #/usr/bin/python etc...
+                log.msg(subprocess.check_output(initapp))
             except subprocess.CalledProcessError as e:
                 log.msg("  - init command '{}' returned with error (code {}): {}".format(e.cmd, e.returncode, e.output))
             except:
