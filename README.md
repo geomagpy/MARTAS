@@ -604,8 +604,8 @@ threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
 speedtest.py     | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files     |     |    | 8.8
 gamma.py         | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3  | 8.7
-obsdaq.py        | communicate with ObsDAQ ADC | obsdaq.cfg | py2  | 10.1.5
-palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2  | 10.1.5
+obsdaq.py        | communicate with ObsDAQ ADC | obsdaq.cfg | py2/py3 | 10.1.5
+palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3 | 10.1.5
 
 ### 8.2 addcred.py
 
@@ -884,9 +884,8 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 #### 10.1.5 ObsDAQ / PalmAcq
 Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
 1) Use palmacq.py -h  and obsdaq.py -h for further information. These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
-2) This step is optional: obsdaqinit_without_conf_file.sh can be used to test the initialization of PalmAcq and ObsDAQ. (edit to set MARTAS dir) Final settings should be written into obsdaq.cfg.
+2) This step is optional: use obsdaqinit.sh without config file to test the initialization of PalmAcq and ObsDAQ (edit file). Final settings should be written into obsdaq.cfg.
 3) edit obsdaqinit.sh (set MARTAS dir and path to obsdaq.cfg)
-and obsdaq.cfg (needed for initialization)
 4) Edit martas.cfg to tell MARTAS where to find obsdaqinit.sh e.g.
       initdir  :  /etc/martas/init/
 5) Add following line to martas.cfg, e.g.: 
