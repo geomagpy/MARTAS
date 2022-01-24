@@ -952,14 +952,14 @@ def handle(msg):
                # Send MARTAS process command
                # -----------------------
                bot.sendMessage(chat_id, "Sending result request to IMBOT...")
-               cmd = command.replace('martas','').replace('MARTAS','')
+               cmd = command.replace('imbot','').replace('IMBOT','')
                cmd = cmd.strip()
                yearl = re.findall(r'\d+', cmd)
                if len(yearl) > 0:
-                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis{a}.json -l /srv/DataCheck/IMBOT/{a}/level".format(a=yearl[-1])
+                   y = yearl[-1]
                else:
-                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis2020.json -l /srv/DataCheck/IMBOT/2020/level"
-               #subprocess.call([command])
+                   y = datetime.strftime(datetime.utcnow()-timedelta(years=1),"%Y")
+               command = "/usr/bin/python3 {b} -m {c}_analysis{a}.json -l {d}/{a}/level".format(a=y,b=tgconf.get('imbotoverview'),c=tgconf.get('imbotsecmemory'),d=tgconf.get('imbotarchive'))
                os.system(command)
             elif any([word in command for word in commandlist['martas'].get('commands')]):
                # -----------------------
