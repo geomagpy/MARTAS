@@ -441,13 +441,15 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
             diff = d[-lengthdiff:]
         return diff
 
-    def last(f1, lines):
+    def last(f1, lines=None):
         with open(f1,'r') as f:
             d=f.readlines()
+        if not lines:
+            return d
         if lines and len(d) > lines:
             return d[-lines:]
         elif lines and len(d) < lines:
-            return []
+            return d
         else:
             return d
 
@@ -497,7 +499,7 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
                 if debug:
                     print ("Fine - found message {}".format(logsearchmessage))
             else:
-                statusdict[checkname] = "Did not find message in {}".format(os.path.basename(logfilepath).replace("_",""))
+                statusdict[checkname] = "Did not find {} in {}".format(logsearchmessage.replace("_",""), os.path.basename(logfilepath).replace("_",""))
 
     else:
         # Nothing to do ... create log file first
@@ -526,7 +528,7 @@ def ExecuteScript(call,statusdict={},jobname='JOB',debug=True):
     return statusdict
 
 def main(argv):
-    version = '1.0.0'
+    version = '1.0.1'
     statusmsg = {}
     jobs = ''
     joblist = []
@@ -545,7 +547,7 @@ def main(argv):
                'thresholds' : {'RCS':180000,'TILT':100000,'METEO':10800,'WIC':20000,'GAMMA':10800,'GWR':10800, 'LEMI036_3':180000, 'GSM90_6107632':180000, 'BMP085_10085004':180000, 'SHT75_RASHT004':180000, 'GSM90_7':180000, 'GP20S3EWstatus': 180000}, 		# threshold definitions
                'tmpdir' : '/tmp',			 	# for log file to check
                'logfile' : '/var/log/magpy/marcos.log', 	# log file to check
-               'logtesttype' : 'repeat', 			# checks on log file: NEW (new input), REPEATed, LAST, CONTAIN message (REPEAT: if a certain message is repeated more than x times)
+               'logtesttype' : 'repeat', 			# checks on log file: new, contain, last, repeat
                'logsearchmessage' : 'writeDB: unknown MySQL error when checking for existing tables!',
                'tolerance'  :  20,  				# tolerated amount of repeated messages
                'joblist' : ['space','martas','marcos','logfile'], 			# basic job list (can be space (only disk space), martas (buffer files), marcos (tables), logfile (logfiles)
