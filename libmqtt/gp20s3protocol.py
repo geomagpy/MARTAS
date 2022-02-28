@@ -58,6 +58,7 @@ class GP20S3Protocol(LineReceiver):
                              # the median of this values is used for ntp timedelay
         self.timedelay = 0.0
         self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
+        self.validitythresholds = {"intensity":[20000000,100000000]} # valid ranges for intensities
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
@@ -81,6 +82,14 @@ class GP20S3Protocol(LineReceiver):
 
     def connectionLost(self, reason):
         log.msg('  -> {} lost.'.format(self.sensor))
+
+    def validity_check(data2check, thresholds=[],debug=False):
+        # call by validity_check(intensity1, self.validitythresholds.get('intensity',[]))
+        valid = True
+        if len(thresholds) > 1:
+           if data2check < thresholds[0] or data2check > thresholds[1]:
+              valid = False          
+        return valid
 
     def processData(self, data):
         """ GP20S3 data """
@@ -243,28 +252,32 @@ class GP20S3Protocol(LineReceiver):
             secondtime = timestamp
 
         if not headerlinecoming:
-          try:
-            ## GP20S3 provides info on whether the GPS reading is OK  - use it
-
-            # extract time data
-            datearray = acs.timeToArray(maintime)
             try:
-                datearray.append(int(intensity1*1000.))
-                datearray.append(int(intensity2*1000.))
-                datearray.append(int(intensity3*1000.))
-                datearray.append(int(grad1*1000.))
-                datearray.append(int(grad2*1000.))
-                datearray.append(int(grad3*1000.))
-                internalarray = acs.timeToArray(secondtime)
-                datearray.extend(internalarray)
-                data_bin = struct.pack('<'+packcode,*datearray)
-            except:
-                log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
+                ## GP20S3 provides info on whether the GPS reading is OK  - use it
+                # Check data validity
+                #if validity_check([intensity1,intensity2,intensity3], thresholds,debug=False):
 
-            if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
-          except:
-            log.msg('{} protocol: Error with binary save routine'.format(self.sensordict.get('protocol')))
+                # extract time data
+                datearray = acs.timeToArray(maintime)
+                try:
+                    datearray.append(int(intensity1*1000.))
+                    datearray.append(int(intensity2*1000.))
+                    datearray.append(int(intensity3*1000.))
+                    datearray.append(int(grad1*1000.))
+                    datearray.append(int(grad2*1000.))
+                    datearray.append(int(grad3*1000.))
+                    internalarray = acs.timeToArray(secondtime)
+                    datearray.extend(internalarray)
+                    data_bin = struct.pack('<'+packcode,*datearray)
+                except:
+                    log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
+
+                if not self.confdict.get('bufferdirectory','') == '':
+                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                #else:
+                #   datearray = []
+            except:
+              log.msg('{} protocol: Error with binary save routine'.format(self.sensordict.get('protocol')))
 
         if headerlinecoming:
             if self.debug:
@@ -317,6 +330,8 @@ class GP20S3Protocol(LineReceiver):
         elif len(headarray) > 0:
             topic = self.confdict.get('station') + '/' + statusname
             return ','.join(list(map(str,headarray))), headheader, topic
+        else:
+            return '', '', ''
 
 
     def lineReceived(self, line):
