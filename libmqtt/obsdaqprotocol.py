@@ -215,20 +215,28 @@ class obsdaqProtocol(LineReceiver):
                 timestamp = datetime(Y,M,D,h,m,s,us)
             except:
                 # TODO properly update palmacq's GPS module
-                if D == 31:
-                    D = 1
-                    M = M+1
-                    timestamp = datetime(Y,M,D,h,m,s,us)
                 # leap years until 2100(! :-)
                 if M == 2:
                     if Y%4 and D>28:
                         D = D - 28
                         M = 3
-                        timestamp = datetime(Y,M,D,h,m,s,us)
                     elif not Y%4 and D>29:
                         D = D - 29
                         M = 3
-                        timestamp = datetime(Y,M,D,h,m,s,us)
+                if D > 31:
+                    # 2022-03-32 happened on 2022-04-01
+                    D = D - 31
+                    M = M+1
+                if D == 31:
+                    D = 1
+                    M = M+1
+                try:
+                    timestamp = datetime(Y,M,D,h,m,s,us)
+                except:
+                    # if gps time is still not recognized, use birthday of Carl Friedrich Gausz
+                    # (otherwise the sample would be discarded and the whole line is printed to the log file)
+                    timestamp = datetime(1777,4,30)
+
             if d[3][0] == '*':
                 x = (int('0x'+d[3][1:7],16) ^ 0x800000) - 0x800000
                 # old line:
