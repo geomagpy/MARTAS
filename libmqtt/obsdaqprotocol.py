@@ -219,10 +219,16 @@ class obsdaqProtocol(LineReceiver):
                     D = 1
                     M = M+1
                     timestamp = datetime(Y,M,D,h,m,s,us)
-                if M == 2 and D > 28:
-                    D = 1
-                    M = 3
-                    timestamp = datetime(Y,M,D,h,m,s,us)
+                # leap years until 2100(! :-)
+                if M == 2:
+                    if Y%4 and D>28:
+                        D = D - 28
+                        M = 3
+                        timestamp = datetime(Y,M,D,h,m,s,us)
+                    elif not Y%4 and D>29:
+                        D = D - 29
+                        M = 3
+                        timestamp = datetime(Y,M,D,h,m,s,us)
             if d[3][0] == '*':
                 x = (int('0x'+d[3][1:7],16) ^ 0x800000) - 0x800000
                 # old line:
