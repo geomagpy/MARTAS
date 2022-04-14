@@ -151,10 +151,10 @@ class GICProtocol():
                         add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
                         self.client.publish(topic+"/dict", add, qos=self.qos)
                         self.client.publish(topic+"/meta", datahead, qos=self.qos)
-                    self.count += 1
                     if self.count >= self.metacnt:
                         self.count = 0
             except:
                 log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
 
+        self.count += 1
 
