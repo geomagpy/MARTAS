@@ -427,8 +427,6 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
     # or
     # 4 check for specific messages and occurences (if not present in last 4 lines -> ignore)
     # 5 Save log to tmp
-    if debug:
-        print (" checking logfile: searching {}, testtype={}, logfilepath: {}".format(logsearchmessage, testtype, logfilepath))
 
     def compare(f1,f2):
         diff = []
@@ -680,9 +678,7 @@ def main(argv):
     # --------------------------------
     if debug:
         print ("Running the following jobs: {}".format(joblist))
-    #try:
-    ok = True
-    if ok:
+    try:
         if 'space' in joblist:
             if debug:
                 print ("Running space job")
@@ -717,8 +713,8 @@ def main(argv):
                 statusmsg = ExecuteScript(execute,jobname=jobname, statusdict=statusmsg)
 
         statusmsg[testname] = "monitoring application running succesful"
-    #except:
-    #    statusmsg[testname] = "error when running monitoring application - please check"
+    except:
+        statusmsg[testname] = "error when running monitoring application - please check"
 
     if debug:
         print (statusmsg)
