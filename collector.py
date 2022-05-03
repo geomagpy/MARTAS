@@ -197,16 +197,19 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
         return client
 
 
-def analyse_meta(header,sensorid):
+def analyse_meta(header,sensorid,debug=False):
     """
     source:mqtt:
     Interprete header information
     """
+    if debug:
+        print ("Analyzing {}: {}".format(sensorid,header))
     if pyversion.startswith('2'):
         header = header.decode('utf-8')
     # some cleaning actions for false header inputs
     header = header.replace(', ',',')
     header = header.replace('deg C','deg')
+    header = header.replace('T (out','T(out')
     h_elem = header.strip().split()
     if not h_elem[-2].startswith('<'): # e.g. LEMI
         packstr = '<'+h_elem[-2]+'B'
@@ -363,6 +366,7 @@ def on_message(client, userdata, msg):
 
     global qos
     global verifiedlocation
+    global debug
     arrayinterpreted = False
     if stationid in ['all','All','ALL']:
         stid = msg.topic.split('/')[0]
@@ -426,7 +430,7 @@ def on_message(client, userdata, msg):
     if msg.topic.endswith('meta') and metacheck == '':
         log.msg("Found basic header:{}".format(str(msg.payload)))
         log.msg("Quality of Service (QOS):{}".format(str(msg.qos)))
-        analyse_meta(str(msg.payload),sensorid)
+        analyse_meta(str(msg.payload),sensorid,debug=debug)
         if not sensorid in headdict:
             headdict[sensorid] = msg.payload
             # create stream.header dictionary and it here

@@ -131,7 +131,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
            rsyncstring = "rsync -avz -e ssh {} {}".format(localpath, user+'@'+address+':'+destinationpath)
            print ("Executing:", rsyncstring)
            subprocess.call(rsyncstring.split())
-    elif typus == 'gin':
+    elif typus.startswith('gin'):
         if not active_pid('curl'):
             print ("  -- Uploading minute data to GIN - active now")
             stdout = False
@@ -139,7 +139,10 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
                 stdout = True
             print (" -- calling GINUPLOAD")
             stdout = True
-            success = ginupload(localpath, user, pwd, address, stdout=stdout)
+            if typus.endswith('basic'):
+                success = ginupload(localpath, user, pwd, address, authentication=' ',stdout=stdout)
+            else:
+                success = ginupload(localpath, user, pwd, address, stdout=stdout)
             print ("   -> Done GINUPLOAD")
         else:
             print ("curl is active")
@@ -375,7 +378,7 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
 
     return transfersuccess
 
-def ginupload(filename, user, password, url, stdout=True):
+def ginupload(filename, user, password, url, authentication=' --digest ', stdout=True):
     """
     DEFINITION:
         Method to upload data to the Intermagnet GINs using curl
@@ -404,7 +407,7 @@ def ginupload(filename, user, password, url, stdout=True):
 
     print ("Running ginupload")
 
-    curlstring = 'curl -F "File=@'+filename+';type=text/plain" -F "Format=plain" -F "Request=Upload" -u '+user+':'+password+' --digest '+url
+    curlstring = 'curl -F "File=@'+filename+';type=text/plain" -F "Format=plain" -F "Request=Upload" -u '+user+':'+password+authentication+url
     print ("CURL command looks like {}".format(curlstring))
     if not curlstring in commandlist:
         commandlist.append(curlstring)
