@@ -174,6 +174,7 @@ def getspace(path,warning=80,critical=90): # path = '/srv'
     total = (statvfs.f_frsize * statvfs.f_blocks / (1024.*1024.))     # Size of filesystem in bytes
     remain = (statvfs.f_frsize * statvfs.f_bavail / (1024.*1024.))     # Number of free bytes that ordinary users
     usedper=100-(remain/total*100.)
+    print ("Disk containing {} currently uses: {}%".format(path,usedper))
     #mesg = "status:\nDisk-size: {:.0f}MB\nDisk available: {:.0f}MB\nDisk occupied: {:.1f}%".format(total,remain, 100-(remain/total*100.))
     level = 'OK'
     if usedper >= warning:
