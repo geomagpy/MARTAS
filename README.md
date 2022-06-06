@@ -939,6 +939,183 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration. 
 
 
+### 10.4 Full example installation of a MARTAS Box
+
+#### 10.4.1 Raspberry - MARCOS/MARTAS
+
+```
+sudo apt-get install curl wget g++ zlibc gv imagemagick gedit gedit-plugins gparted ntp arduino ssh openssl libssl-dev gfortran  libproj-dev proj-data proj-bin git owfs mosquitto mosquitto-clients libncurses-dev build-essential nagios-nrpe-server nagios-plugins apache2 mariadb-server php php-mysql phpmyadmin netcdf-bin curlftpfs fswebcam
+
+# alternative - system python
+sudo apt-get install python3-matplotlib python3-scipy cython3 python3-h5py python3-twisted python3-wxgtk4.0 python3-pip
+
+sudo pip3 install pymysql
+sudo pip3 install pyproj
+sudo pip3 install paho-mqtt
+sudo pip3 install pyserial
+sudo pip3 install pexpect
+sudo pip3 install service_identity
+sudo pip3 install ownet
+sudo pip3 install geomagpy
+
+
+cd ~/Downloads/
+git clone git://github.com/SalemHarrache/PyCampbellCR1000.git
+cd PyCamp*
+sudo python3 setup.py install
+
+####
+#### Optional: Setup MARTAS
+####
+
+cd ~
+git clone https://github.com/geomagpy/MARTAS.git
+
+
+
+#Create a desktop entry for MagPy
+# -------
+#[Desktop Entry]
+#Type=Application
+#Name=XMagPy
+#GenericName=GeoMagPy User Interface
+#Exec=xmagpy
+#Icon=/usr/local/lib/python3.8/dist-packages/magpy/gui/magpy128.xpm
+#Terminal=false
+#Categories=Application;Development;
+
+cd ~/Downloads/
+sudo cp xmagpy.desktop /usr/share/applications/
+
+
+
+### Create a Database: magpy
+# -------
+# Firstly create a super user
+sudo mysql -u root
+> CREATE DATABASE magpydb;
+> GRANT ALL PRIVILEGES ON magpydb.* TO 'magpy'@'%' IDENTIFIED BY 'magpy' WITH GRANT OPTION;
+> FLUSH PRIVILEGES;
+
+# Initialize magpy DB
+# -------
+python
+>>> from magpy.database import *
+>>> db=mysql.connect(host="localhost",user="magpy",passwd="magpy",db="magpydb")
+>>> dbinit(db)
+>>> exit()
+
+# install martas and marcos  (StationName: box)
+# -------
+cd ~/MARTAS/app
+addcred -t db -c magpydb -u magpy -p magpy -d magpydb -o localhost
+sudo addcred -t db -c magpydb -u magpy -p magpy -d magpydb -o localhost
+cd ~/MARTAS/install
+which python
+# Station = box
+sudo bash install.martas.sh
+sudo bash install.marcos.sh
+
+# set background picture of Cobs
+# -------
+sudo cp ~/Downloads/magpybox.jpg /usr/share/rpd-wallpaper/
+
+# Links to phpmyadmin and Cobs in Browser
+# -------
+->manual
+
+# Configuration and cleanup
+# -------
+
+# telegram and addaps
+sudo bash install.telegram.bot
+sudo bash install.addapps.sh
+#-> us bot farther to create a new bot for the machine, update keys und user_ids
+
+# timeserver
+sudo dpkg-reconfigure tzdata
+
+# remote access
+anydesk, teamviewer or tmate
+
+# CRONTAB
+# check all crontab for $PYTHON and other vaiables
+
+# OWFS
+$ sudo nano /etc/owfs.conf 
+
+#Modify the following parts as shown below:
+#This part must be changed on real installation
+#server: FAKE = DS18S20,DS2405
+
+# USB device: DS9490
+server: usb = all
+
+#NAGIOS
+sudo nano /etc/nagios/nrpe.cfg
+# MARTAS/MagPy commands:
+# -----------------
+command[check_procs_martas]=/usr/lib/nagios/plugins/check_procs -c 1:1 -C python -a acquisition.py
+command[check_all_disks]=/usr/lib/nagios/plugins/check_disk -w 20% -c 10% -e -A -i '.gvfs'
+command[check_log]=/usr/lib/nagios/plugins/check_log -F /var/log/magpy/martas.log -O /tmp/martas.log -q ?
+
+# NTP check (optional)
+#command[check_ntp_time]=/usr/lib/nagios/plugins/check_ntp_time -H your.ntp.server -w 1 -c 2
+
+
+# CRONTAB
+crontab -e
+PYTHON=/usr/bin/python3
+BASH=/usr/bin/bash
+
+#MARTAS - delete old buffer files
+15 0 * * * $BASH /home/pi/MARTAS/app/cleanup.sh
+#MARCOS - archive database contents
+30 0 * * * $PYTHON /home/pi/MARTAS/app/archive.py -c magpydb -p /srv/archive
+
+
+# MOUNT external disks
+#Get UUID
+sudo blkid
+sudo nano /etc/fstab
+
+#add a line like
+UUID=d46...   /srv   ext4  defaults,auto,users,rw,nofail  0  0
+
+#activate
+sudo mount -a
+
+
+## FINALLY TEST IT!
+
+```
+
+
+
+#### 10.4.2 Beaglebone - MARTAS
+
+1. use etcher to create boot microsd
+
+2. put boot mircosd into beagle (eventually adjust size first using gparted)
+
+3. access beagle (i.e. by its Webinterface)
+
+4. install MARTAS packages
+
+        sudo apt update
+ 
+        sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
+
+        cd ~
+        git clone https://github.com/geomagpy/MARTAS
+
+        cd ~/MARTAS/install
+        sudo bash install.martas.sh
+
+        sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
+
+        # add 15 0 * * * root bash /etc/martas/cleanup.sh to /etc/crontab
+
 ### 10.4 Issues and TODO
 
 Sometimes, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
