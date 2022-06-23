@@ -434,6 +434,11 @@ def CheckConfiguration(config={},debug=False):
 
     remotepath = config.get('sourcedatapath')
     if not remotepath == '':
+        # if a colon is contained in path (i.e. ftp access on windows)
+        if isinstance(remotepath,dict):
+            for i in remotepath:
+                s = "{}:{}".format(i,remotepath[i])
+            remotepath = s
         source += remotepath
     config['source'] = source
 
