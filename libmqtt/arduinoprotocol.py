@@ -309,6 +309,10 @@ class ArduinoProtocol(LineReceiver):
 
     def lineReceived(self, line):
 
+        try:
+            line = line.decode("ascii")
+        except:
+            pass
         #if self.debug:
         #    log.msg("Received line: {}".format(line))
 
