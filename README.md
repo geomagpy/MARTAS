@@ -506,9 +506,9 @@ Pleasenote: calling testnote the first time will create the log file but don't s
 
 ### 7.3.1 telegram notifications
 
-MARTAS can send notifications directly to the [Telegram] messenger. You need a Telegram Bot and a user id to setup simple notifications. See section 7.5 for some hints of setting up such environment.
+MARTAS can send notifications directly to the [Telegram] messenger. You need either a TelegramBot or a TelegramChannel plus a user id to setup simple notifications. If you just want to receive notificatins you will find some instruction in 7.5.2 on how to use a private TelegramChannel. See section 7.5.1 for some hints of setting up an environment with the possibility of even interacting with your machine.
 
-For sending notifications yoz then just need to edit the basic configuration files:
+For sending notifications you then just need to edit the basic configuration files:
 
         # if not done install addapps
         cd MARTAS/install
@@ -516,9 +516,11 @@ For sending notifications yoz then just need to edit the basic configuration fil
 
         sudo nano /etc/martas/telegram.cfg
         
-Insert your bot_id (token) and the user_id. Thats it. Then you can use testnote.py to for testing whether its working.
+Insert your bot_id (token) and the user_id. Thats it. Then you can use testnote.py to for testing whether its working (eventually you must run this command two times with a different message).
 
         python3 MARTAS/app/testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
+
+
 
 
 ### 7.4 Support for NAGIOS/ICINGA
@@ -527,6 +529,8 @@ Insert your bot_id (token) and the user_id. Thats it. Then you can use testnote.
 ### 7.5 Communicating with MARTAS
 
 MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot, referring to your MARTAS.
+
+#### 7.5.1 interactive communication with TelegramBot
 
 To setup [Telegram] communication use the following steps:
 
@@ -586,6 +590,26 @@ To setup [Telegram] communication use the following steps:
 
         switch heating on
 
+#### 7.5.2 Receiving Telegram notification via TelegramChannel
+
+  a) Preliminary work
+
+Again you need TelegramBotFather to setup a telegram bot (see section 7.5.1) or you are using an existing one (i.e. MyFirstBot).
+
+Then you need to setup a new private TelegramChannel using your Telegram App. Lets asume you the name of your new TelegramChannel is "MyFirstChannel".
+
+Go to your channel overview and add (i.e. MyFirstBot) as administrator to your channel.
+
+  c) Update /etc/martas/telegram.cfg
+
+        $ nano /etc/martas/telegrambot.cfg
+
+      -> you need the BotID, which you obtained when creating the new BOT - put that into "token"
+      
+      -> user_id should point to your channel . i.e. @MyFirstChannel for public channels
+      -> for private channels send any message within the channel. Then copy the link of this message:
+      i.e. https://t.me/c/1123456789/31
+      add a preciding -100 and you got your id: "-1001123456789"
 
 ## 8. Applications and Scripts
 
@@ -865,18 +889,37 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 ## 10. Appendix
 
-### 10.1 Initialization files
+### 10.1 Acquisition libraries
 
-#### 10.1.1 GEM Systems Overhauzr GSM90
+Instrument |  versions    |  Inst-type   |  Library           |     mode     |     init     |  py2/py3
+---------- | ------------ | ------------ | ------------------ | ------------ | ------------ | ------------
+LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
+LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
+GSM90      |              | mag-scalar   | gsm90protocol.py   |              |              | 
+GSM19      |              | mag-scalar   | gsm19protocol.py   |              |              | 
+ENV05      |              | temp-humid   | envprotocol.py     |   passive    |              | 
+OneWire    |              | multiple     | owprotocol.py      |   passive    |              | 
+BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh  |   (py2)/py3
+Thies LNM |               | laserdisdro  | disdroprotocol.py  |   active     |              |   (py2)/py3
+DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |              |   (py2)/py3
+Arduino    |              | multiple     | arduinoprotocol.py |   passive    |              | 
+Arduino    |              | multiple     | activearduinoprotocol.py | active |              | 
+ - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |              |
 
-#### 10.1.2 Quantum POS1
+(py2) indactes that code has been developed and used in python2 but has not been tested anymore
 
-#### 10.1.3 Meteolabs BM35 pressure
+### 10.2 Initialization files
 
-#### 10.1.4 LM
+#### 10.2.1 GEM Systems Overhauzr GSM90
+
+#### 10.2.2 Quantum POS1
+
+#### 10.2.3 Meteolabs BM35 pressure
+
+#### 10.2.4 LM
 
 
-### 10.2 Dallas OW (One wire) support
+### 10.3 Dallas OW (One wire) support
 
 a) modify owfs,conf
         $ sudo nano /etc/owfs.conf 
@@ -892,7 +935,7 @@ b) start the owserver
         $ sudo etc/init.d/owserver start 
 
 
-### 10.3  Communicating with an Arduino Uno Microcontroller
+### 10.4  Communicating with an Arduino Uno Microcontroller
 
 An [Arduino Microcontroller] has to be programmed properly with serial outputs, which are interpretable from MARTAS. Such Arduino programs are called sketch.
 MARTAS contains a few example scripts, which show, how these sketches need to work, in order to be used with MARTAS. In principle, two basic acquisition modes are supported
@@ -939,9 +982,9 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration. 
 
 
-### 10.4 Full example installation of a MARTAS Box
+### 10.5 Full example installation of a MARTAS Box
 
-#### 10.4.1 Raspberry - MARCOS/MARTAS
+#### 10.5.1 Raspberry - MARCOS/MARTAS
 
 ```
 sudo apt-get install curl wget g++ zlibc gv imagemagick gedit gedit-plugins gparted ntp arduino ssh openssl libssl-dev gfortran  libproj-dev proj-data proj-bin git owfs mosquitto mosquitto-clients libncurses-dev build-essential nagios-nrpe-server nagios-plugins apache2 mariadb-server php php-mysql phpmyadmin netcdf-bin curlftpfs fswebcam
