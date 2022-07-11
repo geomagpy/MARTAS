@@ -840,22 +840,24 @@ requirements.txt   |    for contiunuous integration test runs
 **app**  | 
 app/addcred.py    |	run to add protected credentials to be used e.g. by data sending protocol, database connections etc, avoinding the use of plain text passwords in scripts
 app/archive.py    |	MARCOS job to periodically archive contents of the data base into archive files (e.g. CDF). Remove information from the data base exceeding a defined age. The latter requires additionally to run sql optimze routines in order to prevent an overflow of the local data base storage files. 
-app/ardcomm.py    |	Communication program for microcontrollers (here ARDUINO) e.g. used for reomte switching commands 
+app/ardcomm.py    |	Communication program for microcontrollers (here ARDUINO) e.g. used for reomte switching commands
+app/backup_config.sh    |	Bash scripts wich creates a zipped backup file containing all configuration information - stored in HOME/Backups (apply weekly)
 app/cleanup.sh    |	remove buffer files older than a definite period
-app/collectfile.py    |	access data locally or via rsync/ssh/ftp and add it to files/DB
 app/deleteold.py    |	delete old inputs from a database, using a sampling rate dependent indicator (deleteold.py -h)
 app/di.py    |	Routine based on MagPys absoluteAnalysis tool to analyse geomagnetic DI measurements from multiple input sources/observatories. 
 app/file_upload.py    |	Wrapper to upload files to remote machine using either ssh, rsync, ftp
+app/file_download.py    |	Wrapper to download files to remote machine using either ssh, rsync, ftp
 app/monitor.py    |	Monitoring application to check buffer files (martas), database actuality (marcos), disk space and log files; can trigger external scripts
 app/mpconvert.py    |	converts MARTAS binary buffer files to other formats
 app/optimzetables.py    |	application to be used with archive.py or deleteold.py; uses SQL Optimze methods to clear the table space after data has been removed - non-blocking
-app/senddata.py    |	Send data from MARTAS to any other machine using cron/scheduler - OLD
 app/sendip.py    |	Helper for checking and sending public IP  (via ftp) - OLD
 app/serialinit.py    |	Load initialization file (in init) to activate continuous serial data delivery (passive mode)
 app/telegramnote.py    |	Small program to send notes to a Telegram Messenger BOT. Useful for periodic information as an alternative to e-mail. 
 app/testnote.py    |	Small routine to test notification sending via email, telegram, etc. 
 app/testserial.py    |	Small routine to test serial communication. 
 app/threshold.py    |	Threshold tester (see section 7.1) 
+app/collectfile.py    |	access data locally or via rsync/ssh/ftp and add it to files/DB - OLD - replaced by file_download
+app/senddata.py    |	Send data from MARTAS to any other machine using cron/scheduler - OLD - replaced by file_upload
 **core**  |  Core methods used by the most runtime scripts and applications 
 core/martas.py    |	basic logging routines for MARTAS/MARCOS and wrapper for e-mail,logfile,telegram notifications 
 core/acquisitionsupport.py    |	contains general communication methods and configuration file interpreters
@@ -902,8 +904,8 @@ OneWire    |              | multiple     | owprotocol.py      |   passive    |  
 BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh  |   (py2)/py3
 Thies LNM |               | laserdisdro  | disdroprotocol.py  |   active     |              |   (py2)/py3
 DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |              |   (py2)/py3
-Arduino    |              | multiple     | arduinoprotocol.py |   passive    |              | 
-Arduino    |              | multiple     | activearduinoprotocol.py | active |              | 
+Arduino    |              | multiple     | arduinoprotocol.py |   passive    |              |   (py2)/py3
+Arduino    |              | multiple     | activearduinoprotocol.py | active |              |   (py2)/py3
  - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |              |
 
 (py2) indactes that code has been developed and used in python2 but has not been tested anymore
