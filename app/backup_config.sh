@@ -74,11 +74,19 @@ mkdir -p $BACKUPS
   echo "Could not access SCRIPTS"
 }
 
-# G) copy SCRIPTS
+# G) copy CONF
 {
   find $HOMEFOLDER -type d -name "CONF" -path ${HOMEFOLDER}/CO* -exec cp -r '{}' $TMPFOLDER \;
 } || {
   echo "Could not access CONF"
+}
+
+# H) copy SYNC
+{
+  find $HOMEFOLDER -type d -name "Sync" -path ${HOMEFOLDER}/Sy* -exec cp -r '{}' $TMPFOLDER \;
+  find $HOMEFOLDER -type d -name "SYNC" -path ${HOMEFOLDER}/SY* -exec cp -r '{}' $TMPFOLDER \;
+} || {
+  echo "Could not access SYNC"
 }
 
 # Z) TAR AND ZIP
