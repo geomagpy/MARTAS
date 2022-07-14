@@ -68,8 +68,8 @@ mkdir -p $BACKUPS
 
 # F) copy SCRIPTS
 {
-  find $HOMEFOLDER -type d -name "Scripts" -path ${HOMEFOLDER}/Sc* -exec cp -r '{}' $TMPFOLDER \;
-  find $HOMEFOLDER -type d -name "SCRIPTS" -path ${HOMEFOLDER}/SC* -exec cp -r '{}' $TMPFOLDER \;
+  find $HOMEFOLDER -type d -name "Scripts" -path ${HOMEFOLDER}/Sc* -exec rsync -av --exclude=".*" '{}' $TMPFOLDER \;
+  find $HOMEFOLDER -type d -name "SCRIPTS" -path ${HOMEFOLDER}/SC* -exec rsync -av --exclude=".*" '{}' $TMPFOLDER \;
 } || {
   echo "Could not access SCRIPTS"
 }
