@@ -92,6 +92,7 @@ mkdir -p $BACKUPS
 # Z) TAR AND ZIP
 {
   tar -czf $BACKUPFILE $TMPFOLDER/*
+  gzip $BACKUPFILE
 } || {
   echo "Could not TAR"
 }
