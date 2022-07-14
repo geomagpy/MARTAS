@@ -74,7 +74,14 @@ mkdir -p $BACKUPS
   echo "Could not access SCRIPTS"
 }
 
-# G) TAR AND ZIP
+# G) copy SCRIPTS
+{
+  find $HOMEFOLDER -type d -name "CONF" -path ${HOMEFOLDER}/CO* -exec cp -r '{}' $TMPFOLDER \;
+} || {
+  echo "Could not access CONF"
+}
+
+# Z) TAR AND ZIP
 {
   tar -czf $BACKUPFILE $TMPFOLDER/*
 } || {
@@ -86,4 +93,3 @@ rm -r $TMPFOLDER
 find $BACKUPS -name "*backup.tar.gz" -mtime +30 -exec rm {} \;
 
 echo "BACKUP of $HOST SUCCESSFULLY finished"
-
