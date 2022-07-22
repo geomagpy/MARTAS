@@ -31,7 +31,7 @@ tvar=""
 current="$(pwd)"
 cd ..
 ACQUPATH="$(pwd)"
-cd ..
+cd ~
 CREDPATH="$(pwd)/.magpycred"
 USERNAME="$(whoami)"
 cd "$current"
