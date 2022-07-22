@@ -6,5 +6,5 @@
 	notifempty
 	delaycompress
 	compress
-        create 0664 root root
+        create 0664 dummyusername dummyusername
 }

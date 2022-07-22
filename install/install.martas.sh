@@ -33,7 +33,7 @@ cd ..
 ACQUPATH="$(pwd)"
 cd ..
 CREDPATH="$(pwd)/.magpycred"
-USERNAME="$(basename "`pwd`")"
+USERNAME="$(whoami)"
 cd "$current"
 
 echo "Helper for adding new acquisition job "

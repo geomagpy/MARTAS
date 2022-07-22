@@ -32,6 +32,7 @@ cd ..
 COLLPATH="$(pwd)"
 cd conf
 CONFPATH="$(pwd)"
+USERNAME="$(whoami)"
 cd "$current"
 
 
@@ -116,7 +117,7 @@ CONFFILE=$CFGPATH/$BROKER.cfg
 cp $CONFPATH/marcos.cfg $CONFFILE
 cp $CONFPATH/telegram.cfg $TELEGRAMPATH
 
-
+DUMMYLOGPATH="dummyusername"
 DUMMYLOGPATH="/logpath"
 DUMMYSTATION="myhome"
 DUMMYDEST="outputdestination"
@@ -143,8 +144,9 @@ fi
 # modify logrotate
 # ------------------
 if [ "$LOGPATH" != "$stdout" ]; then
-   cp marcos.logrotate /etc/logrotate.d/marcos
-   sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/marcos.log+g" /etc/logrotate.d/marcos
+   cp marcos.logrotate /etc/logrotate.d/collect-$BROKER
+   sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/marcos.log+g" /etc/logrotate.d/collect-$BROKER
+   sed -i "s+${DUMMYUSERNAME}+${USERNAME}.log+g" /etc/logrotate.d/collect-$BROKER
 fi
 
 
