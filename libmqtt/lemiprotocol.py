@@ -32,7 +32,6 @@ from __future__ import absolute_import
 # ###################################################################
 # Import packages
 # ###################################################################
-
 import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
@@ -106,12 +105,13 @@ class LemiProtocol(LineReceiver):
         else:
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
-        # LEMI Specific        
-        self.soltag = self.sensor[0]+self.sensor[4:7]    # Start-of-line-tag
+        # LEMI Specific
+        # Using encode() on str that are meant as binaries. Should work on Py2/3  
+        self.soltag = (self.sensor[0]+self.sensor[4:7]).encode('ascii')    # Start-of-line-tag
         self.errorcnt = {'gps':'A', 'time':'0', 'buffer':0}
-        self.buffer = ''
-        self.gpsstate1 = 'A'
-        self.gpsstate2 = 'Z'  # Initialize with Z so that current state is send when startet
+        self.buffer = ''.encode('ascii')
+        self.gpsstate1 = 'A'.encode('ascii')
+        self.gpsstate2 = 'Z'.encode('ascii')  # Initialize with Z so that current state is send when startet
         self.gpsstatelst = []
         flag = 0
         print ("Initializing LEMI finished")
@@ -181,7 +181,7 @@ class LemiProtocol(LineReceiver):
         lemipath = os.path.join(path,self.sensor+'_'+date+".bin")
         if not os.path.exists(lemipath):
             with open(lemipath, "ab") as myfile:
-                myfile.write(header)
+                myfile.write(header.encode('ascii'))
         try:
             with open(lemipath, "ab") as myfile:
                 myfile.write(data+date_bin)
@@ -221,7 +221,7 @@ class LemiProtocol(LineReceiver):
 
         #print ("HERE2", packcode, struct.calcsize(packcode))
         processerror = False
-        if not gpsstat in ['P','A']:
+        if not gpsstat.decode('ascii') in ['P','A']:
             print (" ERROR in BINDATA:", struct.unpack("<4cB6B8hb30f3BcB", data))
             print (" Rawdata looks like:", data)
             self.buffererrorcnt += 1
@@ -235,7 +235,7 @@ class LemiProtocol(LineReceiver):
         self.gpsstatelst = self.gpsstatelst[-600:]
         self.gpsstate1 = max(set(self.gpsstatelst),key=self.gpsstatelst.count)
         if not self.gpsstate1 == self.gpsstate2:
-            log.msg('LEMI - Protocol: GPSSTATE changed to %s .'  % gpsstat)
+            log.msg('LEMI - Protocol: GPSSTATE changed to %s .'  % gpsstat.decode('ascii'))
         self.gpsstate2 = self.gpsstate1
 
         try:
@@ -294,7 +294,6 @@ class LemiProtocol(LineReceiver):
 
 
     def dataReceived(self, data):
-
         #print ("Lemi data here!", self.buffer)
         """
         Sometime the code is starting wrongly -> 148 bit length
@@ -325,9 +324,9 @@ class LemiProtocol(LineReceiver):
             # 1. Found correct data length
             if (self.buffer).startswith(self.soltag) and len(self.buffer) == 153:
                 currdata = self.buffer
-                self.buffer = ''
+                self.buffer = ''.encode('ascii')
                 dataarray, head = self.processLemiData(currdata)
-                if not dataarray == '':
+                if not dataarray == ''.encode('ascii'):
                     WSflag = 2
 
             # 2. Found incorrect data length
@@ -373,7 +372,7 @@ class LemiProtocol(LineReceiver):
                                 self.buffer = self.buffer[153:len(self.buffer)]
                             elif lemisearch == -1:
                                 log.msg('LEMI - Protocol: No header found. Deleting buffer.')
-                                self.buffer = ''
+                                self.buffer = ''.encode('ascii')
                             else:
                                 log.msg('LEMI - Protocol: String contains bad data ({} bits). Deleting. Lemisearchpos: {}'.format(len(self.buffer[:lemisearch]), lemisearch))
                                 #self.buffer = ''
@@ -390,7 +389,7 @@ class LemiProtocol(LineReceiver):
                     #lemisearch = repr(self.buffer).find(self.soltag)
                     if lemisearch == -1:
                         log.msg('LEMI - Protocol: No header found. Deleting buffer.')
-                        self.buffer = ''
+                        self.buffer = ''.encode('ascii')
                     else:
                         self.buffer = self.buffer[lemisearch:len(self.buffer)]
                         log.msg('LEMI - Protocol: Bad data ({} bits) deleted. New bufferlength: {}'.format(lemisearch,len(self.buffer)))
@@ -402,7 +401,7 @@ class LemiProtocol(LineReceiver):
         except:
             log.msg('LEMI - Protocol: Error while parsing data.')
             #Emtpying buffer
-            self.buffer = ''
+            self.buffer = ''.encode('ascii')
             self.buffererrorcnt += 1
             if self.buffererrorcnt == 10:
                 self.initiateRestart()
