@@ -899,14 +899,24 @@ LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |  
 LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
 GSM90      |              | mag-scalar   | gsm90protocol.py   |              |              | 
 GSM19      |              | mag-scalar   | gsm19protocol.py   |              |              | 
+GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |              | 
+G823       |              | mag-scalar   | csprotocol.py      |   passive    |              | 
+POS1       |              | mag-scalar   | pos1protocol.py    |   passive    |              | 
 ENV05      |              | temp-humid   | envprotocol.py     |   passive    |              | 
 OneWire    |              | multiple     | owprotocol.py      |   passive    |              | 
 BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh  |   (py2)/py3
 Thies LNM |               | laserdisdro  | disdroprotocol.py  |   active     |              |   (py2)/py3
 DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |              |   (py2)/py3
+LORAWAN    |              | multiple     | lorawanprotocol.py |              |              |   
+MySQL      |              | multiple     | mysqlprotocol.py   |   active     |              |   
 Arduino    |              | multiple     | arduinoprotocol.py |   passive    |              |   (py2)/py3
 Arduino    |              | multiple     | activearduinoprotocol.py | active |              |   (py2)/py3
+AD7714     |              | multiple     | ad7714protocol.py  |   active     |              |   
+CR1000/800 |              | multiple     | cr1000jcprotocol.py      | active |              |   
+GIC        |              | special      | gicprotocol.py     |   active     |              | 
+Test       |              | special      | testprotocol.py    |              |              | 
  - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |              |
+ - remove- |              | multiple     | ardactiveprotocol.py     |   inactive   |              |
 
 (py2) indactes that code has been developed and used in python2 but has not been tested anymore
 
