@@ -52,7 +52,7 @@ Improvements:
     + running in py3
     + generalized all methods
     + prepared communication function with word lists
-    + testet all methods except (TODO): reboot, martas update, cam 
+    + testet all methods except (TODO): reboot, martas update, cam
 
 """
 
@@ -230,7 +230,7 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003',
                    'system':'get some basic information an the remote system and its software (hardware, magpy version)',
                    'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)',
-                   'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime', 
+                   'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime',
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)',
                    'cam':'get a live picture from a connected camera',
                    'figure1':'open a preconfigured figure',
@@ -242,7 +242,7 @@ travistestrun = False
 hiddencommands = {'reboot':'reboot the remote computer'}
 
 commandlist = {}
-commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'} 
+commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'}
 commandlist['hello'] = {'commands': ['hello','Hello'], 'combination' : 'any'}
 commandlist['imbot'] = {'commands': ['imbot','IMBOT'], 'combination' : 'any'}
 
@@ -833,7 +833,7 @@ def handle(msg):
     if not str(chat_id) in allowed_users:
         bot.sendMessage(chat_id, "My mother told me not to speak to strangers, sorry...")
         tglogger.warning('--------------------- Unauthorized access -------------------------')
-        tglogger.warning('!!! unauthorized access from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname)) 
+        tglogger.warning('!!! unauthorized access from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname))
         tglogger.warning('-------------------------------------------------------------------')
     else:
         if content_type == 'text':
@@ -952,14 +952,14 @@ def handle(msg):
                # Send MARTAS process command
                # -----------------------
                bot.sendMessage(chat_id, "Sending result request to IMBOT...")
-               cmd = command.replace('imbot','').replace('IMBOT','')
+               cmd = command.replace('martas','').replace('MARTAS','')
                cmd = cmd.strip()
                yearl = re.findall(r'\d+', cmd)
                if len(yearl) > 0:
-                   y = yearl[-1]
+                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis{a}.json -l /srv/DataCheck/IMBOT/{a}/level".format(a=yearl[-1])
                else:
-                   y = datetime.strftime(datetime.utcnow()-timedelta(years=1),"%Y")
-               command = "/usr/bin/python3 {b} -m {c}_analysis{a}.json -l {d}/{a}/level".format(a=y,b=tgconf.get('imbotoverview'),c=tgconf.get('imbotsecmemory'),d=tgconf.get('imbotarchive'))
+                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis2020.json -l /srv/DataCheck/IMBOT/2020/level"
+               #subprocess.call([command])
                os.system(command)
             elif any([word in command for word in commandlist['martas'].get('commands')]):
                # -----------------------
@@ -1166,4 +1166,3 @@ while 1:
         exit()
     except:
         tglogger.error('Other error or exception occured!')
-
