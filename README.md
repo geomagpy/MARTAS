@@ -35,6 +35,7 @@ Currently supported systems are:
 - Dallas OneWire Sensors
 - DIGIBASE MCA Gamma sensors
 - Mingeo ObsDAQ 24bit-ADC in combination with PalmAcq logger
+- all data files readable by MagPy
 
 and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
 (requiring a specific serial output format in the self written microcontroller program - appendix)
@@ -57,7 +58,7 @@ on debian like LINUX systems.
     - any future development will be directed to python 3.x
 
     Required packages:
-    - Geomagpy >= 0.3.97 (and its requirements)
+    - Geomagpy >= 1.0.0 (and its requirements)
         sudo pip install geomagpy
     - mosquitto (MQTT client - broker)
         sudo apt-get install mosquitto mosquitto-clients
@@ -622,6 +623,7 @@ Script           |   Purpose                                         | Configura
 addcred.py       | Create credential information for scripts         |                | py3       | 8.2
 archive.py       | Read database tables and create archive files     | archive.cfg    | py3       | 8.3
 ardcomm.py       | Communicating with arduino microcontroller        |                | py2/py3   | 8.4
+backup_config.sh | Shell script to backup MARTAS configuartion data  |                | -         |
 file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs     |  collect.cfg   |  py3  |  8.5
 file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   | 8.6
 threshold.py     |      |     |    | 7.1
@@ -920,6 +922,7 @@ Arduino    |              | multiple     | activearduinoprotocol.py | active |  
 AD7714     |              | multiple     | ad7714protocol.py  |   active     |              |   
 CR1000/800 |              | multiple     | cr1000jcprotocol.py      | active |              |   
 GIC        |              | special      | gicprotocol.py     |   active     |              |
+DataFiles  |              | multiple     | imfileprotocol.py  |   active     |              |   py3   
 Test       |              | special      | testprotocol.py    |              |              |
  - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |              |
  - remove- |              | multiple     | ardactiveprotocol.py     |   inactive   |              |

@@ -4,10 +4,11 @@ and collection from many different sources.
 ####v<1.0.3>, <2022-07-26> --
 
 v1.0.3 additions:
-    - full obsdaq support
+    - full obsdaq support and examples for FGE connected via obsdaq
     - file library to access and publish data from files
     - added backup script to save configurations periodically
     - added library support for Austrian GIC data
+    - added library support and init for DIGIBASE gamma detectors
 
 v1.0.3 corrections:
     - README update
