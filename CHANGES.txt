@@ -1,6 +1,22 @@
 MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
+####v<1.0.3>, <2022-07-26> --
+
+v1.0.3 additions:
+    - full obsdaq support
+    - file library to access and publish data from files
+    - added backup script to save configurations periodically
+    - added library support for Austrian GIC data
+
+v1.0.3 corrections:
+    - README update
+    - some py3 fixes (adruino, lemi and other protocols)
+
+v1.0.3 fixes:
+    - telegrambot IMBOT fixes
+
+
 ####v<1.0.2>, <2021-11-11> --
 
 v1.0.2 additions:
@@ -16,7 +32,7 @@ v1.0.2 corrections:
 v1.0.1 additions:
     - blacklist support in collector
     - multiple users for telegrambot
-    - updated descriptions in README 
+    - updated descriptions in README
     - added statemachine app
 
 v1.0.1 corrections:
@@ -35,14 +51,14 @@ v1.0.0 additions:
 
 v0.1.3 additions:
     - added telegrambot.py (config option still missing)
-    - 
+    -
 
 v0.1.3 fixes:
     - collector.py: default stationid does not override config any more
     - collector.py: stationid is not removed if contained in sensorid
 
 v0.1.3 improvements:
-    - martas.py (prepared e-mail notification, not yet available however) 
+    - martas.py (prepared e-mail notification, not yet available however)
     - updated README for sensorid naming conventions
 
 v0.1.3 removals:
@@ -80,4 +96,4 @@ v0.1.1 removals:
      + MARCOS (collection package)
        - MQTT (payloads: default, json)
 
-     + many apps 
+     + many apps

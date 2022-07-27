@@ -17,6 +17,10 @@ pip install platform  # system definitions
 Optional linux packages
 sudo apt-get install fswebcam   # getting cam pictures
 
+TODO:
+
+PROXY: add proxy in configuration file - currently it is hardcoded
+
 add cronstop to regularly restart the bot (root)
 sudo crontab -e
 PATH=/bin/sh
@@ -93,7 +97,6 @@ class tgpar(object):
     marcoslogpath = '/var/log/magpy/marcos.log'
     tmppath = '/tmp'
     camport = 'None'
-    camoptions = ''
     tglogpath = '/var/log/magpy/telegrambot.log'
     version = '1.0.3'
     martasapp = '/home/cobs/MARTAS/app'
@@ -273,7 +276,6 @@ confdict['allowed_users'] = ''
 confdict['camport'] = 'None'
 confdict['logging'] = 'stdout'
 confdict['loglevel'] = 'INFO'
-confdict['outlier'] = {}
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:T",["config=","Test="])
@@ -307,7 +309,6 @@ try:
     camport = tgconf.get('camport').strip()
     if camport:
         camport = camport.strip()
-    camoptions = tgconf.get('camoptions','')
     martasapp = tgconf.get('martasapp')
     if martasapp:
         martasapp = martasapp.strip()
@@ -315,7 +316,6 @@ try:
     marcosconfig = tgconf.get('marcosconfig')
     if marcosconfig:
         marcosconfig = marcosconfig.strip()
-    outlier = tgconf.get('outlier')
     proxy = tgconf.get('proxy')
     if proxy:
         proxy = proxy.strip()
@@ -342,7 +342,6 @@ try:
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
     tmppath = tgconf.get('tmppath').strip()
     tgpar.camport = camport
-    tgpar.camoptions = camoptions
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
@@ -522,16 +521,13 @@ def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
     return returndict
 
 
-def tgplot(sensor, starttime, endtime, keys=None, outlier={}):
+def tgplot(sensor, starttime, endtime, keys=None):
     """
     DESCRIPTION
        plotting subroutine
     """
     try:
         data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime, endtime=endtime)
-        if outlier:
-            data = data.flag_outlier(threshold=int(outlier.get('threshold',5)))
-            data = data.remove_flagged()
         matplotlib.use('Agg')
         mp.plot(data, confinex=True, outfile=os.path.join(tmppath,'tmp.png'))
         return True
@@ -833,7 +829,7 @@ def handle(msg):
     if not str(chat_id) in allowed_users:
         bot.sendMessage(chat_id, "My mother told me not to speak to strangers, sorry...")
         tglogger.warning('--------------------- Unauthorized access -------------------------')
-        tglogger.warning('!!! unauthorized access from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname))
+        tglogger.warning('!!! unauthorized access ({}) from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname))
         tglogger.warning('-------------------------------------------------------------------')
     else:
         if content_type == 'text':
@@ -929,8 +925,6 @@ def handle(msg):
                    try:
                        tglogger.debug("Creating image...")
                        tglogger.debug("Selected cam port: {} and temporary path {}".format(usedcamport,tmppath))
-                       #TODO add camoptions here
-                       #subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, tgpar.camoptions, os.path.join(tmppath,'webimage.jpg')])
                        subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, os.path.join(tmppath,'webimage.jpg')])
                        tglogger.debug("Subprocess for image creation finished")
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))
@@ -1049,7 +1043,7 @@ def handle(msg):
                        if len(datelist) > 1:
                            endtime = max(datelist)
 
-                   suc = tgplot(sensorid,starttime,endtime,outlier=outlier)
+                   suc = tgplot(sensorid,starttime,endtime)
                    if suc:
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'tmp.png'),'rb'))
                    else:

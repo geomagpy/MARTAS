@@ -15,7 +15,7 @@ from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 
 from core import acquisitionsupport as acs
-from magpy.stream import KEYLIST
+from magpy.stream import read,KEYLIST,num2date
 import glob
 import os
 
@@ -23,7 +23,7 @@ import os
 ## MySQL protocol
 ## --------------------
 
-class IMFileProtocol(object):
+class imfileProtocol(object):
     """
     DESCRIPTION
        Protocol to read INTERMAGNET (actually MagPy) file data
@@ -32,6 +32,7 @@ class IMFileProtocol(object):
        recent data files matching a defined format.
        IMFile requires a path and a sensorid (if not contained in the file)
        IMFile is an active protocol, requesting data at defined periods.
+       DataID name generation-is using sensorid and revision number (if provided)
     EXAMPLE
        sensors.cfg:
        WICadjusted,/home/leon/Cloud/Daten,-,-,-,-,active,None,30,1,IMfile,*.min,-,0001,-,-,-,magnetism,-
@@ -51,8 +52,6 @@ class IMFileProtocol(object):
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
-
-        self.sensorlist = []
         self.revision = self.sensordict.get('revision','')
         try:
             self.requestrate = int(self.sensordict.get('rate','-'))
@@ -81,13 +80,17 @@ class IMFileProtocol(object):
         log.msg("  -> setting QOS:", self.qos)
 
         # IMFile specific
-        self.filewildcard = self.sensorname
-        self.pathname = self.port
+        self.lastt=None
+        self.filewildcard = sensordict.get('name')
+        self.pathname = sensordict.get('port')
+        if not self.filewildcard:
+            self.filewildcard = '*'
+        log.msg("  -> checking for files:", self.pathname, self.filewildcard)
         filepath = self.get_latest_file(self.pathname,self.filewildcard)
         # get existing sensors for the relevant board
-        log.msg("  -> IMPORTANT: IMFile assumes that a path-filename structure is given as sensorid ")
         if filepath:
             # check whether files as defined by the filename are existing at all
+            log.msg("  -> SUCCESS: most recent file in given path-filename structure is {}".format(filepath))
             self.connectionMade(self.sensor)
         else:
             self.connectionLost(self.sensor,"Files corresponding to filestructure not found - check path")
@@ -111,21 +114,12 @@ class IMFileProtocol(object):
 
     def get_headline_info(self,data):
         keys = data._get_key_headers()
-        cont = data.header.get("ColumnContents")
-        unit = data.header.get("ColumnUnits")
         units, elements = [], []
         for key in keys:
-            pos = KEYLIST.index(key)
-            try:
-                ele = cont[pos]
-            except:
-                ele = key
+            ele = data.header.get("col-{}".format(key),"")
             if not ele:
                 ele = key
-            try:
-                un = unit[pos])
-            except:
-                un = 'None'
+            un = data.header.get("unit-col-{}".format(key),"")
             if not un:
                 un = "None"
             elements.append(ele)
@@ -147,14 +141,21 @@ class IMFileProtocol(object):
 
         # get source and identify latest filepath
         filepath = self.get_latest_file(self.pathname,self.filewildcard)
+        if self.revision:
+            sensorid = self.sensor+"_"+self.revision
+        else:
+            sensorid = self.sensor
         if self.debug:
             log.msg("  -> DEBUG - dealing with sensor {}".format(sensorid))
-        dataid = sensorid+'_'+self.revision
 
-        #try:
-        data = read(filepath)
-        #except:
-        log.msg("  -> ERROR - accessing file at {}".format(filepath))
+        if self.debug:
+            log.msg("  -> DEBUG - reading {}".format(filepath))
+        try:
+            data = read(filepath)
+            if self.debug:
+                log.msg("  -> DEBUG - read {}, with {}".format(filepath,data.length()[0]))
+        except:
+            log.msg("  -> ERROR - accessing file at {}".format(filepath))
 
         if not data.length()[0] > 0:
             if self.debug:
@@ -167,17 +168,19 @@ class IMFileProtocol(object):
         now = datetime.utcnow()
         # always deal with a timerange twice of the requestrate
         tlow = now-timedelta(seconds=self.requestrate*2)
+        #TODO define a suitable startcondition for tlow
+        tlow = ts
         if not self.lastt:
             self.lastt=tlow
 
-        if te<tlow:
+        if te<=tlow:
             if self.debug:
                 log.msg("  -> DEBUG - no new data at {} - file covers until {}".format(now,te))
             return
         if self.debug:
-            log.msg("  -> DEBUG - triming data from {}".format(low))
+            log.msg("  -> DEBUG - triming data from {}".format(tlow))
         data = data.trim(starttime=self.lastt)
-        self.lastt = te-timedelta(seconds=1)
+        self.lastt = te
 
         # obtain header information
         # required are lists from keys, elements and units
@@ -189,12 +192,13 @@ class IMFileProtocol(object):
         packcode = '6HL'+''.join(['q']*len(keystab))
         header = ("# MagPyBin {} {} {} {} {} {} {}".format(sensorid, '['+','.join(keystab)+']', '['+','.join(elems)+']', '['+','.join(units)+']', multplier, packcode, struct.calcsize('<'+packcode)))
 
-        dataarray = data.ndarray
         #transpose
-        newli = np.transpose(dataarray)
+        dataarray = data.ndarray
+        orglist = [col for col in dataarray if len(col) == len(dataarray[0])]
+        newli = np.transpose(orglist)
 
         for dataline in newli:
-                timestamp = dataline[0]
+                timestamp = datetime.strftime(num2date(dataline[0]), "%Y-%m-%d %H:%M:%S.%f")
                 data_bin = None
                 datearray = ''
                 try:
@@ -215,8 +219,8 @@ class IMFileProtocol(object):
                     log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
                 self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
 
-        t2 = datetime.utcnow()
         if self.debug:
+            t2 = datetime.utcnow()
             log.msg("  -> DEBUG - Needed {}".format(t2-t1))
 
 
