@@ -916,22 +916,23 @@ Instrument |  versions    |  Inst-type   |  Library           |     mode     |  
 LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
 LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
 GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | gsm90v?init.sh |   py2,py3
-GSM19      |              | mag-scalar   | gsm19protocol.py   |              |              |
-GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |              |
-G823       |              | mag-scalar   | csprotocol.py      |   passive    |              |
+GSM19      |              | mag-scalar   | gsm19protocol.py   |              |              |   py2,py3
+GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |              |   py2,py3
+G823       |              | mag-scalar   | csprotocol.py      |   passive    |              |   py2,py3
 POS1       |              | mag-scalar   | pos1protocol.py    |   passive    |              |
-ENV05      |              | temp-humid   | envprotocol.py     |   passive    |              |
+ENV05      |              | temp-humid   | envprotocol.py     |   passive    |              |   py2,py3
 OneWire    |              | multiple     | owprotocol.py      |   passive    |              |
-BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh  |   (py2)/py3
-Thies LNM |               | laserdisdro  | disdroprotocol.py  |   active     |              |   (py2)/py3
+BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh  |   py2/py3
+Thies LNM  |              | laserdisdro  | disdroprotocol.py  |   active     |              |   (py2)/py3
 DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |              |   (py2)/py3
+Lippmann   |              | tilt         | lmprotocol.py      |   active     |              |   under const.
 LORAWAN    |              | multiple     | lorawanprotocol.py |              |              |   
 MySQL      |              | multiple     | mysqlprotocol.py   |   active     |              |   
 Arduino    |              | multiple     | arduinoprotocol.py |   passive    |              |   (py2)/py3
 Arduino    |              | multiple     | activearduinoprotocol.py | active |              |   (py2)/py3
 AD7714     |              | multiple     | ad7714protocol.py  |   active     |              |   
 CR1000/800 |              | multiple     | cr1000jcprotocol.py      | active |              |   
-GIC        |              | special      | gicprotocol.py     |   active     |              |
+GIC        |              | special      | gicprotocol.py     |   active     |              |   py3
 DataFiles  |              | multiple     | imfileprotocol.py  |   active     |              |   py3   
 Test       |              | special      | testprotocol.py    |              |              |
  - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |              |

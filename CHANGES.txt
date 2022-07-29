@@ -4,9 +4,12 @@ and collection from many different sources.
 
 ####v<1.0.4>, <202x-xx-xx> --
 
-v1.0.4 additions:
+v1.0.4 general:
+    - description on how to subscribe to MQTT from remote with mosquittp>2.0 in README
+      (i.e. required for new Ubunutu22.04 etc)
 
-v1.0.4 corrections:
+v1.0.4 additions:
+    - py3 support for protocols: gsm90, gsm19, G823, env, gp20s3
 
 v1.0.4 fixes:
 
