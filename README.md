@@ -95,8 +95,18 @@ on how to get MQTT running on your acquisition machine.
 
 If you dont need authentication you are fine already (continue with section 2). You only need to install the required packages as listed above. Thats it.
 
+### 2.4 NEW: enable listener
 
-### 2.3 Enabling authentication
+Starting with Mosquitto version 2.0.0 only localhost can listen to mqtt publications. To enable other listener you can create a config file as follows:
+
+         sudo nano /etc/mosquitto/conf.d/listener.conf
+
+Create this file if not existing and add the following lines:
+
+         listener 1883
+         allow_anonymous true
+
+### 2.5 Enabling authentication
 
 Authentication and secure data communication are supported by MARTAS. In order to enable
 authentication and SSL encryption for accessing data streams from your acquisition machine please check mosqitto instructions like the following web page:
@@ -905,7 +915,7 @@ Instrument |  versions    |  Inst-type   |  Library           |     mode     |  
 ---------- | ------------ | ------------ | ------------------ | ------------ | ------------ | ------------
 LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
 LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
-GSM90      |              | mag-scalar   | gsm90protocol.py   |              |              |
+GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | gsm90v?init.sh |   py2,py3
 GSM19      |              | mag-scalar   | gsm19protocol.py   |              |              |
 GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |              |
 G823       |              | mag-scalar   | csprotocol.py      |   passive    |              |
