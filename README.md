@@ -911,32 +911,33 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 ### 10.1 Acquisition libraries
 
-Instrument |  versions    |  Inst-type   |  Library           |     mode     |     init     |  py2/py3
----------- | ------------ | ------------ | ------------------ | ------------ | ------------ | ------------
-LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
-LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |              |   py2
+Instrument |  versions    |  Inst-type   |  Library           |     mode     |     init       |  py2/py3
+---------- | ------------ | ------------ | ------------------ | ------------ | -------------- | ------------
+LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
+LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
 GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | gsm90v?init.sh |   py2,py3
-GSM19      |              | mag-scalar   | gsm19protocol.py   |              |              |   py2,py3
-GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |              |   py2,py3
-G823       |              | mag-scalar   | csprotocol.py      |   passive    |              |   py2,py3
-POS1       |              | mag-scalar   | pos1protocol.py    |   passive    |              |
-ENV05      |              | temp-humid   | envprotocol.py     |   passive    |              |   py2,py3
-OneWire    |              | multiple     | owprotocol.py      |   passive    |              |
-BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh  |   py2/py3
-Thies LNM  |              | laserdisdro  | disdroprotocol.py  |   active     |              |   (py2)/py3
-DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |              |   (py2)/py3
-Lippmann   |              | tilt         | lmprotocol.py      |   active     |              |   under const.
-LORAWAN    |              | multiple     | lorawanprotocol.py |              |              |   
-MySQL      |              | multiple     | mysqlprotocol.py   |   active     |              |   
-Arduino    |              | multiple     | arduinoprotocol.py |   passive    |              |   (py2)/py3
-Arduino    |              | multiple     | activearduinoprotocol.py | active |              |   (py2)/py3
-AD7714     |              | multiple     | ad7714protocol.py  |   active     |              |   
-CR1000/800 |              | multiple     | cr1000jcprotocol.py      | active |              |   
-GIC        |              | special      | gicprotocol.py     |   active     |              |   py3
-DataFiles  |              | multiple     | imfileprotocol.py  |   active     |              |   py3   
-Test       |              | special      | testprotocol.py    |              |              |
- - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |              |
- - remove- |              | multiple     | ardactiveprotocol.py     |   inactive   |              |
+GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,(py3)
+GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |                |   py2,(py3)
+G823       |              | mag-scalar   | csprotocol.py      |   passive    |                |   py2,(py3)
+POS1       |              | mag-scalar   | pos1protocol.py    |   passive    | pos1init.sh    |
+ENV05      |              | temp-humid   | envprotocol.py     |   passive    |                |   py2,(py3)
+OneWire    |              | multiple     | owprotocol.py      |   passive    |                |
+BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh    |   py2/py3
+Thies LNM  |              | laserdisdro  | disdroprotocol.py  |   active     |                |   (py2)/py3
+DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |                |   (py2)/py3
+Lippmann   |              | tilt         | lmprotocol.py      |   active     |                |   under const.
+LORAWAN    |              | multiple     | lorawanprotocol.py |              |                |
+MySQL      |              | multiple     | mysqlprotocol.py   |   active     |                |
+Arduino    |              | multiple     | arduinoprotocol.py |   passive    |                |   (py2)/py3
+Arduino    |              | multiple     | activearduinoprotocol.py | active |                |   (py2)/py3
+AD7714     |              | multiple     | ad7714protocol.py  |   active     |                |
+ObsDaq     |              | multiple     | obsdaqprotocol.py  |   active     | obsdaqinit.sh  |   py2,py3
+CR1000/800 |              | multiple     | cr1000jcprotocol.py      | active |                |
+GIC        |              | special      | gicprotocol.py     |   active     |                |   py3
+DataFiles  |              | multiple     | imfileprotocol.py  |   active     |                |   py3
+Test       |              | special      | testprotocol.py    |              |                |
+ - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |                |
+ - remove- |              | multiple     | ardactiveprotocol.py | inactive   |                |
 
 (py2) indactes that code has been developed and used in python2 but has not been tested anymore
 
@@ -944,11 +945,26 @@ Test       |              | special      | testprotocol.py    |              |  
 
 #### 10.2.1 GEM Systems Overhauzr GSM90
 
+Using the initialization file of the GSM90 a command will be send towards the system in order to initialize passive data transfer. You need to edit the initialization file within the configuration directory (default is /etc/martas/init/gsm90...). Please adjust the connected serial port (e.g. S1, USB0 etc) and adept the following parameters:
+
+        -b (baudrate) : default is 115400
+        -p (port)
+        -c (command to send:)
+            S
+            5          -> filter (5= 50Hz, 6= 60Hz)
+            T048.5     -> Tuning field in microT
+            C          ->
+            datetime   -> initialize time with PC time (see option k)
+            h          -> switch to auto-cycle method (sometime necessary)
+            D          -> sampling rate: D -> down, U -> up, leave out to keep sampling rate
+            R          -> Run
+
 #### 10.2.2 Quantum POS1
 
 #### 10.2.3 Meteolabs BM35 pressure
 
 #### 10.2.4 ObsDAQ / PalmAcq
+
 Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
 1) Use palmacq.py -h  and obsdaq.py -h for further information. These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
 2) This step is optional: use obsdaqinit.sh without config file to test the initialization of PalmAcq and ObsDAQ (edit file). Final settings should be written into obsdaq.cfg.
@@ -958,7 +974,7 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
 5) Add following line to martas.cfg, e.g.:
       obsdaqconfpath  :  /etc/martas/obsdaq.cfg
 6) Edit sensors.cfg e.g. like following line:
-      FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
+      FGE\_S0252\_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time. From now on NTP time will be recorded additionally in the sectime column
 
 #### 10.2.5 LM
