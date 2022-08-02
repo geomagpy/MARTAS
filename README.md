@@ -646,14 +646,14 @@ palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3 | 
 ### 8.2 addcred.py
 
 #### DESCRIPTION:
-Sending data to a remote host by scp or ftp.
-Requires existing credential information (see cred.py).
--------------------------------------
+
+Addcred can be used to keep sensitive credential information out of scripts.
+
 Usage:
 addcred.py -v <listexisting> -t <type> -c <credentialshortcut>
  -d <database> -u <user> -p <password> -s <smtp> -a <address> -o <host>
  -l <port>
--------------------------------------
+
 Options:
 -v       : view all existing credentials
 -t       : define type of data: db, transfer or mail
@@ -665,11 +665,11 @@ Options:
 -a       : address for transfer type
 -o       : host of database
 -l       : port of transfer protocol
--------------------------------------
 
 #### APPLICATION:
-python addcred.py -t transfer -c zamg -u max -p geheim -a "ftp://ftp.remote.ac.at" -l 21
-!!!!  please note: put path in quotes !!!!!!
+
+           python addcred.py -t transfer -c zamg -u max -p geheim -a "ftp://ftp.remote.ac.at" -l 21
+           !!!!  please note: put path in quotes !!!!!!
 
 
 ### 8.3 archive.py
@@ -840,7 +840,69 @@ use app/senddata.py within crontab:
 use app/collectfile.py within crontab:
 
 
-## 10. Strucure/Files in home directory of MARTAS user
+## 10. Checklist for error analysis
+
+### 10.1 Acquisition
+
+In order to find any issues with data acquisition we recommend to check the following aspects:
+
+    1) acquisition process running?  
+
+              sudo /etc/init.d/martas status
+
+       if not start/restart the process
+
+    2) log file contents
+
+              tail -30 /var/log/magpy/martas.log
+
+       Check the logfile contents. Typically they might indicate already what is going wrong. For more detailed information within the logfiles please edit "martas.cdf" and set "debug  :  True" before restarting the acquisition process.
+
+    3) bufferfile written
+
+              ls -al /srv/mqtt/YOURSENSOR/
+
+       Check if buffer data written.
+
+### 10.2 Data transfer and MQTT Broker
+
+    1) Can I subscribe to the MQTT data stream?  
+
+              mosquitto_sub -t TOPIC/#
+
+        Above command, issued on the defined data broker (in martas.cfg) will give you some information on published data.
+
+    2) Can I subscribe to the data from elsewhere?
+
+              mosquitto_sub -h BROKER_IP_ADDRESS -t TOPIC/#
+
+         If this one fails check section 1.1 again.
+
+### 10.3. MARCOS collector
+
+1) collector process running?  
+
+          sudo /etc/init.d/collect-MYBROKER status
+
+   if not start/restart the process
+
+2) log file contents
+
+          tail -30 /var/log/magpy/COLLECT.log
+
+   Check the logfile contents. Typically they might indicate already what is going wrong. For more detailed information within the logfiles please edit "martas.cdf" and set "debug  :  True" before restarting the acquisition process.
+
+3) data files/ database  written
+
+          DATABASE:
+          mysql -u user -p mydb
+          select * from DATATABLE order by time desc limit 10;
+
+          FILE:
+          ls -al /my/file/destination/
+
+
+## 11. Strucure/Files in home directory of MARTAS user
 
 Within the MARTAS directory you will find the following files and programs:
 
@@ -907,9 +969,9 @@ web/smoothiesettings.js    |        define settings for real time plots
 oldstuff/...    |		        Folder for old contents and earlier versions
 
 
-## 10. Appendix
+## 12. Appendix
 
-### 10.1 Acquisition libraries
+### 12.1 Acquisition libraries
 
 Instrument |  versions    |  Inst-type   |  Library           |     mode     |     init       |  py2/py3
 ---------- | ------------ | ------------ | ------------------ | ------------ | -------------- | ------------
@@ -941,9 +1003,9 @@ Test       |              | special      | testprotocol.py    |              |  
 
 (py2) indactes that code has been developed and used in python2 but has not been tested anymore
 
-### 10.2 Initialization files
+### 12.2 Initialization files
 
-#### 10.2.1 GEM Systems Overhauzr GSM90
+#### 12.2.1 GEM Systems Overhauzr GSM90
 
 Using the initialization file of the GSM90 a command will be send towards the system in order to initialize passive data transfer. You need to edit the initialization file within the configuration directory (default is /etc/martas/init/gsm90...). Please adjust the connected serial port (e.g. S1, USB0 etc) and adept the following parameters:
 
@@ -959,11 +1021,11 @@ Using the initialization file of the GSM90 a command will be send towards the sy
             D          -> sampling rate: D -> down, U -> up, leave out to keep sampling rate
             R          -> Run
 
-#### 10.2.2 Quantum POS1
+#### 12.2.2 Quantum POS1
 
-#### 10.2.3 Meteolabs BM35 pressure
+#### 12.2.3 Meteolabs BM35 pressure
 
-#### 10.2.4 ObsDAQ / PalmAcq
+#### 12.2.4 ObsDAQ / PalmAcq
 
 Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
 1) Use palmacq.py -h  and obsdaq.py -h for further information. These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
@@ -977,10 +1039,10 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
       FGE\_S0252\_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time. From now on NTP time will be recorded additionally in the sectime column
 
-#### 10.2.5 LM
+#### 12.2.5 LM
 
 
-### 10.3 Dallas OW (One wire) support
+### 12.3 Dallas OW (One wire) support
 
 a) modify owfs,conf
         $ sudo nano /etc/owfs.conf
@@ -996,7 +1058,7 @@ b) start the owserver
         $ sudo etc/init.d/owserver start
 
 
-### 10.4  Communicating with an Arduino Uno Microcontroller
+### 12.4  Communicating with an Arduino Uno Microcontroller
 
 An [Arduino Microcontroller] has to be programmed properly with serial outputs, which are interpretable from MARTAS. Such Arduino programs are called sketch.
 MARTAS contains a few example scripts, which show, how these sketches need to work, in order to be used with MARTAS. In principle, two basic acquisition modes are supported
@@ -1043,9 +1105,9 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
 
-### 10.5 Full example installation of a MARTAS Box
+### 12.5 Full example installation of a MARTAS Box
 
-#### 10.5.1 Raspberry - MARCOS/MARTAS
+#### 12.5.1 Raspberry - MARCOS/MARTAS
 
 ```
 sudo apt-get install curl wget g++ zlibc gv imagemagick gedit gedit-plugins gparted ntp arduino ssh openssl libssl-dev gfortran  libproj-dev proj-data proj-bin git owfs mosquitto mosquitto-clients libncurses-dev build-essential nagios-nrpe-server nagios-plugins apache2 mariadb-server php php-mysql phpmyadmin netcdf-bin curlftpfs fswebcam
@@ -1196,7 +1258,7 @@ sudo mount -a
 
 
 
-#### 10.4.2 Beaglebone - MARTAS
+#### 12.4.2 Beaglebone - MARTAS
 
 1. use etcher to create boot microsd
 
@@ -1220,7 +1282,7 @@ sudo mount -a
 
         # add 15 0 * * * root bash /etc/martas/cleanup.sh to /etc/crontab
 
-### 10.4 Issues and TODO
+### 12.4 Issues and TODO
 
 Sometimes, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
 
