@@ -4,6 +4,7 @@
 	size 200k
 	missingok
 	notifempty
+	copytruncate
 	delaycompress
 	compress
         create 0664 dummyusername dummyusername
