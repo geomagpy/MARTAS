@@ -63,6 +63,15 @@ if onewire:
             #print (self.existinglist)
             #print (self.count)
 
+            # debug mode
+            debugtest = confdict.get('debug')
+            self.debug = False
+            if debugtest == 'True':
+                log.msg('     DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+                self.debug = True    # prints many test messages
+            else:
+                log.msg('  -> Debug mode = {}'.format(debugtest))
+
             # QOS
             self.qos=int(confdict.get('mqttqos',0))
             if not self.qos in [0,1,2]:
@@ -75,9 +84,10 @@ if onewire:
                 self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
                 sensorlst = self.owproxy.dir()
             except:
-                #log.msg("  -> one wire: could not contact to owhost")
+                log.msg("  -> one wire: could not contact to owhost")
                 return []
-            #log.msg("  -> one wire: {}".format(sensorlst))
+            if self.debug:
+                log.msg("  -> one wire: {}".format(sensorlst))
             # Python3 checks
             #if sys.version_info >= (3, 0):
             # compare currently read sensorlst with original sensorlst (eventually from file)
@@ -158,7 +168,8 @@ if onewire:
                 self.datalst = [[]]*len(self.sensorarray)
                 self.datacnt = [0]*len(self.sensorarray)
             for idx, line in enumerate(sensorarray):
-                #print ("Getting sensor ID:", line.get('sensorid'))
+                if self.debug:
+                    print ("Getting sensor ID:", line.get('sensorid'))
                 sensorid = line.get('sensorid')
                 valuedict = {}
                 for para in typedef.get(line.get('name')):
