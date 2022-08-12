@@ -86,8 +86,7 @@ if onewire:
             except:
                 log.msg("  -> one wire: could not contact to owhost")
                 return []
-            if self.debug:
-                log.msg("  -> one wire: {}".format(sensorlst))
+            #log.msg("  -> one wire: {}".format(sensorlst))
             # Python3 checks
             #if sys.version_info >= (3, 0):
             # compare currently read sensorlst with original sensorlst (eventually from file)
