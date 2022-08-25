@@ -35,7 +35,15 @@ import struct, binascii, re, csv
 from datetime import datetime, timedelta
 
 from twisted.python import log
-from core import acquisitionsupport as acs
+
+try:
+    from core import acquisitionsupport as acs
+except:
+    # Relative import of core methods as long as martas is not configured as package
+    scriptpath = os.path.dirname(os.path.realpath(__file__))
+    coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
+    sys.path.insert(0, coredir)
+    import acquisitionsupport as acs
 import threading
 import time
 
@@ -556,11 +564,15 @@ class ad7714Protocol():
         #mySettings()
         global int_comm
         int_comm = "mySettings"
+        if self.debug:
+            print ('mySettings...')
         while not int_comm == "ok":
             time.sleep(0.001)
         # zero calibration
         #myCalibration()
         int_comm = "myCalibration"
+        if self.debug:
+            print ('myCalibration...')
         while not int_comm == "ok":
             time.sleep(0.001)
         # display AD7714s register values
