@@ -25,7 +25,8 @@ from __future__ import print_function
 #   6 .. 64
 #   7 .. 128
 
-GAIN = 1
+global GAIN
+GAIN = 0
 
 ###### please don't edit beyond this line ######
 
@@ -102,10 +103,27 @@ print("system clock", CLK)
 # *** board v0.2 ***
 # using channel 4: differential input AIN1-AIN2 (pin7-pin8)
 CHANNEL = 4
+#USING CHANNEL 4..6 in the future!
+
 # wordlength 16bit:0 24bit:1
+global BIT
 BIT = 1
 # Filter sets sampling rate. Depends on system clock
+global FILTER
 FILTER = 0x0c0
+# calibration mode
+#   1 .. self calibration
+#   2 .. zero calibration using input voltage
+#   0 .. get calibration constants from file
+global CALMODE
+CALMODE = 2
+
+global OFFSETX
+global OFFSETY
+global OFFSETZ
+global FULLSCALEX
+global FULLSCALEY
+global FULLSCALEZ
 
 # init watchdog
 watchdog = {}
@@ -308,7 +326,10 @@ def mySettings():
     """
     # using channel 5: differential input AIN3-AIN4 (pin9-pin10)
     # setGain: G = 2^(given value) e.g. setGain(channel=5,G=1) results in an amplification of 2^1 = 2
-    setGain(CHANNEL,GAIN)
+    #setGain(CHANNEL,GAIN)
+    setGain(4,GAIN)
+    setGain(5,GAIN)
+    setGain(6,GAIN)
     # setWL: wordlength 0:16bit, 1:24bit
     setWL(BIT)
     # setFilter(5,0xfa0) defines the sampling rate, in this example the minimal
@@ -329,11 +350,29 @@ def myCalibration():
     # mode 4: zero scale cal from input (should be stable), full scale cal internally
     # - should be best, but mode 2 is better
     # mode 2: only zero scale cal from input (should be stable)
-    # - best for offset
-    setMode(CHANNEL,2)
-    # doing zero scale cal again, especially when the sensor is not locked
-    time.sleep(0.3)
-    setMode(CHANNEL,2)
+    # - best for Demoseis: "removes" offset
+    if not CALMODE == 0:
+        setMode(4,CALMODE)
+        time.sleep(0.3)
+        setMode(5,CALMODE)
+        time.sleep(0.3)
+        setMode(6,CALMODE)
+        time.sleep(0.3)
+    else:
+        txreg(6,4,OFFSETX)
+        txreg(6,5,OFFSETY)
+        txreg(6,6,OFFSETZ)
+        txreg(7,4,FULLSCALEX)
+        txreg(7,5,FULLSCALEY)
+        txreg(7,6,FULLSCALEZ)
+    if CALMODE == 2:
+        # doing zero scale cal again, especially when the sensor is not locked
+        time.sleep(0.3)
+        setMode(4,CALMODE)
+        time.sleep(0.1)
+        setMode(5,CALMODE)
+        time.sleep(0.1)
+        setMode(6,CALMODE)
     # immediate communication would crash settings --> TODO better sync!
     time.sleep(0.01)
 
@@ -541,7 +580,27 @@ class ad7714Protocol():
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
-
+        self.ad7714conf = acs.GetConf2(self.confdict.get('ad7714confpath'))
+        global GAIN
+        GAIN = int(self.ad7714conf.get('GAIN'))
+        global BIT
+        BIT = int(self.ad7714conf.get('BIT'))
+        global FILTER
+        FILTER = int(str(self.ad7714conf.get('FILTER')),16)
+        global CALMODE
+        CALMODE = int(self.ad7714conf.get('CALMODE'))
+        global OFFSETX
+        OFFSETX = int(str(self.ad7714conf.get('OFFSETX')),16)
+        global OFFSETY
+        OFFSETY = int(str(self.ad7714conf.get('OFFSETY')),16)
+        global OFFSETZ
+        OFFSETZ = int(str(self.ad7714conf.get('OFFSETZ')),16)
+        global FULLSCALEX
+        FULLSCALEX = int(str(self.ad7714conf.get('FULLSCALEX')),16)
+        global FULLSCALEY
+        FULLSCALEY = int(str(self.ad7714conf.get('FULLSCALEY')),16)
+        global FULLSCALEZ
+        FULLSCALEZ = int(str(self.ad7714conf.get('FULLSCALEZ')),16)
 
         # reset AD7714
         print('AD7714Protocol: resetting AD7714...')
@@ -577,7 +636,7 @@ class ad7714Protocol():
             time.sleep(0.001)
         # display AD7714s register values
         #info()
-        #int_comm = "info"
+        int_comm = "info"
         while not int_comm == "ok":
             time.sleep(0.001)
         # ***
