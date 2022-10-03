@@ -384,6 +384,7 @@ def interruptRead(s):
     # at first get the time...
     currenttime = datetime.utcnow()
     # read from data register
+    """
     arrvalue=rxreg(5,CHANNEL)
     if len(arrvalue)==2:
         # 16 -> 24bit
@@ -392,7 +393,19 @@ def interruptRead(s):
     voltvalue=float(intvalue)/2**24*5-2.5
     # mV better for display
     voltvalue=voltvalue*1000
-    
+    """
+    allvalues=[9999,9999,9999,9999,9999,9999,9999]
+    for chan in range(7):
+        arrvalue=rxreg(5,chan)
+        if len(arrvalue)==2:
+            # 16 -> 24bit
+            arrvalue.append(0)
+        intvalue=(arrvalue[0]<<16) | (arrvalue[1]<<8) | arrvalue[2]
+        voltvalue=float(intvalue)/2**24*5-2.5
+        # mV better for display
+        voltvalue=voltvalue*1000
+        allvalues[chan]=voltvalue
+
     # TIME TO COMMUNICATE!
     global int_comm
     if int_comm == "mySettings":
@@ -434,14 +447,27 @@ def interruptRead(s):
         watchdog['max_repetitions'] = watchdog['max_repetitions'] * 2
         watchdog['count_repetitions'] = 0
     watchdog['oldvalue'] = intvalue
+
+    """
     packcode = "6hLl"
     sensorid = Objekt.sensordict['sensorid']
     header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[U]','[mV]','[1000]',packcode,struct.calcsize(packcode))
+    """
+    packcode = '6hLlllllll'
+    sensorid = Objekt.sensordict['sensorid']
+    headernames = '[{},{},{},{},{},{},{}]'.format('pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56')
+    headerunits = '[{},{},{},{},{},{},{}]'.format('mV','mV','mV','mV','mV','mV','mV')
+    headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
+    header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, 'var1,var2,var3,var4,var5,dx,dy', headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
+
     #timestamp=datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
     timestamp = datetime2array(currenttime)
     darray = timestamp
+    """
     darray.append(int(round(voltvalue*1000)))
-
+    """
+    for chan in range(7):
+        darray.append(int(round(allvalues[chan]*1000)))
 
     # TO FILE 
     data_bin = struct.pack(packcode,*darray)
