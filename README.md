@@ -878,6 +878,12 @@ In order to find any issues with data acquisition we recommend to check the foll
 
          If this one fails check section 1.1 again.
 
+    2) Can I publish data to a broker?
+
+              mosquitto_pub -h BROKER_IP_ADDRESS -t testTOPIC -m "Hello"
+
+              If this one fails check section 1.1 again.
+
 ### 10.3. MARCOS collector
 
 1) collector process running?  
