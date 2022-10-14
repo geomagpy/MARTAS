@@ -254,6 +254,8 @@ commandlist['martas'] = {'commands': ['Martas','martas','MARTAS'], 'combination'
 commandlist['marcos'] = {'commands': ['Marcos','marcos','MARCOS'], 'combination' : 'any'}
 commandlist['cam'] = {'commands': ['cam','Cam','picture','Picture','photo'], 'combination' : 'any'}
 commandlist['status'] = {'commands': ['Status','status','Memory','memory','disk','space','Disk'], 'combination' : 'any'}
+commandlist['upload'] = {'commands': ['upload','send data', 'nach Hause telefonieren'], 'combination' : 'any'}
+commandlist['getip'] = {'commands': ['getIP',' IP ', 'IP ','getip'], 'combination' : 'any'}
 commandlist['getlog'] = {'commands': ['getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
 commandlist['getdata'] = {'commands': ['data'], 'combination' : 'any'}
 commandlist['plot'] = {'commands': ['plot','Plot'], 'combination' : 'any'}
@@ -713,6 +715,46 @@ def marcos(broker='', command='restart'):
         mesg = "martas: check_call problem"
     return mesg
 
+def upload(configpath=""):
+    """
+    DESCRIPTION:
+        Command for uploading data using file_upload and the given configuration file
+    """
+    python = sys.executable
+    path = os.path.join(tgpar.martasapp,'file_upload.py')
+    option = '-c'
+    try:
+        if configpath:
+            call = "{} {} {} {}".format(python,path,option,configpath)
+            tglogger.debug("Uploading data by calling {}".format(call))
+            subprocess.call(command, shell = True)
+    except subprocess.CalledProcessError:
+        mesg = "upload: check_call didnt work"
+    except:
+        mesg = "upload: check_call problem"
+    return mesg
+
+def getip(interfacelist=["eth0","wlan0"]):
+    """
+    DESCRIPTION:
+        Getting th
+    """
+    mesg = ""
+    try:
+        for interface in interfacelist:
+            call = "ifconfig {} | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'".format(interface)
+            tglogger.debug("Requesting IP for {}:".format(interface))
+            tglogger.debug("call: {}".format(call))
+            p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+            (output, err) = p.communicate()
+            if vers=='3':
+                output = output.decode()
+            mesg += "\n{}: {}".format(interface, output)
+    except subprocess.CalledProcessError:
+        mesg = "getip: check_call didnt work"
+    except:
+        mesg = "getip: check_call problem"
+    return mesg
 
 def reboot():
     """
@@ -1002,6 +1044,19 @@ def handle(msg):
                            broker = rest[0]
                        mesg = marcos(broker=broker,command=comm)
                        break
+               bot.sendMessage(chat_id, mesg)
+            elif any([word in command for word in commandlist['getip'].get('commands')]):
+               # -----------------------
+               # Send GET IP  command
+               # -----------------------
+               bot.sendMessage(chat_id, "Requesting IP address...")
+               cmd = command.split(" ")
+               interfacelist = []
+               for el in cmd:
+                   el = el.strip()
+                   if el in ['eth0','eth1','eth2','eth3','wlan0','wlan1','wlan2','usb0','usb1','usb2','usb3','lo']:
+                       interfacelist.append(el)
+               mesg = getip(interfacelist)
                bot.sendMessage(chat_id, mesg)
             elif command =='reboot':
                # -----------------------
