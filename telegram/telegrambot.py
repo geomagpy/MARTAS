@@ -264,12 +264,12 @@ commandlist['marcos'] = {'commands': ['Marcos','marcos','MARCOS'], 'combination'
 commandlist['cam'] = {'commands': ['cam','Cam','picture','Picture','photo'], 'combination' : 'any'}
 commandlist['status'] = {'commands': ['Status','status','Memory','memory','disk','space','Disk'], 'combination' : 'any'}
 commandlist['upload'] = {'commands': ['upload','send data','Upload', 'nach Hause telefonieren'], 'combination' : 'any'}
-commandlist['getip'] = {'commands': ['getIP',' IP ', 'IP ','getip'], 'combination' : 'any'}
-commandlist['getlog'] = {'commands': ['getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
-commandlist['getdata'] = {'commands': ['data'], 'combination' : 'any'}
+commandlist['getip'] = {'commands': ['getIP',' IP ', 'IP ','getip','Getip','GetIP'], 'combination' : 'any'}
+commandlist['getlog'] = {'commands': ['getlog','Getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
+commandlist['getdata'] = {'commands': ['data','Data'], 'combination' : 'any'}
 commandlist['plot'] = {'commands': ['plot','Plot'], 'combination' : 'any'}
 commandlist['switch'] = {'commands': ['switch','Switch'], 'combination' : 'any' ,'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }}
-commandlist['badwords'] = {'commands': ['fuck','asshole'], 'combination' : 'any'}
+commandlist['badwords'] = {'commands': ['fuck','asshole','Fuck','Asshole'], 'combination' : 'any'}
 #switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
 #badwordcommands = ['fuck','asshole']
 commandlist['figure1'] = {'commands': ['figure1','Figure1','fig1','Fig1'], 'combination' : 'any'}
@@ -750,6 +750,8 @@ def upload():
                 output = output.decode()
             if output.find("not succesful") > 0:
                 mesg  = "upload apparently failed"
+            elif output.find("Credentials: Could not load file") > 0:
+                mesg  = "upload failed - credentials not existing"            
             elif output.find("SUCCESS") > 0:
                 mesg  = "upload apparently successfully"
             else:
