@@ -715,19 +715,32 @@ def marcos(broker='', command='restart'):
         mesg = "martas: check_call problem"
     return mesg
 
-def upload(configpath=""):
+def upload():
     """
     DESCRIPTION:
         Command for uploading data using file_upload and the given configuration file
     """
+    configpath = tgpar.uploadconfig
+    memorypath = tgpar.uploadmemory
+    if not memorypath:
+         memorypath = "/tmp/martas_tgupload_memory.json"
     python = sys.executable
     path = os.path.join(tgpar.martasapp,'file_upload.py')
-    option = '-c'
+    optioncfg = '-j'
+    optionmem = '-m'
     try:
         if configpath:
-            call = "{} {} {} {}".format(python,path,option,configpath)
+            call = "{} {} {} {} {} {}".format(python,path,optioncfg,configpath,optioncfg,configpath,optionmem,memorypath)
             tglogger.debug("Uploading data by calling {}".format(call))
             subprocess.call(command, shell = True)
+            mesg  = "upload process successfully started"
+            #p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+            #(output, err) = p.communicate()
+            #if vers=='3':
+            #    output = output.decode()
+            #print (output)
+        else:
+            tglogger.debug("Upload command deactivated as no configuration is provided")
     except subprocess.CalledProcessError:
         mesg = "upload: check_call didnt work"
     except:
@@ -749,6 +762,8 @@ def getip(interfacelist=["eth0","wlan0"]):
             (output, err) = p.communicate()
             if vers=='3':
                 output = output.decode()
+            if not output.startswith("1"):
+                output = "failed"
             mesg += "\n{}: {}".format(interface, output)
     except subprocess.CalledProcessError:
         mesg = "getip: check_call didnt work"
@@ -967,7 +982,12 @@ def handle(msg):
                    try:
                        tglogger.debug("Creating image...")
                        tglogger.debug("Selected cam port: {} and temporary path {}".format(usedcamport,tmppath))
-                       subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, os.path.join(tmppath,'webimage.jpg')])
+                       if tgpar.camoptions:
+                           camoptions = tgpar.camoptions
+                       else:
+                           camoptions = ""
+                       call = "/usr/bin/fswebcam -d {} {} {}".format(usedcamport, camoptions, os.path.join(tmppath,'webimage.jpg'))
+                       subprocess.call(call)
                        tglogger.debug("Subprocess for image creation finished")
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))
                    except:
@@ -1044,6 +1064,14 @@ def handle(msg):
                            broker = rest[0]
                        mesg = marcos(broker=broker,command=comm)
                        break
+               bot.sendMessage(chat_id, mesg)
+            elif any([word in command for word in commandlist['upload'].get('commands')]):
+               # -----------------------
+               # Send upload  command
+               # -----------------------
+               bot.sendMessage(chat_id, "Obtained an upload data request ...")
+               cmd = command.split(" ")
+               mesg = upload()
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['getip'].get('commands')]):
                # -----------------------
