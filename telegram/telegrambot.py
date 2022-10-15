@@ -58,6 +58,13 @@ Improvements:
     + prepared communication function with word lists
     + testet all methods except (TODO): reboot, martas update, cam
 
+Vers 1.0.4:
+
+Additions:
+    + added getip request
+    + added upload request
+    + added cam options support
+
 """
 
 from __future__ import print_function
@@ -98,7 +105,7 @@ class tgpar(object):
     tmppath = '/tmp'
     camport = 'None'
     tglogpath = '/var/log/magpy/telegrambot.log'
-    version = '1.0.3'
+    version = '1.0.4'
     martasapp = '/home/cobs/MARTAS/app'
     purpose = 'MARTAS'
 
@@ -235,7 +242,9 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)',
                    'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime',
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)',
-                   'cam':'get a live picture from a connected camera',
+                   'cam':'get a live picture from a connected camera using fswebcam\n  fswebcam options need to be defined in telegrambot.cfg',
+                   'getip':'get the IP of network interfaces like eth0 and wlan0.\n Command options:\n add interface to search for like\ngetip eth1, eth2',
+                   'upload':'upload data tp a remote machine using the MARTAS app file_upload and configuration data as defined in telegrambot.cfg',
                    'figure1':'open a preconfigured figure',
                    'figure2':'open an alternative figure',
                    'help':'print this list'}
@@ -254,7 +263,7 @@ commandlist['martas'] = {'commands': ['Martas','martas','MARTAS'], 'combination'
 commandlist['marcos'] = {'commands': ['Marcos','marcos','MARCOS'], 'combination' : 'any'}
 commandlist['cam'] = {'commands': ['cam','Cam','picture','Picture','photo'], 'combination' : 'any'}
 commandlist['status'] = {'commands': ['Status','status','Memory','memory','disk','space','Disk'], 'combination' : 'any'}
-commandlist['upload'] = {'commands': ['upload','send data', 'nach Hause telefonieren'], 'combination' : 'any'}
+commandlist['upload'] = {'commands': ['upload','send data','Upload', 'nach Hause telefonieren'], 'combination' : 'any'}
 commandlist['getip'] = {'commands': ['getIP',' IP ', 'IP ','getip'], 'combination' : 'any'}
 commandlist['getlog'] = {'commands': ['getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
 commandlist['getdata'] = {'commands': ['data'], 'combination' : 'any'}
@@ -347,6 +356,9 @@ try:
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
+    tgpar.uploadconfig = tgconf.get('uploadconfig',"").strip()
+    tgpar.uploadmemory = tgconf.get('uploadmemory',"").strip()
+    tgpar.camoptions = tgconf.get('camoptions',"").strip()
     if purpose:
         tgpar.purpose = purpose
     allusers = tgconf.get('allowed_users')
@@ -730,15 +742,18 @@ def upload():
     optionmem = '-m'
     try:
         if configpath:
-            call = "{} {} {} {} {} {}".format(python,path,optioncfg,configpath,optioncfg,configpath,optionmem,memorypath)
+            call = "{} {} {} {} {} {}".format(python,path,optioncfg,configpath,optionmem,memorypath)
             tglogger.debug("Uploading data by calling {}".format(call))
-            subprocess.call(command, shell = True)
-            mesg  = "upload process successfully started"
-            #p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
-            #(output, err) = p.communicate()
-            #if vers=='3':
-            #    output = output.decode()
-            #print (output)
+            p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+            (output, err) = p.communicate()
+            if vers=='3':
+                output = output.decode()
+            if output.find("not succesful") > 0:
+                mesg  = "upload apparently failed"
+            elif output.find("SUCCESS") > 0:
+                mesg  = "upload apparently successfully"
+            else:
+                mesg  = "upload obviously failed"
         else:
             tglogger.debug("Upload command deactivated as no configuration is provided")
     except subprocess.CalledProcessError:
@@ -752,19 +767,20 @@ def getip(interfacelist=["eth0","wlan0"]):
     DESCRIPTION:
         Getting th
     """
-    mesg = ""
+    mesg = "IP(s):\n"
     try:
         for interface in interfacelist:
-            call = "ifconfig {} | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'".format(interface)
+            call = r"ifconfig {} | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){}[0-9]*).*/\2/p'".format(interface,"{3}")
             tglogger.debug("Requesting IP for {}:".format(interface))
             tglogger.debug("call: {}".format(call))
             p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
             (output, err) = p.communicate()
             if vers=='3':
                 output = output.decode()
-            if not output.startswith("1"):
-                output = "failed"
-            mesg += "\n{}: {}".format(interface, output)
+            if output.startswith("1"):
+                mesg += "{}: {}".format(interface, output)
+        if mesg == "IP(s):\n":
+            mesg = "Did not find a valid IP address - search on a specific interface: getip eth1"
     except subprocess.CalledProcessError:
         mesg = "getip: check_call didnt work"
     except:
@@ -1082,8 +1098,10 @@ def handle(msg):
                interfacelist = []
                for el in cmd:
                    el = el.strip()
-                   if el in ['eth0','eth1','eth2','eth3','wlan0','wlan1','wlan2','usb0','usb1','usb2','usb3','lo']:
+                   if el in ['eth0','eth1','eth2','eth3','wlan0','wlan1','wlan2','usb0','usb1','usb2','usb3','lo','wlp4s0']:
                        interfacelist.append(el)
+               if not interfacelist:
+                   interfacelist = ['eth0','wlan0','wlp4s0']
                mesg = getip(interfacelist)
                bot.sendMessage(chat_id, mesg)
             elif command =='reboot':
