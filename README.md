@@ -984,12 +984,12 @@ Instrument |  versions    |  Inst-type   |  Library           |     mode     |  
 LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
 LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
 GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | gsm90v?init.sh |   py2,py3
-GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,(py3)
+GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,py3
 GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |                |   py2,(py3)
 G823       |              | mag-scalar   | csprotocol.py      |   passive    |                |   py2,(py3)
 POS1       |              | mag-scalar   | pos1protocol.py    |   passive    | pos1init.sh    |
 ENV05      |              | temp-humid   | envprotocol.py     |   passive    |                |   py2,(py3)
-OneWire    |              | multiple     | owprotocol.py      |   passive    |                |
+OneWire    |              | multiple     | owprotocol.py      |   passive    |                |   (py2)/py3
 BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh    |   py2/py3
 Thies LNM  |              | laserdisdro  | disdroprotocol.py  |   active     |                |   (py2)/py3
 DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |                |   (py2)/py3
@@ -1127,7 +1127,7 @@ sudo pip3 install paho-mqtt
 sudo pip3 install pyserial
 sudo pip3 install pexpect
 sudo pip3 install service_identity
-sudo pip3 install ownet
+sudo pip3 install pyownet
 sudo pip3 install geomagpy
 
 
@@ -1276,6 +1276,8 @@ sudo mount -a
 
         sudo apt update
 
+        sudo apt upgrade
+
         sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
 
         cd ~
@@ -1285,8 +1287,13 @@ sudo mount -a
         sudo bash install.martas.sh
 
         sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
+        sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
+        
+        sudo nano /etc/crontab
 
-        # add 15 0 * * * root bash /etc/martas/cleanup.sh to /etc/crontab
+        15 0    * * * root /bin/bash /etc/martas/cleanup.sh
+        10 0    1 * * root /bin/bash /etc/martas/backup_martasconfig.sh
+        5  0    * * * root /etc/init.d/martas start
 
 
 
