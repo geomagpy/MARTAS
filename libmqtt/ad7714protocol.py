@@ -134,6 +134,10 @@ watchdog['oldvalue'] = 999999
 
 global int_comm
 int_comm = ""
+global allvalues
+allvalues=[9999,9999,9999,9999,9999,9999,9999]
+global currentchannel
+currentchannel = 0
 
 def reset():
     """
@@ -192,13 +196,16 @@ def rxreg(register,channel):
     r=SPI.readbytes(nr_bytes)
     return r
 
-def setMode(channel=4,MD=0):
+def setMode(channel=4,MD=0,FSYNC=-1):
     """
     set mode: refer to AD7714s manual
     """
     # read unchanged values from mode register
     vm=rxreg(1,channel)
-    vm=(vm[0]&0x1f)|(MD<<5)
+    if FSYNC == -1:
+        vm=(vm[0]&0x1f)|(MD<<5)
+    else:
+        vm=(vm[0]&0x1e)|(MD<<5)|FSYNC
     txreg(1,channel,vm)
 
 def setGain(channel=4,G=0):
@@ -352,12 +359,24 @@ def myCalibration():
     # mode 2: only zero scale cal from input (should be stable)
     # - best for Demoseis: "removes" offset
     if not CALMODE == 0:
+        #setMode(6,CALMODE)
+        #txreg(6,6,OFFSETY)
+        #txreg(7,6,FULLSCALEY)
+        time.sleep(0.2)
         setMode(4,CALMODE)
-        time.sleep(0.3)
+        time.sleep(0.2)
         setMode(5,CALMODE)
-        time.sleep(0.3)
+        time.sleep(0.2)
         setMode(6,CALMODE)
-        time.sleep(0.3)
+        time.sleep(0.2)
+        #setMode(0,CALMODE)
+        #time.sleep(0.3)
+        #setMode(1,CALMODE)
+        #time.sleep(0.3)
+        #setMode(2,CALMODE)
+        #time.sleep(0.3)
+        #setMode(3,CALMODE)
+        #time.sleep(0.3)
     else:
         txreg(6,4,OFFSETX)
         txreg(6,5,OFFSETY)
@@ -394,25 +413,35 @@ def interruptRead(s):
     # mV better for display
     voltvalue=voltvalue*1000
     """
-    allvalues=[9999,9999,9999,9999,9999,9999,9999]
-    for chan in range(7):
-        arrvalue=rxreg(5,chan)
-        if len(arrvalue)==2:
-            # 16 -> 24bit
-            arrvalue.append(0)
-        intvalue=(arrvalue[0]<<16) | (arrvalue[1]<<8) | arrvalue[2]
-        voltvalue=float(intvalue)/2**24*5-2.5
-        # mV better for display
-        voltvalue=voltvalue*1000
-        allvalues[chan]=voltvalue
+    global allvalues
+    #allvalues=[9999,9999,9999,9999,9999,9999,9999]
+    global currentchannel
+    arrvalue=rxreg(5,currentchannel)
+    if len(arrvalue)==2:
+        # 16 -> 24bit
+        arrvalue.append(0)
+    intvalue=(arrvalue[0]<<16) | (arrvalue[1]<<8) | arrvalue[2]
+    voltvalue=float(intvalue)/2**24*5-2.5
+    # mV better for display
+    voltvalue=voltvalue*1000
+    try:
+        allvalues[currentchannel]=voltvalue
+    except:
+        print(currentchannel)
+        quit()
+    # reset FSYNC to change channel
+    currentchannel = currentchannel + 1
+    if currentchannel == 7:
+        currentchannel = 0
+    setMode(currentchannel,MD=0,FSYNC=1)
 
     # TIME TO COMMUNICATE!
     global int_comm
     if int_comm == "mySettings":
-        mySettings()
+        #mySettings()
         int_comm = "ok"
     if int_comm == "myCalibration":
-        myCalibration()
+        #myCalibration()
         int_comm = "ok"
     if int_comm == "info":
         info()
@@ -460,63 +489,69 @@ def interruptRead(s):
     headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
     header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, 'var1,var2,var3,var4,var5,dx,dy', headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
 
-    #timestamp=datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
-    timestamp = datetime2array(currenttime)
-    darray = timestamp
-    """
-    darray.append(int(round(voltvalue*1000)))
-    """
-    for chan in range(7):
-        darray.append(int(round(allvalues[chan]*1000)))
+    # trigger conversioin of next channel
+    setMode(currentchannel,MD=0,FSYNC=0)
 
-    # TO FILE 
-    data_bin = struct.pack(packcode,*darray)
-    filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
-    if not Objekt.confdict.get('bufferdirectory','') == '':
-        acs.dataToFile(Objekt.confdict.get('bufferdirectory'), sensorid, filedate, data_bin, header)
+    # if all channels are converted
+    if currentchannel == 0:
 
-    # VIA MQTT
-    # instead of external program file TODO: better!
-    #def sendData(self, sensorid, data, head, stack=None):
-    #sendData.sendData(Objekt,sensorid, ','.join(list(map(str,darray))), header)
-    data=','.join(list(map(str,darray)))
-    head=header
-    # TODO: implement stack correctly!
-    stack=1
+        #timestamp=datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
+        timestamp = datetime2array(currenttime)
+        darray = timestamp
+        """
+        darray.append(int(round(voltvalue*1000)))
+        """
+        for chan in range(7):
+            darray.append(int(round(allvalues[chan]*1000)))
 
-    topic = Objekt.confdict.get('station') + '/' + sensorid
-    senddata = False
-    if not stack:
-        stack = int(Objekt.sensordict.get('stack'))
-    coll = stack
+        # TO FILE 
+        data_bin = struct.pack(packcode,*darray)
+        filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
+        if not Objekt.confdict.get('bufferdirectory','') == '':
+            acs.dataToFile(Objekt.confdict.get('bufferdirectory'), sensorid, filedate, data_bin, header)
 
-    if coll > 1:
-        Objekt.metacnt = 1 # send meta data with every block
-        if Objekt.datacnt < coll:
-            Objekt.datalst.append(data)
-            Objekt.datacnt += 1
+        # VIA MQTT
+        # instead of external program file TODO: better!
+        #def sendData(self, sensorid, data, head, stack=None):
+        #sendData.sendData(Objekt,sensorid, ','.join(list(map(str,darray))), header)
+        data=','.join(list(map(str,darray)))
+        head=header
+        # TODO: implement stack correctly!
+        stack=1
+
+        topic = Objekt.confdict.get('station') + '/' + sensorid
+        senddata = False
+        if not stack:
+            stack = int(Objekt.sensordict.get('stack'))
+        coll = stack
+
+        if coll > 1:
+            Objekt.metacnt = 1 # send meta data with every block
+            if Objekt.datacnt < coll:
+                Objekt.datalst.append(data)
+                Objekt.datacnt += 1
+            else:
+                senddata = True
+                data = ';'.join(Objekt.datalst)
+                Objekt.datalst = []
+                Objekt.datacnt = 0
         else:
             senddata = True
-            data = ';'.join(Objekt.datalst)
-            Objekt.datalst = []
-            Objekt.datacnt = 0
-    else:
-        senddata = True
 
-    if senddata:
-            if Objekt.count == 0:
-                # get all values initially from the database
-                #add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( sensorid, self.confdict.get('station',''),self.sensordict.get('pierid',''), self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''), self.sensordict.get('ptime','') )
-                #self.client.publish(topic+"/dict", add, qos=self.qos)
-                Objekt.client.publish(topic+"/meta", head, qos=Objekt.qos)
+        if senddata:
+                if Objekt.count == 0:
+                    # get all values initially from the database
+                    #add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( sensorid, self.confdict.get('station',''),self.sensordict.get('pierid',''), self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''), self.sensordict.get('ptime','') )
+                    #self.client.publish(topic+"/dict", add, qos=self.qos)
+                    Objekt.client.publish(topic+"/meta", head, qos=Objekt.qos)
+                    if Objekt.debug:
+                        log.msg("  -> DEBUG - Publishing meta --", topic, head)
+                Objekt.client.publish(topic+"/data", data, qos=Objekt.qos)
                 if Objekt.debug:
-                    log.msg("  -> DEBUG - Publishing meta --", topic, head)
-            Objekt.client.publish(topic+"/data", data, qos=Objekt.qos)
-            if Objekt.debug:
-                log.msg("  -> DEBUG - Publishing data")
-            Objekt.count += 1
-            if Objekt.count >= Objekt.metacnt:
-                Objekt.count = 0
+                    log.msg("  -> DEBUG - Publishing data")
+                Objekt.count += 1
+                if Objekt.count >= Objekt.metacnt:
+                    Objekt.count = 0
 
 
 
@@ -646,7 +681,7 @@ class ad7714Protocol():
         
         # *** indirectly TODO make it better!
         # load settings, zero calibration
-        #mySettings()
+        mySettings()
         global int_comm
         int_comm = "mySettings"
         if self.debug:
@@ -654,7 +689,7 @@ class ad7714Protocol():
         while not int_comm == "ok":
             time.sleep(0.001)
         # zero calibration
-        #myCalibration()
+        myCalibration()
         int_comm = "myCalibration"
         if self.debug:
             print ('myCalibration...')
