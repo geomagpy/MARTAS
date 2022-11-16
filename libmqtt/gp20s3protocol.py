@@ -9,6 +9,7 @@ import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+import sys
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -20,7 +21,7 @@ import numpy as np
 class GP20S3Protocol(LineReceiver):
     """
     Protocol to read GP20S3 data
-    This protocol defines the individual sensor related read process. 
+    This protocol defines the individual sensor related read process.
     It is used to dipatch url links containing specific data.
     Sensor specific coding is contained in method "processData".
 
@@ -42,7 +43,7 @@ class GP20S3Protocol(LineReceiver):
         'confdict' contains a dictionary with general configuration parameters (martas.cfg)
         """
         self.client = client
-        self.sensordict = sensordict    
+        self.sensordict = sensordict
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
@@ -75,6 +76,8 @@ class GP20S3Protocol(LineReceiver):
             self.debug = True    # prints many test messages
         else:
             log.msg('  -> Debug mode = {}'.format(debugtest))
+        # PYTHON version
+        self.pvers = sys.version_info[0]
 
 
     def connectionMade(self):
@@ -88,7 +91,7 @@ class GP20S3Protocol(LineReceiver):
         valid = True
         if len(thresholds) > 1:
            if data2check < thresholds[0] or data2check > thresholds[1]:
-              valid = False          
+              valid = False
         return valid
 
     def processData(self, data):
@@ -96,9 +99,9 @@ class GP20S3Protocol(LineReceiver):
         """
         Data looks like--- (with GPS lines every minute):
         -- vertical sensor - Old software
-        3,3,12.00 111 field1 field2 field3  
-        3,3,12.00 111 field1 field2 field3 
-        GPS 16.00 111 field1 field2 field3  
+        3,3,12.00 111 field1 field2 field3
+        3,3,12.00 111 field1 field2 field3
+        GPS 16.00 111 field1 field2 field3
         -- horizontal sensor - New software
         time 111 field1 field2 field3                                            (every sec or faster)
         $$$                                                         (every hour, preceeds status line)
@@ -210,7 +213,7 @@ class GP20S3Protocol(LineReceiver):
                 statusstring = data_array[15]			# str2
                 Vsens1 = float(data_array[16])/10.		# var1
                 Vsens2 = float(data_array[17])/10.		# var2
-                Vsens3 = float(data_array[18])/10.		# var3 
+                Vsens3 = float(data_array[18])/10.		# var3
 
             elif len(data_array) == 1 and data_array[0] == '$$$':
                 return "","",""
@@ -240,7 +243,7 @@ class GP20S3Protocol(LineReceiver):
                 if self.errorcnt.get('time') > 1000:
                     self.errorcnt['time'] = 1000
             else:
-                self.errorcnt['time'] = 0 
+                self.errorcnt['time'] = 0
         except:
             pass
 
@@ -300,7 +303,7 @@ class GP20S3Protocol(LineReceiver):
                     headarray.append(int(PowerSup*10.))		# df
                     headarray.append(int(Vsens1*10.))		# var1
                     headarray.append(int(Vsens2*10.))		# var2
-                    headarray.append(int(Vsens3*10.))		# var3 
+                    headarray.append(int(Vsens3*10.))		# var3
                     headarray.append(int(Vsup1*100.))		# var4
                     headarray.append(int(Vsup2*100.))		# var5
                     headarray.append(gpstatus)			# str1
@@ -338,6 +341,8 @@ class GP20S3Protocol(LineReceiver):
 
         # Defaulttopic
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        if self.pvers > 2:
+            line=line.decode('ascii')
         # extract only ascii characters
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
         line = line.replace("b'","").replace("'","")
@@ -378,4 +383,3 @@ class GP20S3Protocol(LineReceiver):
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
-

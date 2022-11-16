@@ -41,7 +41,7 @@ if onewire:
         def __init__(self, client, sensordict, confdict):
             log.msg("  -> one wire: Initializing ...")
             self.client = client
-            self.sensordict = sensordict    
+            self.sensordict = sensordict
             self.confdict = confdict
             self.owhost = confdict.get('owhost')
             self.owport = int(confdict.get('owport'))
@@ -63,6 +63,15 @@ if onewire:
             #print (self.existinglist)
             #print (self.count)
 
+            # debug mode
+            debugtest = confdict.get('debug')
+            self.debug = False
+            if debugtest == 'True':
+                log.msg('     DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+                self.debug = True    # prints many test messages
+            else:
+                log.msg('  -> Debug mode = {}'.format(debugtest))
+
             # QOS
             self.qos=int(confdict.get('mqttqos',0))
             if not self.qos in [0,1,2]:
@@ -75,7 +84,7 @@ if onewire:
                 self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
                 sensorlst = self.owproxy.dir()
             except:
-                #log.msg("  -> one wire: could not contact to owhost")
+                log.msg("  -> one wire: could not contact to owhost")
                 return []
             #log.msg("  -> one wire: {}".format(sensorlst))
             # Python3 checks
@@ -113,7 +122,7 @@ if onewire:
                        try:
                            typ = typ.decode('ascii')
                        except:
-                           pass 
+                           pass
                     if not typ == 'DS1420': # do not add dongle
                         if el in self.removelist:
                             # el found again
@@ -158,60 +167,65 @@ if onewire:
                 self.datalst = [[]]*len(self.sensorarray)
                 self.datacnt = [0]*len(self.sensorarray)
             for idx, line in enumerate(sensorarray):
-                #print ("Getting sensor ID:", line.get('sensorid'))
+                if self.debug:
+                    print ("Getting sensor ID:", line.get('sensorid'))
                 sensorid = line.get('sensorid')
                 valuedict = {}
-                for para in typedef.get(line.get('name')):
-                    path = line.get('path')+para
-                    if para == 'humidity': ## Check whether separete treatment is necessary
-                        pass
-                        #line.get('path')+para
-                        #print ("ALL", self.owproxy.dir())
-                        #print ("sens",self.owproxy.dir(line.get('path')))
-                        #if para == 'pressure':
-                        #    #if sensortypus == "pressure":
-                        #    #    #print "Pressure [hPa]: ", self.mpxa4100(vad,temp)
-                        #    #    humidity = self.mpxa4100(vad,temp)
-                        #    pass
-                    valuedict[para] = self.owproxy.read(path)
+                if self.debug:
+                    print ("Available parameters:")
+                    print (self.owproxy.dir(line.get('path')))
+                if typedef.get(line.get('name')):  # check if sensor exists
+                    for para in typedef.get(line.get('name'),[]):
+                        path = line.get('path')+para
+                        if para == 'humidity': ## Check whether separete treatment is necessary
+                            pass
+                            #line.get('path')+para
+                            #print ("ALL", self.owproxy.dir())
+                            #print ("sens",self.owproxy.dir(line.get('path')))
+                            #if para == 'pressure':
+                            #    #if sensortypus == "pressure":
+                            #    #    #print "Pressure [hPa]: ", self.mpxa4100(vad,temp)
+                            #    #    humidity = self.mpxa4100(vad,temp)
+                            #    pass
+                        valuedict[para] = self.owproxy.read(path)
 
-                topic = self.confdict.get('station') + '/' + sensorid
-                data, head  = self.processOwData(sensorid, valuedict)
+                    topic = self.confdict.get('station') + '/' + sensorid
+                    data, head  = self.processOwData(sensorid, valuedict)
 
-                # To find out, which parameters are available use:
-                #print (self.owproxy.dir(line.get('path')))
+                    # To find out, which parameters are available use:
+                    #print (self.owproxy.dir(line.get('path')))
 
-                senddata = False
-                try:
-                    coll = int(line.get('stack'))
-                except:
-                    coll = 0
-                #coll = int(self.sensordict.get('stack'))
-                if coll > 1:
-                    self.metacnt = 1 # send meta data with every block for stacked transfer
-                    if self.datacnt[idx] < coll:
-                        self.datalst[idx].append(data)
-                        self.datacnt[idx] += 1
+                    senddata = False
+                    try:
+                        coll = int(line.get('stack'))
+                    except:
+                        coll = 0
+                    #coll = int(self.sensordict.get('stack'))
+                    if coll > 1:
+                        self.metacnt = 1 # send meta data with every block for stacked transfer
+                        if self.datacnt[idx] < coll:
+                            self.datalst[idx].append(data)
+                            self.datacnt[idx] += 1
+                        else:
+                            senddata = True
+                            data = ';'.join(self.datalst[idx])
+                            self.datalst[idx] = []
+                            self.datacnt[idx] = 0
                     else:
                         senddata = True
-                        data = ';'.join(self.datalst[idx])
-                        self.datalst[idx] = []
-                        self.datacnt[idx] = 0
-                else:
-                    senddata = True
 
-                if senddata:
-                    self.client.publish(topic+"/data", data, qos=self.qos)
-                    if self.count[idx] == 0:
-                        ## 'Add' is a string containing dict info like: 
-                        ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
-                        add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( line.get('sensorid',''),self.confdict.get('station',''),line.get('pierid',''),line.get('protocol',''),line.get('sensorgroup',''),line.get('sensordesc',''),line.get('ptime','') )
-                        #print ("...", add)
-                        self.client.publish(topic+"/dict", add, qos=self.qos)
-                        self.client.publish(topic+"/meta", head, qos=self.qos)
-                    self.count[idx] += 1
-                    if self.count[idx] >= self.metacnt:
-                        self.count[idx] = 0
+                    if senddata:
+                        self.client.publish(topic+"/data", data, qos=self.qos)
+                        if self.count[idx] == 0:
+                            ## 'Add' is a string containing dict info like: 
+                            ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
+                            add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( line.get('sensorid',''),self.confdict.get('station',''),line.get('pierid',''),line.get('protocol',''),line.get('sensorgroup',''),line.get('sensordesc',''),line.get('ptime','') )
+                            #print ("...", add)
+                            self.client.publish(topic+"/dict", add, qos=self.qos)
+                            self.client.publish(topic+"/meta", head, qos=self.qos)
+                            self.count[idx] += 1
+                        if self.count[idx] >= self.metacnt:
+                            self.count[idx] = 0
 
 
         def processOwData(self, sensorid, datadict):

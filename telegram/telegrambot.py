@@ -17,6 +17,10 @@ pip install platform  # system definitions
 Optional linux packages
 sudo apt-get install fswebcam   # getting cam pictures
 
+TODO:
+
+PROXY: add proxy in configuration file - currently it is hardcoded
+
 add cronstop to regularly restart the bot (root)
 sudo crontab -e
 PATH=/bin/sh
@@ -52,7 +56,14 @@ Improvements:
     + running in py3
     + generalized all methods
     + prepared communication function with word lists
-    + testet all methods except (TODO): reboot, martas update, cam 
+    + testet all methods except (TODO): reboot, martas update, cam
+
+Vers 1.0.4:
+
+Additions:
+    + added getip request
+    + added upload request
+    + added cam options support
 
 """
 
@@ -93,9 +104,8 @@ class tgpar(object):
     marcoslogpath = '/var/log/magpy/marcos.log'
     tmppath = '/tmp'
     camport = 'None'
-    camoptions = ''
     tglogpath = '/var/log/magpy/telegrambot.log'
-    version = '1.0.3'
+    version = '1.0.4'
     martasapp = '/home/cobs/MARTAS/app'
     purpose = 'MARTAS'
 
@@ -230,9 +240,11 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003',
                    'system':'get some basic information an the remote system and its software (hardware, magpy version)',
                    'switch':'otional: turn on/off remote switches if supported by the hardware (work in progress)',
-                   'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime', 
+                   'plot sensorid':'get diagram of specific sensor by default of the last 24 h \n  Command options:\n  plot sensorid\n  plot sensorid starttime\n  plot sensorid starttime endtime',
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)',
-                   'cam':'get a live picture from a connected camera',
+                   'cam':'get a live picture from a connected camera using fswebcam\n  fswebcam options need to be defined in telegrambot.cfg',
+                   'getip':'get the IP of network interfaces like eth0 and wlan0.\n Command options:\n add interface to search for like\ngetip eth1, eth2',
+                   'upload':'upload data tp a remote machine using the MARTAS app file_upload and configuration data as defined in telegrambot.cfg',
                    'figure1':'open a preconfigured figure',
                    'figure2':'open an alternative figure',
                    'help':'print this list'}
@@ -242,7 +254,7 @@ travistestrun = False
 hiddencommands = {'reboot':'reboot the remote computer'}
 
 commandlist = {}
-commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'} 
+commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'}
 commandlist['hello'] = {'commands': ['hello','Hello'], 'combination' : 'any'}
 commandlist['imbot'] = {'commands': ['imbot','IMBOT'], 'combination' : 'any'}
 
@@ -251,11 +263,13 @@ commandlist['martas'] = {'commands': ['Martas','martas','MARTAS'], 'combination'
 commandlist['marcos'] = {'commands': ['Marcos','marcos','MARCOS'], 'combination' : 'any'}
 commandlist['cam'] = {'commands': ['cam','Cam','picture','Picture','photo'], 'combination' : 'any'}
 commandlist['status'] = {'commands': ['Status','status','Memory','memory','disk','space','Disk'], 'combination' : 'any'}
-commandlist['getlog'] = {'commands': ['getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
-commandlist['getdata'] = {'commands': ['data'], 'combination' : 'any'}
+commandlist['upload'] = {'commands': ['upload','send data','Upload', 'nach Hause telefonieren'], 'combination' : 'any'}
+commandlist['getip'] = {'commands': ['getIP',' IP ', 'IP ','getip','Getip','GetIP'], 'combination' : 'any'}
+commandlist['getlog'] = {'commands': ['getlog','Getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
+commandlist['getdata'] = {'commands': ['data','Data'], 'combination' : 'any'}
 commandlist['plot'] = {'commands': ['plot','Plot'], 'combination' : 'any'}
 commandlist['switch'] = {'commands': ['switch','Switch'], 'combination' : 'any' ,'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }}
-commandlist['badwords'] = {'commands': ['fuck','asshole'], 'combination' : 'any'}
+commandlist['badwords'] = {'commands': ['fuck','asshole','Fuck','Asshole'], 'combination' : 'any'}
 #switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
 #badwordcommands = ['fuck','asshole']
 commandlist['figure1'] = {'commands': ['figure1','Figure1','fig1','Fig1'], 'combination' : 'any'}
@@ -273,7 +287,6 @@ confdict['allowed_users'] = ''
 confdict['camport'] = 'None'
 confdict['logging'] = 'stdout'
 confdict['loglevel'] = 'INFO'
-confdict['outlier'] = {}
 
 try:
     opts, args = getopt.getopt(sys.argv[1:],"hc:T",["config=","Test="])
@@ -307,7 +320,6 @@ try:
     camport = tgconf.get('camport').strip()
     if camport:
         camport = camport.strip()
-    camoptions = tgconf.get('camoptions','')
     martasapp = tgconf.get('martasapp')
     if martasapp:
         martasapp = martasapp.strip()
@@ -315,7 +327,6 @@ try:
     marcosconfig = tgconf.get('marcosconfig')
     if marcosconfig:
         marcosconfig = marcosconfig.strip()
-    outlier = tgconf.get('outlier')
     proxy = tgconf.get('proxy')
     if proxy:
         proxy = proxy.strip()
@@ -342,10 +353,12 @@ try:
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
     tmppath = tgconf.get('tmppath').strip()
     tgpar.camport = camport
-    tgpar.camoptions = camoptions
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
     tgpar.martasapp = martasapp
+    tgpar.uploadconfig = tgconf.get('uploadconfig',"").strip()
+    tgpar.uploadmemory = tgconf.get('uploadmemory',"").strip()
+    tgpar.camoptions = tgconf.get('camoptions',"").strip()
     if purpose:
         tgpar.purpose = purpose
     allusers = tgconf.get('allowed_users')
@@ -522,16 +535,13 @@ def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
     return returndict
 
 
-def tgplot(sensor, starttime, endtime, keys=None, outlier={}):
+def tgplot(sensor, starttime, endtime, keys=None):
     """
     DESCRIPTION
        plotting subroutine
     """
     try:
         data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime, endtime=endtime)
-        if outlier:
-            data = data.flag_outlier(threshold=int(outlier.get('threshold',5)))
-            data = data.remove_flagged()
         matplotlib.use('Agg')
         mp.plot(data, confinex=True, outfile=os.path.join(tmppath,'tmp.png'))
         return True
@@ -717,6 +727,67 @@ def marcos(broker='', command='restart'):
         mesg = "martas: check_call problem"
     return mesg
 
+def upload():
+    """
+    DESCRIPTION:
+        Command for uploading data using file_upload and the given configuration file
+    """
+    configpath = tgpar.uploadconfig
+    memorypath = tgpar.uploadmemory
+    if not memorypath:
+         memorypath = "/tmp/martas_tgupload_memory.json"
+    python = sys.executable
+    path = os.path.join(tgpar.martasapp,'file_upload.py')
+    optioncfg = '-j'
+    optionmem = '-m'
+    try:
+        if configpath:
+            call = "{} {} {} {} {} {}".format(python,path,optioncfg,configpath,optionmem,memorypath)
+            tglogger.debug("Uploading data by calling {}".format(call))
+            p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+            (output, err) = p.communicate()
+            if vers=='3':
+                output = output.decode()
+            if output.find("not succesful") > 0:
+                mesg  = "upload apparently failed"
+            elif output.find("Credentials: Could not load file") > 0:
+                mesg  = "upload failed - credentials not existing"            
+            elif output.find("SUCCESS") > 0:
+                mesg  = "upload apparently successfully"
+            else:
+                mesg  = "upload obviously failed"
+        else:
+            tglogger.debug("Upload command deactivated as no configuration is provided")
+    except subprocess.CalledProcessError:
+        mesg = "upload: check_call didnt work"
+    except:
+        mesg = "upload: check_call problem"
+    return mesg
+
+def getip(interfacelist=["eth0","wlan0"]):
+    """
+    DESCRIPTION:
+        Getting th
+    """
+    mesg = "IP(s):\n"
+    try:
+        for interface in interfacelist:
+            call = r"ifconfig {} | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){}[0-9]*).*/\2/p'".format(interface,"{3}")
+            tglogger.debug("Requesting IP for {}:".format(interface))
+            tglogger.debug("call: {}".format(call))
+            p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+            (output, err) = p.communicate()
+            if vers=='3':
+                output = output.decode()
+            if output.startswith("1"):
+                mesg += "{}: {}".format(interface, output)
+        if mesg == "IP(s):\n":
+            mesg = "Did not find a valid IP address - search on a specific interface: getip eth1"
+    except subprocess.CalledProcessError:
+        mesg = "getip: check_call didnt work"
+    except:
+        mesg = "getip: check_call problem"
+    return mesg
 
 def reboot():
     """
@@ -833,7 +904,7 @@ def handle(msg):
     if not str(chat_id) in allowed_users:
         bot.sendMessage(chat_id, "My mother told me not to speak to strangers, sorry...")
         tglogger.warning('--------------------- Unauthorized access -------------------------')
-        tglogger.warning('!!! unauthorized access from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname)) 
+        tglogger.warning('!!! unauthorized access ({}) from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname))
         tglogger.warning('-------------------------------------------------------------------')
     else:
         if content_type == 'text':
@@ -929,9 +1000,12 @@ def handle(msg):
                    try:
                        tglogger.debug("Creating image...")
                        tglogger.debug("Selected cam port: {} and temporary path {}".format(usedcamport,tmppath))
-                       #TODO add camoptions here
-                       #subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, tgpar.camoptions, os.path.join(tmppath,'webimage.jpg')])
-                       subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, os.path.join(tmppath,'webimage.jpg')])
+                       if tgpar.camoptions:
+                           camoptions = tgpar.camoptions
+                       else:
+                           camoptions = ""
+                       call = "/usr/bin/fswebcam -d {} {} {}".format(usedcamport, camoptions, os.path.join(tmppath,'webimage.jpg'))
+                       subprocess.call(call)
                        tglogger.debug("Subprocess for image creation finished")
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))
                    except:
@@ -952,14 +1026,14 @@ def handle(msg):
                # Send MARTAS process command
                # -----------------------
                bot.sendMessage(chat_id, "Sending result request to IMBOT...")
-               cmd = command.replace('imbot','').replace('IMBOT','')
+               cmd = command.replace('martas','').replace('MARTAS','')
                cmd = cmd.strip()
                yearl = re.findall(r'\d+', cmd)
                if len(yearl) > 0:
-                   y = yearl[-1]
+                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis{a}.json -l /srv/DataCheck/IMBOT/{a}/level".format(a=yearl[-1])
                else:
-                   y = datetime.strftime(datetime.utcnow()-timedelta(years=1),"%Y")
-               command = "/usr/bin/python3 {b} -m {c}_analysis{a}.json -l {d}/{a}/level".format(a=y,b=tgconf.get('imbotoverview'),c=tgconf.get('imbotsecmemory'),d=tgconf.get('imbotarchive'))
+                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis2020.json -l /srv/DataCheck/IMBOT/2020/level"
+               #subprocess.call([command])
                os.system(command)
             elif any([word in command for word in commandlist['martas'].get('commands')]):
                # -----------------------
@@ -1009,6 +1083,29 @@ def handle(msg):
                        mesg = marcos(broker=broker,command=comm)
                        break
                bot.sendMessage(chat_id, mesg)
+            elif any([word in command for word in commandlist['upload'].get('commands')]):
+               # -----------------------
+               # Send upload  command
+               # -----------------------
+               bot.sendMessage(chat_id, "Obtained an upload data request ...")
+               cmd = command.split(" ")
+               mesg = upload()
+               bot.sendMessage(chat_id, mesg)
+            elif any([word in command for word in commandlist['getip'].get('commands')]):
+               # -----------------------
+               # Send GET IP  command
+               # -----------------------
+               bot.sendMessage(chat_id, "Requesting IP address...")
+               cmd = command.split(" ")
+               interfacelist = []
+               for el in cmd:
+                   el = el.strip()
+                   if el in ['eth0','eth1','eth2','eth3','wlan0','wlan1','wlan2','usb0','usb1','usb2','usb3','lo','wlp4s0']:
+                       interfacelist.append(el)
+               if not interfacelist:
+                   interfacelist = ['eth0','wlan0','wlp4s0']
+               mesg = getip(interfacelist)
+               bot.sendMessage(chat_id, mesg)
             elif command =='reboot':
                # -----------------------
                # Send REBOOT command
@@ -1049,7 +1146,7 @@ def handle(msg):
                        if len(datelist) > 1:
                            endtime = max(datelist)
 
-                   suc = tgplot(sensorid,starttime,endtime,outlier=outlier)
+                   suc = tgplot(sensorid,starttime,endtime)
                    if suc:
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'tmp.png'),'rb'))
                    else:
@@ -1166,4 +1263,3 @@ while 1:
         exit()
     except:
         tglogger.error('Other error or exception occured!')
-

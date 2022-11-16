@@ -27,11 +27,11 @@ class MySQLProtocol(object):
     """
     Protocol to read SQL data (usually from ttyACM0)
     MySQL protocol reads data from a MagPy database.
-    All Sensors which receive continuous data updates are identified and added 
-    to the sensors.cfg list (marked as inactive). 
-    Here data can be selected and deselected. Update requires the removal of all 
+    All Sensors which receive continuous data updates are identified and added
+    to the sensors.cfg list (marked as inactive).
+    Here data can be selected and deselected. Update requires the removal of all
     data of a specific database from sensors.cfg.
-    MySQL is an active protocol, requesting data at defined periods. 
+    MySQL is an active protocol, requesting data at defined periods.
     """
 
     ## need a reference to our WS-MCU gateway factory to dispatch PubSub events
@@ -91,8 +91,8 @@ class MySQLProtocol(object):
         # if there is a sensor in existinglist which is not an active sensor, then drop it
         for sensdict in existinglist:
             if sensdict.get('sensorid','') in sensorlist:
-                self.sensorlist.append(sensdict) 
-        
+                self.sensorlist.append(sensdict)
+
         self.lastt = [None]*len(self.sensorlist)
 
         #print ("Existinglist")
@@ -111,8 +111,8 @@ class MySQLProtocol(object):
     def GetDBSensorList(self, db, searchsql=''):
         """
          DESCRIPTION:
-             Will connect to data base and download all data id's satisfying 
-             searchsql and containing data less then 5*sampling rate old. 
+             Will connect to data base and download all data id's satisfying
+             searchsql and containing data less then 5*sampling rate old.
 
         PARAMETER:
             existinglist: [list] [[1,2,...],['BM35_xxx_0001','SH75_xxx_0001',...]]
@@ -128,7 +128,7 @@ class MySQLProtocol(object):
         # 2. Perfom search for DataID:
         senslist1 = mdb.dbselect(db, 'SensorID', 'DATAINFO', searchdataid)
         if self.debug:
-            log.msg("  -> DEBUG - Search DATAID {}: Found {} tables".format(self.sensordict.get('revision',''),len(senslist1))) 
+            log.msg("  -> DEBUG - Search DATAID {}: Found {} tables".format(self.sensordict.get('revision',''),len(senslist1)))
         # 3. Perfom search for group:
         senslist2 = mdb.dbselect(db, 'SensorID', 'SENSORS', searchgroup)
         if self.debug:
@@ -195,9 +195,9 @@ class MySQLProtocol(object):
             cursor = self.db.cursor()
             try:
                 cursor.execute(sql)
-            except mysql.IntegrityError as message:
+            except mdb.mysql.IntegrityError as message:
                 return message
-            except mysql.Error as message:
+            except mdb.mysql.Error as message:
                 return message
             except:
                 return 'dbgetlines: unkown error'
@@ -206,9 +206,9 @@ class MySQLProtocol(object):
             return keys
 
         # get self.sensorlist
-        # get last timestamps 
+        # get last timestamps
         # read all data for each sensor since last timestamp
-        # send that and store last timestamp 
+        # send that and store last timestamp
         for index,sensdict in enumerate(self.sensorlist):
             sensorid = sensdict.get('sensorid')
             if self.debug:
@@ -362,4 +362,3 @@ class MySQLProtocol(object):
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
-

@@ -9,6 +9,7 @@ import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+import sys
 import numpy as np
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
@@ -50,7 +51,7 @@ class GSM19Protocol(LineReceiver):
         """
         print ("  -> Initializing GSM19...")
         self.client = client
-        self.sensordict = sensordict    
+        self.sensordict = sensordict
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
@@ -72,6 +73,8 @@ class GSM19Protocol(LineReceiver):
         if not self.qos in [0,1,2]:
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
+        # PYTHON version
+        self.pvers = sys.version_info[0]
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -112,9 +115,9 @@ class GSM19Protocol(LineReceiver):
         if typ == "valid" or typ == "oldbase": # Comprises Mobile and Base Station mode with single sensor and no GPS
             intensity = float(data_array[1])
             try:
-                systemtime = datetime.strptime(date+"-"+data_array[0], "%Y-%m-%d-%H%M%S.%f") 
+                systemtime = datetime.strptime(date+"-"+data_array[0], "%Y-%m-%d-%H%M%S.%f")
             except:
-                # This exception happens for old GSM19 because time is 
+                # This exception happens for old GSM19 because time is
                 # provided e.g. as 410356 instead of 170356 for 17:03:56 (Thursday)
                 # e.g 570301.0 instead of 09:03:01 (Friday)
                 try:
@@ -198,6 +201,8 @@ class GSM19Protocol(LineReceiver):
 
     def lineReceived(self, line):
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        if self.pvers > 2:
+            line=line.decode('ascii')
         # extract only ascii characters
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
@@ -234,7 +239,6 @@ class GSM19Protocol(LineReceiver):
                         self.client.publish(topic+"/meta", head, qos=self.qos)
                     self.count += 1
                     if self.count >= self.metacnt:
-                        self.count = 0            
+                        self.count = 0
         except:
             log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
-
