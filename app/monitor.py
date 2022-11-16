@@ -250,7 +250,7 @@ def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', st
     if os.path.isfile(lf):
         if debug:
             print (" Latest file: {} ...".format(lf))
-            
+
         # check white and blacklists
         performtest = False
         if not any([lf.find(ig) > -1 for ig in ignorelist]):
@@ -328,12 +328,19 @@ def CheckMARCOS(db,threshold=600, statusdict={},jobname='JOB',excludelist=[],acc
         if debug:
             print ("2. Extract tables to be examined")
             print ("-----------------------------------")
-        # get BLV tables
-        blv = [el for el  in tables if el.startswith('BLV')]
-        excludelist.extend(blv)
         if debug:
             print ("Data to be excluded: {}".format(excludelist))
-        tables = [el for el in tables if not el in excludelist]
+        newtables = []
+        for el in tables:
+            drop = False
+            for ex in excludelist:
+                if el.startswith(ex):
+                    drop = True
+            if not drop:
+                newtables.append(el)
+        tables = newtables
+        if debug:
+            print ("Remaining tables: {}".format(tables))
 
     if ok:
         if debug:
