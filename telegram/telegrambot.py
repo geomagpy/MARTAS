@@ -474,7 +474,7 @@ def _identifyDates(text):
         dt = None
     return dt
 
-def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
+def getdata(starttime=None,sensorid=None,interval=300, mean='mean'):
     """
     DESCRIPTION
         get last values of each sensor
@@ -509,28 +509,38 @@ def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
         senslist = [sensorid]
     returndict = {}
     for s in senslist:
+        print ("Dealing with ", s)
         contentdict = {}
-        try:
-            data = read(os.path.join(mqttpath,s,'*'),starttime=starttime,endtime=endtime)
-            print (s, data.length(), starttime, endtime)
-            contentdict['keys'] = data._get_key_headers()
-            st, et = data._find_t_limits()
-            contentdict['starttime'] = st
-            contentdict['endtime'] = et
-            print ("here", st, et)
-            for key in data._get_key_headers():
-                print (key)
+        if os.path.isdir(os.path.join(mqttpath,s)):
+            try:
+                data = read(os.path.join(mqttpath,s,'*'),starttime=starttime,endtime=endtime)
+            except:
+                data = DataStream()
+            if data.length()[0] > 0:
+                print (s, data.length(), starttime, endtime)
+                contentdict['keys'] = data._get_key_headers()
+                st, et = data._find_t_limits()
+                contentdict['starttime'] = st
+                contentdict['endtime'] = et
+                print ("here", st, et)
+                for key in data._get_key_headers():
+                    print (key)
+                    valuedict = {}
+                    element, unit = GetVals(data.header, key)
+                    value = data.mean(key)
+                    valuedict['value'] = value
+                    valuedict['unit'] = unit
+                    valuedict['element'] = element
+                    contentdict[key] = valuedict
+                returndict[s] = contentdict
+            else:
+                contentdict['keys'] = ['all']
+                contentdict['starttime'] = starttime
+                contentdict['endtime'] = endtime
                 valuedict = {}
-                element, unit = GetVals(data.header, key)
-                value = data.mean(key)
-                valuedict['value'] = value
-                valuedict['unit'] = unit
-                valuedict['element'] = element
-                contentdict[key] = valuedict
-            returndict[s] = contentdict
-        except:
-            # e.g. no readable files
-            pass
+                valuedict['value'] = 'no data within last {} secs'.format(interval)
+                contentdict['all'] = valuedict
+                returndict[s] = contentdict
 
     return returndict
 

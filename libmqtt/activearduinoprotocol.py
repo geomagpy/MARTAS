@@ -127,7 +127,7 @@ class ActiveArduinoProtocol(object):
     def send_command(self,ser,command,eol,hex=False):
         response = ''
         fullresponse = ''
-        maxcnt = 50
+        maxcnt = 20
         cnt = 0
         command = command+eol
         ser.flush()
@@ -155,7 +155,7 @@ class ActiveArduinoProtocol(object):
         except serial.SerialException as e:
             if self.debug:
                 log.msg("SerialException found ({})".format(e)) # - restarting martas ...")
-            time.sleep(0.5)
+            time.sleep(0.1)
             #self.restart()
         except:
             log.msg("Other exception found")
@@ -163,7 +163,7 @@ class ActiveArduinoProtocol(object):
 
         responsetime = datetime.utcnow()
         if cnt == maxcnt:
-            fullresponse = 'Maximum count {} was reached'.format(maxcnt)
+            log.msg('Maximum count {} was reached without MARTASEND'.format(maxcnt))
         return fullresponse, responsetime
 
 
@@ -437,6 +437,7 @@ class ActiveArduinoProtocol(object):
             # send request string()
             for sensordict in self.commands:
                 for item in sensordict:
+                    time.sleep(1)
                     command = sensordict.get(item)
                     n = command.count(":")
                     miss=-(n-2)
@@ -450,7 +451,7 @@ class ActiveArduinoProtocol(object):
                         log.msg("DEBUG - received {}".format(answer))
 
                     # analyze return if data is requested
-                    if item.startswith('data') and not answer.find('-') > -1 and not answer.find('Starting') > -1:
+                    if item.startswith('data') and not answer.find('Starting') > -1:
                         # get all lines in answer
                         lines = answer.split('\n')
                         for line in lines:
