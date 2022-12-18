@@ -477,7 +477,7 @@ def _identifyDates(text):
 def getdata(starttime=None,sensorid=None,interval=300, mean='mean'):
     """
     DESCRIPTION
-        get last values of each sensor
+        returns by default a 5 min mean of last values of each sensor
     OPTIONS
         startdate (datetime) : define a specific time
         intervals (int) : define an interval to average values (default one minute)
@@ -761,7 +761,7 @@ def upload():
             if output.find("not succesful") > 0:
                 mesg  = "upload apparently failed"
             elif output.find("Credentials: Could not load file") > 0:
-                mesg  = "upload failed - credentials not existing"            
+                mesg  = "upload failed - credentials not existing"
             elif output.find("SUCCESS") > 0:
                 mesg  = "upload apparently successfully"
             else:
@@ -1237,21 +1237,33 @@ def handle(msg):
                cmdsplit = cmd.split()
                mesg = "Data:\n-----------\n"
                if len(cmdsplit) > 0:
+                   tglogger.info("  - data request with options")
                    sensoridlist = _identifySensor(cmd)
                    #tglogger.info("  found sensors: {}".format(sensoridlist))
                    for sensorid in sensoridlist:
                        cmd = cmd.replace(sensorid,'')
+                   if len(sensoridlist) == 0: # if only dates are provided
+                       sensoridlist = [None]
                    starttime = _identifyDates(cmd) # dates is a list
                    for sensorid in sensoridlist:
                        valdict = getdata(sensorid=sensorid,starttime=starttime)
-                       #tglogger.info("  got values ...")
-                       #if debug:
-                       #    print ("VALDICT", valdict)
+                       tglogger.info("  - perfomred getdata method")
                        mesg += CreateSensorMsg(valdict)
+                       tglogger.info("  - constructed data message")
                else:
                    valdict = getdata()
+                   tglogger.info("  - perfomred getdata method")
                    mesg += CreateSensorMsg(valdict)
-               bot.sendMessage(chat_id, mesg)
+                   tglogger.info("  - constructed data message")
+               try:
+                   bot.sendMessage(chat_id, mesg)
+               except:
+                   print ("error while sending message to bot")
+                   try:
+                       time.sleep(1)
+                       bot.sendMessage(chat_id, mesg)
+                   except:
+                       print ("repeat failed as well")
 
 if travistestrun:
     print ("Test run successfully finished - existing")
