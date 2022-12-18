@@ -521,7 +521,7 @@ def main(argv):
                     elif not msg == '':
                         content =  msg
                     else:
-                        content = ''
+                        content = 'fine'
                 else:
                     content = msg1+' - '+msg2
 
