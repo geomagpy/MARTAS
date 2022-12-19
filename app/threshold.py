@@ -98,6 +98,18 @@ reportlevel          :   partial
 ## and eventually send switchcommand to serial port
 ## IMPORTANT: statusmessage should not contain semicolons, colons and commas; generally avoid special characters
 
+
+You can also execute basic shell scripts dependening on thresholds:
+10  :  DS18B20XX;1800;var3;10;median;below;default;;/home/user/shutdown.sh
+
+with a shutdown.sh like:
+#!/bin/bash
+DATE=$(date +%Y%m%d%H%M)
+echo "${DATE}: Shutting down in 1 minute" >> /var/log/magpy/shutdown.log
+# shutdown in one minute
+shutdown -P +1
+
+
 """
 
 from __future__ import print_function
