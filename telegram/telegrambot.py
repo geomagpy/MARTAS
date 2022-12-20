@@ -234,7 +234,7 @@ Available commands:
 stationcommands = {'getlog':'obtain last n lines of a log file\n  Command options:\n  getlog  \n  getlog 10  (last 10 lines)  \n  getlog 10 syslog  (telegrambot, martas, syslog, messages)',
                    'martas restart-stop-start':'e.g. restart MARTAS process',
                    'marcos restart-stop-start':'e.g. restart MARCOS process',
-                   'martasupdate':'update MARTAS',
+                   'martasupdate':'update to most recent MARTAS version',
                    'status':'get information on disk space, memory, and martas-marcos processes',
                    'hello':'say hello, bot',
                    'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003',
@@ -244,7 +244,7 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'sensors':'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)',
                    'cam':'get a live picture from a connected camera using fswebcam\n  fswebcam options need to be defined in telegrambot.cfg',
                    'getip':'get the IP of network interfaces like eth0 and wlan0.\n Command options:\n add interface to search for like\ngetip eth1, eth2',
-                   'upload':'upload data tp a remote machine using the MARTAS app file_upload and configuration data as defined in telegrambot.cfg',
+                   'upload':'upload data to a remote machine using the MARTAS app file_upload and configuration data as defined in telegrambot.cfg',
                    'figure1':'open a preconfigured figure',
                    'figure2':'open an alternative figure',
                    'help':'print this list'}
@@ -268,7 +268,7 @@ commandlist['getip'] = {'commands': ['getIP',' IP ', 'IP ','getip','Getip','GetI
 commandlist['getlog'] = {'commands': ['getlog','Getlog','get log','get the log', 'print log', 'print the log'], 'combination' : 'any'}
 commandlist['getdata'] = {'commands': ['data','Data'], 'combination' : 'any'}
 commandlist['plot'] = {'commands': ['plot','Plot'], 'combination' : 'any'}
-commandlist['switch'] = {'commands': ['switch','Switch'], 'combination' : 'any' ,'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }}
+commandlist['switch'] = {'commands': ['switch','Switch','Arduino','arduino'], 'combination' : 'any' ,'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'], 'reS' : ['reS','reset','restart','Reset'] }}
 commandlist['badwords'] = {'commands': ['fuck','asshole','Fuck','Asshole'], 'combination' : 'any'}
 #switchcommandoptions = {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] }
 #badwordcommands = ['fuck','asshole']
