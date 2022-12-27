@@ -124,10 +124,9 @@ class ActiveArduinoProtocol(object):
         self.headlist = []
 
 
-    def send_command(self,ser,command,eol,hex=False):
+    def send_command(self,ser,command,eol,maxcnt=20,hex=False):
         response = ''
         fullresponse = ''
-        maxcnt = 20
         cnt = 0
         command = command+eol
         ser.flush()
@@ -144,11 +143,11 @@ class ActiveArduinoProtocol(object):
                 response = ser.readline()
                 if sys.version_info >= (3, 0):
                     response = response.decode('ascii')
+                #print ("Got", response)
             # read until end-of-messageblock signal is obtained (use some break value)
             while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
                 cnt += 1
                 fullresponse += response
-                #time.sleep(0.01)
                 response = ser.readline()
                 if sys.version_info >= (3, 0):
                     response = response.decode('ascii')
@@ -163,7 +162,8 @@ class ActiveArduinoProtocol(object):
 
         responsetime = datetime.utcnow()
         if cnt == maxcnt:
-            log.msg('Maximum count {} was reached without MARTASEND'.format(maxcnt))
+            if self.debug:
+                log.msg('Maximum count {} was reached without MARTASEND'.format(maxcnt))
         return fullresponse, responsetime
 
 
