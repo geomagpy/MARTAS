@@ -82,8 +82,8 @@ reportlevel          :   partial
 
 # SensorID, key:  if sensorid and key of several lines are identical, always the last valid test line defines the message
 #                 Therefore use warning thresholds before alert thresholds
-# Function:       can be one of max, min, median, average(mean), stddev 
-# State:          can be one below, above, equal 
+# Function:       can be one of max, min, median, average(mean), stddev
+# State:          can be one below, above, equal
 # Statusmessage:  default is replaced by "Current 'function' 'state' 'value', e.g. (1) "Current average below 5"
 #                 the following words (last occurrence) are replace by datetime.utcnow(): date, month, year, (week), hour, minute
 #                 "date" is replaced by current date e.g. 2019-11-22
@@ -97,6 +97,18 @@ reportlevel          :   partial
 ## then send default statusmessage to the notification system (e.g. email)
 ## and eventually send switchcommand to serial port
 ## IMPORTANT: statusmessage should not contain semicolons, colons and commas; generally avoid special characters
+
+
+You can also execute basic shell scripts dependening on thresholds:
+10  :  DS18B20XX;1800;var3;10;median;below;default;;/home/user/shutdown.sh
+
+with a shutdown.sh like:
+#!/bin/bash
+DATE=$(date +%Y%m%d%H%M)
+echo "${DATE}: Shutting down in 1 minute" >> /var/log/magpy/shutdown.log
+# shutdown in one minute
+shutdown -P +1
+
 
 """
 
@@ -130,7 +142,7 @@ class sp(object):
     configdict['database'] = 'cobsdb'
     configdict['reportlevel'] = 'partial'
     configdict['notification'] = 'log'
-    valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand']
+    valuenamelist = ['sensorid','timerange','key','value','function','state','statusmessage','switchcommand','executecommand']
     #valuedict = {'sensorid':'DS18B20','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
     #parameterdict = {'1':valuedict}
     parameterdict = {}
@@ -378,7 +390,8 @@ def AssignParameterlist(namelist=[],confdict={}):
         valuedict = {}
         valuelist = confdict.get(str(i),[])
         if len(valuelist) > 0:
-            if not len(valuelist) in [len(namelist), len(namelist)-1]:
+            if not len(valuelist) in [len(namelist), len(namelist)-1, len(namelist)-2]:
+                # check whether all values (except the two optional ones are present)
                 print ("PARAMETER: provided values differ from the expected amount - please check")
             else:
                 for idx,val in enumerate(valuelist):
@@ -501,33 +514,54 @@ def main(argv):
                     if evaluate and msg == '':
                         content = InterpreteStatus(valuedict,debug=debug)
                         # Perform switch and added "switch on/off" to content
-                        if not valuedict.get('switchcommand') in ['None','none',None]:
+                        if not valuedict.get('switchcommand') in ['None','none',None,""]:
                             if debug:
                                 print ("Found switching command ... eventually will send serial command (if not done already) after checking all other commands")
                             content = '{} - switch: {}'.format(content, valuedict.get('switchcommand'))
                             # remember the switchuing command and only issue it if statusdict is changing
+                        if not valuedict.get('executecommand',None) in ['None','none',None,""]:
+                            print ("Execute criteria found: running {}".format(valuedict.get('executecommand')))
+                            if not os.path.isfile(valuedict.get('executecommand')):
+                                print (" - did not find an appropriate script - skipping")
+                            else:
+                                exe = ['/bin/sh',valuedict.get('executecommand')]
+                                if not debug:
+                                    import subprocess
+                                    subprocess.check_output(exe)
+                                else:
+                                    print (" - debug selected - otherwise would execute {}".format(exe))
                     elif not msg == '':
                         content =  msg
                     else:
-                        content = ''
+                        content = 'fine'
                 else:
                     content = msg1+' - '+msg2
 
-                if content:
-                    statuskeylist.append('Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key')))
-                    statusdict['Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))] = content
+
+                if conf.get('reportlevel') == 'partial' and content == "fine":
+                    content = ""
+                    # evetually replace content="fine" with content="" for "partial"
+                statinput = 'Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))
+                if statinput in statusdict:
+                    if not content == "fine":
+                        statusdict[statinput] = content
+                elif content:
+                    statusdict[statinput] = content
+                statuskeylist.append(statinput)
+                #if content:
+                #    statuskeylist.append('Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key')))
+                #    statusdict['Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))] = content
 
                 if debug:
                     print ("Finished parameterset {}".format(i))
 
-
-    if conf.get('reportlevel') == 'full':
-        # Get a unique status key list:
-        statuskeylist = list(dict.fromkeys(statuskeylist))
-        for elem in statuskeylist:
-            cont = statusdict.get(elem,'')
-            if cont == '':
-                statusdict[elem] = "Everything fine"
+    #if conf.get('reportlevel') == 'full':
+    #    # Get a unique status key list:
+    #    statuskeylist = list(dict.fromkeys(statuskeylist))
+    #    for elem in statuskeylist:
+    #        cont = statusdict.get(elem,'')
+    #        if cont == '':
+    #            statusdict[elem] = "Everything fine"
 
     if debug:
         print ("Statusdict: {}".format(statusdict))
@@ -595,5 +629,3 @@ def main(argv):
 
 if __name__ == "__main__":
    main(sys.argv[1:])
-
-

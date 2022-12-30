@@ -878,6 +878,12 @@ In order to find any issues with data acquisition we recommend to check the foll
 
          If this one fails check section 1.1 again.
 
+    2) Can I publish data to a broker?
+
+              mosquitto_pub -h BROKER_IP_ADDRESS -t testTOPIC -m "Hello"
+
+              If this one fails check section 1.1 again.
+
 ### 10.3. MARCOS collector
 
 1) collector process running?  
@@ -978,12 +984,12 @@ Instrument |  versions    |  Inst-type   |  Library           |     mode     |  
 LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
 LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
 GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | gsm90v?init.sh |   py2,py3
-GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,(py3)
+GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,py3
 GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |                |   py2,(py3)
 G823       |              | mag-scalar   | csprotocol.py      |   passive    |                |   py2,(py3)
 POS1       |              | mag-scalar   | pos1protocol.py    |   passive    | pos1init.sh    |
 ENV05      |              | temp-humid   | envprotocol.py     |   passive    |                |   py2,(py3)
-OneWire    |              | multiple     | owprotocol.py      |   passive    |                |
+OneWire    |              | multiple     | owprotocol.py      |   passive    |                |   (py2)/py3
 BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh    |   py2/py3
 Thies LNM  |              | laserdisdro  | disdroprotocol.py  |   active     |                |   (py2)/py3
 DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |                |   (py2)/py3
@@ -1121,7 +1127,7 @@ sudo pip3 install paho-mqtt
 sudo pip3 install pyserial
 sudo pip3 install pexpect
 sudo pip3 install service_identity
-sudo pip3 install ownet
+sudo pip3 install pyownet
 sudo pip3 install geomagpy
 
 
@@ -1258,7 +1264,7 @@ sudo mount -a
 
 
 
-#### 12.4.2 Beaglebone - MARTAS
+#### 12.5.2 Beaglebone - MARTAS
 
 1. use etcher to create boot microsd
 
@@ -1270,6 +1276,8 @@ sudo mount -a
 
         sudo apt update
 
+        sudo apt upgrade
+
         sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
 
         cd ~
@@ -1279,10 +1287,85 @@ sudo mount -a
         sudo bash install.martas.sh
 
         sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
+        sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
+        
+        sudo nano /etc/crontab
 
-        # add 15 0 * * * root bash /etc/martas/cleanup.sh to /etc/crontab
+        15 0    * * * root /bin/bash /etc/martas/cleanup.sh
+        10 0    1 * * root /bin/bash /etc/martas/backup_martasconfig.sh
+        5  0    * * * root /etc/init.d/martas start
 
-### 12.4 Issues and TODO
+
+
+### 12.6 Short descriptions and Cookbooks
+
+#### 12.6.1 quick steps to run a new MARTAS with a new sensor for the first time
+
+In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
+
+A. GSM19 Sensor 
+
+   1. Power on by pressing "B"
+   2. go to "C - Info"
+   3. go to "B - RS232"
+   4. note parameters and then "F - Ok"
+   5. switch real-time transfer to yes and then "F - Ok" 
+   6. "F - Ok"
+   7. press "1" and "C" for main menu
+   8. start recording - press "A"
+   9. if GPS is set to yes wait until GPS is found
+   
+B. MARTAS - beaglebone (BB)
+   1. connect BB to a DHCP network (if not possible connect a usbhub and screen+keyboard, then login and continue with 4.)
+   2. find out its IP
+      - option (1): with fully installed telegrambot: just send "getip" to the bot
+      - option (2): connect a screen and use ifconfig
+      - option (3): from a remote machine in the same network: check router or use nmap
+   3. connect to BB via ssh:
+      defaultuser: debian
+   4. stop MARTAS:
+              $ sudo su
+              $ /etc/init.d/martas stop
+   5. connect your sensor to the usb serial port using a usb to rs232 converter
+   6. check "lsusb" to see the name of the converter (e.g. pl2303)
+   7. check "dmesg | grep usb" to get the connections port like ttyUSB0
+   8. edit /etc/martas/sensors.cfg
+      make use of the SENSORID, the parameters of A4 and the port info of B7
+      (SENSORID should contain serial number of the system  i.e. GSM19\_123456\_0001)
+   9. save /etc/martas/sensors.cfg
+
+A. GSM19 Sensor
+   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter) 
+   11. start recording
+   
+B. MARTAS
+   10. start recording:
+              $ sudo su
+              $ /etc/init.d/martas start
+              $ exit
+   11. check recording:
+              $ cat /var/log/magpy/martas.log (check log file)
+              $ ls -al /srv/mqtt/SENSORID  (check buffermemory for new data)
+
+#### 12.6.2 quick steps to setup a fully configured MARTAS with the respective sensor(s)
+
+In this example we use a MARTAS with a GSM19 Overhauzer sensor:
+
+A. Sensor (GSM19)
+
+   1. Connect the sensor to power and MARTAS
+   2. Switch on the sensor and start recoding (all A steps in 12.6.1)
+
+B. MARTAS
+   1. Connect MARTAS to power
+
+Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file. 
+Please note: data is written as soon as all sensor specific information is available. When attaching a micro controller (i.e. arduino)
+you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sampling rate) until data is written to the buffer.
+
+
+
+### 12.7 Issues and TODO
 
 Sometimes, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
 
