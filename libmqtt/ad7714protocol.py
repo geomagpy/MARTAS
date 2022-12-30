@@ -403,6 +403,34 @@ def interruptRead(s):
     # at first get the time...
     currenttime = datetime.utcnow()
     # read from data register
+
+    # TIME TO COMMUNICATE!
+    global int_comm
+    if int_comm == "mySettings":
+        #mySettings()
+        int_comm = "ok"
+        return
+    if int_comm == "myCalibration":
+        #myCalibration()
+        int_comm = "ok"
+        return
+    if int_comm == "info":
+        info()
+        int_comm = "ok"
+        return
+    global currentchannel
+    if int_comm == "ok":
+        # start sampling with first channel
+        int_comm = "read"
+        # reset FSYNC to change channel
+        setMode(currentchannel,MD=0,FSYNC=1)
+        # trigger conversion of next channel
+        setMode(currentchannel,MD=0,FSYNC=0)
+        return
+    if not int_comm == "read":
+        print ('error in interruptRead')
+        return
+    
     """
     arrvalue=rxreg(5,CHANNEL)
     if len(arrvalue)==2:
@@ -415,68 +443,20 @@ def interruptRead(s):
     """
     global allvalues
     #allvalues=[9999,9999,9999,9999,9999,9999,9999]
-    global currentchannel
     arrvalue=rxreg(5,currentchannel)
     if len(arrvalue)==2:
         # 16 -> 24bit
         arrvalue.append(0)
     intvalue=(arrvalue[0]<<16) | (arrvalue[1]<<8) | arrvalue[2]
-    voltvalue=float(intvalue)/2**24*5-2.5
+    voltvalue=float(intvalue*5)/2**24-2.5
     # mV better for display
-    voltvalue=voltvalue*1000
+    mVvalue=voltvalue*1000
+
     try:
-        allvalues[currentchannel]=voltvalue
+        allvalues[currentchannel]=mVvalue
     except:
         print(currentchannel)
         quit()
-    # reset FSYNC to change channel
-    currentchannel = currentchannel + 1
-    if currentchannel == 7:
-        currentchannel = 0
-    setMode(currentchannel,MD=0,FSYNC=1)
-
-    # TIME TO COMMUNICATE!
-    global int_comm
-    if int_comm == "mySettings":
-        #mySettings()
-        int_comm = "ok"
-    if int_comm == "myCalibration":
-        #myCalibration()
-        int_comm = "ok"
-    if int_comm == "info":
-        info()
-        int_comm = "ok"
-    
-
-    # watchdog
-    global watchdog
-    global Objekt
-    if watchdog['oldvalue'] == 999999:
-        print('watchdog active')
-    if watchdog['oldvalue'] == intvalue:
-        watchdog['count_repetitions'] = watchdog['count_repetitions'] + 1
-    else:
-        if watchdog['count_repetitions'] > 5:
-            # avoid a lot of log entries - filter double and triple values in a row
-            print('watchdog resetted, count_repetitions:',watchdog['count_repetitions'],'oldvalue:',watchdog['oldvalue'],'intvalue:',intvalue)
-        watchdog['count_repetitions'] = 0
-        watchdog['max_repetitions'] = watchdog['init_max_rep']
-    if watchdog['count_repetitions'] == watchdog['max_repetitions']:
-        # probably hung up, too many same values
-        print('watchdog ad7714protocol:')
-        print('  ',watchdog['max_repetitions'],'same values (intvalue:',intvalue,') in one row - hung up?')
-        print('  trying to reset AD7714...')
-        # sending LOW to /RESET pin
-        reset()
-        time.sleep(0.01)
-        # loading settings
-        mySettings()
-        # zero calibration
-        myCalibration()
-        watchdog['max_repetitions'] = watchdog['max_repetitions'] * 2
-        watchdog['count_repetitions'] = 0
-    watchdog['oldvalue'] = intvalue
-
     """
     packcode = "6hLl"
     sensorid = Objekt.sensordict['sensorid']
@@ -489,9 +469,13 @@ def interruptRead(s):
     headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
     header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, 'var1,var2,var3,var4,var5,dx,dy', headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
 
-    # trigger conversioin of next channel
+    currentchannel = currentchannel + 1
+    if currentchannel == 7:
+        currentchannel = 0
+    # reset FSYNC to change channel
+    setMode(currentchannel,MD=0,FSYNC=1)
+    # trigger conversion of next channel
     setMode(currentchannel,MD=0,FSYNC=0)
-
     # if all channels are converted
     if currentchannel == 0:
 
