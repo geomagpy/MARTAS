@@ -251,8 +251,32 @@ sensors.cfg: line for a GSM90 Overhauzr, the initialzation configuration is take
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
-## 4. Experts settings
+### 3.5 Regular backups of all configurations
 
+MARTAS comes with a small backup application to be scheduled using cron, which saves basically all MARTAS configuration files within a zipped archive. The aim of this application is to save all essential information within one single data file so that in case of a system crash (hardware problem, SD card defect, etc) you can easily and quickly setup an identical "new" system. You might also use the backups to setup similar copies of a specific system.
+
+To enable regular monthly backups, first copy the backup_config.sh application to /etc/martas/
+
+          $ (sudo) cp /home/USER/MARTAS/apps/backup_config.sh /etc/martas
+
+Modify backup_config.sh and insert the correct user name in line 13:
+
+          $ (sudo) nano /etc/martas/backup_config.sh
+
+Schedule the script using cron (as root).
+
+          $ sudo nano /etc/crontab
+
+Insert the following line to create backups every 1 day per month.
+
+          10 0   1 * *   root /bin/bash /etc/martas/backup_config.sh
+
+
+In order to recover a system from an existing backup, MARTAS/install contains a recovery script
+
+
+
+## 4. Experts settings
 
 ### 4.1 Enabling Authentication
 
@@ -1288,7 +1312,7 @@ sudo mount -a
 
         sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
         sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
-        
+
         sudo nano /etc/crontab
 
         15 0    * * * root /bin/bash /etc/martas/cleanup.sh
@@ -1303,18 +1327,18 @@ sudo mount -a
 
 In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
 
-A. GSM19 Sensor 
+A. GSM19 Sensor
 
    1. Power on by pressing "B"
    2. go to "C - Info"
    3. go to "B - RS232"
    4. note parameters and then "F - Ok"
-   5. switch real-time transfer to yes and then "F - Ok" 
+   5. switch real-time transfer to yes and then "F - Ok"
    6. "F - Ok"
    7. press "1" and "C" for main menu
    8. start recording - press "A"
    9. if GPS is set to yes wait until GPS is found
-   
+
 B. MARTAS - beaglebone (BB)
    1. connect BB to a DHCP network (if not possible connect a usbhub and screen+keyboard, then login and continue with 4.)
    2. find out its IP
@@ -1335,9 +1359,9 @@ B. MARTAS - beaglebone (BB)
    9. save /etc/martas/sensors.cfg
 
 A. GSM19 Sensor
-   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter) 
+   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter)
    11. start recording
-   
+
 B. MARTAS
    10. start recording:
               $ sudo su
@@ -1359,7 +1383,7 @@ A. Sensor (GSM19)
 B. MARTAS
    1. Connect MARTAS to power
 
-Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file. 
+Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file.
 Please note: data is written as soon as all sensor specific information is available. When attaching a micro controller (i.e. arduino)
 you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sampling rate) until data is written to the buffer.
 
