@@ -87,11 +87,36 @@ CHANNEL = 4
 #USING CHANNEL 4..6 in the future!
 
 # wordlength 16bit:0 24bit:1
-global BIT
-BIT = 1
+global WL
+WL = 1
 # Filter sets sampling rate. Depends on system clock
 global FILTER
 FILTER = 0x0c0
+
+nameofchannel = ['1','2','3','4','X','Y','Z']
+
+# GAIN between 0 and 7
+#  nr    amplification
+#   0 .. 1
+#   1 .. 2
+#   2 .. 4
+#   ......
+#   6 .. 64
+#   7 .. 128
+global GAIN
+# GAIN_1, GAIN_2, ..., GAIN_Z
+GAIN = [0,0,0,0,0,0,0]
+global NAME
+NAME = ['','','','','X','Y','Z']
+global KEY
+KEY = ['','','','','x','y','z']
+global UNIT
+UNIT = ['','','','','mV','mV','mV']
+global SCALE
+SCALE = [0,0,0,0,1000,1000,1000]
+global DIFF
+DIFF = [0,0,0,0,0,0,0]
+
 # calibration constants from file
 #   0 .. get calibration constants from file
 #   1 .. calibrate as defined below
@@ -106,34 +131,9 @@ CALMODE = 1
 #   5 .. background calibration - see data sheet
 #   6 .. offset self calibration
 #   7 .. scale factor self calibration
-global CAL_X
-CAL_X = 1
-global CAL_Y
-CAL_Y = 1
-global CAL_Z
-CAL_Z = 1
-global CAL_1
-global CAL_2
-global CAL_3
-global CAL_4
-# GAIN between 0 and 7
-#  nr    amplification
-#   0 .. 1
-#   1 .. 2
-#   2 .. 4
-#   ......
-#   6 .. 64
-#   7 .. 128
-global GAIN_X
-GAIN_X = 0
-global GAIN_Y
-GAIN_Y = 0
-global GAIN_Z
-GAIN_Z = 0
-global GAIN_1
-global GAIN_2
-global GAIN_3
-global GAIN_4
+global CAL
+CAL = [0,0,0,0,1,1,1]
+
 # constants for calibration registers (only 6)
 global OFFSETX
 global OFFSETY
@@ -145,6 +145,7 @@ global FULLSCALEZ
 global int_comm
 int_comm = ""
 global allvalues
+#allvalues=[]
 allvalues=[9999,9999,9999,9999,9999,9999,9999]
 global currentchannel
 currentchannel = 0
@@ -346,14 +347,16 @@ def mySettings():
     used in __init__ of class AD7714Protocol
     and for test purposes
     """
-    # using channel 5: differential input AIN3-AIN4 (pin9-pin10)
-    # setGain: G = 2^(given value) e.g. setGain(channel=5,G=1) results in an amplification of 2^1 = 2
     #setGain(CHANNEL,GAIN)
-    setGain(4,GAIN)
-    setGain(5,GAIN)
-    setGain(6,GAIN)
+    #setGain(4,GAIN)
+    #setGain(5,GAIN)
+    #setGain(6,GAIN)
+    setGain(4,0)
+    setGain(5,0)
+    setGain(6,0)
+
     # setWL: wordlength 0:16bit, 1:24bit
-    setWL(BIT)
+    setWL(WL)
     # setFilter(5,0xfa0) defines the sampling rate, in this example the minimal
     # setFilter depends on system clock, see calcSamp2Filt
     setFilter(FILTER)
@@ -485,10 +488,17 @@ def interruptRead(s):
     sensorid = Objekt.sensordict['sensorid']
     header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[U]','[mV]','[1000]',packcode,struct.calcsize(packcode))
     """
-    packcode = '6hLlllllll'
+    #packcode = '6hLlllllll'
     sensorid = Objekt.sensordict['sensorid']
-#    namelist = ['pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56']
-    headernames = '[{},{},{},{},{},{},{}]'.format('pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56')
+    namelist = ['pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56']
+    # cast list to tupel: (don't know why..)
+    namelist = (*namelist,)
+    l = len(namelist)
+    packcode = '6hL' + 'l'*l
+    bracketstring = '[{}' + ',{}'*(l-1)  + ']'
+    #headernames = '[{},{},{},{},{},{},{}]'.format('pseudo16','p26','p36','p46','full12','f34','f56')
+    # this * asterix is very important!
+    headernames = bracketstring.format(*namelist)
     headerunits = '[{},{},{},{},{},{},{}]'.format('mV','mV','mV','mV','mV','mV','mV')
     headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
     header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, 'var1,var2,var3,var4,var5,dx,dy', headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
@@ -617,7 +627,7 @@ def seeDRDY():
     print("difftime: ",t-time.time())
     print("samples per second: ",i)
 
-
+# TODO weg?
 # word length should be set in __init__ of class AD7714Protocol
 # WL=0: 16bit, WL=1: 24bit
 # here WL is set by setWL reading the AD7714 register (default after reset is 0)
@@ -650,11 +660,47 @@ class ad7714Protocol():
         self.datacnt = 0
         self.metacnt = 10
         self.ad7714conf = acs.GetConf2(self.confdict.get('ad7714confpath'))
-        # TODO more GAINs!
+
+        global NAME
+        global KEY
+        global UNIT
+        global SCALE
+        global DIFF
+        global CAL
         global GAIN
-        GAIN = int(self.ad7714conf.get('GAIN_X'))
-        global BIT
-        BIT = int(self.ad7714conf.get('BIT'))
+        # get constants for used channels
+        #   nameofchannel: 1, 2, 3, 4, X, Y, Z
+        for i in range(7):
+            # NAME is the name of the signal
+            NAME[i] = self.ad7714conf.get('NAME_'+nameofchannel[i])
+            # magpy keys (x, y, ... var1, var2, ...)
+            KEY[i] = self.ad7714conf.get('KEY_'+nameofchannel[i])
+            # unit for each channel
+            UNIT[i] = self.ad7714conf.get('UNIT_'+nameofchannel[i])
+            # scale values e.g. SCALE_X = 1000 (mV/V) would yield values in mV
+            try:
+                SCALE[i] = int(self.ad7714conf.get('SCALE_'+nameofchannel[i]))
+            except:
+                SCALE[i] = None
+            # offset e.g. measurement = SCALE_X * value + DIFF_X
+            try:
+                DIFF[i] = self.ad7714conf.get('DIFF_'+nameofchannel[i])
+            except:
+                DIFF[i] = None
+            # calibration mode for each channel if used
+            try:
+                CAL[i] = self.ad7714conf.get('CAL_'+nameofchannel[i])
+            except:
+                CAL[i] = None
+            # GAIN must be in 0..7
+            try:
+                GAIN[i] = int(self.ad7714conf.get('GAIN_'+nameofchannel[i]))
+            except:
+                GAIN[i] = None
+            if not GAIN[i] in range(7):
+                GAIN[i] = None
+        global WL
+        WL = int(self.ad7714conf.get('WL'))
         global FILTER
         FILTER = int(str(self.ad7714conf.get('FILTER')),16)
         global CALMODE
