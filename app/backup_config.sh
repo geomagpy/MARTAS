@@ -89,7 +89,7 @@ mkdir -p $BACKUPS
   echo "Could not access SYNC"
 }
 
-# E) copy credentials
+# I) copy credentials
 {
   find $HOMEFOLDER -type f -name ".magpycred" -path ${HOMEFOLDER}/.magpyc* -exec cp '{}' $TMPFOLDER \;
   find /root/ -type f -name ".magpycred" -path /root/.magpyc* -exec cp '{}' $TMPFOLDER/.rootcred \;

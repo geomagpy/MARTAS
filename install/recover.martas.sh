@@ -176,6 +176,14 @@ if [[ -f "${TMPBACKPATH}/README.TXT" ]]; then
     echo "Recovering Readme's ..."
     cp ${TMPBACKPATH}/README.TXT /home/${USER}/README.txt
 fi
+if [[ -f "${TMPBACKPATH}/.magpycred" ]]; then
+    echo "Recovering users credentials ..."
+    cp ${TMPBACKPATH}/.magpycred /home/${USER}/.magpycred
+fi
+if [[ -f "${TMPBACKPATH}/.rootcred" ]]; then
+    echo "Recovering credentials ..."
+    cp ${TMPBACKPATH}/.rootcred /root/.magpycred
+fi
 
 # append txt to Readme
 READMETXT1="Recovered from backup on ${DATE}"
