@@ -1,36 +1,18 @@
 """
-ad7714protocol version 1.1
-for board v0.1 and v0.2
+ad7714protocol version 1.2
+for board v0.1 and v0.2 or higher
 
 Purpose:
-    reads data from an AD7714 (Analog Devices)
+    reads data from an AD7714 (Analog Devices) AD converter
 
 Requirements:
-    SPI interface on a RaspberryPi3
+    SPI interface on a RaspberryPi2 or higher
     
 Called by:
     acquisition from magpy
 """
 
 from __future__ import print_function
-
-############    user definitions    ############
-
-# select GAIN between 0 and 7
-#  nr    amplification
-#   0 .. 1
-#   1 .. 2
-#   2 .. 4
-#   ......
-#   6 .. 64
-#   7 .. 128
-
-global GAIN
-GAIN = 0
-
-###### please don't edit beyond this line ######
-
-
 import sys, time, os, socket
 import struct, binascii, re, csv
 from datetime import datetime, timedelta
@@ -46,7 +28,6 @@ except:
     sys.path.insert(0, coredir)
     import acquisitionsupport as acs
 import threading
-import time
 
 # Raspberry Pi specific
 try:
@@ -56,7 +37,6 @@ except:
     log.msg('sorry, equipment not prepared to communicate over SPI')
     raise
 
-# TODO brauch ich das? und wenn, ab ins acs!
 def datetime2array(t):
     return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
@@ -94,11 +74,12 @@ SPI.mode=1
 # AD7714's system clock
 # *** board v0.1 ***
 #CLK=1000000
-# *** board v0.2 ***
+# *** board v0.2 and higher ***
 CLK=2457600
 print("system clock", CLK)
 # *** board v0.1 ***
 # using channel 5: differential input AIN3-AIN4 (pin9-pin10)
+#TODO anders!
 #CHANNEL = 5
 # *** board v0.2 ***
 # using channel 4: differential input AIN1-AIN2 (pin7-pin8)
@@ -111,26 +92,55 @@ BIT = 1
 # Filter sets sampling rate. Depends on system clock
 global FILTER
 FILTER = 0x0c0
-# calibration mode
-#   1 .. self calibration
-#   2 .. zero calibration using input voltage
+# calibration constants from file
 #   0 .. get calibration constants from file
+#   1 .. calibrate as defined below
 global CALMODE
-CALMODE = 2
-
+CALMODE = 1
+# calibration for single channels
+#   0 .. no calibration
+#   1 .. self calibration for offset and scale factor
+#   2 .. zero calibration using input voltage
+#   3 .. full scale calibration (input voltage has to be provided!)
+#   4 .. zero cal. using input voltage + self full calibration
+#   5 .. background calibration - see data sheet
+#   6 .. offset self calibration
+#   7 .. scale factor self calibration
+global CAL_X
+CAL_X = 1
+global CAL_Y
+CAL_Y = 1
+global CAL_Z
+CAL_Z = 1
+global CAL_1
+global CAL_2
+global CAL_3
+global CAL_4
+# GAIN between 0 and 7
+#  nr    amplification
+#   0 .. 1
+#   1 .. 2
+#   2 .. 4
+#   ......
+#   6 .. 64
+#   7 .. 128
+global GAIN_X
+GAIN_X = 0
+global GAIN_Y
+GAIN_Y = 0
+global GAIN_Z
+GAIN_Z = 0
+global GAIN_1
+global GAIN_2
+global GAIN_3
+global GAIN_4
+# constants for calibration registers (only 6)
 global OFFSETX
 global OFFSETY
 global OFFSETZ
 global FULLSCALEX
 global FULLSCALEY
 global FULLSCALEZ
-
-# init watchdog
-watchdog = {}
-watchdog['count_repetitions'] = 0
-watchdog['init_max_rep'] = 20
-watchdog['max_repetitions'] = watchdog['init_max_rep']
-watchdog['oldvalue'] = 999999
 
 global int_comm
 int_comm = ""
@@ -261,6 +271,11 @@ def setFilter(FS=0xfa0,channel=4):
     vf=FS&0xff
     txreg(3,channel,vf)
 
+def fsync(f_sync,CHANNEL=4):
+    # f_sync is 0 or 1
+    #setMode(CHANNEL,MD=0,FSYNC=f_sync)
+    setMode(currentchannel,MD=0,FSYNC=f_sync)
+
 def calcSamp2Filt(samplingrate):
     """
     a small calculator to help the user in python's interpreter mode
@@ -378,6 +393,14 @@ def myCalibration():
         #setMode(3,CALMODE)
         #time.sleep(0.3)
     else:
+        # Register RS 6 .. Zero-Scale Cal. Reg.
+        # Register RS 7 .. Full-Scale Cal. Reg.
+        # Pseudo and Fully Differential channels use same Registers
+        # see data sheet
+        #  pseudo16 - pseudo36 same as full12 - full34
+        #  pseudo36 = pseudo46 (Z-calibration registers)
+        #  (pseudo56 is the same as full56, so Z as well)
+
         txreg(6,4,OFFSETX)
         txreg(6,5,OFFSETY)
         txreg(6,6,OFFSETZ)
@@ -406,12 +429,12 @@ def interruptRead(s):
 
     # TIME TO COMMUNICATE!
     global int_comm
-    if int_comm == "mySettings":
-        #mySettings()
-        int_comm = "ok"
-        return
+    #if int_comm == "mySettings":
+    #    mySettings()
+    #    int_comm = "ok"
+    #    return
     if int_comm == "myCalibration":
-        #myCalibration()
+        myCalibration()
         int_comm = "ok"
         return
     if int_comm == "info":
@@ -464,6 +487,7 @@ def interruptRead(s):
     """
     packcode = '6hLlllllll'
     sensorid = Objekt.sensordict['sensorid']
+#    namelist = ['pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56']
     headernames = '[{},{},{},{},{},{},{}]'.format('pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56')
     headerunits = '[{},{},{},{},{},{},{}]'.format('mV','mV','mV','mV','mV','mV','mV')
     headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
@@ -626,8 +650,9 @@ class ad7714Protocol():
         self.datacnt = 0
         self.metacnt = 10
         self.ad7714conf = acs.GetConf2(self.confdict.get('ad7714confpath'))
+        # TODO more GAINs!
         global GAIN
-        GAIN = int(self.ad7714conf.get('GAIN'))
+        GAIN = int(self.ad7714conf.get('GAIN_X'))
         global BIT
         BIT = int(self.ad7714conf.get('BIT'))
         global FILTER
@@ -647,6 +672,7 @@ class ad7714Protocol():
         global FULLSCALEZ
         FULLSCALEZ = int(str(self.ad7714conf.get('FULLSCALEZ')),16)
 
+        
         # reset AD7714
         print('AD7714Protocol: resetting AD7714...')
         reset()
@@ -664,26 +690,28 @@ class ad7714Protocol():
         GPIO.add_event_detect(DRDY, GPIO.FALLING, callback = interruptRead)
         
         # *** indirectly TODO make it better!
+        fsync(1,CHANNEL=4)
         # load settings, zero calibration
         mySettings()
         global int_comm
         int_comm = "mySettings"
         if self.debug:
             print ('mySettings...')
-        while not int_comm == "ok":
-            time.sleep(0.001)
+        #while not int_comm == "ok":
+        #    time.sleep(0.01)
+        fsync(0,CHANNEL=4)
         # zero calibration
-        myCalibration()
+        #myCalibration()
         int_comm = "myCalibration"
         if self.debug:
             print ('myCalibration...')
         while not int_comm == "ok":
-            time.sleep(0.001)
+            time.sleep(0.01)
         # display AD7714s register values
         #info()
         int_comm = "info"
         while not int_comm == "ok":
-            time.sleep(0.001)
+            time.sleep(0.01)
         # ***
 
         print("connection to AD7714 via SPI initialized")
