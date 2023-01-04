@@ -434,8 +434,6 @@ def myCalibration():
     """
     called by interrupt routine
     """
-    global Objekt
-    global SCALE
     global CAL
     global CALMODE
     global OFFSETX
@@ -484,6 +482,9 @@ def interruptRead(s):
     """
     # at first get the time...
     currenttime = datetime.utcnow()
+
+    global Objekt
+    global SCALE
 
     global allvalues
     global channellist
@@ -552,7 +553,7 @@ def interruptRead(s):
 
         # TO FILE 
         packcode = Objekt.packcode
-        sensorid = Objekt.sensorid
+        sensorid = Objekt.sensordict['sensorid']
         header = Objekt.header
         data_bin = struct.pack(packcode,*darray)
         filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
@@ -684,7 +685,6 @@ class ad7714Protocol():
         self.ad7714conf = acs.GetConf2(self.confdict.get('ad7714confpath'))
         # variables needed in defs and interrupt routine        
         self.packcode = ''
-        self.sensorid = ''
 
         global Objekt
         Objekt=self
