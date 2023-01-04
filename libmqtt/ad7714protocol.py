@@ -102,8 +102,8 @@ nameofchannel = ['1','2','3','4','X','Y','Z']
 #   6 .. 64
 #   7 .. 128
 global GAIN
-# GAIN_1, GAIN_2, ..., GAIN_Z
-GAIN = [0,0,0,0,0,0,0]
+GAIN = 0
+# NAME_1, NAME_2, ..., NAME_Z
 global NAME
 NAME = ['','','','','X','Y','Z']
 global KEY
@@ -387,6 +387,7 @@ def calcHeaderString():
     sensorid = Objekt.sensordict['sensorid']
     # bracketstring = '[{},{},{},{},{},{},{}]'
     bracketstring = '[{}' + ',{}'*(l-1)  + ']'
+    nobracketstring = '{}' + ',{}'*(l-1)  # TODO needed for keys?
 
     # namelist = ['pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56']
     # cast list to tupel: (don't know why like this..)
@@ -397,6 +398,7 @@ def calcHeaderString():
 
     # e.g. key Tupel: 'var1,var2,var3,var4,var5,dx,dy'
     keylist = (*keylist,)
+    #headerkeys = nobracketstring.format(*keylist)
     headerkeys = bracketstring.format(*keylist)
 
     # headerunits = '[{},{},{},{},{},{},{}]'.format('mV','mV','mV','mV','mV','mV','mV')
@@ -416,14 +418,11 @@ def mySettings():
     used in __init__ of class AD7714Protocol
     and for test purposes
     """
-    global channellist
     global WL
     global FILTER
-
-    # e.g. setGain(4,0)
-    for channel in channellist:
-        setGain(channel, GAIN[channel])
-
+    global GAIN
+    # setGain(4,0) same GAIN for all channels
+    setGain(4, GAIN)
     # setWL: wordlength 0:16bit, 1:24bit
     setWL(WL)
     # setFilter(5,0xfa0) defines the sampling rate, in this example the minimal
@@ -531,7 +530,7 @@ def interruptRead(s):
         print('ad7714protocol: could not read from channel')
         print(channel)
         # TODO leave it as it is?
-        quit()
+        #quit()
 
     # prepare next sample
     currentchannel = currentchannel + 1
@@ -695,7 +694,6 @@ class ad7714Protocol():
         global SCALE
         global DIFF
         global CAL
-        global GAIN
         # get constants for used channels
         #   nameofchannel: 1, 2, 3, 4, X, Y, Z
         for i in range(7):
@@ -707,26 +705,21 @@ class ad7714Protocol():
             UNIT[i] = self.ad7714conf.get('UNIT_'+nameofchannel[i])
             # scale values e.g. SCALE_X = 1000 (mV/V) would yield values in mV
             try:
-                SCALE[i] = int(self.ad7714conf.get('SCALE_'+nameofchannel[i]))
+                SCALE[i] = float(self.ad7714conf.get('SCALE_'+nameofchannel[i]))
             except:
                 SCALE[i] = None
             # offset e.g. measurement = SCALE_X * value + DIFF_X
             try:
-                DIFF[i] = self.ad7714conf.get('DIFF_'+nameofchannel[i])
+                DIFF[i] = float(self.ad7714conf.get('DIFF_'+nameofchannel[i]))
             except:
                 DIFF[i] = None
-            # calibration mode for each channel if used
+            # calibration mode for each channel if used (0-7)
             try:
-                CAL[i] = self.ad7714conf.get('CAL_'+nameofchannel[i])
+                CAL[i] = int(self.ad7714conf.get('CAL_'+nameofchannel[i]))
             except:
                 CAL[i] = None
-            # GAIN must be in 0..7
-            try:
-                GAIN[i] = int(self.ad7714conf.get('GAIN_'+nameofchannel[i]))
-            except:
-                GAIN[i] = None
-            if not GAIN[i] in range(7):
-                GAIN[i] = None
+        global GAIN
+        GAIN = int(self.ad7714conf.get('GAIN'))
         global WL
         WL = int(self.ad7714conf.get('WL'))
         global FILTER
