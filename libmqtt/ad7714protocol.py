@@ -9,7 +9,7 @@ Requirements:
     SPI interface on a RaspberryPi2 or higher
     
 Called by:
-    acquisition from magpy
+    acquisition from MARTAS (magpy)
 """
 
 from __future__ import print_function
@@ -79,12 +79,10 @@ CLK=2457600
 print("system clock", CLK)
 # *** board v0.1 ***
 # using channel 5: differential input AIN3-AIN4 (pin9-pin10)
-#TODO anders!
-#CHANNEL = 5
+#   set NAME_Y in ad7714.cfg
+#   depricated: CHANNEL = 5
 # *** board v0.2 ***
 # using channel 4: differential input AIN1-AIN2 (pin7-pin8)
-CHANNEL = 4
-#USING CHANNEL 4..6 in the future!
 
 # wordlength 16bit:0 24bit:1
 global WL
@@ -123,6 +121,7 @@ DIFF = [0,0,0,0,0,0,0]
 global CALMODE
 CALMODE = 1
 # calibration for single channels
+#    (zero calibration removes offset)
 #   0 .. no calibration
 #   1 .. self calibration for offset and scale factor
 #   2 .. zero calibration using input voltage
@@ -142,11 +141,15 @@ global FULLSCALEX
 global FULLSCALEY
 global FULLSCALEZ
 
+# sync at startup
 global int_comm
 int_comm = ""
+# array for saving values until they are sent
 global allvalues
-#allvalues=[]
-allvalues=[9999,9999,9999,9999,9999,9999,9999]
+allvalues=[]
+# array for storing which channels are used
+global channellist
+channellist = []
 global currentchannel
 currentchannel = 0
 
@@ -157,7 +160,6 @@ def reset():
     RPi's sleep is not so fast anyhow...
     """
     GPIO.output(RESET,GPIO.LOW)
-    # time.sleep(0.0000001)
     time.sleep(0.01)
     GPIO.output(RESET,GPIO.HIGH)
     
@@ -263,6 +265,7 @@ def setWL(wordlength=None,channel=4):
 def setFilter(FS=0xfa0,channel=4):
     """
     set filter: refer to AD7714s manual
+    channel irrelevant
     """
     # read unchanged values from filter high register
     vf=rxreg(2,channel)
@@ -272,10 +275,15 @@ def setFilter(FS=0xfa0,channel=4):
     vf=FS&0xff
     txreg(3,channel,vf)
 
-def fsync(f_sync,CHANNEL=4):
+def fsync(f_sync):
     # f_sync is 0 or 1
-    #setMode(CHANNEL,MD=0,FSYNC=f_sync)
-    setMode(currentchannel,MD=0,FSYNC=f_sync)
+    # 1 sampling stopped
+    # 0 sampling started
+    global currentchannel
+    global channellist
+    channel = channellist[currentchannel]
+    # mode 0 means normal mode (not calibrating mode)
+    setMode(channel,MD=0,FSYNC=f_sync)
 
 def calcSamp2Filt(samplingrate):
     """
@@ -342,18 +350,79 @@ def info():
         fs[i]=(fs[i][0]<<16)+(fs[i][1]<<8)+fs[i][2]
         print("\t",i,"\t",fs[i],"\t",hex(fs[i]))
 
+def calcHeaderString():
+    """
+    derive headerstring from config arrays
+    NAME array determines which channels to use
+    """
+    global Objekt
+    global NAME
+    global KEY
+    global UNIT
+    global SCALE
+    global allvalues
+    global channellist
+
+    namelist = []
+    keylist =[]
+    unitlist = []
+    factorlist = []
+    channellist = []
+ 
+    for i,name in enumerate(NAME):
+        if NAME[i]:
+            namelist.append(name)
+            keylist.append(KEY[i])
+            unitlist.append(UNIT[i])
+            factorlist.append(SCALE[i])
+            channellist.append(i)
+            allvalues.append(9999)
+    l = len(namelist)
+    #packcode = '6hLlllllll'
+    # one l for each channel (l stands for long in C language, see python struct)
+    # 6hL makes room for 6h: Y M D h min s L: milliseconds
+    packcode = '6hL' + 'l'*l
+    Objekt.packcode = packcode
+
+    sensorid = Objekt.sensordict['sensorid']
+    # bracketstring = '[{},{},{},{},{},{},{}]'
+    bracketstring = '[{}' + ',{}'*(l-1)  + ']'
+
+    # namelist = ['pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56']
+    # cast list to tupel: (don't know why like this..)
+    namelist = (*namelist,)
+    #headernames = '[{},{},{},{},{},{},{}]'.format('pseudo16','p26','p36','p46','full12','f34','f56')
+    # this * asterix is very important!
+    headernames = bracketstring.format(*namelist)
+
+    # e.g. key Tupel: 'var1,var2,var3,var4,var5,dx,dy'
+    keylist = (*keylist,)
+    headerkeys = bracketstring.format(*keylist)
+
+    # headerunits = '[{},{},{},{},{},{},{}]'.format('mV','mV','mV','mV','mV','mV','mV')
+    unitlist = (*unitlist,)
+    headerunits = bracketstring.format(*unitlist)
+    
+    # headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
+    factorlist = (*factorlist,)
+    headerfactors = bracketstring.format(*factorlist)
+
+    header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, headerkeys, headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
+
+    return header
+
 def mySettings():
     """
     used in __init__ of class AD7714Protocol
     and for test purposes
     """
-    #setGain(CHANNEL,GAIN)
-    #setGain(4,GAIN)
-    #setGain(5,GAIN)
-    #setGain(6,GAIN)
-    setGain(4,0)
-    setGain(5,0)
-    setGain(6,0)
+    global channellist
+    global WL
+    global FILTER
+
+    # e.g. setGain(4,0)
+    for channel in channellist:
+        setGain(channel, GAIN[channel])
 
     # setWL: wordlength 0:16bit, 1:24bit
     setWL(WL)
@@ -363,39 +432,25 @@ def mySettings():
 
 def myCalibration():
     """
-    zero calibration removes offset
+    called by interrupt routine
     """
-    # "self calibration" 
-    # mode 1, see AD7714 manual, zero scale and full scale cal internally 
-    # - apparently not good enough
-    #setMode(5,1)
-    # mode 5: permanent calibration 
-    # - not so "beautiful", similar apearance not before setting double sampling rate 
-    #setMode(5,5)
-    # mode 4: zero scale cal from input (should be stable), full scale cal internally
-    # - should be best, but mode 2 is better
-    # mode 2: only zero scale cal from input (should be stable)
-    # - best for Demoseis: "removes" offset
-    if not CALMODE == 0:
-        #setMode(6,CALMODE)
-        #txreg(6,6,OFFSETY)
-        #txreg(7,6,FULLSCALEY)
-        time.sleep(0.2)
-        setMode(4,CALMODE)
-        time.sleep(0.2)
-        setMode(5,CALMODE)
-        time.sleep(0.2)
-        setMode(6,CALMODE)
-        time.sleep(0.2)
-        #setMode(0,CALMODE)
-        #time.sleep(0.3)
-        #setMode(1,CALMODE)
-        #time.sleep(0.3)
-        #setMode(2,CALMODE)
-        #time.sleep(0.3)
-        #setMode(3,CALMODE)
-        #time.sleep(0.3)
-    else:
+    global Objekt
+    global SCALE
+    global CAL
+    global CALMODE
+    global OFFSETX
+    global OFFSETY
+    global OFFSETZ
+    global FULLSCALEX
+    global FULLSCALEY
+    global FULLSCALEZ
+    global channellist
+    global currentchannel
+    channel = channellist[currentchannel]
+
+    if CALMODE == 0:
+        # get constants from file
+
         # Register RS 6 .. Zero-Scale Cal. Reg.
         # Register RS 7 .. Full-Scale Cal. Reg.
         # Pseudo and Fully Differential channels use same Registers
@@ -403,23 +458,24 @@ def myCalibration():
         #  pseudo16 - pseudo36 same as full12 - full34
         #  pseudo36 = pseudo46 (Z-calibration registers)
         #  (pseudo56 is the same as full56, so Z as well)
-
         txreg(6,4,OFFSETX)
         txreg(6,5,OFFSETY)
         txreg(6,6,OFFSETZ)
         txreg(7,4,FULLSCALEX)
         txreg(7,5,FULLSCALEY)
         txreg(7,6,FULLSCALEZ)
-    if CALMODE == 2:
-        # doing zero scale cal again, especially when the sensor is not locked
-        time.sleep(0.3)
-        setMode(4,CALMODE)
-        time.sleep(0.1)
-        setMode(5,CALMODE)
-        time.sleep(0.1)
-        setMode(6,CALMODE)
-    # immediate communication would crash settings --> TODO better sync!
-    time.sleep(0.01)
+        # "calibration" finished
+        return True
+    else:
+        calibration_mode = CAL[channel]
+        setMode(channel,calibration_mode)
+        # preparing for calibrating next channel 
+        currentchannel = currentchannel + 1
+        if currentchannel == len(channellist):
+            currentchannel = 0
+            return True
+        else:
+            return False
 
 def interruptRead(s):
     """
@@ -428,48 +484,38 @@ def interruptRead(s):
     """
     # at first get the time...
     currenttime = datetime.utcnow()
-    # read from data register
+
+    global allvalues
+    global channellist
+    global currentchannel
+    channel = channellist[currentchannel]
 
     # TIME TO COMMUNICATE!
     global int_comm
-    #if int_comm == "mySettings":
-    #    mySettings()
-    #    int_comm = "ok"
-    #    return
     if int_comm == "myCalibration":
-        myCalibration()
-        int_comm = "ok"
+        finished = myCalibration()
+        if finished:
+            int_comm = "ok"
         return
     if int_comm == "info":
         info()
         int_comm = "ok"
         return
-    global currentchannel
     if int_comm == "ok":
         # start sampling with first channel
         int_comm = "read"
         # reset FSYNC to change channel
-        setMode(currentchannel,MD=0,FSYNC=1)
+        setMode(channel,MD=0,FSYNC=1)
         # trigger conversion of next channel
-        setMode(currentchannel,MD=0,FSYNC=0)
+        setMode(channel,MD=0,FSYNC=0)
         return
     if not int_comm == "read":
         print ('error in interruptRead')
         return
-    
-    """
-    arrvalue=rxreg(5,CHANNEL)
-    if len(arrvalue)==2:
-        # 16 -> 24bit
-        arrvalue.append(0)
-    intvalue=(arrvalue[0]<<16) | (arrvalue[1]<<8) | arrvalue[2]
-    voltvalue=float(intvalue)/2**24*5-2.5
-    # mV better for display
-    voltvalue=voltvalue*1000
-    """
-    global allvalues
-    #allvalues=[9999,9999,9999,9999,9999,9999,9999]
-    arrvalue=rxreg(5,currentchannel)
+
+    # collect samples
+    # read from data register
+    arrvalue=rxreg(5,channel)
     if len(arrvalue)==2:
         # 16 -> 24bit
         arrvalue.append(0)
@@ -481,53 +527,38 @@ def interruptRead(s):
     try:
         allvalues[currentchannel]=mVvalue
     except:
-        print(currentchannel)
+        print('ad7714protocol: could not read from channel')
+        print(channel)
+        # TODO leave it as it is?
         quit()
-    """
-    packcode = "6hLl"
-    sensorid = Objekt.sensordict['sensorid']
-    header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[U]','[mV]','[1000]',packcode,struct.calcsize(packcode))
-    """
-    #packcode = '6hLlllllll'
-    sensorid = Objekt.sensordict['sensorid']
-    namelist = ['pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56']
-    # cast list to tupel: (don't know why..)
-    namelist = (*namelist,)
-    l = len(namelist)
-    packcode = '6hL' + 'l'*l
-    bracketstring = '[{}' + ',{}'*(l-1)  + ']'
-    #headernames = '[{},{},{},{},{},{},{}]'.format('pseudo16','p26','p36','p46','full12','f34','f56')
-    # this * asterix is very important!
-    headernames = bracketstring.format(*namelist)
-    headerunits = '[{},{},{},{},{},{},{}]'.format('mV','mV','mV','mV','mV','mV','mV')
-    headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
-    header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, 'var1,var2,var3,var4,var5,dx,dy', headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
 
+    # prepare next sample
     currentchannel = currentchannel + 1
-    if currentchannel == 7:
+    if currentchannel == len(channellist):
         currentchannel = 0
+    channel = channellist[currentchannel]
     # reset FSYNC to change channel
-    setMode(currentchannel,MD=0,FSYNC=1)
+    setMode(channel,MD=0,FSYNC=1)
     # trigger conversion of next channel
-    setMode(currentchannel,MD=0,FSYNC=0)
+    setMode(channel,MD=0,FSYNC=0)
     # if all channels are converted
     if currentchannel == 0:
-
         #timestamp=datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         timestamp = datetime2array(currenttime)
         darray = timestamp
-        """
-        darray.append(int(round(voltvalue*1000)))
-        """
-        for chan in range(7):
-            darray.append(int(round(allvalues[chan]*1000)))
+        for chan,channel in enumerate(channellist):
+            # TODO better
+            darray.append(int(round(allvalues[chan]*SCALE[channel])))
 
         # TO FILE 
+        packcode = Objekt.packcode
+        sensorid = Objekt.sensorid
+        header = Objekt.header
         data_bin = struct.pack(packcode,*darray)
         filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
         if not Objekt.confdict.get('bufferdirectory','') == '':
             acs.dataToFile(Objekt.confdict.get('bufferdirectory'), sensorid, filedate, data_bin, header)
-
+    
         # VIA MQTT
         # instead of external program file TODO: better!
         #def sendData(self, sensorid, data, head, stack=None):
@@ -627,16 +658,7 @@ def seeDRDY():
     print("difftime: ",t-time.time())
     print("samples per second: ",i)
 
-# TODO weg?
-# word length should be set in __init__ of class AD7714Protocol
-# WL=0: 16bit, WL=1: 24bit
-# here WL is set by setWL reading the AD7714 register (default after reset is 0)
-# this guaranties that the global variable WL has the correct value
-setWL()
-# alternatively calculate FILTER from the sampling rate, careful!
-# this will override the setting from before:
-#FILTER = calcSamp2Filt(15)
-print("setup done")
+print("ad7714protocol")
 
 
 
@@ -660,6 +682,12 @@ class ad7714Protocol():
         self.datacnt = 0
         self.metacnt = 10
         self.ad7714conf = acs.GetConf2(self.confdict.get('ad7714confpath'))
+        # variables needed in defs and interrupt routine        
+        self.packcode = ''
+        self.sensorid = ''
+
+        global Objekt
+        Objekt=self
 
         global NAME
         global KEY
@@ -718,47 +746,34 @@ class ad7714Protocol():
         global FULLSCALEZ
         FULLSCALEZ = int(str(self.ad7714conf.get('FULLSCALEZ')),16)
 
+        self.header = calcHeaderString()
+        print('calculated header:')
+        print(self.header)
         
         # reset AD7714
         print('AD7714Protocol: resetting AD7714...')
         reset()
         time.sleep(0.1)
 
-
-        # display first samples
-        # TODO too dangerous:
-        #show(channel=CHANNEL,samples=3)
-        # due to difficulties setting up an interrupt routine within this object...
-        # TODO avoid global variables
-        global Objekt
-        Objekt=self
-#       GPIO.add_event_detect(DRDY, GPIO.FALLING, callback = AD7714Protocol.interruptReadObj(self))
-        GPIO.add_event_detect(DRDY, GPIO.FALLING, callback = interruptRead)
-        
-        # *** indirectly TODO make it better!
-        fsync(1,CHANNEL=4)
-        # load settings, zero calibration
+        # store settings into AD7714's registers
         mySettings()
+
+        # GPIO.add_event_detect(DRDY, GPIO.FALLING, callback = AD7714Protocol.interruptReadObj(self))
+        # did never work...
+        GPIO.add_event_detect(DRDY, GPIO.FALLING, callback = interruptRead)
+
         global int_comm
-        int_comm = "mySettings"
-        if self.debug:
-            print ('mySettings...')
-        #while not int_comm == "ok":
-        #    time.sleep(0.01)
-        fsync(0,CHANNEL=4)
         # zero calibration
-        #myCalibration()
         int_comm = "myCalibration"
         if self.debug:
             print ('myCalibration...')
         while not int_comm == "ok":
-            time.sleep(0.01)
+            # wait for interrupt routine
+            time.sleep(0.001)
         # display AD7714s register values
-        #info()
         int_comm = "info"
         while not int_comm == "ok":
-            time.sleep(0.01)
-        # ***
+            time.sleep(0.001)
 
         print("connection to AD7714 via SPI initialized")
 
