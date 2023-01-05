@@ -14,7 +14,7 @@ Called by:
 
 from __future__ import print_function
 import sys, time, os, socket
-import struct, binascii, re, csv
+import struct, binascii, re, csv, math
 from datetime import datetime, timedelta
 
 from twisted.python import log
@@ -87,6 +87,9 @@ print("system clock", CLK)
 # wordlength 16bit:0 24bit:1
 global WL
 WL = 1
+# polarity 0:bipolar, 1:unipolar
+global POL
+POL = 0
 # Filter sets sampling rate. Depends on system clock
 global FILTER
 FILTER = 0x0c0
@@ -235,12 +238,7 @@ def setWL(wordlength=None,channel=4):
     """
     set wordlength
     WL 0:16bit, 1:24bit
-    ensure not to disturb SPI communication!
-    (not yet implemented)
     """
-    #GPIO.wait_for_edge(DRDY, GPIO.RISING)
-    # TODO war naechste Zeile Grund fuer Probleme?
-    #GPIO.wait_for_edge(DRDY, GPIO.FALLING)
     # read unchanged values from filter high register
     vf=rxreg(2,channel)
     global WL
@@ -261,6 +259,16 @@ def setWL(wordlength=None,channel=4):
         else:
             print('wordlength must be 0 or 1')
     print('Wordlength is',(2+WL)*8,'bit')
+
+def setPol(polarity=0,channel=4):
+    """
+    set polarity
+    POL 0:bipolar, 1:unipolar
+    """
+    global POL
+    vf=rxreg(2,channel)
+    vf=(vf[0]&0x7f)|(polarity<<7)
+    txreg(2,channel,vf)
 
 def setFilter(FS=0xfa0,channel=4):
     """
@@ -350,6 +358,11 @@ def info():
         fs[i]=(fs[i][0]<<16)+(fs[i][1]<<8)+fs[i][2]
         print("\t",i,"\t",fs[i],"\t",hex(fs[i]))
 
+
+def getRoundingFactor(lsb):
+    # rounding factor is used for rounding reasonably
+    return 10**(-1*round(math.log(lsb)/math.log(10)-1))
+
 def calcHeaderString():
     """
     derive headerstring from config arrays
@@ -360,13 +373,15 @@ def calcHeaderString():
     global KEY
     global UNIT
     global SCALE
+    global GAIN
     global allvalues
     global channellist
 
     namelist = []
     keylist =[]
     unitlist = []
-    factorlist = []
+    Objekt.rfactorlist = []
+    Objekt.factorlist = []
     channellist = []
  
     for i,name in enumerate(NAME):
@@ -374,7 +389,13 @@ def calcHeaderString():
             namelist.append(name)
             keylist.append(KEY[i])
             unitlist.append(UNIT[i])
-            factorlist.append(SCALE[i])
+            lsb = 2**(GAIN-24)* 5 * SCALE[i]
+            rfactor = getRoundingFactor(lsb)
+            Objekt.rfactorlist.append(rfactor)
+            factor = 1
+            if rfactor > 1.:
+                factor = int(rfactor)
+            Objekt.factorlist.append(factor)
             channellist.append(i)
             allvalues.append(9999)
     l = len(namelist)
@@ -406,7 +427,7 @@ def calcHeaderString():
     headerunits = bracketstring.format(*unitlist)
     
     # headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
-    factorlist = (*factorlist,)
+    factorlist = (*Objekt.factorlist,)
     headerfactors = bracketstring.format(*factorlist)
 
     header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, headerkeys, headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
@@ -419,12 +440,15 @@ def mySettings():
     and for test purposes
     """
     global WL
+    global POL
     global FILTER
     global GAIN
     # setGain(4,0) same GAIN for all channels
     setGain(4, GAIN)
     # setWL: wordlength 0:16bit, 1:24bit
     setWL(WL)
+    # set polarity: 0:bipolar, 1:unipolar
+    setPol(POL)
     # setFilter(5,0xfa0) defines the sampling rate, in this example the minimal
     # setFilter depends on system clock, see calcSamp2Filt
     setFilter(FILTER)
@@ -484,6 +508,9 @@ def interruptRead(s):
 
     global Objekt
     global SCALE
+    global GAIN
+    global POL
+    global WL
 
     global allvalues
     global channellist
@@ -519,18 +546,23 @@ def interruptRead(s):
     if len(arrvalue)==2:
         # 16 -> 24bit
         arrvalue.append(0)
-    intvalue=(arrvalue[0]<<16) | (arrvalue[1]<<8) | arrvalue[2]
-    voltvalue=float(intvalue*5)/2**24-2.5
-    # mV better for display
-    mVvalue=voltvalue*1000
+    if WL:
+        intvalue=(arrvalue[0]<<16) | (arrvalue[1]<<8) | arrvalue[2]
+        voltvalue=float(intvalue*5)/2**24 - 2.500 + 2.5*POL
+    else:
+        intvalue= (arrvalue[0]<<8) | arrvalue[1]
+        voltvalue=float(intvalue*5)/2**16 - 2.500 + 2.5*POL
+    voltvalue = voltvalue / 2**GAIN
 
+    scale = SCALE[channellist[currentchannel]]
+    rfactor = Objekt.rfactorlist[currentchannel]
+    factor = Objekt.factorlist[currentchannel]
+    value = round (voltvalue * scale * rfactor) / rfactor
     try:
-        allvalues[currentchannel]=mVvalue
+        allvalues[currentchannel] = value 
     except:
         print('ad7714protocol: could not read from channel')
         print(channel)
-        # TODO leave it as it is?
-        #quit()
 
     # prepare next sample
     currentchannel = currentchannel + 1
@@ -548,7 +580,7 @@ def interruptRead(s):
         darray = timestamp
         for chan,channel in enumerate(channellist):
             # TODO better
-            darray.append(int(round(allvalues[chan]*SCALE[channel])))
+            darray.append(int(round(allvalues[chan]*Objekt.factorlist[chan])))
 
         # TO FILE 
         packcode = Objekt.packcode
@@ -684,6 +716,8 @@ class ad7714Protocol():
         self.ad7714conf = acs.GetConf2(self.confdict.get('ad7714confpath'))
         # variables needed in defs and interrupt routine        
         self.packcode = ''
+        self.rfactorlist = []
+        self.factorlist = []
 
         global Objekt
         Objekt=self
@@ -722,6 +756,8 @@ class ad7714Protocol():
         GAIN = int(self.ad7714conf.get('GAIN'))
         global WL
         WL = int(self.ad7714conf.get('WL'))
+        global POL
+        POL = int(self.ad7714conf.get('POL'))
         global FILTER
         FILTER = int(str(self.ad7714conf.get('FILTER')),16)
         global CALMODE
