@@ -227,15 +227,16 @@ class FourPLProtocol(object):
         self.datacnt = 0
         # Sampling rate specific data
         rate = sensordict.get('rate','0')
+        self.metacnt = 1
         try:
-            rate = int(rate)
+            self.rate = int(rate)
         except:
-            rate = 10 #(a minimum of 10 secs is used)
-        if rate < 10:
+            self.rate = 10 #(a minimum of 10 secs is used)
+        if self.rate < 10:
             log.msg('4PLprotocol: Minimum sampling period for 4PL in MARTAS is 10 sec. Adjusting rate...')
-            rate = 10 # send header at reduced rate
+            self.rate = 10 # send header at reduced rate
             self.metacnt = 10 # send header at reduced rate
-        self.N = int(rate/2.)
+        self.N = int(self.rate/2.)
         log.msg('4PLprotocol: Recording {} individual measurements for mean resistivity.'.format(self.N))
         self.counter = {}
 
@@ -269,35 +270,42 @@ class FourPLProtocol(object):
         self.A = 0.65 # get from sensorsconf
         self.L = None # get from sensorsconf
         #self.N = 30 # get from sensorsconf (samplingrate must be twice as high) (i.e. take sampling rate and use half of it)
-        self.I,self.F = setcurrandfrequ(self,"c","o")
+        self.ser = self.connectserial()
+        self.I,self.F = self.setcurrandfrequ("c","o")
+
+    def connectserial(self):
+        ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=int(self.timeout))
+        if not ser.isOpen():
+            ser.open()
+        return ser
 
     def setcurrandfrequ(self,freq,curr):
         """
         Obtain frequency and current from code
         """
         I,F = 0,0
+        ser = self.ser
         ok = True
         if ok:
-            ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=int(self.timeout))
             log.msg('4PLprotocol: Initializing frequency and current')
             meascom = ["v","w","O",freq,curr]
             for comm in meascom:
-                answer, actime = send_command(ser,comm,eol)
-                if commanddict.get(comm,""):
-                    log.msg("Receiving {}: {}".format(commanddict.get(comm,""),answer))
+                answer, actime = send_command(ser,comm,self.eol)
+                if self.commanddict.get(comm,""):
+                    log.msg("Receiving {}: {}".format(self.commanddict.get(comm,""),answer))
                 if comm in ["a","b","c","d","e","f","g","h"]:
-                    Fst = freqdic.get(comm)
+                    Fst = self.freqdic.get(comm)
                     log.msg("Setting frequency: {}".format(Fst))
                     F = float(Fst.replace("Hz",""))
                 if comm in ["m","n","o","p","q","r","s","t"]:
-                    Ist = currdic.get(comm)
+                    Ist = self.currdic.get(comm)
                     log.msg("Setting current: {}".format(Ist))
                     if Ist.find("mA") >0:
                         I = float(Ist.replace("mA",""))/1000
                     else:
                         I = float(Ist.replace("uA",""))/1000000
                 time.sleep(0.5)
-            ser.close()
+            log.msg('4PLprotocol: Initializing complete')
 
         return I,F
 
@@ -322,15 +330,15 @@ class FourPLProtocol(object):
 
     def error(self,sigma,mean,N):
         # return phase in mrad
-        return sigman/sqrt(N)/mean*100.
+        return sigma/np.sqrt(N)/mean*100.
 
     def gettime(self,st,et):
         # calculate mean time and eventually round to minute or hour
         dmean = np.mean([date2num(st),date2num(et)])
         actime = None
-        if int(sensordict.get('rate')) >= 60:
+        if self.rate >= 60:
             actime = datetime.strptime(datetime.strftime(num2date(dmean),"%Y-%m-%dT%H:%M"),"%Y-%m-%dT%H:%M")
-        elif int(sensordict.get('rate')) >= 3600:
+        elif self.rate >= 3600:
             actime = datetime.strptime(datetime.strftime(num2date(dmean),"%Y-%m-%dT%H"),"%Y-%m-%dT%H")
         else:
             actime = num2date(dmean)
@@ -381,7 +389,7 @@ class FourPLProtocol(object):
                 key = '[x,y,z,f,dx,dy,t1,t2,var1,var2,var3]'
                 ele = '[U0,U90,Rho,Phase,eU0,eU90,Vint,Vext,I,F,N]'
                 unit = '[mV,mV,Ohm*m,mrad,per,per,V,V,uA,Hz,]'
-                multplier = str(multiplier).replace(" ","")
+                multplier = "[{}]".format(",".join([str(el) for el in multiplier]))
                 # Correct some common old problem
                 unit = unit.replace('deg C', 'degC')
 
@@ -401,12 +409,15 @@ class FourPLProtocol(object):
 
     def sendRequest(self):
 
+        ser = self.ser
+        # connect serial
+        if not ser.isOpen():
+            ser.open()
+
         if not self.I > 0:
             log.msg("4PLprotocol: initialization didnt work: current is zero")
             return False
         success = True
-        # connect to serial
-        ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=int(self.timeout))
 
         if self.debug:
             print ("Running measurement:")
@@ -425,7 +436,7 @@ class FourPLProtocol(object):
             for comm in comms:
                 if comm == "M":
                     for o in range(0,self.N):
-                        answer,actime = send_command(ser,comm,eol)
+                        answer,actime = send_command(ser,comm,self.eol)
                         answer = answer.replace("M","")
                         #print ("Current {}: U0[mV]={},U90[mV]={}".format(currentdic[curr],answer.split(" ")[0],answer.split(" ")[1]))
                         #print ("U0[mV]={},U90[mV]={}".format(answer.split(" ")[0],answer.split(" ")[1]))
@@ -439,25 +450,25 @@ class FourPLProtocol(object):
                             stdU0=np.std(sum0)
                             stdU90=np.std(sum90)
                 else:
-                    answer,actime = send_command(ser,comm,eol)
+                    answer,actime = send_command(ser,comm,self.eol)
                     if self.debug:
-                        print("Receiving {}: {}".format(commanddict.get(comm),answer))
+                        print("Receiving {}: {}".format(self.commanddict.get(comm),answer))
                     if comm=="w":
-                        Vext=float(answer.replace("w"))
+                        Vext=float(answer.replace("w",""))
                     if comm=="O":
-                        Vint=float(answer.replace("O"))
+                        Vint=float(answer.replace("O",""))
             et = datetime.utcnow()
             actime = self.gettime(st,et)
             result = [meanU0,meanU90,stdU0,stdU90,Vint,Vext]
             if self.debug:
-                print ("Processing data for {}". format(sensorid))
+                print ("Processing data: {}".format(result))
             data, head = self.processData(result, actime)
             # send data via mqtt
             if not data == '':
                 self.sendmqtt(data,head)
 
         # disconnect from serial
-        ser.close()
+        #ser.close()
 
 
     def sendmqtt(self,data,head):
