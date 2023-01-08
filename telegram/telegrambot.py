@@ -846,7 +846,7 @@ def getcam(command):
     """
     camport = tgpar.camport
     try:
-        po = int(re.search(r'\d+', command).group())
+        po = int(re.search(r'\d+', camport).group())
         if po < 10:
             camport = "/dev/video{}".format(po)
     except:
@@ -1015,7 +1015,7 @@ def handle(msg):
                        else:
                            camoptions = ""
                        call = "/usr/bin/fswebcam -d {} {} {}".format(usedcamport, camoptions, os.path.join(tmppath,'webimage.jpg'))
-                       subprocess.call(call)
+                       os.system(call)
                        tglogger.debug("Subprocess for image creation finished")
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))
                    except:
