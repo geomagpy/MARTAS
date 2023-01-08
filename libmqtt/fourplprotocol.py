@@ -343,10 +343,10 @@ class FourPLProtocol(object):
             Author: Thierry Husson 2012
             """
             if dt == None:
-                dt = datetime.datetime.now()
+                dt = datetime.utcnow()
             seconds = (dt.replace(tzinfo=None) - dt.min).seconds
             rounding = (seconds+roundTo/2) // roundTo * roundTo
-            return dt + datetime.timedelta(0,rounding-seconds,-dt.microsecond)
+            return dt + timedelta(0,rounding-seconds,-dt.microsecond)
 
         dmean = num2date(np.mean([date2num(st),date2num(et)]))
         actime = None
