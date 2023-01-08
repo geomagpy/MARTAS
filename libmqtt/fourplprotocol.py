@@ -334,12 +334,26 @@ class FourPLProtocol(object):
 
     def gettime(self,st,et):
         # calculate mean time and eventually round to minute or hour
-        dmean = np.mean([date2num(st),date2num(et)])
+
+        def roundTime(dt=None, roundTo=60):
+            """
+            Round a datetime object to any time lapse in seconds
+            dt : datetime.datetime object, default now.
+            roundTo : Closest number of seconds to round to, default 1 minute.
+            Author: Thierry Husson 2012
+            """
+            if dt == None:
+                dt = datetime.datetime.now()
+            seconds = (dt.replace(tzinfo=None) - dt.min).seconds
+            rounding = (seconds+roundTo/2) // roundTo * roundTo
+            return dt + datetime.timedelta(0,rounding-seconds,-dt.microsecond)
+
+        dmean = num2date(np.mean([date2num(st),date2num(et)]))
         actime = None
         if self.rate >= 60:
-            actime = datetime.strptime(datetime.strftime(num2date(dmean),"%Y-%m-%dT%H:%M"),"%Y-%m-%dT%H:%M")
+            actime = roundTime(dmean,roundTo=60)
         elif self.rate >= 3600:
-            actime = datetime.strptime(datetime.strftime(num2date(dmean),"%Y-%m-%dT%H"),"%Y-%m-%dT%H")
+            actime = roundTime(dmean,roundTo=60*60)
         else:
             actime = num2date(dmean)
         return actime
