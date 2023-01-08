@@ -424,7 +424,7 @@ class FourPLProtocol(object):
                 print ("Date:", datetime.utcnow())
             for comm in comms:
                 if comm == "M":
-                    for o in range(1,self.N):
+                    for o in range(0,self.N):
                         answer,actime = send_command(ser,comm,eol)
                         answer = answer.replace("M","")
                         #print ("Current {}: U0[mV]={},U90[mV]={}".format(currentdic[curr],answer.split(" ")[0],answer.split(" ")[1]))

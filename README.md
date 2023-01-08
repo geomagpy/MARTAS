@@ -306,14 +306,14 @@ It is suggested to use the sensor name GSM90, the serial number of the electroni
 
 #### Geoelectric 4point light 10W (Lippmann)  
 
-        4PL_123_0001,ACM0,19200,8,1,N,active,None,60,1,4PL,4PL,123,0001,-,Home,NTP,geoelectric,wenner-0.65-0-c-o
+        4PL_123_0001,ACM0,19200,8,1,N,active,None,60,1,FourPL,4PL,123,0001,-,Home,NTP,geoelectric,wenner-0.65-0-c-o
 
 Provide layout (wenner,schlumberger,half-schlumberger,dipole-dipole,), Distances A and L, as well as current and frequency within the comment part. For currents and frequencies please refer to the following codes:
 
 currdic = {"m":"1uA","n":"10uA","o":"100uA","p":"1mA","q":"5mA","r":"15mA","s":"50mA","t":"100mA"}
 freqdic = {"a":"0.26Hz","b":"0.52Hz","c":"1.04Hz","d":"2.08Hz","e":"4.16Hz","f":"8.33Hz","g":"12.5Hz","h":"25Hz"}
 
-wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L=0 is not used for wenner, current (c) = 100uA, and frequency (o) = 1.04 Hz 
+wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L=0 is not used for wenner, current (c) = 100uA, and frequency (o) = 1.04 Hz
 
 
 #### Meteorology DSP Ultrasonic wind (Meteolab)  

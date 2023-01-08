@@ -103,7 +103,7 @@ hostname = socket.gethostname()
 msgcount = 0
 
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL'] # should be provided by MagPy
 """
 Protocol types:
 ok		Env   		: py2,py3	: passive		: environment
@@ -112,7 +112,7 @@ ok		Arduino		: py2,py3	: passive (group)	: environment
 ok              ActiveArduino   : py2,py3	: active (group)        : all
 ok		BM35		: py2		: passive 		: environment
 ok      	Lemi		: py2,py3	: passive		: mag
-ok      	GSM90		: py2		: passive (init)	: mag
+ok      	GSM90		: py2,py3		: passive (init)	: mag
 ok      	POS1		: py2,py3	: passive (init)	: mag
 written (time test missing)GSM19: py2		: passive 		: mag
 ok	 	Cs		: py2,py3	: passive 		: mag
@@ -125,6 +125,7 @@ ok		Lnm		: py2		: active 		: environment
 ok		Disdro		: py2		: active 		: environment
 ok              AD7714          : py2 		: autonomous		: general ADC
 current work              IMFile          : py3 		: active		: read files
+current work              FourPL          : py3 		: active		: 4point light geoelectric
 """
 
 def SendInit(confdict,sensordict):
