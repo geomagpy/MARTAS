@@ -5,11 +5,17 @@ and collection from many different sources.
 ####v<1.0.6>, <2023-01-03> --
 
 v1.0.6 general:
-    - added recovery script
-    - backup script extended to include credentials
+    - added and tested recovery script
+    - backup script extended including credentials
+    - updated README with backup instructions
 
+v1.0.6 additions:
+    - library for 4PL (Lippmanns 4 point light geoelectric probes)
 
-####v<1.0.5>, <2022-10-20> --
+v1.0.6 fixes:
+    - install telegrambot does not overwrite preexisting configurations
+
+####v<1.0.5>, <2022-12-20> --
 
 v1.0.5 general:
     - fully tested on Beaglebone

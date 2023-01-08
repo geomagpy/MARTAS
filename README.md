@@ -292,6 +292,70 @@ In order to recover a system from an existing backup, MARTAS/install contains a 
         sudo bash /home/USER/MARTAS/install/recover.martas.sh
 
 
+### 3.6. Typical Sensor definitions in sensors.cfg
+
+#### Geomagetic GSM90 Overhauzer Sensors (GEM Systems)
+
+         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
+
+It is suggested to use the sensor name GSM90, the serial number of the electronics unit and a 4 digit revision number of your choice i.e. 0001. The revision number should be changed in case of electronic units maintainance etc. GSM90 sensors require initialization data provided in /etc/martas/init i.e. gsm90v7init.sh, to start continuous recording of the system. I strongly recommend passive recording i.e. at 0.5 Hz (GPS mode) and then filter to 1 Hz to obtain a record with readings centered on the second.
+
+#### Geomagetic GSM19 Overhauzer Sensors (GEM Systems)
+
+        GSM19_7122568_0001,USB0,115200,8,1,N,passive,,-,1,GSM19,GSM19,7122568,0001,-,mobile,GPS,magnetism,GEM Overhauzer v7.0
+
+#### Geoelectric 4point light 10W (Lippmann)  
+
+        4PL_123_0001,ACM0,19200,8,1,N,active,None,60,1,4PL,4PL,123,0001,-,Home,NTP,geoelectric,wenner-0.65-0-c-o
+
+Provide layout (wenner,schlumberger,half-schlumberger,dipole-dipole,), Distances A and L, as well as current and frequency within the comment part. For currents and frequencies please refer to the following codes:
+
+currdic = {"m":"1uA","n":"10uA","o":"100uA","p":"1mA","q":"5mA","r":"15mA","s":"50mA","t":"100mA"}
+freqdic = {"a":"0.26Hz","b":"0.52Hz","c":"1.04Hz","d":"2.08Hz","e":"4.16Hz","f":"8.33Hz","g":"12.5Hz","h":"25Hz"}
+
+wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L=0 is not used for wenner, current (c) = 100uA, and frequency (o) = 1.04 Hz 
+
+
+#### Meteorology DSP Ultrasonic wind (Meteolab)  
+
+         ULTRASONICDSP_0009009195_0001,S0,115200,8,1,N,active,None,60,1,DSP,ULTRASONICDSP,0009009195,0001,...
+
+#### General Adruino microcontroller (Arduino)  
+
+         ARDUINO1,ACM0,9600,8,1,N,active,None,60,1,ActiveArduino,ARDUINO,-,0001,-,Home,NTP,environment,getO-getU
+
+#### MariaDB/MySQL database access  
+
+         #cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
+
+#### Onewire Senors (Dallas)  
+
+         OW,-,-,-,-,-,active,None,10,1,Ow,OW,-,0001,-,A2,NTP,environment,environment: dallas one wire sensors
+
+#### Environment ENV05 T/rh ()
+
+         ENV05_3_0001,USB0,9600,8,1,N,passive,None,-,1,Env,ENV05,3,0001,-,AS-W-20,NTP,environment,temperature and humidity
+
+#### Geomagnetic LEMI025/036 variometer (LEMI LVIV)
+
+         LEMI036_3_0001,USB0,57600,8,1,N,passive,None,-,1,Lemi,LEMI036,3,0001,-,ABS-67,GPS,magnetism,magnetic variometer from Lviv
+
+#### Geomagnetism POS1/POS4 Overhauzer Sensor (Quantum magnetics)
+
+         POS1_N432_0001,S0,9600,8,1,N,passive,pos1init.sh,-,1,POS1,POS1,N432,0001,-,AS-W-36,GPS,magnetism,Quantum magnetics POS1 Overhauzer sensor
+
+#### Datalogger CR1000/CR800 (Campbell Scientific)
+
+         CR1000JC_1_0002,USB0,38400,8,1,N,active,None,2,1,cr1000jc,CR1000JC,02367,0002,-,TEST,NTP,meteorological,snow height
+
+#### Datalogger AD7714 24bit ()
+
+         AD7714_0001_0001,-,-,-,-,-,autonomous,None,-,10,ad7714,AD7714,-,0001,-,-,NTP,environment,24bit analog digital converter
+
+#### Geomagnetic Obsdaq/Palmdaq datalogger together FGE Magnetometer (MINGEO, DTU)
+
+         FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
+
 ## 4. Experts settings
 
 ### 4.1 Enabling Authentication

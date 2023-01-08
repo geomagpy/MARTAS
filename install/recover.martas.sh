@@ -178,11 +178,11 @@ if [[ -f "${TMPBACKPATH}/README.TXT" ]]; then
 fi
 if [[ -f "${TMPBACKPATH}/.magpycred" ]]; then
     echo "Recovering users credentials ..."
-    cp ${TMPBACKPATH}/.magpycred /home/${USER}/.magpycred
+    cp ${TMPBACKPATH}/usercred.sys /home/${USER}/.magpycred
 fi
 if [[ -f "${TMPBACKPATH}/.rootcred" ]]; then
     echo "Recovering credentials ..."
-    cp ${TMPBACKPATH}/.rootcred /root/.magpycred
+    cp ${TMPBACKPATH}/rootcred.sys /root/.magpycred
 fi
 
 # append txt to Readme

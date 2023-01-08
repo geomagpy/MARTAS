@@ -91,8 +91,8 @@ mkdir -p $BACKUPS
 
 # I) copy credentials
 {
-  find $HOMEFOLDER -type f -name ".magpycred" -path ${HOMEFOLDER}/.magpyc* -exec cp '{}' $TMPFOLDER \;
-  find /root/ -type f -name ".magpycred" -path /root/.magpyc* -exec cp '{}' $TMPFOLDER/.rootcred \;
+  find $HOMEFOLDER -type f -name ".magpycred" -path ${HOMEFOLDER}/.magpyc* -exec cp '{}' $TMPFOLDER/usercred.sys \;
+  find /root/ -type f -name ".magpycred" -path /root/.magpyc* -exec cp '{}' $TMPFOLDER/rootcred.sys \;
 } || {
   echo "Could not find credential file"
 }
