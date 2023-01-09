@@ -283,13 +283,10 @@ def setFilter(FS=0xfa0,channel=4):
     vf=FS&0xff
     txreg(3,channel,vf)
 
-def fsync(f_sync):
+def fsync(channel,f_sync):
     # f_sync is 0 or 1
     # 1 sampling stopped
     # 0 sampling started
-    global currentchannel
-    global channellist
-    channel = channellist[currentchannel]
     # mode 0 means normal mode (not calibrating mode)
     setMode(channel,MD=0,FSYNC=f_sync)
 
@@ -389,7 +386,10 @@ def calcHeaderString():
             namelist.append(name)
             keylist.append(KEY[i])
             unitlist.append(UNIT[i])
-            lsb = 2**(GAIN-24)* 5 * SCALE[i]
+            if WL:
+                lsb = 2**(GAIN-24)* 5 * SCALE[i]
+            else:
+                lsb = 2**(GAIN-16)* 5 * SCALE[i]
             rfactor = getRoundingFactor(lsb)
             Objekt.rfactorlist.append(rfactor)
             factor = 1
@@ -498,6 +498,7 @@ def myCalibration():
         else:
             return False
 
+
 def interruptRead(s):
     """
     interrupt routine of class AD7714Protocol
@@ -508,6 +509,7 @@ def interruptRead(s):
 
     global Objekt
     global SCALE
+    global DIFF
     global GAIN
     global POL
     global WL
@@ -532,9 +534,9 @@ def interruptRead(s):
         # start sampling with first channel
         int_comm = "read"
         # reset FSYNC to change channel
-        setMode(channel,MD=0,FSYNC=1)
+        fsync(channel,1)
         # trigger conversion of next channel
-        setMode(channel,MD=0,FSYNC=0)
+        fsync(channel,0)
         return
     if not int_comm == "read":
         print ('error in interruptRead')
@@ -555,24 +557,31 @@ def interruptRead(s):
     voltvalue = voltvalue / 2**GAIN
 
     scale = SCALE[channellist[currentchannel]]
+    diff = DIFF[channellist[currentchannel]]
     rfactor = Objekt.rfactorlist[currentchannel]
     factor = Objekt.factorlist[currentchannel]
-    value = round (voltvalue * scale * rfactor) / rfactor
+    # calculate value in the desired unit
+    # and round reasonably depending on the least significant bit LSB
+    value = round (voltvalue * scale * rfactor) / rfactor + diff
     try:
         allvalues[currentchannel] = value 
     except:
         print('ad7714protocol: could not read from channel')
         print(channel)
 
-    # prepare next sample
-    currentchannel = currentchannel + 1
-    if currentchannel == len(channellist):
-        currentchannel = 0
-    channel = channellist[currentchannel]
-    # reset FSYNC to change channel
-    setMode(channel,MD=0,FSYNC=1)
-    # trigger conversion of next channel
-    setMode(channel,MD=0,FSYNC=0)
+    if len(channellist) > 1:
+        # prepare next sample
+        # reset FSYNC to change channel
+        fsync(channel,1)
+        currentchannel = currentchannel + 1
+        if currentchannel == len(channellist):
+            currentchannel = 0
+        channel = channellist[currentchannel]
+        # trigger conversion of next channel
+        fsync(channel,0)
+    else:
+        # in one channel mode AD7714 triggers by itself
+        pass
     # if all channels are converted
     if currentchannel == 0:
         #timestamp=datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
