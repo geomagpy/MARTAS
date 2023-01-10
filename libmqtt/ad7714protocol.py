@@ -224,7 +224,7 @@ def setMode(channel=4,MD=0,FSYNC=-1):
         vm=(vm[0]&0x1e)|(MD<<5)|FSYNC
     txreg(1,channel,vm)
 
-def setGain(channel=4,G=0):
+def setGain(G=0,channel=4):
     """
     set gain of AD7714s preamp in powers of two
     amplification = 2 ** G
@@ -443,8 +443,8 @@ def mySettings():
     global POL
     global FILTER
     global GAIN
-    # setGain(4,0) same GAIN for all channels
-    setGain(4, GAIN)
+    # setGain(0) same GAIN for all channels
+    setGain(GAIN)
     # setWL: wordlength 0:16bit, 1:24bit
     setWL(WL)
     # set polarity: 0:bipolar, 1:unipolar
