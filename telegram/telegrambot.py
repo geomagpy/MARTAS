@@ -105,7 +105,7 @@ class tgpar(object):
     tmppath = '/tmp'
     camport = 'None'
     tglogpath = '/var/log/magpy/telegrambot.log'
-    version = '1.0.4'
+    version = '1.0.5'
     martasapp = '/home/cobs/MARTAS/app'
     purpose = 'MARTAS'
 
@@ -234,7 +234,7 @@ Available commands:
 stationcommands = {'getlog':'obtain last n lines of a log file\n  Command options:\n  getlog  \n  getlog 10  (last 10 lines)  \n  getlog 10 syslog  (telegrambot, martas, syslog, messages)',
                    'martas restart-stop-start':'e.g. restart MARTAS process',
                    'marcos restart-stop-start':'e.g. restart MARCOS process',
-                   'martasupdate':'update to most recent MARTAS version',
+                   'martasupdate':'update to most recent MARTAS version - requires the correct user i.e. martas update user debian',
                    'status':'get information on disk space, memory, and martas-marcos processes',
                    'hello':'say hello, bot',
                    'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003',
@@ -846,7 +846,7 @@ def getcam(command):
     """
     camport = tgpar.camport
     try:
-        po = int(re.search(r'\d+', command).group())
+        po = int(re.search(r'\d+', camport).group())
         if po < 10:
             camport = "/dev/video{}".format(po)
     except:
@@ -1015,7 +1015,7 @@ def handle(msg):
                        else:
                            camoptions = ""
                        call = "/usr/bin/fswebcam -d {} {} {}".format(usedcamport, camoptions, os.path.join(tmppath,'webimage.jpg'))
-                       subprocess.call(call)
+                       os.system(call)
                        tglogger.debug("Subprocess for image creation finished")
                        bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))
                    except:
@@ -1049,6 +1049,7 @@ def handle(msg):
                # -----------------------
                # Send MARTAS process command
                # -----------------------
+               # updating requires the correct user: martas update user debian
                bot.sendMessage(chat_id, "Sending acquisition process command...")
                cmd = command.replace('martas','').replace('MARTAS','')
                cmd = cmd.strip()

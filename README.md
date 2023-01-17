@@ -16,8 +16,8 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey (ZAMG)
 
 ## 1. Introduction
 
-MARTAS has originally been developed to support realtime geomagnetic data acqusition. The principle idea was to provide a unique platform to obtain data from serial interfaces, and to stream and record this data within a generalized format to a data archive. Previously any system connected via serial interface to a recording computer was registered by its own software usually in a company specific format. Intercomparison of such data, extraction of meta information and basically any analysis requiring different sources is significantly hampered.
-MARTAS contains a communication library which supports many commonly used instruments as listed below. With these libraries, data AND meta information is obtained from connected sensors. This data is then converted to a data stream containing essential meta information. This data stream has a general format which can be used for basically every imaginable timeseries. The data stream is broadcasted/published on a messaging queue transport type (MQTT) broker, a state-of-the-art standard protocol of the Internet-of-Things (IOT). A receiver contained in the MARTAS package (MARCOS - MagPys Automated Realtime Collector and Organization System) subscribes to such data streams and allows to store this data in various different archiving types (files, databases). Various logging methods, comparison functions, threshold tickers, and process communication routines complement the MARTAS package.
+MARTAS has originally been developed to support realtime geomagnetic data acqusition. The principle idea was to provide a unique platform to obtain data from serial interfaces, and to stream and record this data within a generalized format to a data archive. Previously any system connected via serial interface to a recording computer was registered by its own software usually in a company specific format. Intercomparison of such data, extraction of meta information, realtime data transport and basically any analysis requiring different sources is significantly hampered.
+MARTAS contains a communication library which supports many commonly used instruments as listed below. With these libraries, data AND meta information is obtained from connected sensors. This data is then converted to a data stream containing essential meta information. This data stream has a general format which can be used for basically every imaginable timeseries. The data stream is broadcasted/published on a messaging queue transport type (MQTT) broker, a state-of-the-art standard protocol of the Internet-of-Things (IOT). A receiver contained in the MARTAS package (MARCOS - MagPys Automated Realtime Collector and Organization System) subscribes to such data streams and allows to store this data in various different archiving types (files (like CDF, CSV, TXT, BIN), databases). Various logging methods, comparison functions, threshold tickers, and process communication routines complement the MARTAS package.
 
 Currently supported systems are:
 
@@ -38,11 +38,11 @@ Currently supported systems are:
 - all data files readable by MagPy
 
 and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
-(requiring a specific serial output format in the self written microcontroller program - appendix)
+(requiring a specific serial output format in the microcontroller program - appendix)
 
 
-Note: in the folling examples we use "user" as username and "users" as group.
-Replace these names with your user:group names.
+Note: in the folling examples we use "USER" as username and "USERS" as group.
+Replace these names with your user:group names. All instructions asume that you have a profound knowledge of debian like linux systems, as such a system is the only prerequisite to run MARTAS.
 
 
 ## 2. INSTALLTION
@@ -54,7 +54,7 @@ Although MARTAS is platform independent, it is currently only tested and used
 on debian like LINUX systems.
 
     PYTHON:
-    - tested and running on python 2.7/3.x (some libraries are currently upgraded to 3.x)
+    - tested and running on python 2.7/3.x
     - any future development will be directed to python 3.x
 
     Required packages:
@@ -93,7 +93,7 @@ MARTAS makes use of certain IOT protocols for real-time data transfer.
 Currently fully supported is MQTT. In the following you will find some instructions
 on how to get MQTT running on your acquisition machine.
 
-If you dont need authentication you are fine already (continue with section 2). You only need to install the required packages as listed above. Thats it.
+If you dont need authentication you are fine already (continue with section 3). You only need to install the required packages as listed above. Thats it.
 
 ### 2.4 NEW: enable listener
 
@@ -190,7 +190,7 @@ Further details and descriptions are found within the created sensors.cfg config
 
         $ nano /etc/martas/martas.cfg
 
-martas.cfg contains the basic MARTAS configuration data, definitions for broadcasting and paths. Details and descriptions are found within this file. The file is preconfigured during the installation process and does not beed to be changed.
+martas.cfg contains the basic MARTAS configuration data, definitions for broadcasting and paths. Details and descriptions are found within this file. The file is preconfigured during the installation process and does not need to be changed.
 
 
 ### 3.2 Running the acquisition sytem
@@ -251,8 +251,112 @@ sensors.cfg: line for a GSM90 Overhauzr, the initialzation configuration is take
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
-## 4. Experts settings
+### 3.5 Regular backups of all MARTAS configurations
 
+MARTAS comes with a small backup application to be scheduled using cron, which saves basically all MARTAS configuration files within a zipped archive. The aim of this application is to save all essential information within one single data file so that in case of a system crash (hardware problem, SD card defect, etc) you can easily and quickly setup an identical "new" system. You might also use the backups to setup similar copies of a specific system.
+
+To enable regular monthly backups, first copy the backup_config.sh application to /etc/martas/
+
+          $ (sudo) cp /home/USER/MARTAS/apps/backup_config.sh /etc/martas
+
+Modify backup_config.sh and insert the correct user name in line 13:
+
+          $ (sudo) nano /etc/martas/backup_config.sh
+
+Schedule the script using cron (as root).
+
+          $ sudo nano /etc/crontab
+
+Insert the following line to create backups every 1 day per month.
+
+          10 0   1 * *   root /bin/bash /etc/martas/backup_config.sh
+
+
+In order to recover a system from an existing backup, MARTAS/install contains a recovery script "recover.martas.sh". In the following example we asume that your system broke down i.e. due to a SD card failure of your beaglebone/raspberry single board PC. You need to recover your system on a newly installed SD card. To apply the recover script you need to perform the following steps:
+
+1. Install a basic debian/ubuntu linux system on your acquisition machine (i.e. see steps 1-3 in section 12.5.2 for beaglebone)
+
+2. login into the new machine as the projected user USER
+
+3. create a directory /home/USER/Backups and copy the backup file you want to apply into this folder
+
+        mkdir /home/USER/Backups
+        (s)cp /source/myoldmachine_19990402_backup.tar.gz /home/USER/Backups/
+
+4. get MARTAS (eventually you need to install git - apt install git)
+
+        git clone https://github.com/geomagpy/MARTAS
+
+5. Run the recover script. This script will guide you through the process
+
+        sudo bash /home/USER/MARTAS/install/recover.martas.sh
+
+
+### 3.6. Typical Sensor definitions in sensors.cfg
+
+#### Geomagetic GSM90 Overhauzer Sensors (GEM Systems)
+
+         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
+
+It is suggested to use the sensor name GSM90, the serial number of the electronics unit and a 4 digit revision number of your choice i.e. 0001. The revision number should be changed in case of electronic units maintainance etc. GSM90 sensors require initialization data provided in /etc/martas/init i.e. gsm90v7init.sh, to start continuous recording of the system. I strongly recommend passive recording i.e. at 0.5 Hz (GPS mode) and then filter to 1 Hz to obtain a record with readings centered on the second.
+
+#### Geomagetic GSM19 Overhauzer Sensors (GEM Systems)
+
+        GSM19_7122568_0001,USB0,115200,8,1,N,passive,,-,1,GSM19,GSM19,7122568,0001,-,mobile,GPS,magnetism,GEM Overhauzer v7.0
+
+#### Geoelectric 4point light 10W (Lippmann)  
+
+        4PL_123_0001,ACM0,19200,8,1,N,active,None,60,1,FourPL,4PL,123,0001,-,Home,NTP,geoelectric,wenner-0.65-0-c-o
+
+Provide layout (wenner,schlumberger,half-schlumberger,dipole-dipole,), Distances A and L, as well as current and frequency within the comment part. For currents and frequencies please refer to the following codes:
+
+currdic = {"m":"1uA","n":"10uA","o":"100uA","p":"1mA","q":"5mA","r":"15mA","s":"50mA","t":"100mA"}
+freqdic = {"a":"0.26Hz","b":"0.52Hz","c":"1.04Hz","d":"2.08Hz","e":"4.16Hz","f":"8.33Hz","g":"12.5Hz","h":"25Hz"}
+
+wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L=0 is not used for wenner, current (c) = 100uA, and frequency (o) = 1.04 Hz
+
+
+#### Meteorology DSP Ultrasonic wind (Meteolab)  
+
+         ULTRASONICDSP_0009009195_0001,S0,115200,8,1,N,active,None,60,1,DSP,ULTRASONICDSP,0009009195,0001,...
+
+#### General Adruino microcontroller (Arduino)  
+
+         ARDUINO1,ACM0,9600,8,1,N,active,None,60,1,ActiveArduino,ARDUINO,-,0001,-,Home,NTP,environment,getO-getU
+
+#### MariaDB/MySQL database access  
+
+         #cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
+
+#### Onewire Senors (Dallas)  
+
+         OW,-,-,-,-,-,active,None,10,1,Ow,OW,-,0001,-,A2,NTP,environment,environment: dallas one wire sensors
+
+#### Environment ENV05 T/rh ()
+
+         ENV05_3_0001,USB0,9600,8,1,N,passive,None,-,1,Env,ENV05,3,0001,-,AS-W-20,NTP,environment,temperature and humidity
+
+#### Geomagnetic LEMI025/036 variometer (LEMI LVIV)
+
+         LEMI036_3_0001,USB0,57600,8,1,N,passive,None,-,1,Lemi,LEMI036,3,0001,-,ABS-67,GPS,magnetism,magnetic variometer from Lviv
+
+#### Geomagnetism POS1/POS4 Overhauzer Sensor (Quantum magnetics)
+
+         POS1_N432_0001,S0,9600,8,1,N,passive,pos1init.sh,-,1,POS1,POS1,N432,0001,-,AS-W-36,GPS,magnetism,Quantum magnetics POS1 Overhauzer sensor
+
+#### Datalogger CR1000/CR800 (Campbell Scientific)
+
+         CR1000JC_1_0002,USB0,38400,8,1,N,active,None,2,1,cr1000jc,CR1000JC,02367,0002,-,TEST,NTP,meteorological,snow height
+
+#### Datalogger AD7714 24bit ()
+
+         AD7714_0001_0001,-,-,-,-,-,autonomous,None,-,10,ad7714,AD7714,-,0001,-,-,NTP,environment,24bit analog digital converter
+
+#### Geomagnetic Obsdaq/Palmdaq datalogger together FGE Magnetometer (MINGEO, DTU)
+
+         FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
+
+## 4. Experts settings
 
 ### 4.1 Enabling Authentication
 
@@ -833,11 +937,11 @@ packages using e.g. sudo apt install python3-scipy
 
 #### I want to send out data periodically from a MARTAS acquisition machine using FTP or similar. Is this easily possible?
 
-use app/senddata.py within crontab:
+use app/file_upload.py within crontab (see 8.6)
 
 #### I want download buffer files from the MARTAS machine peridically in order to fill gaps of my qos 0 MQTT stream. How to do that?
 
-use app/collectfile.py within crontab:
+use app/file_download.py within crontab (see 8.5)
 
 
 ## 10. Checklist for error analysis
@@ -852,17 +956,17 @@ In order to find any issues with data acquisition we recommend to check the foll
 
        if not start/restart the process
 
-    2) log file contents
+    2) log file contents?
 
               tail -30 /var/log/magpy/martas.log
 
        Check the logfile contents. Typically they might indicate already what is going wrong. For more detailed information within the logfiles please edit "martas.cdf" and set "debug  :  True" before restarting the acquisition process.
 
-    3) bufferfile written
+    3) buffer file written?
 
               ls -al /srv/mqtt/YOURSENSOR/
 
-       Check if buffer data written.
+       Check if buffer data written. If buffer file is not written please check acquisition with debug mode (see above). Is your sensor already supported?
 
 ### 10.2 Data transfer and MQTT Broker
 
@@ -923,7 +1027,7 @@ requirements.txt   |    for contiunuous integration test runs
 app/addcred.py    |	run to add protected credentials to be used e.g. by data sending protocol, database connections etc, avoinding the use of plain text passwords in scripts
 app/archive.py    |	MARCOS job to periodically archive contents of the data base into archive files (e.g. CDF). Remove information from the data base exceeding a defined age. The latter requires additionally to run sql optimze routines in order to prevent an overflow of the local data base storage files.
 app/ardcomm.py    |	Communication program for microcontrollers (here ARDUINO) e.g. used for reomte switching commands
-app/backup_config.sh    |	Bash scripts wich creates a zipped backup file containing all configuration information - stored in HOME/Backups (apply weekly)
+app/backup_config.sh    |	Bash scripts wich creates a zipped backup file containing all configuration information - stored in HOME/Backups (apply weekly or monthly, section 3.5)
 app/cleanup.sh    |	remove buffer files older than a definite period
 app/deleteold.py    |	delete old inputs from a database, using a sampling rate dependent indicator (deleteold.py -h)
 app/di.py    |	Routine based on MagPys absoluteAnalysis tool to analyse geomagnetic DI measurements from multiple input sources/observatories.
@@ -964,6 +1068,7 @@ install/install.marcos.sh    |	Installer for collector jobs  (section 6.0)
 install/install.martas.sh    |	Installer for acquisition jobs  (section 3.0)
 install/install.telegram.sh    |	Installer for Telegram messenger communication (section 7.3)
 install/install.addapps.sh    |   Installer for threshold testing and monitor
+install/recover.martas.sh    |   Recovery script to apply a backup (app/backup_config.sh) to a newly installed system (section 3.5)
 **libraries**  |  contain communication libraries for specific systems/protocols/instruments (required by acquisition.py)
 libmqtt/...    |			library for supported instruments (mqtt streaming)
 libwamp/...    |		library for sup. inst. (wamp streaming) - DISCONTINUED
@@ -981,8 +1086,8 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 Instrument |  versions    |  Inst-type   |  Library           |     mode     |     init       |  py2/py3
 ---------- | ------------ | ------------ | ------------------ | ------------ | -------------- | ------------
-LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
-LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,(py3)
+LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,py3
+LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,py3
 GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | gsm90v?init.sh |   py2,py3
 GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,py3
 GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |                |   py2,(py3)
@@ -997,7 +1102,7 @@ Lippmann   |              | tilt         | lmprotocol.py      |   active     |  
 LORAWAN    |              | multiple     | lorawanprotocol.py |              |                |
 MySQL      |              | multiple     | mysqlprotocol.py   |   active     |                |
 Arduino    |              | multiple     | arduinoprotocol.py |   passive    |                |   (py2)/py3
-Arduino    |              | multiple     | activearduinoprotocol.py | active |                |   (py2)/py3
+Arduino    |              | multiple     | activearduinoprotocol.py | active |                |   py2/py3
 AD7714     |              | multiple     | ad7714protocol.py  |   active     |                |
 ObsDaq     |              | multiple     | obsdaqprotocol.py  |   active     | obsdaqinit.sh  |   py2,py3
 CR1000/800 |              | multiple     | cr1000jcprotocol.py      | active |                |
@@ -1005,9 +1110,8 @@ GIC        |              | special      | gicprotocol.py     |   active     |  
 DataFiles  |              | multiple     | imfileprotocol.py  |   active     |                |   py3
 Test       |              | special      | testprotocol.py    |              |                |
  - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |                |
- - remove- |              | multiple     | ardactiveprotocol.py | inactive   |                |
 
-(py2) indactes that code has been developed and used in python2 but has not been tested anymore
+(py2) indactes that code has been developed and used in python2 but is not tested anymore
 
 ### 12.2 Initialization files
 
@@ -1114,6 +1218,8 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 ### 12.5 Full example installation of a MARTAS Box
 
 #### 12.5.1 Raspberry - MARCOS/MARTAS
+
+The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios monitoring control, Webinterface, and an archive on an external harddrive.
 
 ```
 sudo apt-get install curl wget g++ zlibc gv imagemagick gedit gedit-plugins gparted ntp arduino ssh openssl libssl-dev gfortran  libproj-dev proj-data proj-bin git owfs mosquitto mosquitto-clients libncurses-dev build-essential nagios-nrpe-server nagios-plugins apache2 mariadb-server php php-mysql phpmyadmin netcdf-bin curlftpfs fswebcam
@@ -1288,7 +1394,7 @@ sudo mount -a
 
         sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
         sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
-        
+
         sudo nano /etc/crontab
 
         15 0    * * * root /bin/bash /etc/martas/cleanup.sh
@@ -1303,18 +1409,18 @@ sudo mount -a
 
 In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
 
-A. GSM19 Sensor 
+A. GSM19 Sensor
 
    1. Power on by pressing "B"
    2. go to "C - Info"
    3. go to "B - RS232"
    4. note parameters and then "F - Ok"
-   5. switch real-time transfer to yes and then "F - Ok" 
+   5. switch real-time transfer to yes and then "F - Ok"
    6. "F - Ok"
    7. press "1" and "C" for main menu
    8. start recording - press "A"
    9. if GPS is set to yes wait until GPS is found
-   
+
 B. MARTAS - beaglebone (BB)
    1. connect BB to a DHCP network (if not possible connect a usbhub and screen+keyboard, then login and continue with 4.)
    2. find out its IP
@@ -1335,9 +1441,9 @@ B. MARTAS - beaglebone (BB)
    9. save /etc/martas/sensors.cfg
 
 A. GSM19 Sensor
-   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter) 
+   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter)
    11. start recording
-   
+
 B. MARTAS
    10. start recording:
               $ sudo su
@@ -1359,7 +1465,7 @@ A. Sensor (GSM19)
 B. MARTAS
    1. Connect MARTAS to power
 
-Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file. 
+Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file.
 Please note: data is written as soon as all sensor specific information is available. When attaching a micro controller (i.e. arduino)
 you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sampling rate) until data is written to the buffer.
 
@@ -1367,7 +1473,7 @@ you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sam
 
 ### 12.7 Issues and TODO
 
-Sometimes, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
+in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
 
 - add trigger mode for GSM90 (sending f)
 - add to #5

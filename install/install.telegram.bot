@@ -87,8 +87,9 @@ fi
 
 # install as service
 # ------------------
-cp $BOTPATH/telegrambot /etc/init.d/telegrambot
-cp $BOTPATH/telegrambot.cfg $CONFPATH/telegrambot.cfg
+# copy, but do not overwrite if existing
+cp -n $BOTPATH/telegrambot /etc/init.d/telegrambot
+cp -n $BOTPATH/telegrambot.cfg $CONFPATH/telegrambot.cfg
 
 # Replace DUMMY values with paths
 DUMMYBOT="/your/botpath"

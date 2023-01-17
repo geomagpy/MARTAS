@@ -16,8 +16,8 @@
 
 ## Suggested approach on a new installation
 ## install default ubunutu/debian
-## create the same user as used previously 
-## login as this user, create a directory called "Backups" within home/user, 
+## create the same user as used previously
+## login as this user, create a directory called "Backups" within home/user,
 ## and load the backup you want to restore there
 
 USER="debian"
@@ -49,20 +49,24 @@ FILEPATH=$(ls -tp ${BACKUPPATH}/*_backup.tar.gz | grep -v /$ | head -1)
 FILENAME=$(basename ${FILEPATH} .tar.gz)
 cp ${FILEPATH} /tmp/recover.tar.gz
 gunzip /tmp/recover.tar.gz
-tar xf /tmp/recover.tar
+tar xf /tmp/recover.tar -C /tmp/
 TMPBACKPATH="/tmp/tmp/${FILENAME}"
 
 # 1.2 check username
 # Get files with ...crontab.out -> get username
-USERN=$(ls -d !(etc*) | grep .out | sed "s/crontab.out//")
-if ! [[ $USERN -eq $USER ]]; then
+cd $TMPBACKPATH
+USERN=$(ls -I "etc*" | grep .out | sed "s/crontab.out//")
+cd $current
+if [[ ! $USERN -eq $USER ]]; then
     echo "Your provided user name (${USER}) differs from the one of the backup (${USERN})"
     echo "We will use the provided one ..."
-    echo "If you don't agree you got 10secs to abport"
+    echo "If you don't agree you got 10 seconds to abort"
     sleep 10
 fi
 
-# 1.3 check if martas and etccrontab exist (if not abort)
+# 1.3 check if user is existing
+
+# 1.4 check if martas and etccrontab exist (if not abort)
 if [[ ! -f "${TMPBACKPATH}/etccrontab.out" || ! -d "${TMPBACKPATH}/martas" ]]; then
     echo "Does not seem to be a MARTAS backup - aborting."
     exit 1
@@ -75,248 +79,135 @@ sleep 3
 echo "Software requirements"
 echo "  ! please note: recovery will always install everything based on system python3 no matter what has been used before - you have 10 sec to cancel in case you dont want that"
 sleep 10
-echo "- installing some essential linux packages"
-apt install git ntp ssh mosquitto mosquitto-clients fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
+echo "- installing some essential linux packages now:"
+apt update
+apt upgrade
+apt-get install ntp arduino ssh mosquitto mosquitto-clients fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
 
-if [ ! -d "/home/${USER}/MARTAS"]; then
+# 3. install martas, marcos, addapps, telegrambot
+
+if [ ! -d "/home/${USER}/MARTAS" ]; then
     echo "- MARTAS not yet existing - getting it as user $USER"
-    cd home/${USER}
-    sudo -u ${USER} git clone https://...
+    cd /home/${USER}
+    su - {} -c '/usr/bin/git clone https://github.com/geomagpy/MARTAS.git'
 fi
 
-if [ -f "//${USER}/MARTAS"]; then
-    echo "- MARTAS not yet existing - getting it as user $USER"
-    cd home/${USER}
-    sudo -u ${USER} git clone https://...
+if [ -d "${TMPBACKPATH}/martas" ]; then
+    echo "-------------------------------------------"
+    echo "Dealing with MARTAS part ..."
+    echo "-------------------------------------------"
+    if [ ! -f "/etc/init.d/martas" ]; then
+        echo "- MARTAS not yet installed - doing that now"
+        echo "-------------------------------------------"
+        cd /home/${USER}/MARTAS/install
+        bash install.martas.sh
+    fi
+    echo "- recovering configuration files"
+    echo "-------------------------------------------"
+    BACK="/tmp/replaced_by_recovery_${DATE}.tar.gz"
+    tar -czf $BACK /etc/martas
+    rm -r /etc/martas/*
+    cp $BACK /etc/martas/
+    cp -r ${TMPBACKPATH}/martas /etc/
+    chown -R $USER:$USER /etc/martas
 fi
 
+if [ -d "${TMPBACKPATH}/marcos" ]; then
+    echo "-------------------------------------------"
+    echo "Dealing with MARCOS part ..."
+    echo "-------------------------------------------"
+    # find collector configurations and go through this list
+    # ls /tmp/tmp/endeavour_20230101_backup/martas/ -I mail.cfg -I telegram.cfg -I monitor.cfg -I martas.cfg -I sensors.cfg -I telegrambot.cfg -I threshold.cfg -I "*.sh"
+    echo "Marcos is not yet fully supported: you need to perfom install.marcos.sh for all collector jobs"
+    echo "- recovering configuration files"
+    echo "-------------------------------------------"
+    BACK="/tmp/replaced_by_recovery_${DATE}.tar.gz"
+    tar -czf $BACK /etc/marcos
+    rm -r /etc/marcos/*
+    cp $BACK /etc/marcos/
+    cp -r ${TMPBACKPATH}/marcos /etc/
+    chown -R $USER:$USER /etc/marcos
+fi
 
-# 2. Check System and eventually install missing packages to run Martas
+# find threshold and or monitor scripts in martas/marcos
+if [ -f "${TMPBACKPATH}/martas/monitor.cfg" ] || [ -f "${TMPBACKPATH}/martas/threshold.cfg" ]; then
+    echo "Installing previously used additional MARTAS applications ..."
+    echo "-------------------------------------------"
+    cd /home/${USER}/MARTAS/install
+    bash install.addapps.sh
+fi
+if [[ -f "${TMPBACKPATH}/martas/telegrambot.cfg" ]]; then
+        echo "Installing previously used telegrambot ..."
+        echo "-------------------------------------------"
+        cd /home/${USER}/MARTAS/install
+        bash install.telegram.bot
+fi
 
-# python, mosquitto - abort if backup requires anaconda, minimconda
-# also check name and IP, suggest to change them
+# 4. eventually required directories are created
+if [[ -d "${TMPBACKPATH}/CONF" ]]; then
+    echo "Recovering general configuration data ..."
+    cp -r ${TMPBACKPATH}/CONF /home/${USER}/
+fi
+if [[ -d "${TMPBACKPATH}/SCRIPTS" ]]; then
+    echo "Recovering optional scripts ..."
+    cp -r ${TMPBACKPATH}/SCRIPTS /home/${USER}/
+fi
+if [[ -d "${TMPBACKPATH}/SYNC" ]]; then
+    echo "Recovering synchronization data ..."
+    cp -r ${TMPBACKPATH}/SYNC /home/${USER}/
+fi
+if [[ -d "${TMPBACKPATH}/Sync" ]]; then
+    echo "Recovering synchronization data ..."
+    cp -r ${TMPBACKPATH}/Sync /home/${USER}/
+fi
+if [[ -f "${TMPBACKPATH}/Readme.txt" ]]; then
+    echo "Recovering Readme's ..."
+    cp ${TMPBACKPATH}/Readme.txt /home/${USER}/README.txt
+fi
+if [[ -f "${TMPBACKPATH}/README.txt" ]]; then
+    echo "Recovering Readme's ..."
+    cp ${TMPBACKPATH}/README.txt /home/${USER}/README.txt
+fi
+if [[ -f "${TMPBACKPATH}/readme.txt" ]]; then
+    echo "Recovering Readme's ..."
+    cp ${TMPBACKPATH}/readme.txt /home/${USER}/README.txt
+fi
+if [[ -f "${TMPBACKPATH}/README.TXT" ]]; then
+    echo "Recovering Readme's ..."
+    cp ${TMPBACKPATH}/README.TXT /home/${USER}/README.txt
+fi
+if [[ -f "${TMPBACKPATH}/.magpycred" ]]; then
+    echo "Recovering users credentials ..."
+    cp ${TMPBACKPATH}/usercred.sys /home/${USER}/.magpycred
+fi
+if [[ -f "${TMPBACKPATH}/.rootcred" ]]; then
+    echo "Recovering credentials ..."
+    cp ${TMPBACKPATH}/rootcred.sys /root/.magpycred
+fi
 
-# 3. eventually required directories are created
+# append txt to Readme
+READMETXT1="Recovered from backup on ${DATE}"
+READMETXT2=" -> Backupfile: ${FILEPATH}"
+echo $READMETXT1 >> /home/${USER}/README.txt
+echo $READMETXT2 >> /home/${USER}/README.txt
 
-# 4. install martas, addapps, telegrambot
+# 5. access to logs and config
+chown -R $USER:$USER /var/log/magpy
 
-# 5. recover configuartions
-
-exit 0
-
-# Get the paths for python and config directory
-USER="cobs"
-DATE=$(date +%Y%m%d)
+# 6. Summary and suggestions
 HOST=$(hostname)
+# also check name and IP, suggest to change them
+echo "Please note: dont forget to adopt your hostname (current name is ${HOST}),"
+echo "the IP configuration and network connection parameters (i.e. proxy)."
+echo "This is not done by the recovery job."
 
-BACKUPNAME="${HOST}_${DATE}_backup"
-TMPFOLDER="/tmp/$BACKUPNAME"
-HOMEFOLDER="/home/$USER"
-MARTASFOLDER="/etc/martas"
-MARCOSFOLDER="/etc/marcos"
-ETCCRON="$TMPFOLDER/etccrontab.out"
-USERCRON="${TMPFOLDER}/${USER}crontab.out"
-BACKUPS="$HOMEFOLDER/Backups"
-BACKUPFILE="$BACKUPS/${BACKUPNAME}.tar"
+# 7. recover crontabs
+echo "Replacing /etc/crontab with backup crontab (the previous version is stored in your users homedir):"
+cp /etc/crontab /home/${USER}/etccrontab.bck
+cp -rf ${TMPBACKPATH}/etccrontab.out /etc/crontab
 
-
-BACKUPPATH="/tmp/backup/mymaschine"
-PYPATH="/usr/bin/python3"
-CFGPATH="/etc/martas"
-INITPATH="/etc/martas/init"
-LOGPATH="/var/log/magpy"
-ACQUISITION="martas"
-BROKERIP="localhost"
-STATION="wic"
-DETAILS="cobsdb"
-MQTTAUTH="no"
-MQTTCRED="mqtt"
-CREDPATH="/home/username/.magpycred"
-MQTTUSER="cobs"
-tvar=""
-
-current="$(pwd)"
-cd ..
-ACQUPATH="$(pwd)"
-cd ~
-CREDPATH="$(pwd)/.magpycred"
-USERNAME="$(whoami)"
-cd "$current"
+echo "Checking user crontab: please add changes here manually"
+cat ${TMPBACKPATH}/${USER}crontab.out
 
 
-
-read -p "Provide python path (default = $PYPATH): " PYPATHT
-read -p "Provide path for martas.cfg and sensors.cfg (default = $CFGPATH): " CFGPATHT
-read -p "Path for specific sensor initialization files (default = $INITPATH): " INITPATHT
-read -p "Provide path to acquisition.py (default = $ACQUPATH): " ACQUPATHT
-read -p "Provide path for log files (default = $LOGPATH): " LOGPATHT
-read -p "Provide the name of the acquisition job (default = $ACQUISITION): " ACQUISITIONT
-read -p "Provide the address of the MQTT broker (default = $BROKERIP): " BROKERIPT
-read -p "Provide a station name/topic (default = $STATION): " STATIONT
-read -p "Broker requires authentication? (default = $MQTTAUTH): " MQTTAUTHT
-
-if [ "$PYPATHT" != "$tvar" ]; then
-   PYPATH=$PYPATHT
-fi
-if [ "$CFGPATHT" != "$tvar" ]; then
-   CFGPATH=$CFGPATHT
-fi
-if [ "$INITPATHT" != "$tvar" ]; then
-   INITPATH=$INITPATHT
-fi
-if [ "$LOGPATHT" != "$tvar" ]; then
-   LOGPATH=$LOGPATHT
-fi
-if [ "$ACQUPATHT" != "$tvar" ]; then
-   ACQUPATH=$ACQUPATHT
-fi
-if [ "$ACQUISITIONT" != "$tvar" ]; then
-   ACQUISITION=$ACQUISITIONT
-fi
-if [ "$BROKERIPT" != "$tvar" ]; then
-   BROKERIP=$BROKERIPT
-fi
-if [ "$STATIONT" != "$tvar" ]; then
-   STATION=$STATIONT
-fi
-if [ "$MQTTAUTHT" = "yes" ]; then
-   read -p "Authentication credentials (check app/addcred.py -h) (default = $MQTTCRED): " MQTTCREDT
-   if [ "$MQTTCREDT" != "$tvar" ]; then
-      MQTTCRED=$MQTTCREDT
-   fi
-   read -p "Credentials path (default = $CREDPATH): " CREDPATHT
-   if [ "CREDPATHT" != "$tvar" ]; then
-      CREDPATH=$CREDPATHT
-   fi
-   read -p "MQTT username (should be identical as provided in credentials) (default = $MQTTUSER): " MQTTUSERT
-   if [ "$MQTTUSERT" != "$tvar" ]; then
-      MQTTUSER=$MQTTUSERT
-   fi
-fi
-
-# create directories if not existing
-# log
-mkdir -p $LOGPATH
-
-# conf
-mkdir -p $CFGPATH
-
-# init
-mkdir -p $INITPATH
-
-# check python packages
-# ------------------
-if $PYPATH -c "import geomagpy" &> /dev/null; then
-    echo 'geomagpy package already installed'
-else
-    echo 'installing geomagpy python package ...'
-    $PYPATH -m pip install geomagpy
-fi
-
-if $PYPATH -c "import pyserial" &> /dev/null; then
-    echo 'pyserial package already installed'
-else
-    echo 'installing telepot pyserial package ...'
-    $PYPATH -m pip install pyserial
-fi
-
-if $PYPATH -c "import paho-mqtt" &> /dev/null; then
-    echo 'paho-mqtt package already installed'
-else
-    echo 'installing paho-mqtt python package ...'
-    $PYPATH -m pip install paho-mqtt
-fi
-
-if $PYPATH -c "import twisted" &> /dev/null; then
-    echo 'twisted package already installed'
-else
-    echo 'installing twisted python package ...'
-    $PYPATH -m pip install twisted
-fi
-
-# update configuration
-# ------------------
-# station
-# destination
-# address
-# storageinfo
-
-CONFFILE=$CFGPATH/martas.cfg
-SENSFILE=$CFGPATH/sensors.cfg
-
-# copy but not overwrite if existing
-cp -n ../conf/martas.cfg $CONFFILE
-cp -n ../conf/sensors.cfg $SENSFILE
-cp -n ../init/*.sh $INITPATH
-
-DUMMYUSERNAME="logrotateuser"
-DUMMYLOGPATH="/logpath"
-DUMMYSENSORPATH="/sensorpath"
-DUMMYINIT="/initdir/"
-DUMMYSTATION="myhome"
-DUMMYIP="brokeraddress"
-sed -i "s+${DUMMYSTATION}+${STATION}+g" $CONFFILE
-sed -i "s+${DUMMYIP}+${BROKERIP}+g" $CONFFILE
-sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/martas.log+g" $CONFFILE
-sed -i "s+${DUMMYSENSORPATH}+${SENSFILE}+g" $CONFFILE
-sed -i "s+${DUMMYINIT}+${INITPATH}/+g" $CONFFILE
-
-#mqttuser  :  username
-#credentialpath  :  /home/username/.magpycred
-
-
-if [ "$MQTTAUTHT" = "yes" ]; then
-   DUMMYCREDPATH="#credentialpath  :  /home/username/.magpycred"
-   DUMMYMQTTUSER="#mqttuser  :  username"
-   NEWMQTTUSER="mqttuser  :  ${MQTTUSER}"
-   NEWCREDPATH="credentialpath  :  ${CREDPATH}"
-   sed -i "s+${DUMMYCREDPATH}+${NEWCREDPATH}+g" $CONFFILE
-   sed -i "s+${DUMMYMQTTUSER}+${NEWMQTTUSER}+g" $CONFFILE
-fi
-
-# modify logrotate
-# ------------------
-if [ "$LOGPATH" != "$stdout" ]; then
-   cp martas.logrotate /etc/logrotate.d/martas
-   sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/martas.log+g" /etc/logrotate.d/martas
-   sed -i "s+${DUMMYUSERNAME}+${USERNAME}+g" /etc/logrotate.d/martas
-fi
-
-# install as service
-# ------------------
-cp martas /etc/init.d/$ACQUISITION
-
-# Replace DUMMY values in default file with new values
-DUMMYACQU="/your/acquisitionpath"
-DUMMYPYTHON="/usr/bin/python"
-DUMMYNAME="acquisitionname"
-DUMMYCONF="optionsline"
-
-sed -i "s+${DUMMYACQU}+${ACQUPATH}+g" /etc/init.d/$ACQUISITION
-sed -i "s+${DUMMYPYTHON}+${PYPATH}+g" /etc/init.d/$ACQUISITION
-sed -i "s+${DUMMYNAME}+${ACQUISITION}+g" /etc/init.d/$ACQUISITION
-if [ "$MQTTAUTHT" = "yes" ]; then
-   sed -i "s+${DUMMYCONF}+ -m ${CONFFILE} -c ${MQTTCRED}+g" /etc/init.d/$ACQUISITION
-else
-   sed -i "s+${DUMMYCONF}+ -m ${CONFFILE}+g" /etc/init.d/$ACQUISITION
-fi
-
-# Replace DUMMY values in all init files
-INITFILES=$INITPATH/*.sh
-DUMMYMARTASPATH="/my/home/MARTAS"
-sed -i "s+${DUMMYPYTHON}+${PYPATH}+g" $INITFILES
-sed -i "s+${DUMMYMARTASPATH}+${ACQUPATH}+g" $INITFILES
-
-
-chmod 755 /etc/init.d/$ACQUISITION
-chown root:root /etc/init.d/$ACQUISITION
-update-rc.d $ACQUISITION defaults
-
-echo "----------------------------------------"
-echo "$ACQUISITION successfully added as service"
-echo "----------------------------------------"
-echo "usage:"
-echo "/etc/init.d/$ACQUISITION {start|stop|restart|status}"
-echo "----------------------------------------"
-echo "(to remove use: sudo sh removemartas.sh)"
-echo "----------------------------------------"
+echo "DONE - reboot when convinient"

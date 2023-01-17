@@ -2,17 +2,38 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
-####v<1.0.4>, <202x-xx-xx> --
+####v<1.0.6>, <2023-01-03> --
+
+v1.0.6 general:
+    - added and tested recovery script
+    - backup script extended including credentials
+    - updated README with backup instructions
+
+v1.0.6 additions:
+    - library for 4PL (Lippmanns 4 point light geoelectric probes)
+
+v1.0.6 fixes:
+    - install telegrambot does not overwrite preexisting configurations
+
+####v<1.0.5>, <2022-12-20> --
+
+v1.0.5 general:
+    - fully tested on Beaglebone
+
+v1.0.5 additions:
+    - first version of recovery script, backup option improved
+
+v1.0.5 fixes:
+    - arduino library for py2 and py3
+
+####v<1.0.4>, <2022-10-20> --
 
 v1.0.4 general:
-    - description on how to subscribe to MQTT from remote with mosquittp>2.0 in README
+    - description on how to subscribe to MQTT from remote with mosquitto>2.0 in README
       (i.e. required for new Ubunutu22.04 etc)
 
 v1.0.4 additions:
     - py3 support for protocols: gsm90, gsm19, G823, env, gp20s3
-
-v1.0.4 fixes:
-
 
 ####v<1.0.3>, <2022-07-26> --
 
