@@ -263,15 +263,32 @@ class FourPLProtocol(object):
         self.commanddict = {"v":"Softwareversion","w":"external voltage","M":"single measurement","N":"Transmitter output voltage","O":"Battery Voltage","P":"Self potential","Q":"Cont measure start","R":"Cont measure stop","S":"Transmitter on","T":"Transmitter Off","W":"External electrodes on","X":"External electrodes off"}
         # Specific commands for ultrasonic wind sensor
         # self.addressanemo = '01'
-        self.commands = [{'data':'11TR00005'},{'meta':''},{'head':''}] # ,self.addressanemo+'TR00002']
-        self.commands = [{'data':'01TR00002','c1':'01SH','c2':'01SL'}]
+        #self.commands = [{'data':'11TR00005'},{'meta':''},{'head':''}] # ,self.addressanemo+'TR00002']
+        #self.commands = [{'data':'01TR00002','c1':'01SH','c2':'01SL'}]
         self.eol = '\r'
+
+        # Commands (take them sensordesc)
+        # i.e. sensordesc : owT-swD
+        commandlist = sensordict.get('sensordesc').strip().replace('\n','').split('-')
+        print ("Length",len(commandlist))
+        if not 'arduino sensors' in commandlist and len(commandlist)==5:
+            self.commands = {}
+            self.commands["mode"] = commandlist[0]
+            self.commands["A"] = commandlist[1]
+            self.commands["L"] = commandlist[2]
+            self.commands["frequency"] = commandlist[3]
+            self.commands["current"] = commandlist[4]
+            print ("Commands from sensordesc:", self.commands)
+        else:
+            self.commands = {'mode':'wenner','A':'0.65','L':'0','frequency':'c','current':'o'}
+            print ("Default commands selected")
+
         # call "setcurrandfrequ", requires curret and frequency from commands
-        self.A = 0.65 # get from sensorsconf
-        self.L = None # get from sensorsconf
+        self.A = 0.65 # = float(self.command.get("A")) get from sensorsconf
+        self.L = None # = float(self.command.get("L"))get from sensorsconf
         #self.N = 30 # get from sensorsconf (samplingrate must be twice as high) (i.e. take sampling rate and use half of it)
         self.ser = self.connectserial()
-        self.I,self.F = self.setcurrandfrequ("c","o")
+        self.I,self.F = self.setcurrandfrequ("c","o") # = self.setcurrandfrequ(self.command.get("frequency"),self.command.get("current"))
 
     def connectserial(self):
         ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=int(self.timeout))
