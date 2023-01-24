@@ -780,6 +780,7 @@ Options:
 
 #### DESCRIPTION:
 Archive.py gets data from a databank and stores it to any accessible repository (e.g. disk). Old database entries exceeding a defined age can be deleted in dependency of data resolution. Archive files can be stored in a user defined format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly data are kept. Settings are given in a configuration file.
+IMPORTANT: data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained there.
 IMPORTANT: take care about depth - needs to be large enough to find data
 
 #### APPLICATION:
