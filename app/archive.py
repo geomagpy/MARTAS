@@ -239,6 +239,8 @@ def main(argv):
             print ('approximately 118 years of hourly data are kept. To modify these default')
             print ('settings please contact the developers (or learn python and')
             print ('edit the code - its simple and the MagPy cookbook will help you).')
+            print ('IMPORTANT: data bank entries are solely identified from DATAINFO table.')
+            print ('           make sure that your data tables are contained there')
             print ('IMPORTANT: take care about depth - needs to be large enough to find data')
             print ('-------------------------------------')
             print ('Usage:')
