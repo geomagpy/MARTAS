@@ -65,14 +65,14 @@ APPLICATION:
 """
 def connect_db(cred, exitonfailure=True, debug=False):
 
-    if report:
+    if debug:
         print ("  Accessing data bank... ")
     try:
         db = mysql.connect (host=mpcred.lc(cred,'host'),user=mpcred.lc(cred,'user'),passwd=mpcred.lc(cred,'passwd'),db =mpcred.lc(cred,'db'))
-        if report:
+        if debug:
             print ("   -> success. Connected to {}".format(mpcred.lc(cred,'db')))
     except:
-        if report:
+        if debug:
             print ("   -> failure - check your credentials / databank")
         if exitonfailure:
             sys.exit()
@@ -110,6 +110,8 @@ def get_table_tist(db, sensorlist=[], blacklist=[], debug=False):
         print ("got tables:", table2list)
 
     # remove tables from blacklist
+    blacklist.append("INNODB")
+    blacklist.append("COLLATION")
     if len(blacklist) > 0:
         table3list = []
         for tab in table2list:
@@ -147,14 +149,14 @@ def main(argv):
     ratio = None
     sensorlist = []
     blacklist = []
+    config={}
     startdate = ''
-    statusmsg = {}
     hostname = socket.gethostname().upper()
     debug=False
     try:
-        opts, args = getopt.getopt(argv,"hc:i:s:b:D",["config=","ratio=","sensorlist=","blacklist=","debug=",])
+        opts, args = getopt.getopt(argv,"hc:i:s:b:vD",["config=","ratio=","sensorlist=","blacklist=","version=","debug=",])
     except getopt.GetoptError:
-        print ('db_truncate.py -c <config> -i <ratio> -s <sensorlist> -b <blacklist>')
+        print ('db_truncate.py -c <config> -i <ratio> -s <sensorlist> -b <blacklist> -v <version>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
@@ -189,30 +191,22 @@ def main(argv):
         elif opt in ("-i", "--ratio"):
             ratio = int(arg)
         elif opt in ("-s", "--sensorlist"):
-            senslist = arg.split(",")
+            sensorlist = arg.split(",")
         elif opt in ("-b", "--blacklist"):
-            bllist = arg.split(",")
-        elif opt == "-v":
+            blacklist = arg.split(",")
+        elif opt in ("-v", "--version"):
             print ("db_truncate.py version: {}".format(version))
         elif opt in ("-D", "--debug"):
             debug = True
 
-    print ("Running db_truncate.py")
-    print ("-------------------------------")
+    if debug:
+        print ("Running db_truncate.py")
+        print ("-------------------------------")
 
-    if conf == '':
-        print ('Specify a path to a configuration file using the  -c option:')
-        print ('-- check archive.py -h for more options and requirements')
-        sys.exit()
-    else:
-        if os.path.isfile(conf):
-            print ("  Read file with GetConf")
-            config = GetConf2(conf)
-            print ("   -> configuration data extracted")
-        else:
-            print ('Specify a valid path to a configuration file using the  -c option:')
-            print ('-- check archive.py -h for more options and requirements')
-            sys.exit()
+    if os.path.isfile(conf):
+        print ("  Read configuration data:")
+        config = GetConf2(conf)
+        print ("   -> configuration data extracted")
 
     ## Logger configuration data
     logpath = config.get('logpath')
@@ -222,10 +216,10 @@ def main(argv):
     cratio = int(config.get('cleanratio',12))
     if not ratio:
         ratio = cratio
-    csensorlist = config.get('sensorlist',[]))
+    csensorlist = config.get('sensorlist',[])
     if not sensorlist:
         sensorlist = csensorlist
-    cblacklist = config.get('blacklist',[]))
+    cblacklist = config.get('blacklist',[])
     if not blacklist:
         blacklist = cblacklist
 
@@ -235,19 +229,16 @@ def main(argv):
         print ("Sensorlist:", sensorlist)
         print ("Blacklist:", blacklist)
 
-    db = connect_db(config.get('credentials','cobsdb'))
+    db = connect_db(config.get('credentials','cobsdb'),debug=debug)
 
     tables = get_table_tist(db, sensorlist=sensorlist, blacklist=blacklist, debug=debug)
 
-    print ("Cleaning database contens of:", tables)
+    if debug:
+        print ("Cleaning database contens of:", tables)
 
     for data in tables:
         print (" ---------------------------- ")
-        print (" ---------------------------- ")
-        print ("Loading data files of", data)
-        print (" ---------------------------- ")
-        print (" ---------------------------- ")
-        print ("Starting at: {}".format(datetime.utcnow()))
+        print ("Cleaning contents:", data)
         # Test of dataid table exists
         try:
             getline = True
@@ -268,10 +259,14 @@ def main(argv):
         if not isnan(sr) and delete and getline:
             print ("  - Now deleting old entries in database older than %s days" % str(int(sr*ratio)))
             if not debug:
-                dbdelete(db,data,samplingrateratio=samplingrateratio)
+                try:
+                    dbdelete(db,data,samplingrateratio=ratio)
+                    print (" -> ... success")
+                except:
+                    print (" -> ... failure")        
             else:
                 print (" DEBUG selected: will not delete anything")
-            print (" -> ... success")
+        print (" ---------------------------- ")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
