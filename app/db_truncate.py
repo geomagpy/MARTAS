@@ -237,6 +237,7 @@ def main(argv):
         print ("Cleaning database contens of:", tables)
 
     for data in tables:
+        st = datetime.utcnow()
         print (" ---------------------------- ")
         print ("Cleaning contents:", data)
         # Test of dataid table exists
@@ -257,11 +258,12 @@ def main(argv):
                 print ("   Doing nothing for table {}".format(data))
 
         if not isnan(sr) and delete and getline:
-            print ("  - Now deleting old entries in database older than %s days" % str(int(sr*ratio)))
+            print ("  - Deleting entries in database older than {} days".format(int(sr*ratio)))
             if not debug:
                 try:
                     dbdelete(db,data,samplingrateratio=ratio)
-                    print (" -> ... success")
+                    et = datetime.utcnow()
+                    print (" -> ... success: needed {}".format((et-st).total_seconds())
                 except:
                     print (" -> ... failure")        
             else:
