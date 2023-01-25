@@ -265,9 +265,9 @@ def main(argv):
                 try:
                     dbdelete(db,data,samplingrateratio=ratio)
                     et = datetime.utcnow()
-                    print (" -> ... success: needed {} minutes".format(((et-st).total_seconds()/60.))
+                    print (" -> ... success: needed {} minutes".format((et-st).total_seconds()/60.))
                 except:
-                    print (" -> ... failure")        
+                    print (" -> ... failure")
             else:
                 print (" DEBUG selected: will not delete anything")
         print (" ---------------------------- ")
