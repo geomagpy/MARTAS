@@ -150,6 +150,7 @@ def main(argv):
     sensorlist = []
     blacklist = []
     config={}
+    sr = np.nan
     startdate = ''
     hostname = socket.gethostname().upper()
     debug=False
@@ -237,6 +238,7 @@ def main(argv):
         print ("Cleaning database contens of:", tables)
 
     for data in tables:
+        sr = np.nan
         st = datetime.utcnow()
         print (" ---------------------------- ")
         print ("Cleaning contents:", data)
@@ -263,7 +265,7 @@ def main(argv):
                 try:
                     dbdelete(db,data,samplingrateratio=ratio)
                     et = datetime.utcnow()
-                    print (" -> ... success: needed {}".format((et-st).total_seconds())
+                    print (" -> ... success: needed {} minutes".format(((et-st).total_seconds()/60.))
                 except:
                     print (" -> ... failure")        
             else:
