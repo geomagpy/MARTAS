@@ -60,7 +60,7 @@ APPLICATION:
     python3 db_truncate.py -c truncate.cfg
 
     # Manual for specific sensors and time range
-    python3 db_truncate.py -c config.cfg -b 2020-11-22 -s Sensor1,Sensor2 -i 12
+    python3 db_truncate.py -c config.cfg -s Sensor1,Sensor2 -i 12
 
 """
 def connect_db(cred, exitonfailure=True, debug=False):

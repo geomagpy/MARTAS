@@ -738,11 +738,13 @@ addcred.py       | Create credential information for scripts         |          
 archive.py       | Read database tables and create archive files     | archive.cfg    | py3       | 8.3
 ardcomm.py       | Communicating with arduino microcontroller        |                | py2/py3   | 8.4
 backup_config.sh | Shell script to backup MARTAS configuartion data  |                | -         |
+db_truncate.py   | Check database tables (not DATAINFO) and delete data exceeding a certain age     |  truncate.cfg   |  py3  | 8.10
 file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs     |  collect.cfg   |  py3  |  8.5
 file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   | 8.6
 threshold.py     |      |     |    | 7.1
 monitor.py       |      |     |    | 7.2
 speedtest.py     | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files     |     |    | 8.8
+testnote.py      | Test telegram messenger notifications     |     |  py3  | 8.9
 gamma.py         | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3  | 8.7
 obsdaq.py        | communicate with ObsDAQ ADC | obsdaq.cfg | py2/py3 | 10.1.5
 palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3 | 10.1.5
@@ -926,6 +928,24 @@ Send notifications via email and telegram. testnote.py will create a log file wi
         python3 testnote.py -n email -m "Hello World" -c /etc/martas/mail.cfg -l TestMessage -p /home/user/test.log
         python3 testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
         python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
+
+
+### 8.10 db_truncate.py (replaces deleteold.py)
+
+#### DESCRIPTION:
+    db_truncate.py truncates contents of timesseries in a MagPy database.
+    Whereas "archive" also allows for truncating the database (based on DATAINO)
+    "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
+    (independent of DATAINFO contents).
+    The databank size is automatically restricted
+    in dependency of the sampling rate of the input data. A cleanratio of 12
+    will only keep the last
+    12 days of second data, the last 720 days of minute data and
+    approximately 118 years of hourly data are kept.
+    Settings are given in a configuration file.
+
+#### APPLICATION:
+         python3 db_truncate.py -c truncate.cfg
 
 
 ## 9. Frequently asked questions
