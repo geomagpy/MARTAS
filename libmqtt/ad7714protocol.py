@@ -739,6 +739,7 @@ class ad7714Protocol():
         global CAL
         # get constants for used channels
         #   nameofchannel: 1, 2, 3, 4, X, Y, Z
+        print('scale factors and offsets:')
         for i in range(7):
             # NAME is the name of the signal
             NAME[i] = self.ad7714conf.get('NAME_'+nameofchannel[i])
@@ -749,11 +750,15 @@ class ad7714Protocol():
             # scale values e.g. SCALE_X = 1000 (mV/V) would yield values in mV
             try:
                 SCALE[i] = float(self.ad7714conf.get('SCALE_'+nameofchannel[i]))
+                if NAME[i]:
+                    print('SCALE_'+nameofchannel[i] + '\t' +str(SCALE[i]))
             except:
                 SCALE[i] = None
             # offset e.g. measurement = SCALE_X * value + DIFF_X
             try:
                 DIFF[i] = float(self.ad7714conf.get('DIFF_'+nameofchannel[i]))
+                if NAME[i]:
+                    print('DIFF_'+nameofchannel[i] + '\t' +str(DIFF[i]))
             except:
                 DIFF[i] = None
             # calibration mode for each channel if used (0-7)
