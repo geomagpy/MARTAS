@@ -59,6 +59,7 @@ class GICProtocol():
         if not self.qos in [0,1,2]:
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
+        self.debug = False
 
     def sendRequest(self):
 
