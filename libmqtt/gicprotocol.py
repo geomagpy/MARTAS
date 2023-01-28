@@ -26,7 +26,9 @@ class GICProtocol():
 
     The protocol defines the sensor name in its init section, which
     is used to dipatch url links and define local storage folders
-    
+
+    URLs are then taken from magpy crendentials by extracting the address for the given sensor name
+
     Add the following line to sensors.cfg:
     gicaut,URL,-,-,-,-,active,None,60,1,GIC,GIC,-,0001,-,different,NTP,spaceweather,geomagnetically induced currents
     #CR1000JC_1_0002,USB0,38400,8,1,N,active,None,2,1,cr1000jc,CR1000JC,02367,0002,-,TEST,NTP,meteorological,snow height
@@ -42,7 +44,7 @@ class GICProtocol():
         'confdict' contains a dictionary with general configuration parameters (martas.cfg)
         """
         self.client = client
-        self.sensordict = sensordict    
+        self.sensordict = sensordict
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
@@ -59,13 +61,13 @@ class GICProtocol():
         log.msg("  -> setting QOS:", self.qos)
 
     def sendRequest(self):
-        #try
+
         with urllib.request.urlopen(self.url) as url:
             data = json.loads(url.read().decode())
         self.dataReceived(data)
         #expect:
         #log.msg('  -> {} unavailable.'.format(self.sensor))
-        
+
 
     def processData(self, data):
         """Process GIC URL data """
@@ -88,7 +90,7 @@ class GICProtocol():
                 filename = datetime.strftime(currenttime, "%Y-%m-%d") # use PC time for buffername
                 timestamp = datetime.strftime(datatime, "%Y-%m-%d %H:%M:%S.%f")
                 ###
-                packcode = '6hLlL'
+                packcode = '6hLll'
                 sensorid = "{}_{}_{}".format(self.sensor.upper(),dataname.upper(),self.revision)
                 header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, '[x,t2]', '[GIC,T]', '[mA,degC]', '[10000,10000]', packcode, struct.calcsize('<'+packcode))
 
@@ -101,6 +103,12 @@ class GICProtocol():
                 except:
                     temperature = 999999
                 try:
+                    if self.debug:
+                        print ("Writing:")
+                        print (sensorid)
+                        print (timestamp)
+                        print (gic)
+                        print (temperature)
                     if not gic==999999:
                         datearray = acs.timeToArray(timestamp)
                         datearray.append(int(gic*1000))
@@ -113,7 +121,7 @@ class GICProtocol():
                 if not self.confdict.get('bufferdirectory','') == '':
                     acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
                 datadict[sensorid] = {'line': ','.join(list(map(str,datearray))), 'head':header}
-                
+
         return datadict
 
     def dataReceived(self, data):
