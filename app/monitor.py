@@ -174,6 +174,7 @@ def getspace(path,warning=80,critical=90): # path = '/srv'
     total = (statvfs.f_frsize * statvfs.f_blocks / (1024.*1024.))     # Size of filesystem in bytes
     remain = (statvfs.f_frsize * statvfs.f_bavail / (1024.*1024.))     # Number of free bytes that ordinary users
     usedper=100-(remain/total*100.)
+    print ("Disk containing {} currently uses: {}%".format(path,usedper))
     #mesg = "status:\nDisk-size: {:.0f}MB\nDisk available: {:.0f}MB\nDisk occupied: {:.1f}%".format(total,remain, 100-(remain/total*100.))
     level = 'OK'
     if usedper >= warning:
@@ -249,7 +250,7 @@ def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', st
     if os.path.isfile(lf):
         if debug:
             print (" Latest file: {} ...".format(lf))
-            
+
         # check white and blacklists
         performtest = False
         if not any([lf.find(ig) > -1 for ig in ignorelist]):
@@ -327,12 +328,19 @@ def CheckMARCOS(db,threshold=600, statusdict={},jobname='JOB',excludelist=[],acc
         if debug:
             print ("2. Extract tables to be examined")
             print ("-----------------------------------")
-        # get BLV tables
-        blv = [el for el  in tables if el.startswith('BLV')]
-        excludelist.extend(blv)
         if debug:
             print ("Data to be excluded: {}".format(excludelist))
-        tables = [el for el in tables if not el in excludelist]
+        newtables = []
+        for el in tables:
+            drop = False
+            for ex in excludelist:
+                if el.startswith(ex):
+                    drop = True
+            if not drop:
+                newtables.append(el)
+        tables = newtables
+        if debug:
+            print ("Remaining tables: {}".format(tables))
 
     if ok:
         if debug:

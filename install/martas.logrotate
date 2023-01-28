@@ -4,7 +4,8 @@
 	size 200k
 	missingok
 	notifempty
+	copytruncate
 	delaycompress
 	compress
-        create 0664 cobs cobs
+        create 0664 logrotateuser logrotateuser
 }

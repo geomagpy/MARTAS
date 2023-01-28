@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Secondary acquisition routine of MARTAS: 
+Secondary acquisition routine of MARTAS:
 MQTT protocol by Roman Leonhardt and Rachel Bailey to be used in the Conrad Observatory.
 
 How should it work:
@@ -9,7 +9,7 @@ acquisition_mqtt.py reads e.g. serial data and publishes that using the mqtt pro
 An "collector" e.g. MARCOS can subscribe to the "publisher" and access the data stream.
 
 REQUIREMENTS:
-1.) install a MQTT broker (e.g. ubuntu (< 16.04): 
+1.) install a MQTT broker (e.g. ubuntu (< 16.04):
 sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
 sudo apt-get update
 sudo apt-get install mosquitto mosquitto-clients)
@@ -103,7 +103,7 @@ hostname = socket.gethostname()
 msgcount = 0
 
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL'] # should be provided by MagPy
 """
 Protocol types:
 ok		Env   		: py2,py3	: passive		: environment
@@ -112,11 +112,11 @@ ok		Arduino		: py2,py3	: passive (group)	: environment
 ok              ActiveArduino   : py2,py3	: active (group)        : all
 ok		BM35		: py2		: passive 		: environment
 ok      	Lemi		: py2,py3	: passive		: mag
-ok      	GSM90		: py2		: passive (init)	: mag
+ok      	GSM90		: py2,py3		: passive (init)	: mag
 ok      	POS1		: py2,py3	: passive (init)	: mag
 written (time test missing)GSM19: py2		: passive 		: mag
 ok	 	Cs		: py2,py3	: passive 		: mag
--	   	PalmDac 	: 		: passive		: mag
+ok	   	ObsDaq 	: py2,p3		: passive		: mag
 ok		MySQL		: py2		: active (group)	: general db call
 -	        Active		:		: active		: general active call
 current work	CR1000		: py2		: active		: all
@@ -124,6 +124,8 @@ ok 		Test 	  	: py2		: active                : random number
 ok		Lnm		: py2		: active 		: environment
 ok		Disdro		: py2		: active 		: environment
 ok              AD7714          : py2 		: autonomous		: general ADC
+current work              IMFile          : py3 		: active		: read files
+current work              FourPL          : py3 		: active		: 4point light geoelectric
 """
 
 def SendInit(confdict,sensordict):
@@ -206,11 +208,11 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
         protocol = eval(evalstr)
 
     port = confdict['serialport']+sensordict.get('port')
-    log.msg("  -> Connecting to port {} ...".format(port)) 
+    log.msg("  -> Connecting to port {} ...".format(port))
     serialPort = SerialPort(protocol, port, reactor, baudrate=int(sensordict.get('baudrate')))
 
     passiveconnection = {sensorid: protocolname}
-    log.msg("  -> passive connection established") 
+    log.msg("  -> passive connection established")
 
     return passiveconnection
 
@@ -391,7 +393,7 @@ def main(argv):
         log.msg("Critical error - no network connection available during startup or mosquitto server not running - check whether data is recorded")
 
     establishedconnections = {}
-    ## Connect to serial port (sensor dependency) -> returns publish 
+    ## Connect to serial port (sensor dependency) -> returns publish
     # Start subprocesses for each publishing protocol
     for sensor in sensorlist:
         log.msg("----------------")
@@ -460,4 +462,3 @@ def main(argv):
 
 if __name__ == "__main__":
    main(sys.argv[1:])
-

@@ -13,6 +13,32 @@ from datetime import datetime, timedelta
 from matplotlib.dates import date2num, num2date
 import numpy as np
 import time
+# get core functions to extract sensorcfg
+scriptpath = os.path.dirname(os.path.realpath(__file__))
+coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
+sys.path.insert(0, coredir)
+import acquisitionsupport as acs
+
+def get_arduino_cfg(mpath="/etc/martas/martas.cfg",debug=False):
+    if debug:
+        print ("Getting arduino config from sensors.cfg")
+    serialcfg = {"port":"/dev/ttyACM0","baudrate":9600,"parity":"N","bytesize":8,"stopbits":1}
+    try:
+        conf = acs.GetConf(mpath)
+        sensors = acs.GetSensors(conf.get('sensorsconf'))
+        for sensordict in sensors:
+            if sensordict.get("sensorid").find("ARDUINO")>-1:
+                serialcfg["baudrate"]=int(sensordict.get('baudrate'))
+                serialcfg["port"]=conf['serialport']+sensordict.get('port')
+                serialcfg["parity"]=sensordict.get('parity')
+                serialcfg["bytesize"]=int(sensordict.get('bytesize'))
+                serialcfg["stopbits"]=int(sensordict.get('stopbits'))
+        if debug:
+            print ("Obtained the following parameters: {}".format(serialcfg))
+    except:
+        if debug:
+            print ("Failed to obtain parameters from sensor.cfg file")
+    return serialcfg
 
 
 def send_command(ser,command,eol,hex=False):
@@ -48,21 +74,21 @@ def send_command(ser,command,eol,hex=False):
 
 
 def main(argv):
-    port = '/dv/ttyACM0'  # default
-    baudrate = '9600'
-    parity='N'
-    bytesize=8
-    stopbits=1
-    timeout=3   # 0 for non-blocking read, does not work
+    port = ""  # default
+    baudrate=None
+    parity=""
+    bytesize=None
+    stopbits=None
+    timeout=2   # 0 for non-blocking read, does not work
     command = 'Status'
-    port = '/dev/ttyACM0'
     eol = '\r\n'
+    martaspath="/etc/martas/martas.cfg"
     debug = False
     travistestrun = False
 
-    usagestring = 'ardcomm.py -c <command> -p <port> -b <baudrate> -a <parity> -y <bytesize> -s <stopbits> -t <timeout> -e <eol>'
+    usagestring = 'ardcomm.py -c <command> -p <port> -b <baudrate> -a <parity> -y <bytesize> -s <stopbits> -t <timeout> -e <eol> -m <martaspath>'
     try:
-        opts, args = getopt.getopt(argv,"hc:p:b:a:y:s:te:DT",["command=","port=","baudrate=","parity=","bytesize=","stopbits=","timeout=","eol=","debug=","Test=",])
+        opts, args = getopt.getopt(argv,"hc:p:b:a:y:s:te:m:DT",["command=","port=","baudrate=","parity=","bytesize=","stopbits=","timeout=","eol=","martaspath=","debug=","Test=",])
     except getopt.GetoptError:
         print ('Check your options:')
         print (usagestring)
@@ -84,7 +110,8 @@ def main(argv):
             print ('-y                             bytesize - default is 8')
             print ('-s                             stopbits - default is 1')
             print ('-t                             timeout - default is 0')
-            print ('-e                             end of line - default is /r')
+            print ('-e                             end of line - default is /r/n')
+            print ('-m                             martas.cfg location - default is /etc/martas/martas.cfg')
             print ('------------------------------------------------------')
             print ('Examples:')
             print ('1. Switch on pin 4')
@@ -121,12 +148,27 @@ def main(argv):
                 stopbits = int(arg)
             except:
                 stopbits = arg
+        elif opt in ("-m", "--martaspath"):
+            martaspath = arg
         elif opt in ("-D", "--debug"):
             debug = True
         elif opt in ("-T", "--Test"):
             travistestrun = True
 
+    serialcfg = get_arduino_cfg(mpath=martaspath,debug=debug)
+    if not baudrate:
+         baudrate=serialcfg.get("baudrate",9600)
+    if not port:
+         port=serialcfg.get("port","/dev/ttyACM0")
+    if not parity:
+         parity=serialcfg.get("parity","N")
+    if not bytesize:
+         bytesize=serialcfg.get("bytesize",8)
+    if not stopbits:
+         stopbits=serialcfg.get("stopbits",1)
+
     ser = serial.Serial(port, baudrate=baudrate , parity=parity, bytesize=bytesize, stopbits=stopbits, timeout=timeout)
+    time.sleep(2)
 
     # Additional configs:
     ser.writeTimeout = 2     #timeout for write or write_timeout

@@ -10,7 +10,7 @@ import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
 from datetime import datetime, timedelta
-from twisted.protocols.basic import LineReceiver
+#from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from core import acquisitionsupport as acs
 from magpy.stream import KEYLIST
@@ -84,7 +84,7 @@ class ActiveArduinoProtocol(object):
             self.commands = [{'data1':'owT','data2':'swD'}]
             print ("Default commands selected")
         self.hexcoding = False
-        self.eol = '/r/n'
+        self.eol = '\r\n'
 
         # Serial communication data (from confdict)
         self.sensor = sensordict.get('sensorid')
@@ -117,58 +117,23 @@ class ActiveArduinoProtocol(object):
         # get existing sensors for the relevant board
         self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
         self.sensor = ''
+        self.ser = None
 
         # none is verified when initializing
         self.verifiedids = []
         self.infolist = []
         self.headlist = []
 
-
-    def send_command(self,ser,command,eol,hex=False):
-        response = ''
-        fullresponse = ''
-        maxcnt = 50
-        cnt = 0
-        command = command+eol
-        ser.flush()
-        sendtime = datetime.utcnow()
-        #print ("Sending command ... {}".format(command))
-        if sys.version_info >= (3, 0):
-            ser.write(command.encode('ascii'))
-        else:
-            ser.write(command)
-        #print (" ... waiting for response")
-        # skipping all empty lines
-        try: ## check for exeception in  raise SerialException
-            while not response or response == '':
-                response = ser.readline()
-                if sys.version_info >= (3, 0):
-                    response = response.decode('ascii')
-            # read until end-of-messageblock signal is obtained (use some break value)
-            while not response.startswith('<MARTASEND>') and not cnt == maxcnt:
-                cnt += 1
-                fullresponse += response
-                #time.sleep(0.01)
-                response = ser.readline()
-                if sys.version_info >= (3, 0):
-                    response = response.decode('ascii')
-        except serial.SerialException as e:
-            if self.debug:
-                log.msg("SerialException found ({})".format(e)) # - restarting martas ...")
-            time.sleep(0.5)
-            #self.restart()
-        except:
-            log.msg("Other exception found")
-            raise
-
-        responsetime = datetime.utcnow()
-        if cnt == maxcnt:
-            fullresponse = 'Maximum count {} was reached'.format(maxcnt)
-        return fullresponse, responsetime
-
-
     def datetime2array(self,t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
+
+    def open_connection(self):
+        log.msg("connecting to serial port")
+        ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
+        # wait for arduino (tested: 2 sec are necessary)
+        time.sleep(2)
+        self.ser = ser
+        return ser
 
     def restart(self):
         try:
@@ -420,21 +385,57 @@ class ActiveArduinoProtocol(object):
     def sendRequest(self):
 
         # connect to serial
-        ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
+        ser = self.ser
+        if not ser or not ser.isOpen():
+            ser = self.open_connection()
+        #ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=self.timeout)
+        # wait for arduino (tested: 2 sec are necessary)
+        #time.sleep(2)
 
-        # Open Connection
-        try:
-            ser.open()
-        except Exception as e:
-            #if travistestrun:
-            #    print ("ardcomm: serial port not available in testrun - finishing")
-            #   sys.exit(0)
-            #print ("lib activearduino: error open serial port: {}".format(str(e)))
-            # ser is already open dur to serial.Serial command
-            pass
+        def write_read(ser,command,end="MARTASEND",maxcnt=20,debug=False):
+            data = b""
+            dedata = ""
+            all = ""
+            cnt=0
+            ser.flush()
+            try:
+                ser.write(command)
+                #responsetime1 = datetime.utcnow()
+                time.sleep(.1)
+                while not dedata.find(end) > -1 and not cnt == maxcnt:
+                   cnt+=1
+                   data = ser.readline()
+                   #responsetime2 = datetime.utcnow()
+                   if sys.version_info >= (3, 0):
+                       dedata = str(data.decode("utf-8"))
+                   else:
+                       dedata = str(data)
+                   if not dedata:
+                       if debug:
+                           log.msg("DEBUG - got empty line")
+                   else:
+                       all += dedata
+                # time estimate: mean(resp1,resp2)-0.1sec
+                return all
+            except serial.SerialException as e:
+                if debug:
+                    log.msg("SerialException found ({})".format(e)) # - restarting martas ...")
+                time.sleep(0.1)
+                #self.restart()
+            except:
+                log.msg("Other exception found")
+                raise
 
-        if ser.isOpen():
-            # send request string()
+            if cnt == maxcnt:
+                if debug:
+                    log.msg('Maximum count {} was reached without MARTASEND'.format(maxcnt))
+            return all
+
+
+        def get_commands(condition="data"):
+            # create a command list from given values in sensors.cfg
+            # also check for python2 and py3
+            coms=[]
             for sensordict in self.commands:
                 for item in sensordict:
                     command = sensordict.get(item)
@@ -442,28 +443,33 @@ class ActiveArduinoProtocol(object):
                     miss=-(n-2)
                     for n in range(miss):
                         command += ':'
-                    if self.debug:
-                        log.msg("DEBUG - sending command key {}: {}".format(item,command))
-                    #time.sleep(2) # doesnt help
-                    answer, actime = self.send_command(ser,command,self.eol,hex=self.hexcoding)
-                    if self.debug:
-                        log.msg("DEBUG - received {}".format(answer))
+                    command = command+self.eol
+                    if sys.version_info >= (3, 0):
+                        command = command.encode('utf-8')
+                    if item.startswith(condition):
+                        coms.append(command)
+            return coms
 
-                    # analyze return if data is requested
-                    if item.startswith('data') and not answer.find('-') > -1 and not answer.find('Starting') > -1:
-                        # get all lines in answer
-                        lines = answer.split('\n')
-                        for line in lines:
-                            try:
-                                if line and len(line)>2 and (line[2] == ':' or line[3] == ':'):
-                                    self.analyzeline(line)
-                            except:
-                                pass
+        def run_analysis(answer):
+            lines = answer.split("\n")
+            for line in lines:
+                try:
+                    if line and len(line)>2 and (line[2] == ':' or line[3] == ':'):
+                        self.analyzeline(line)
+                except:
+                    pass
 
-            # disconnect from serial
-            ser.close()
-            if ser.isOpen():
-                print ("but seems to be still open")
+        coms = get_commands()
+        if self.debug:
+            log.msg("DEBUG - sending the following commands to serial port: {}".format(coms))
+
+        if ser.isOpen():
+            for command in coms:
+                answer = write_read(ser,command,debug=self.debug)
+                if self.debug:
+                    log.msg("DEBUG - received the following answer for command {}: {}".format(command,answer))
+                run_analysis(answer)
+            #ser.close()
         else:
             print ("lib activearduino: Could not open serial port")
 

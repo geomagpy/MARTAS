@@ -9,6 +9,7 @@ import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+import sys
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -33,7 +34,7 @@ class EnvProtocol(LineReceiver):
         'confdict' contains a dictionary with general configuration parameters (martas.cfg)
         """
         self.client = client
-        self.sensordict = sensordict    
+        self.sensordict = sensordict
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
@@ -47,6 +48,8 @@ class EnvProtocol(LineReceiver):
         if not self.qos in [0,1,2]:
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
+        # PYTHON version
+        self.pvers = sys.version_info[0]
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -99,7 +102,8 @@ class EnvProtocol(LineReceiver):
 
     def lineReceived(self, line):
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-
+        if self.pvers > 2:
+            line=line.decode('ascii')
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         try:
@@ -127,15 +131,13 @@ class EnvProtocol(LineReceiver):
             if senddata:
                 self.client.publish(topic+"/data", data, qos=self.qos)
                 if self.count == 0:
-                    ## 'Add' is a string containing dict info like: 
-                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
+                    ## 'Add' is a string containing dict info like:
+                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,...
                     add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
-                    self.count = 0            
+                    self.count = 0
         except:
             log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
-
-

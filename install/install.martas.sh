@@ -31,8 +31,9 @@ tvar=""
 current="$(pwd)"
 cd ..
 ACQUPATH="$(pwd)"
-cd ..
+cd ~
 CREDPATH="$(pwd)/.magpycred"
+USERNAME="$(whoami)"
 cd "$current"
 
 echo "Helper for adding new acquisition job "
@@ -152,6 +153,7 @@ cp -n ../conf/martas.cfg $CONFFILE
 cp -n ../conf/sensors.cfg $SENSFILE
 cp -n ../init/*.sh $INITPATH
 
+DUMMYUSERNAME="logrotateuser"
 DUMMYLOGPATH="/logpath"
 DUMMYSENSORPATH="/sensorpath"
 DUMMYINIT="/initdir/"
@@ -181,6 +183,7 @@ fi
 if [ "$LOGPATH" != "$stdout" ]; then
    cp martas.logrotate /etc/logrotate.d/martas
    sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/martas.log+g" /etc/logrotate.d/martas
+   sed -i "s+${DUMMYUSERNAME}+${USERNAME}+g" /etc/logrotate.d/martas
 fi
 
 # install as service

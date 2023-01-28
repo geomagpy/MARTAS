@@ -9,6 +9,7 @@ import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+import sys
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
@@ -20,7 +21,7 @@ from core import acquisitionsupport as acs
 class GSM90Protocol(LineReceiver):
     """
     Protocol to read GSM90 data
-    This protocol defines the individual sensor related read process. 
+    This protocol defines the individual sensor related read process.
     It is used to dipatch url links containing specific data.
     Sensor specific coding is contained in method "processData".
 
@@ -42,7 +43,7 @@ class GSM90Protocol(LineReceiver):
         'confdict' contains a dictionary with general configuration parameters (martas.cfg)
         """
         self.client = client
-        self.sensordict = sensordict    
+        self.sensordict = sensordict
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
@@ -64,7 +65,8 @@ class GSM90Protocol(LineReceiver):
         if not self.qos in [0,1,2]:
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
-
+        # PYTHON version
+        self.pvers = sys.version_info[0]
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -101,7 +103,7 @@ class GSM90Protocol(LineReceiver):
                     internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S.%f")
                 #print internal_time
             elif len(data) == 3: # GSM v7.0
-                intensity = float(data[1])                
+                intensity = float(data[1])
                 err_code = int(data[2])
                 try:
                     internal_t = datetime.strptime(outdate+'T'+data[0], "%Y-%m-%dT%H%M%S.%f")
@@ -136,7 +138,7 @@ class GSM90Protocol(LineReceiver):
                 if self.errorcnt.get('time') < 2:
                     log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
             else:
-                self.errorcnt['time'] = 0 
+                self.errorcnt['time'] = 0
         except:
             pass
 
@@ -175,7 +177,10 @@ class GSM90Protocol(LineReceiver):
     def lineReceived(self, line):
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        # extract only ascii characters 
+        # check python version and eventually decode binary string
+        if self.pvers > 2:
+            line=line.decode('ascii')
+        # extract only ascii characters
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         ok = True
@@ -211,4 +216,3 @@ class GSM90Protocol(LineReceiver):
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
-

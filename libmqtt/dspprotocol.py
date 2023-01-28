@@ -32,7 +32,7 @@ def send_command_ascii(ser,command,eol):
     # skipping all empty lines
     while response == '':
         response = ser.readline()
-    responsetime = datetime.utcnow()
+    #responsetime = datetime.utcnow()
     # decode from binary if py3
     if sys.version_info >= (3, 0):
         response = response.decode('ascii')
@@ -117,7 +117,7 @@ class DSPProtocol(object):
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
         # ULTRASONIC specific
-        self.sensorid = ''
+        #self.sensorid = ''
         self.serialnum = ''
         self.serial1 = ''
         self.serial2 = ''
@@ -139,33 +139,39 @@ class DSPProtocol(object):
         #print ("Processing line for {}: {}".format(sensorid, line))
         vals = line.split()
         if len(vals) > 3:
+            errormark = False
             try:
                 datearray.append(int(float(vals[2])*10))
                 datearray.append(int(float(vals[0])*10))
                 datearray.append(int(float(vals[1])*1))
             except:
-                log.msg('{} protocol: Error while appending data to file'.format(self.sensordict.get('protocol')))
+                log.msg('{} protocol: Error while appending data to file - data looks like {}'.format(self.sensordict.get('protocol'),vals))
+                errormark = True
 
             try:
                 data_bin = struct.pack('<'+packcode,*datearray) #little endian
             except:
                 log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
+                errormark = True
 
-            #asseble header from available global information - write only if information is complete
-            key = '[t2,var1,var2]'
-            ele = '[Tv,V,Dir]'
-            unit = '[degC,m_s,deg]'
-            multplier = str(multiplier).replace(" ","")
-            # Correct some common old problem
-            unit = unit.replace('deg C', 'degC')
-            #print ("ID process", sensorid)
+            if not errormark:
+                #asseble header from available global information - write only if information is complete
+                key = '[t2,var1,var2]'
+                ele = '[Tv,V,Dir]'
+                unit = '[degC,m_s,deg]'
+                multplier = str(multiplier).replace(" ","")
+                # Correct some common old problem
+                unit = unit.replace('deg C', 'degC')
+                #print ("ID process", sensorid)
 
-            header = "# MagPyBin {} {} {} {} {} {} {}".format(sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
-            data = ','.join(list(map(str,datearray)))
+                header = "# MagPyBin {} {} {} {} {} {} {}".format(sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
+                data = ','.join(list(map(str,datearray)))
 
-            if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
-
+                if not self.confdict.get('bufferdirectory','') == '':
+                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            else:
+                data = ''
+                header = ''
         else:
             data = ''
 
@@ -189,9 +195,11 @@ class DSPProtocol(object):
                 if self.debug:
                     print ("got answer: {}".format(answer))
                 self.serialnum = self.serial1+self.serial2
-                if item == 'data': # and len(self.serialnum) > 7:  # serialnum taken from sensors.cfg
+                if item == 'data': #  and len(self.serialnum) > 7: # removed serial number check as serial number is taken from sensors.cfg
                     #sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
                     sensorid = self.sensorid
+                    if self.debug:
+                        print ("Processing data for {}". format(sensorid))
                     data, head = self.processData(sensorid, answer, actime)
                     # send data via mqtt
                     if not data == '':
