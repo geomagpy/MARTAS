@@ -543,7 +543,7 @@ def main(argv):
                     # evetually replace content="fine" with content="" for "partial"
                 statinput = 'Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))
                 if statinput in statusdict:
-                    if not content == "fine":
+                    if not content in ["fine","",None]:
                         statusdict[statinput] = content
                 elif content:
                     statusdict[statinput] = content
