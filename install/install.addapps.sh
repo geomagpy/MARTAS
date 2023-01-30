@@ -151,6 +151,7 @@ if [ "$NOTIFICATIONQ" = "m" ]; then
     else
         echo 'installing telegram_send python package ...'
         echo '(please note: for python > 3.6 required)'
+        $PYPATH -m pip install python-telegram-bot==13.4
         $PYPATH -m pip install telegram-send
     fi
 fi

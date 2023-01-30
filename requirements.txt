@@ -2,8 +2,7 @@ paho-mqtt
 pyserial
 geomagpy
 twisted
+python-telegram-bot==13.4
 telegram_send
 psutil
 telepot
-
-
