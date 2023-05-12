@@ -412,22 +412,26 @@ def calcHeaderString():
 
     # namelist = ['pseudo16','pseudo26','pseudo36','pseudo46','full12','full34','full56']
     # cast list to tupel: (don't know why like this..)
-    namelist = (*namelist,)
+    #namelist = (*namelist,)
+    namelist = tuple(namelist)
     #headernames = '[{},{},{},{},{},{},{}]'.format('pseudo16','p26','p36','p46','full12','f34','f56')
     # this * asterix is very important!
     headernames = bracketstring.format(*namelist)
 
     # e.g. key Tupel: 'var1,var2,var3,var4,var5,dx,dy'
-    keylist = (*keylist,)
+    #keylist = (*keylist,)
+    keylist = tuple(keylist)
     #headerkeys = nobracketstring.format(*keylist)
     headerkeys = bracketstring.format(*keylist)
 
     # headerunits = '[{},{},{},{},{},{},{}]'.format('mV','mV','mV','mV','mV','mV','mV')
-    unitlist = (*unitlist,)
+    #unitlist = (*unitlist,)
+    unitlist = tuple(unitlist)
     headerunits = bracketstring.format(*unitlist)
     
     # headerfactors = '[{},{},{},{},{},{},{}]'.format(1000,1000,1000,1000,1000,1000,1000)
-    factorlist = (*Objekt.factorlist,)
+    #factorlist = (*Objekt.factorlist,)
+    factorlist = tuple(Objekt.factorlist)
     headerfactors = bracketstring.format(*factorlist)
 
     header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, headerkeys, headernames, headerunits, headerfactors, packcode, struct.calcsize(packcode))
