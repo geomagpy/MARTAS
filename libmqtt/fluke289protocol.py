@@ -36,6 +36,8 @@ class fluke289Protocol:
     """
 
     def __init__(self, client, sensordict, confdict):
+        # TODO weg
+        print('INIT')
         self.client = client
         self.sensordict = sensordict 
         self.confdict = confdict
@@ -69,9 +71,8 @@ class fluke289Protocol:
             self.debug = True    # prints many test messages
         else:
             log.msg('  -> Debug mode = {}'.format(debugtest))
-
-	self.ser = None
         self.get_serialnumber = False
+        self.ser = None
 
 
 
@@ -91,10 +92,11 @@ class fluke289Protocol:
         cnt=0
         try:
             ser.flush()
-            ser.write(command)
-            #if self.get_serialnumber:
-            if 1:
-                time.sleep(0.05)
+            if sys.version_info >= (3, 0):
+                ser.write(command.encode("utf-8"))
+            else:
+                ser.write(command)
+            time.sleep(0.05)
             data=ser.readline()
             if sys.version_info >= (3, 0):
                 data = str(data.decode("utf-8"))
@@ -154,10 +156,10 @@ class fluke289Protocol:
 
         t = datetime.utcnow()
         darray = datetime2array(t)
-        packcode = "6hLl"
+        packcode = "<6hLl"
         # header
         valuelist = value.split('E')
-        prefix = PREFIX[int(valuelist[1])/3+3]
+        prefix = PREFIX[int(valuelist[1])//3+3]
         valueint = int(float(valuelist[0]) * 10000)
         unit = '['+prefix+unit+']'
         log.msg(str(valueint)+'\t'+unit)
@@ -167,7 +169,7 @@ class fluke289Protocol:
         #quit()
 
         sensorid = self.sensordict['sensorid']
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[FLUKE289]',unit,'[1]',packcode,struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[FLUKE289]',unit,'[10000]',packcode,struct.calcsize(packcode))
         data_bin = struct.pack(packcode,*darray)
         # date of dataloggers timestamp
         filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
