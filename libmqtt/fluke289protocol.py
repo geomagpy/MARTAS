@@ -157,6 +157,7 @@ class fluke289Protocol:
         t = datetime.utcnow()
         darray = datetime2array(t)
         packcode = "<6hLl"
+        packcodeH = "6hLl"
         # header
         valuelist = value.split('E')
         prefix = PREFIX[int(valuelist[1])//3+3]
@@ -169,7 +170,7 @@ class fluke289Protocol:
         #quit()
 
         sensorid = self.sensordict['sensorid']
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[FLUKE289]',unit,'[10000]',packcode,struct.calcsize(packcode))
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[FLUKE289]',unit,'[10000]',packcodeH,struct.calcsize(packcode))
         data_bin = struct.pack(packcode,*darray)
         # date of dataloggers timestamp
         filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
