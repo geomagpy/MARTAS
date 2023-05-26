@@ -28,7 +28,7 @@ def datetime2array(t):
 STATE = ['INVALID','NORMAL','BLANK','DISCHARGE','OL','OL_MINUS','OPEN_TC']
 ATTRIBUTE = ['NONE','OPEN_CIRCUIT','SHORT_CIRCUIT','GLITCH_CIRCUIT','GOOD_DIODE','LO_OHMS','NEGATIVE_EDGE','POSITIVE_EDGE','HIGH_CURRENT']
 
-PREFIX = ['n','u','m','','k','M','G']
+PREFIX = ['n','u','m','','k','M']
 
 class fluke289Protocol:        
     """
@@ -36,8 +36,6 @@ class fluke289Protocol:
     """
 
     def __init__(self, client, sensordict, confdict):
-        # TODO weg
-        print('INIT')
         self.client = client
         self.sensordict = sensordict 
         self.confdict = confdict
@@ -71,7 +69,11 @@ class fluke289Protocol:
             self.debug = True    # prints many test messages
         else:
             log.msg('  -> Debug mode = {}'.format(debugtest))
+        # query serial number at startup
         self.get_serialnumber = False
+        # serial number of config file will be checked at startup
+        self.sn = '' # self.sensordict['serialnumber']
+        self.oldsensorid = ''
         self.ser = None
 
 
@@ -87,9 +89,6 @@ class fluke289Protocol:
 
     def write_read(self,ser,command,end="MARTASEND",maxcnt=20,debug=False):
         data = b""
-        dedata = ""
-        all = ""
-        cnt=0
         try:
             ser.flush()
             if sys.version_info >= (3, 0):
@@ -108,9 +107,9 @@ class fluke289Protocol:
             datalist = data.split('\r')
             return datalist
         except serial.SerialException as e:
-            if debug:
-                log.msg("SerialException found ({})".format(e)) # - restarting martas ...")
-            time.sleep(0.1)
+            if self.debug:
+                log.msg("SerialException found ({})".format(e)) 
+            time.sleep(1)
             #self.restart()
         except:
             log.msg("Other exception found")
@@ -127,7 +126,8 @@ class fluke289Protocol:
         if self.get_serialnumber:
             answer = self.write_read(self.ser,'ID\r\n',debug=self.debug)
             if not len(answer) == 3:
-                log.msg('error: got invalid data: '+str(answer))
+                if self.debug:
+                    log.msg('error: got invalid serial number: '+str(answer))
                 return
             error = answer[0]
             datastring = answer[1]
@@ -136,12 +136,16 @@ class fluke289Protocol:
             sw_version = data[1]
             sn = data[2]
             log.msg(str(error)+'\t'+model+'\t'+sw_version+'\t'+sn)
+            if not sn == self.sensordict['serialnumber']:
+                log.msg('S/N '+sn+' and the one given in the config file '+self.sensordict['serialnumber']+' differ')
+            self.sn=sn
             self.get_serialnumber = False
             return
 
         answer = self.write_read(ser,'QM\r\n',debug=self.debug)
         if not len(answer) == 3:
-            log.msg('error: got invalid data: '+str(answer))
+            if self.debug:
+                log.msg('error: got invalid data: '+str(answer))
             return
         error = answer[0]
         datastring = answer[1]
@@ -152,25 +156,35 @@ class fluke289Protocol:
         state_nr = STATE.index(state)
         attribute = data[3]
         attribute_nr = ATTRIBUTE.index(attribute)
-        log.msg(str(error)+'\t'+value+'\t'+unit+'\t'+state+'\t'+str(state_nr)+'\t'+attribute+'\t'+str(attribute_nr))
+        if self.debug:
+            log.msg(str(error)+'\t'+value+'\t'+unit+'\t'+state+'\t'+str(state_nr)+'\t'+attribute+'\t'+str(attribute_nr))
 
         t = datetime.utcnow()
         darray = datetime2array(t)
         packcode = "<6hLl"
-        packcodeH = "6hLl"
         # header
+        packcodeH = "6hLl"
         valuelist = value.split('E')
+        if valuelist[1] == '+37':
+            # invalid data
+            if self.debug:
+                log.msg('invalid data (+9.9999999E+37)')
+            return
         prefix = PREFIX[int(valuelist[1])//3+3]
         valueint = int(float(valuelist[0]) * 10000)
-        unit = '['+prefix+unit+']'
-        log.msg(str(valueint)+'\t'+unit)
+        if self.debug:
+            log.msg(str(valueint)+'\t'+unit)
         darray.append(valueint)
-
-
-        #quit()
-
+        instrument = 'FLUKE289'+prefix+unit
+        unit = '['+prefix+unit+']'
+        # redefine sensorid e.g. FLUKE289VAC_123456_0001
         sensorid = self.sensordict['sensorid']
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]','[FLUKE289]',unit,'[10000]',packcodeH,struct.calcsize(packcode))
+        sensorid = instrument+'_'+self.sn+'_'+sensorid.split('_')[2]
+        if not sensorid == self.oldsensorid:
+            self.oldsensorid = sensorid
+            log.msg('switched to '+sensorid)
+        instrument = '['+instrument+']'
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid,'[var1]',instrument,unit,'[10000]',packcodeH,struct.calcsize(packcode))
         data_bin = struct.pack(packcode,*darray)
         # date of dataloggers timestamp
         filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
