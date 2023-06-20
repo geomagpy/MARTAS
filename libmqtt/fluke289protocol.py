@@ -42,7 +42,7 @@ class fluke289Protocol:
         # variables for broadcasting via mqtt:
         self.count=0
         self.datalst = []
-        #self.datacnt = 0
+        self.datacnt = 0
         self.metacnt = 10
         ###
         self.port = confdict['serialport']+sensordict.get('port')
@@ -195,6 +195,7 @@ class fluke289Protocol:
 
         # sending via MQTT
         data = ','.join(list(map(str,darray)))
+        senddata = False
         head = header
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
         coll = int(self.sensordict.get('stack'))
