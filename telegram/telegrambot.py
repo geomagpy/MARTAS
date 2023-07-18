@@ -105,7 +105,7 @@ class tgpar(object):
     tmppath = '/tmp'
     camport = 'None'
     tglogpath = '/var/log/magpy/telegrambot.log'
-    version = '1.0.5'
+    version = '1.0.6'
     martasapp = '/home/cobs/MARTAS/app'
     purpose = 'MARTAS'
 
@@ -351,7 +351,15 @@ try:
             pass
     if not camport=='None':
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
-    tmppath = tgconf.get('tmppath').strip()
+    # IMBOT parameters
+    imbotoverview = tgconf.get('imbotoverview','').strip()
+    tgpar.imbotoverview = os.path.abspath(imbotoverview)
+    imbotmemory = tgconf.get('imbotmemory','').strip()
+    tgpar.imbotmemory = os.path.abspath(imbotmemory)
+    imbotarchive = tgconf.get('imbotarchive','').strip()
+    tgpar.imbotarchive = os.path.abspath(imbotarchive)
+    # Other confs
+    tmppath = tgconf.get('tmppath','').strip()
     tgpar.camport = camport
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
@@ -359,6 +367,7 @@ try:
     tgpar.uploadconfig = tgconf.get('uploadconfig',"").strip()
     tgpar.uploadmemory = tgconf.get('uploadmemory',"").strip()
     tgpar.camoptions = tgconf.get('camoptions',"").strip()
+    print ("3")
     if purpose:
         tgpar.purpose = purpose
     allusers = tgconf.get('allowed_users')
@@ -1038,11 +1047,12 @@ def handle(msg):
                bot.sendMessage(chat_id, "Sending result request to IMBOT...")
                cmd = command.replace('martas','').replace('MARTAS','')
                cmd = cmd.strip()
+               imbotoverview = tgpar.imbotoverview
                yearl = re.findall(r'\d+', cmd)
                if len(yearl) > 0:
-                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis{a}.json -l /srv/DataCheck/IMBOT/{a}/level".format(a=yearl[-1])
+                   command = "/usr/bin/python3 {a} -m {c}/second/sec_analysis{b}.json -l {d}/second/{b}/level".format(a=imbotoverview,b=yearl[-1],c=imbotmemory,d=imbotarchive)
                else:
-                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis2020.json -l /srv/DataCheck/IMBOT/2020/level"
+                   command = "/usr/bin/python3 {a} -m {c}/second/sec_analysis2020.json -l {d}/second/2020/level".format(a=imbotoverview,c=imbotmemory,d=imbotarchive)
                #subprocess.call([command])
                os.system(command)
             elif any([word in command for word in commandlist['martas'].get('commands')]):

@@ -507,7 +507,7 @@ def main(argv):
                 (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
                 if not testvalue and travistestrun:
                     print ("Testrun for parameterset {} OK".format(i))
-                elif not testvalue:
+                elif not testvalue and not testvalue == 0.0:
                     print ("Please check your test data set... are bufferfiles existing? Is the sensorid correct?")
                 elif is_number(testvalue):
                     (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('state'), debug=debug) # Returns statusmessage
@@ -543,7 +543,7 @@ def main(argv):
                     # evetually replace content="fine" with content="" for "partial"
                 statinput = 'Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))
                 if statinput in statusdict:
-                    if not content == "fine":
+                    if not content in ["fine","",None]:
                         statusdict[statinput] = content
                 elif content:
                     statusdict[statinput] = content
