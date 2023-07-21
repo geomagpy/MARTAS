@@ -352,14 +352,14 @@ try:
     if not camport=='None':
         stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
     # IMBOT parameters
-    imbotoverview = tgconf.get('imbotoverview').strip()
+    imbotoverview = tgconf.get('imbotoverview','').strip()
     tgpar.imbotoverview = os.path.abspath(imbotoverview)
-    imbotmemory = tgconf.get('imbotmemory').strip()
+    imbotmemory = tgconf.get('imbotmemory','').strip()
     tgpar.imbotmemory = os.path.abspath(imbotmemory)
-    imbotarchive = tgconf.get('imbotarchive').strip()
+    imbotarchive = tgconf.get('imbotarchive','').strip()
     tgpar.imbotarchive = os.path.abspath(imbotarchive)
     # Other confs
-    tmppath = tgconf.get('tmppath').strip()
+    tmppath = tgconf.get('tmppath','').strip()
     tgpar.camport = camport
     tgpar.tmppath = tmppath
     tgpar.tglogpath = tglogpath
@@ -367,6 +367,7 @@ try:
     tgpar.uploadconfig = tgconf.get('uploadconfig',"").strip()
     tgpar.uploadmemory = tgconf.get('uploadmemory',"").strip()
     tgpar.camoptions = tgconf.get('camoptions',"").strip()
+    print ("3")
     if purpose:
         tgpar.purpose = purpose
     allusers = tgconf.get('allowed_users')
