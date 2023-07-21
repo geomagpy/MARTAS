@@ -11,12 +11,20 @@
 
 # DEFINITIONS
 USER="cobs"
+if [ $# -eq 1 ]; then
+    USER=$1
+fi
+HOMEFOLDER="/home/$USER"
+if [ ! -d "$HOMEFOLDER" ]; then
+    echo "$HOMEFOLDER does not exist. Please specify user:"
+    echo "$0 username"
+    exit
+fi
 DATE=$(date +%Y%m%d)
 HOST=$(hostname)
 
 BACKUPNAME="${HOST}_${DATE}_backup"
 TMPFOLDER="/tmp/$BACKUPNAME"
-HOMEFOLDER="/home/$USER"
 MARTASFOLDER="/etc/martas"
 MARCOSFOLDER="/etc/marcos"
 ETCCRON="$TMPFOLDER/etccrontab.out"
