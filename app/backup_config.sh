@@ -97,6 +97,15 @@ mkdir -p $BACKUPS
   echo "Could not find credential file"
 }
 
+# J) other configurations
+{
+  find /etc/ -type f -name "ntp.conf" -exec cp '{}' $TMPFOLDER/ntp.conf \;
+  #find /etc/ -type f -name "ntp.conf" -exec cp '{}' $TMPFOLDER/ntp.conf \;
+  #cp -r webdirectory $TMPFOLDER
+} || {
+  echo "Could not find configuration files"
+}
+
 # Z) TAR AND ZIP
 {
   tar -czf $BACKUPFILE $TMPFOLDER/*

@@ -1419,7 +1419,7 @@ sudo mount -a
         sudo nano /etc/crontab
 
         15 0    * * * root /bin/bash /etc/martas/cleanup.sh
-        10 0    1 * * root /bin/bash /etc/martas/backup_martasconfig.sh
+        10 0    1 * * root /bin/bash /etc/martas/backup_config.sh
         5  0    * * * root /etc/init.d/martas start
 
 
