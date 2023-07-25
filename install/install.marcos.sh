@@ -117,7 +117,7 @@ CONFFILE=$CFGPATH/$BROKER.cfg
 cp $CONFPATH/marcos.cfg $CONFFILE
 cp $CONFPATH/telegram.cfg $TELEGRAMPATH
 
-DUMMYLOGPATH="dummyusername"
+DUMMYUSERNAME="dummyusername"
 DUMMYLOGPATH="/logpath"
 DUMMYSTATION="myhome"
 DUMMYDEST="outputdestination"
@@ -130,7 +130,7 @@ sed -i "s+${DUMMYSTATION}+${STATION}+g" $CONFFILE
 sed -i "s+${DUMMYIP}+${BROKERIP}+g" $CONFFILE
 sed -i "s+${DUMMYDEST}+${DESTINATION}+g" $CONFFILE
 sed -i "s+${DUMMYTELEGRAM}+${TELEGRAMPATH}+g" $CONFFILE
-sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/marcos.log+g" $CONFFILE
+sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/collect-${BROKER}.log+g" $CONFFILE
 if [ "$DESTINATION" = "db" ]; then
    sed -i "s+${DUMMYDB}+${DETAILS}+g" $CONFFILE
 fi
@@ -145,8 +145,8 @@ fi
 # ------------------
 if [ "$LOGPATH" != "$stdout" ]; then
    cp marcos.logrotate /etc/logrotate.d/collect-$BROKER
-   sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/marcos.log+g" /etc/logrotate.d/collect-$BROKER
-   sed -i "s+${DUMMYUSERNAME}+${USERNAME}.log+g" /etc/logrotate.d/collect-$BROKER
+   sed -i "s+${DUMMYLOGPATH}+${LOGPATH}/collect-${BROKER}.log+g" /etc/logrotate.d/collect-$BROKER
+   sed -i "s+${DUMMYUSERNAME}+${USERNAME}+g" /etc/logrotate.d/collect-$BROKER
 fi
 
 
