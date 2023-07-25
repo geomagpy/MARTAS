@@ -114,8 +114,8 @@ mkdir -p $CFGPATH
 
 CONFFILE=$CFGPATH/$BROKER.cfg
 
-cp $CONFPATH/marcos.cfg $CONFFILE
-cp $CONFPATH/telegram.cfg $TELEGRAMPATH
+cp -i $CONFPATH/marcos.cfg $CONFFILE
+cp -i $CONFPATH/telegram.cfg $TELEGRAMPATH
 
 DUMMYUSERNAME="dummyusername"
 DUMMYLOGPATH="/logpath"
@@ -153,7 +153,7 @@ fi
 
 # install as service
 # ------------------
-cp broker /etc/init.d/collect-$BROKER
+cp -i broker /etc/init.d/collect-$BROKER
 
 # Replace DUMMY values in default file with new values
 DUMMYCOLL="/your/collectorpath"
