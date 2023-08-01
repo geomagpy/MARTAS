@@ -193,7 +193,7 @@ Further details and descriptions are found within the created sensors.cfg config
 martas.cfg contains the basic MARTAS configuration data, definitions for broadcasting and paths. Details and descriptions are found within this file. The file is preconfigured during the installation process and does not need to be changed.
 
 
-### 3.2 Running the acquisition sytem
+### 3.2 Running the acquisition system
 
 #### 3.2.1 When installation is finished you can start the system as follows:
 
