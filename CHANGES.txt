@@ -10,6 +10,7 @@ v1.0.7 additions:
     - extended backup
 
 v1.0.7 fixes:
+    - python3 fix for POS1 instrument - serial init
 
 ####v<1.0.6>, <2023-01-03> --
 

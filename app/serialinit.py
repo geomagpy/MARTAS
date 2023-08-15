@@ -13,7 +13,7 @@ import sys, getopt
 import time
 
 
-def lineread(ser,eol=None):
+def lineread(ser,eol=None,debug=False):
     """
     DESCRIPTION:
        Does the same as readline(), but does not require a standard 
@@ -26,6 +26,9 @@ def lineread(ser,eol=None):
        eol:   (string) lineend character(s): can be any kind of lineend
                            if not provided, then standard eol's are used
     """
+    if sys.version_info >= (3,0):
+        eol = eol.decode()
+    
     if not eol:
         eollist = ['\r','\x00','\n']
     else:
@@ -34,9 +37,10 @@ def lineread(ser,eol=None):
     ser_str = ''
     while True:
         char = ser.read()
-        #if char == '\x00':
         if sys.version_info >= (3,0):
             char = char.decode()
+        if debug:
+            print ("receiving:", char)
         if char in eollist:
             break
         ser_str += char
@@ -50,18 +54,17 @@ def hexify_command(command,eol):
        string that the serial device can read. 'eol' is the 
        end-of-line character. '\r' for the environmental sensor,
        '\x00' for the POS-1 magnetometer.
+    This a  python2 only method    
     """
     commandstr = []
     for character in command:
-        hexch = binascii.hexlify(character)
-        commandstr.append(('\\x' + hexch).decode('string_escape'))
-
+            hexch = binascii.hexlify(character)
+            commandstr.append(('\\x' + hexch).decode('string_escape'))
     command_hex = ''.join(commandstr) + (eol)
-
     return command_hex
 
 
-def send_command(ser,command,eol=None,hexify=False,bits=0):
+def send_command(ser,command,eol=None,hexify=False,bits=0,debug=False):
     """
     DESCRIPTION:
         General method to send commands to a e.g. serial port.
@@ -76,21 +79,33 @@ def send_command(ser,command,eol=None,hexify=False,bits=0):
         GSM90Sv7:       hexify=False, line=False, eol
         GSM90Fv7:       hexify=False, line=False, eol
     """
-    print('-- Sending command:  ', command)
+    print('-- Sending command:  ', command, eol)
     if sys.version_info >= (3,0):
         command = command.encode('ascii')
         if eol:
             eol = eol.encode('ascii')
-    if hexify:
+    if sys.version_info >= (3,0) and hexify:
+        # python3, hexify selected
+        if debug:
+            print ("Hexify with py3 selected")
+        ser.write(command)
+        if eol:
+            ser.write(eol)
+    elif hexify:
+        # python2 with hexify
+        if debug:
+            print ("Hexify with py2 selected")
         command = hexify_command(command,eol)
         ser.write(command)
     else:
+        if debug:
+            print ("Default write selected")
         if not eol:
             ser.write(command)
         else:
             ser.write(command+eol)
     if bits==0:
-        response = lineread(ser,eol)
+        response = lineread(ser,eol,debug=debug)
     else:
         response = ser.read(bits)
         if sys.version_info >= (3,0):
@@ -117,9 +132,10 @@ def main(argv):
     eol = None
     bits = 0
     timeformat = None
+    debug = False
 
     try:
-        opts, args = getopt.getopt(argv,"hb:p:f:y:a:s:o:c:r:xe:d:i:k:",["baudrate=","port=","flowcontrol=","bytesize=","parity=","stopbits=","timeout=","command=","responseaction=", "eol=", "eol-ord=", "bits2read=", "timeformat=",])
+        opts, args = getopt.getopt(argv,"hb:p:f:y:a:s:o:c:r:xe:d:i:k:D",["baudrate=","port=","flowcontrol=","bytesize=","parity=","stopbits=","timeout=","command=","responseaction=", "eol=", "eol-ord=", "bits2read=", "timeformat=",])
     except getopt.GetoptError:
         print('Check your options:')
         print('serial-init.py -b <baudrate> -p <port> -f <flowcontrol> -y <bytesize> -a <parity> -s <stopbits> -o <timeout> -c <commands> -r <responseaction> -x <hexify> -e <eol> -d <eol-ord> -i <bits2read> -k <timeformat>')
@@ -209,6 +225,8 @@ def main(argv):
                 print ("serial-init: warning... integer number expected for (i) - skipping this option")
         elif opt in ("-k", "--timeformat"):
             timeformat = arg
+        elif opt in ("-D", "--debug"):
+            debug = True
 
     # Re-format command sequence
     if command.find('datetime') > 0:
@@ -245,12 +263,12 @@ def main(argv):
     if len(commands) > 0:
         print ("Sending command sequence:")
         for item in commands:
-            response = send_command(ser, item, eol=eol, hexify=hexify, bits=bits)
+            response = send_command(ser, item, eol=eol, hexify=hexify, bits=bits,debug=debug)
             if len(responseaction) == 2:
                 if response.find(responseaction[0]) > 0:
                     print ("TEST:", responseaction)
                     print ("... found matching response - performing response-action")
-                    response = send_command(ser, responseaction[1], eol=eol, hexify=hexify, bits=bits)
+                    response = send_command(ser, responseaction[1], eol=eol, hexify=hexify, bits=bits,debug=debug)
         print('')
         print ("... Done ... good bye")
     else:
