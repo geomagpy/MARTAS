@@ -1113,7 +1113,7 @@ GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | g
 GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,py3
 GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |                |   py2,(py3)
 G823       |              | mag-scalar   | csprotocol.py      |   passive    |                |   py2,(py3)
-POS1       |              | mag-scalar   | pos1protocol.py    |   passive    | pos1init.sh    |
+POS1       |              | mag-scalar   | pos1protocol.py    |   passive    | pos1init.sh    |   py2,py3 (since 1.0.7)
 ENV05      |              | temp-humid   | envprotocol.py     |   passive    |                |   py2,(py3)
 OneWire    |              | multiple     | owprotocol.py      |   passive    |                |   (py2)/py3
 BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh    |   py2/py3
