@@ -89,31 +89,33 @@ class fluke289Protocol:
 
     def write_read(self,ser,command,end="MARTASEND",maxcnt=20,debug=False):
         data = b""
-        try:
-            ser.flush()
-            if sys.version_info >= (3, 0):
-                ser.write(command.encode("utf-8"))
-            else:
-                ser.write(command)
-            time.sleep(0.05)
-            data=ser.readline()
-            if sys.version_info >= (3, 0):
-                data = str(data.decode("utf-8"))
-            else:
-                data = str(data)
-            if not data:
-                if debug:
-                    log.msg("DEBUG - got empty line")
-            datalist = data.split('\r')
-            return datalist
-        except serial.SerialException as e:
-            if self.debug:
-                log.msg("SerialException found ({})".format(e)) 
-            time.sleep(1)
-            #self.restart()
-        except:
-            log.msg("Other exception found")
-            raise
+        if ser:
+            # don't produce log entries, when there isn't even a connection
+            try:
+                ser.flush()
+                if sys.version_info >= (3, 0):
+                    ser.write(command.encode("utf-8"))
+                else:
+                    ser.write(command)
+                time.sleep(0.05)
+                data=ser.readline()
+                if sys.version_info >= (3, 0):
+                    data = str(data.decode("utf-8"))
+                else:
+                    data = str(data)
+                if not data:
+                    if debug:
+                        log.msg("DEBUG - got empty line")
+                datalist = data.split('\r')
+                return datalist
+            except serial.SerialException as e:
+                if self.debug:
+                    log.msg("SerialException found ({})".format(e))
+                time.sleep(1)
+                #self.restart()
+            except:
+                log.msg("Other exception found")
+                raise
 
     def sendRequest(self):
         # connect to serial
@@ -142,6 +144,9 @@ class fluke289Protocol:
             self.get_serialnumber = False
             return
 
+        if not ser:
+            # exit, when there is no serial connection
+            return
         answer = self.write_read(ser,'QM\r\n',debug=self.debug)
         if not len(answer) == 3:
             if self.debug:
