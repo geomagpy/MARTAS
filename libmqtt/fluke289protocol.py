@@ -180,7 +180,7 @@ class fluke289Protocol:
         if self.debug:
             log.msg(str(valueint)+'\t'+unit)
         darray.append(valueint)
-        instrument = 'FLUKE289'+prefix+unit
+        instrument = self.sensordict['name']+prefix+unit
         unit = '['+prefix+unit+']'
         # redefine sensorid e.g. FLUKE289VAC_123456_0001
         sensorid = self.sensordict['sensorid']
