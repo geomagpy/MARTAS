@@ -1236,11 +1236,11 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
 
-### 12.5 Full example installation of a MARTAS Box
+## 13. Installation of a MARTAS Box - recipie
 
-#### 12.5.1 MARTAS minimal installation with root privileges - Debian systems like Raspberry, Ubuntu, Beaglebome, etc
+### 13.1 MARTAS minimal installation with root privileges - Debian systems like Raspberry, Ubuntu, Beaglebome, etc
 
-Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
+#### 13.1.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
 
 Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian like system. Please follow the installation instructions given for the specific operating system. In the following we will give a quick example of such preparations for a Raspberry installation using debian bullseye:
 
@@ -1248,13 +1248,26 @@ Install the operating system (i.e. debian bullseye) on a SD card using i.e. Bale
 
 You also might want to change hostname (Raspberry PI configuration or update /etc/hostname and /etc/hosts), partications on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry enable ssh (raspberry PI configuration).
 
-Step 1: Install necessary packages for all MARTAS applications
+#### 13.1.2 Step 1: Install necessary packages for all MARTAS applications
 
         sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
 
-After installation you might want to configure ntp servers and basic mqtt options (see section 2.3, 2.4, 2.5 and 3.3)
+After installation you might want to configure ntp servers. 
 
-Step 2: Install MARTAS
+Using authenticated mqtt access:
+
+        sudo nano /etc/mosquitto/conf.d/listener.conf
+
+Insert the following lines:
+
+        listener 1883
+        allow_anonymous true
+        #password_file /etc/mosquitto/passwd
+        max_queued_messages 3000
+
+
+
+#### 13.1.3 Step 2: Install MARTAS
 
 Open a terminal and issue the following commands:
 
@@ -1277,11 +1290,11 @@ Open a terminal and issue the following commands:
         10 0    1 * * root /bin/bash /etc/martas/backup_config.sh
         5  0    * * * root /etc/init.d/martas start
 
-optional Step 3: recover a previously backuped system
+#### 13.1.4 optional Step 3: recover a previously backuped system
 
 
 
-#### 12.5.2 Full installation on Raspberry - MARCOS/MARTAS
+### 13.2 Full installation on Raspberry - MARCOS/MARTAS
 
 The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios monitoring control, Webinterface, and an archive on an external harddrive.
 
@@ -1434,7 +1447,7 @@ sudo mount -a
 
 
 
-#### 12.5.3 Beaglebone - MARTAS
+### 13.3 Beaglebone - MARTAS
 
 1. use etcher to create boot microsd
 
@@ -1467,9 +1480,9 @@ sudo mount -a
 
 
 
-### 12.6 Short descriptions and Cookbooks
+## 14. Short descriptions and Cookbooks
 
-#### 12.6.1 quick steps to run a new MARTAS with a new sensor for the first time
+### 14.1 quick steps to run a new MARTAS with a new sensor for the first time
 
 In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
 
@@ -1517,7 +1530,7 @@ B. MARTAS
               $ cat /var/log/magpy/martas.log (check log file)
               $ ls -al /srv/mqtt/SENSORID  (check buffermemory for new data)
 
-#### 12.6.2 quick steps to setup a fully configured MARTAS with the respective sensor(s)
+### 14.2 quick steps to setup a fully configured MARTAS with the respective sensor(s)
 
 In this example we use a MARTAS with a GSM19 Overhauzer sensor:
 
@@ -1535,7 +1548,7 @@ you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sam
 
 
 
-### 12.7 Issues and TODO
+## 15. Issues and TODO
 
 in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
 
