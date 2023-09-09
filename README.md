@@ -1238,7 +1238,17 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 ### 12.5 Full example installation of a MARTAS Box
 
-#### 12.5.1 Raspberry - MARCOS/MARTAS
+#### 12.5.1 MARTAS minimal installation - Debian systems like Raspberry, Ubuntu, Beaglebome, etc
+
+Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
+
+Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian like system. Please follow the installation instructions given for the specific operating system. In the following we will give a quick example of such preparations for a Raspberry installation using debian bullseye:
+
+Install the operating system on a SD card.
+
+
+
+#### 12.5.2 Full installation on Raspberry - MARCOS/MARTAS
 
 The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios monitoring control, Webinterface, and an archive on an external harddrive.
 
@@ -1391,7 +1401,7 @@ sudo mount -a
 
 
 
-#### 12.5.2 Beaglebone - MARTAS
+#### 12.5.3 Beaglebone - MARTAS
 
 1. use etcher to create boot microsd
 
