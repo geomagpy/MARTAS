@@ -1238,13 +1238,46 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 ### 12.5 Full example installation of a MARTAS Box
 
-#### 12.5.1 MARTAS minimal installation - Debian systems like Raspberry, Ubuntu, Beaglebome, etc
+#### 12.5.1 MARTAS minimal installation with root privileges - Debian systems like Raspberry, Ubuntu, Beaglebome, etc
 
 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
 
 Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian like system. Please follow the installation instructions given for the specific operating system. In the following we will give a quick example of such preparations for a Raspberry installation using debian bullseye:
 
-Install the operating system on a SD card.
+Install the operating system (i.e. debian bullseye) on a SD card using i.e. Balena Etcher. Do that on your linux working PC, which is NOT the single board computer. Afterwards insert the SD card into the single board computer and boot it. Finish the initial configurations as requested during the boot process. 
+
+You also might want to change hostname (Raspberry PI configuration or update /etc/hostname and /etc/hosts), partications on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry enable ssh (raspberry PI configuration).
+
+Step 1: Install necessary packages for all MARTAS applications
+
+        sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
+
+After installation you might want to configure ntp servers and basic mqtt options (see section 2.3, 2.4, 2.5 and 3.3)
+
+Step 2: Install MARTAS
+
+Open a terminal and issue the following commands:
+
+        cd ~
+        git clone https://github.com/geomagpy/MARTAS
+
+        cd ~/MARTAS/install
+        sudo bash install.martas.sh
+
+        sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
+        sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
+
+        sudo bash install.addapps.sh
+
+
+        sudo nano /etc/crontab
+
+        # Insert these lines into /etc/crontab
+        15 0    * * * root /bin/bash /etc/martas/cleanup.sh
+        10 0    1 * * root /bin/bash /etc/martas/backup_config.sh
+        5  0    * * * root /etc/init.d/martas start
+
+optional Step 3: recover a previously backuped system
 
 
 
