@@ -1256,7 +1256,7 @@ Packages for MARTAS (including NAGIOS and MagPy support):
         sudo apt upgrade
         sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
 
-After installation you might want to configure ntp servers. 
+After installation you might want to configure ntp servers. You can activate pwd-less ssh access.
 
 Configure the mosquitto MQTT broker:
 
@@ -1308,6 +1308,12 @@ Thats it. MARTAS is now ready to be used. Continue with sensor definitions and t
 
 Please also check section 3.5. 
 
+Copy the backup file to the new MARTAS machine i.e. in directory /home/user/Downloads/
+
+Then run the following command and follow the instructions:
+
+        cd ~/MARTAS/install
+        sudo bash recover.martas.sh
 
 ### 13.2 Full installation on Raspberry - MARCOS/MARTAS
 
@@ -1462,10 +1468,9 @@ sudo mount -a
 ```
 ### 13.3 Testing MQTT data transfer
 
-On the collector or any other MQTT machine issue the following subscription command:
+See also in section 10.2 (error analysis). On the collector or any other MQTT machine issue the following subscription command:
 
         mosquitto_sub -h IPADDRESS_OF_MARTAS -t test/#
-
 
 On the freshly installed MARTAS machine issue the following command:
 
@@ -1477,7 +1482,6 @@ In case you are using authenticated access use the following additional options:
         mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -d
 
 As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription command. Checkout the official mosquitto pages for more information.
-
 
 ## 14. Short descriptions and Cookbooks
 
