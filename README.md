@@ -145,7 +145,7 @@ In the following we are setting up MARTAS to acquire measurement data from any c
 
         $ cd /path/to/MARTAS/install
         $ sudo sh martas.install.sh
-      -> follow the instructions
+        -> follow the instructions
 
 #### 3.1.2 Modify /etc/martas/sensors.cfg
 
@@ -1236,7 +1236,7 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
 
-## 13. Installation of a MARTAS Box - recipie
+## 13. Installation of a MARTAS Box - recipies
 
 ### 13.1 MARTAS minimal installation with root privileges - Debian systems like Raspberry, Ubuntu, Beaglebome, etc
 
@@ -1246,15 +1246,19 @@ Please install your preferred debian like system onto your preferred hardware. M
 
 Install the operating system (i.e. debian bullseye) on a SD card using i.e. Balena Etcher. Do that on your linux working PC, which is NOT the single board computer. Afterwards insert the SD card into the single board computer and boot it. Finish the initial configurations as requested during the boot process. 
 
-You also might want to change hostname (Raspberry PI configuration or update /etc/hostname and /etc/hosts), partications on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry enable ssh (raspberry PI configuration).
+Afterwards you might want to change hostname (Raspberry PI configuration or update /etc/hostname and /etc/hosts), partitions on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry enable ssh (raspberry PI configuration).
 
 #### 13.1.2 Step 1: Install necessary packages for all MARTAS applications
 
+Packages for MARTAS (including NAGIOS and MagPy support):
+
+        sudo apt update
+        sudo apt upgrade
         sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
 
 After installation you might want to configure ntp servers. 
 
-Using authenticated mqtt access:
+Configure the mosquitto MQTT broker:
 
         sudo nano /etc/mosquitto/conf.d/listener.conf
 
@@ -1262,26 +1266,34 @@ Insert the following lines:
 
         listener 1883
         allow_anonymous true
+        # Use the following line and ananymus false for authenicated login
         #password_file /etc/mosquitto/passwd
         max_queued_messages 3000
 
 
-
 #### 13.1.3 Step 2: Install MARTAS
 
-Open a terminal and issue the following commands:
+Open a terminal and clone MARTAS into your home directory:
 
         cd ~
         git clone https://github.com/geomagpy/MARTAS
 
+Install MARTAS:
+
         cd ~/MARTAS/install
         sudo bash install.martas.sh
+
+Install monitoring and additional MARTAS applications:
+
+        cd ~/MARTAS/install
+        sudo bash install.addapps.sh
+
+Copy some default routines into the configuration path
 
         sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
         sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
 
-        sudo bash install.addapps.sh
-
+and add them into the scheduler:
 
         sudo nano /etc/crontab
 
@@ -1290,11 +1302,15 @@ Open a terminal and issue the following commands:
         10 0    1 * * root /bin/bash /etc/martas/backup_config.sh
         5  0    * * * root /etc/init.d/martas start
 
+Thats it. MARTAS is now ready to be used. Continue with sensor definitions and tests. Alternatively you can recover configurations from a previously backuped system (continue with 13.1.4).
+
 #### 13.1.4 optional Step 3: recover a previously backuped system
 
+Please also check section 3.5. 
 
 
 ### 13.2 Full installation on Raspberry - MARCOS/MARTAS
+
 
 The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios monitoring control, Webinterface, and an archive on an external harddrive.
 
@@ -1444,40 +1460,23 @@ sudo mount -a
 ## FINALLY TEST IT!
 
 ```
+### 13.3 Testing MQTT data transfer
+
+On the collector or any other MQTT machine issue the following subscription command:
+
+        mosquitto_sub -h IPADDRESS_OF_MARTAS -t test/#
 
 
+On the freshly installed MARTAS machine issue the following command:
 
-### 13.3 Beaglebone - MARTAS
+        mosquitto_pub -h localhost -m "test message" -t test -d
 
-1. use etcher to create boot microsd
+In case you are using a different MQTT broker: change 'localhost' and 'IPADDRESS_OF_MARTAS' with the IP of the BROKER
+In case you are using authenticated access use the following additional options:
 
-2. put boot mircosd into beagle (eventually adjust size first using gparted)
+        mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -d
 
-3. access beagle (i.e. by its Webinterface)
-
-4. install MARTAS packages
-
-        sudo apt update
-
-        sudo apt upgrade
-
-        sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
-
-        cd ~
-        git clone https://github.com/geomagpy/MARTAS
-
-        cd ~/MARTAS/install
-        sudo bash install.martas.sh
-
-        sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
-        sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
-
-        sudo nano /etc/crontab
-
-        15 0    * * * root /bin/bash /etc/martas/cleanup.sh
-        10 0    1 * * root /bin/bash /etc/martas/backup_config.sh
-        5  0    * * * root /etc/init.d/martas start
-
+As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription command. Checkout the official mosquitto pages for more information.
 
 
 ## 14. Short descriptions and Cookbooks
