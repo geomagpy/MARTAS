@@ -11,6 +11,7 @@ v1.0.7 additions:
 
 v1.0.7 fixes:
     - python3 fix for POS1 instrument - serial init
+    - fixed abort of file_upload when memory is emtpy
 
 ####v<1.0.6>, <2023-01-03> --
 
