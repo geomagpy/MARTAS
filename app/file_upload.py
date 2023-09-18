@@ -516,10 +516,13 @@ def main(argv):
         lastfiles = {}
         fulldict = {}
         if os.path.isfile(sendlogpath):
-            with open(sendlogpath, 'r') as file:
-                fulldict = json.load(file)
-                lastfiles = fulldict.get(key)
-                # lastfiles looks like: {'/path/to/my/file81698.txt' : '2019-01-01T12:33:12', ...}
+            if os.stat(sendlogpath).st_size == 0:
+                lastfiles == {}
+            else:
+                with open(sendlogpath, 'r') as file:
+                    fulldict = json.load(file)
+                    lastfiles = fulldict.get(key)
+                    # lastfiles looks like: {'/path/to/my/file81698.txt' : '2019-01-01T12:33:12', ...}
 
         if not lastfiles == {}:
             print ("opened memory")

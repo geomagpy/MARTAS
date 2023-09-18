@@ -858,7 +858,11 @@ file_donwload replaces the old collectfile.py routine which is still contained i
 
 ### 8.6 file_upload.py
 
-
+Problem:
+ - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finshed", "SUCCESS"
+Solution:
+ - this error is typically related to an empty memory file
+ 
 ### 8.7 gamma.py
 
 #### DESCRIPTION:
