@@ -58,7 +58,7 @@ from subprocess import check_output   # used for checking whether send process a
 
 import getopt
 import pwd
-import sys
+import sys, os
 
 
 # ################################################
