@@ -1261,6 +1261,9 @@ Packages for MARTAS (including NAGIOS and MagPy support):
         sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
 
 After installation you might want to configure ntp servers. You can activate pwd-less ssh access.
+To change from local time to UTC time the following command is useful:
+
+        sudo dpkg-reconfigure tzdata
 
 Configure the mosquitto MQTT broker:
 
@@ -1274,6 +1277,10 @@ Insert the following lines:
         #password_file /etc/mosquitto/passwd
         max_queued_messages 3000
 
+Restart and check the status of the mosquitto broker
+
+        sudo systemctl restart mosquitto.service
+        sudo systemctl status mosquitto.service
 
 #### 13.1.3 Step 2: Install MARTAS
 
