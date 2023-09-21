@@ -1118,7 +1118,7 @@ GSM19      |              | mag-scalar   | gsm19protocol.py   |              |  
 GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |                |   py2,(py3)
 G823       |              | mag-scalar   | csprotocol.py      |   passive    |                |   py2,(py3)
 POS1       |              | mag-scalar   | pos1protocol.py    |   passive    | pos1init.sh    |   py2,py3 (since 1.0.7)
-ENV05      |              | temp-humid   | envprotocol.py     |   passive    |                |   py2,(py3)
+ENV05      |              | temp-humid   | envprotocol.py     |   passive    |                |   py2,py3 (since 1.0.7)
 OneWire    |              | multiple     | owprotocol.py      |   passive    |                |   (py2)/py3
 BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh    |   py2/py3
 Thies LNM  |              | laserdisdro  | disdroprotocol.py  |   active     |                |   (py2)/py3
@@ -1308,6 +1308,10 @@ and add them into the scheduler:
 
 Thats it. MARTAS is now ready to be used. Continue with sensor definitions and tests. Alternatively you can recover configurations from a previously backuped system (continue with 13.1.4).
 
+Useful commands to check ports for sensor definitions are i.e.
+
+        dmesg | grep usb
+
 #### 13.1.4 optional Step 3: recover a previously backuped system
 
 Please also check section 3.5. 
@@ -1318,6 +1322,8 @@ Then run the following command and follow the instructions:
 
         cd ~/MARTAS/install
         sudo bash recover.martas.sh
+
+IMPORTANT: Recovered configuration files will replace all previously exisiting files. Please note: if python paths are changing (i.e. now python3, previously python2) then these paths need to be updated after recovery. Please carefully chech /etc/martas/init/*.sh, /etc/init.d/martas,  as well as all configuration files in /etc/martas. 
 
 ### 13.2 Full installation on Raspberry - MARCOS/MARTAS
 
