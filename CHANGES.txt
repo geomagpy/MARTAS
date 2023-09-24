@@ -2,6 +2,14 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
+####v<1.0.8>, <xxxx-xx-xx> --
+
+v1.0.8 general:
+
+v1.0.8 additions:
+
+v1.0.8 fixes:
+
 ####v<1.0.7>, <2023-09-24> --
 
 v1.0.7 general:
