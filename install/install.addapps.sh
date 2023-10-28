@@ -225,8 +225,8 @@ fi
 
 # add line to cron
 # ----------------
-MONITORLINE="30  *  *  *  *   ${PYTHONPATH} ${MARTASAPPPATH}/monitor.py -c ${CFGPATH}/monitor.cfg"
-THRESHOLDLINE="1,11,21,31,41,51  *  *  *  *   ${PYTHONPATH} ${MARTASAPPPATH}/threshold.py -m ${CFGPATH}/threshold.cfg"
+MONITORLINE="30 *   * * *   ${PYPATH} ${MARTASAPPPATH}/monitor.py -c ${CFGPATH}/monitor.cfg"
+THRESHOLDLINE="1,11,21,31,41,51 *   * * *   ${PYPATH} ${MARTASAPPPATH}/threshold.py -m ${CFGPATH}/threshold.cfg"
 
 echo "----------------------------------------"
 echo "APPLICATIONS successfully added "
