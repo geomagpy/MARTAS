@@ -1289,11 +1289,16 @@ Open a terminal and clone MARTAS into your home directory:
         cd ~
         git clone https://github.com/geomagpy/MARTAS
 
+Optional: create a special python environment for all MARTAS related packages
+
+        python3 -m menv /path/to/menv
+
 Install MARTAS:
 
         cd ~/MARTAS/install
         sudo bash install.martas.sh
 
+An initial question will ask for the python path. If you are using an optional environment, then please insert this path. All required packages will then be installed in this environment.
 Install monitoring and additional MARTAS applications:
 
         cd ~/MARTAS/install
