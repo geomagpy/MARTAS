@@ -5,8 +5,10 @@ and collection from many different sources.
 ####v<1.0.8>, <xxxx-xx-xx> --
 
 v1.0.8 general:
+    - improved installation instructions in README - recipies
 
 v1.0.8 additions:
+    - added library for BME280 T-humidity-pressure - I2C support for raspberry
 
 v1.0.8 fixes:
 

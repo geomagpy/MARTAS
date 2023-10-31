@@ -1289,7 +1289,7 @@ Open a terminal and clone MARTAS into your home directory:
         cd ~
         git clone https://github.com/geomagpy/MARTAS
 
-Optional: create a special python environment for all MARTAS related packages
+OPTIONAL: create a special python environment for all MARTAS related packages
 
         python3 -m menv /path/to/menv
 
