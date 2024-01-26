@@ -147,7 +147,7 @@ class MySQLProtocol(object):
                 delta = now-lt
                 if self.debug:
                     log.msg("  -> DEBUG - Sensor {}: Timediff = {} sec from now".format(sens, delta.total_seconds()))
-                if delta.total_seconds() < self.deltathreshold:
+                if delta.total_seconds() < float(self.deltathreshold):
                     senslist3.append(sens)
             except:
                 if self.debug:
