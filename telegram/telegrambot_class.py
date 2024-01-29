@@ -103,7 +103,12 @@ def GetConf(path, confdict={}):
     SUPPORTED:
        key   :    stringvalue                                 # extracted as { key: str(value) }
        key   :    intvalue                                    # extracted as { key: int(value) }
-       key   :    item1,item2,item3                           # extracted as { key: [item1,item2,item3] }
+       key   :    item1,item2,it                       'martasupdate': {'commands': ['martasupdate'],
+                                   'combination' : 'any',
+                                   'priority' : 1,
+                                   'availability': ['hidden'],
+                                   'description': 'update MARTAS'}
+em3                           # extracted as { key: [item1,item2,item3] }
        key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
        key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
     """
@@ -175,21 +180,30 @@ class telegrambot(object):
     APPLICATION
     """
 
-    def __init__(self, configsource=None, commandsource=None):
+    def __init__(self, configsource=None, commandsource=None, debug=False):
         # set some general parameters
         # read a "interpretation" dictionary from a file
         commanddict = self.set_default_commands()
         configuration = self.set_default_configuration()
+        self.debug = debug
         # Now combine defauls with constructors provided
+        if configsource:
+            if debug:
+                 print ("Reading configuration")
+            configuration = GetConf(configsource, confdict=configuration)
+        if debug:
+            print ("Configuration:")
+            print (configuration)
         # PLEASE NOTE: CONFIG should replace or extend contents of default dictionaries, not the whole dic
         self.configuration = configuration
         self.commanddict = commanddict
-        self.pymajvers = 3
-        if sys.version.startswith('2'):
-            self.pymajvers = 2
-        self.logger = logger_setup(name='telegrambot',loglevel=configuration.get('loglevel'),path=configuration.get('logging'))
-        if configuration.get('purpose') in ['martas','Martas','MARTAS']:
-            configuration = self.init_martas(configuration)
+        self.logger = self.logger_setup(name==configuration.get('logname','telegrambot'),loglevel=configuration.get('loglevel','INFO'),path=configuration.get('logging','stdout'))
+        self.inputcounter = 0
+        self.quest = False
+        self.cvals = {}
+
+        #if configuration.get('purpose') in ['martas','Martas','MARTAS']:
+        #    configuration = self.init_martas(configuration)
 
 
     def set_default_configuration():
@@ -213,6 +227,7 @@ class telegrambot(object):
         config['martaspath'] = '/home/cobs/MARTAS'
         config['allowed_users'] = ''
         config['camport'] = 'None'
+        config['logname'] = 'telegrambot'
         config['logging'] = 'stdout'
         config['loglevel'] = 'INFO'
         config['travistestrun' = False
@@ -224,23 +239,24 @@ class telegrambot(object):
             some defaults for configuration parameters
         """
         
-        commanddict = {'sensor' : {'commands': ['sensors','sensor','Sensors','Sensor'], 
+        commanddict = {'hello' :  {'commands': ['hello','Hello'],
+                                   'combination' : 'any',
+                                   'priority' : 1,
+                                   'method' : 'hello',
+                                   'availability': ['all'],
+                                   'description': 'say hello, bot'},
+                       'help'  :  {'commands': ['help','Help'],
+                                   'combination' : 'any',
+                                   'priority' : 1,
+                                   'availability': ['all'],
+                                   'description': 'print descriptions'},
+                       'sensor' : {'commands': ['sensors','sensor','Sensors','Sensor'],
                                    'combination' : 'any',
                                    'priority' : 1,
                                    'options' : {'variable':True},
                                    'availability': ['MARTAS'],
                                    'description': 'get sensors from config and check whether recent buffer data are existing\n  Command options:\n  sensors\n  sensor sensorid or sensors sensorname (provides some details on the selected sensor)'},
-                       'hello' :  {'commands': ['hello','Hello'], 
-                                   'combination' : 'any',
-                                   'priority' : 1,
-                                   'availability': ['all'],
-                                   'description': 'say hello, bot'},
-                       'help'  :  {'commands': ['help','Help'], 
-                                   'combination' : 'any',
-                                   'priority' : 1,
-                                   'availability': ['main'],
-                                   'description': 'print descriptions'},
-                       'imbot' :  {'commands': ['imbot','IMBOT'], 
+                       'imbot' :  {'commands': ['imbot','IMBOT'],
                                    'availability': ['IMBOT'],
                                    'priority' : 1,
                                    'options' : {'variable':True},
@@ -371,34 +387,25 @@ class telegrambot(object):
             reads a interpretation dictionary from file
         """
         pass
-      
 
-    def read_configuration(self, path):
-        """
-        DESCRIPTION
-            reads a configuration dictionary from file
-        """
-        # tgpar will ve stored here        
-        pass
-
-    def logger_setup(name='telegrambot',loglevel='DEBUG',path='stdout'):
+    def logger_setup(self, name='telegrambot', loglevel='DEBUG', path='stdout'):
 
         logpath = None
         try:
             level = eval("logging.{}".format(loglevel))
         except:
             level = logging.DEBUG
-            
-        if not path in ['sys.stdout','stdout']:
+
+        if not path in ['sys.stdout', 'stdout']:
             logpath = path
         # create formatter
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s',
-                              "%Y-%m-%d %H:%M:%S")
+                                      "%Y-%m-%d %H:%M:%S")
 
         logger = logging.getLogger(name)
         logger.setLevel(level)
         if logpath:
-            print ("telegrambot: Creating log file")
+            print("telegrambot: Creating log file")
             # create file handler which logs even debug messages
             fh = logging.FileHandler(logpath)
             fh.setLevel(level)
@@ -410,16 +417,15 @@ class telegrambot(object):
             logger.addHandler(fh)
             logger.addHandler(ch)
         else:
-            print ("telegrambot: logging to stdout")
+            print("telegrambot: logging to stdout")
             ch = logging.StreamHandler()
             ch.setLevel(level)
             ch.setFormatter(formatter)
             logger.addHandler(ch)
 
         return logger
-        
-        
-    def command(self,command):
+
+    def command(self, bot, command, chat_id, firstname=None):
         """
         DESCRIPTION
             send a command to the bot and return a message
@@ -427,21 +433,29 @@ class telegrambot(object):
             self.configuration
             self.interpreter
         APPLICATION
-            the main program just 
+            the main program just
         """
-        #identify command in command-dict and obtain possible options
+        # identify command in command-dict and obtain possible options
         joblist = []
+        message = ''
+        if self.debug:
+            print(self.commanddict)
         for elem in self.commanddict:
-            jobdic = commanddict.get(elem)
+            jobdic = self.commanddict.get(elem)
             jobname = elem
-            jobpriority = jobdic.get('priority',0)
-            jobcommands = jobdic.get('commands',[jobname])
-            jobcombination = jobdic.get('combination','any')
-            #  if command is found in one of the commandlists then add this job to a list 
+            jobpriority = jobdic.get('priority', 0)
+            jobcommands = jobdic.get('commands', [jobname])
+            jobcombination = jobdic.get('combination', 'any')
+            #  if command is found in one of the commandlists then add this job to a list
             if jobcombination == 'any':
-            if any([word in command for word in jobcommands]):
-                # sort according to priority
-                joblist.append([jobpriority,jobname,jobdic])
+                if any([word in command for word in jobcommands]):
+                    # sort according to priority
+                    joblist.append([jobpriority, jobname, jobdic])
+
+        if self.debug:
+            print("Found command", joblist)
+            print("Inputcounter", self.inputcounter)
+            print("quest", self.quest)
 
         # then call the appropriate method to execute the command
         if len(joblist) > 0:
@@ -450,28 +464,52 @@ class telegrambot(object):
             activejob = joblist[-1]
             activename = activejob[1]
             activedic = activejob[-1]
-            activedic['call'] = command # add this to extract options from call
-            method = getattr(self, activename)
-            message = method(activedic)
-
-            print ("Message", message)
-
-            message = {}
+            activedic['call'] = command  # add this to extract options from call
+            activedic['chat_id'] = chat_id  # add this
+            activedic['firstname'] = firstname  # add this
+            message = self.run_command(activename, activedic)
+            if self.debug:
+                print("Message", message)
             # message consists of message['text'] = [''], message['pictures'] = ['list od paths'], message['commands'] = shell script to execute etc
             if message.get('text'):
                 text = message.get('text')
-                bot.sendMessage(chat_id, text)
+                bot.sendMessage(chat_id, text, parse_mode='Markdown')
             if message.get('pictures'):
-                pass
+                piclist = message.get('pictures')
+                for pic in piclist:
+                    if os.path.isfile(pic):
+                        bot.sendPhoto(chat_id, open(pic, 'rb'))
             if message.get('commands'):
                 pass
-
+        elif command == 'dailyquestionary' or self.quest == True:
+            self.inputcounter += 1
+            self.quest = True
+            self.send_questionary(bot, chat_id, command, self.inputcounter)
+            if self.inputcounter == 7:
+                print("You are done - thanks for your inputs")
+                self.quest = False
+                self.inputcounter = 0
+        elif self.quest == True and command in ['skip', 'Skip', 'Quit', 'quit', 'exit', 'Exit']:
+            print("You don't want to continue?")
+            self.quest = False
+            self.inputcounter = 0
+        else:
+            message = "no command not found"
         # obtain the result in form of a dictionary
-        
+
         return message
 
+    def run_command(self, name, activedic):
+        message = {}
+        if name == 'hello':
+            message['text'] = "Hello {}, nice to talk to you.".format(self.configuration.get('firstname'))
+        elif name == 'help':
+            message = self.help(activedic)
+        elif name == 'statistics':
+            message = self.statistics(activedic)
+        return message
 
-    def help(self,comdic={}):
+    def help(self, comdic={}):
         """
         DESCRIPTION
             print dictionary of commands
@@ -480,13 +518,12 @@ class telegrambot(object):
         printhidden = False
         mesg = ''
 
-        options = extract_options(comdic.get('options'))
-        for opt in options:
-            pass
-        
-        if 'all' in comdic.get('availability') or self.configuration.get('purpose') in comdic.get('availability') or printall or printhidden:
-            mesg += "COMMAND: '/help'\n"
-            mesg += "{}\n\n".format(comdic.get'availability'))
+        for com in comdict:
+            cd = comdict.get(com)
+            if 'all' in cd.get('availability') or printall:
+                mesg += "COMMAND: *{}*\n".format(com)
+                mesg += "{}\n\n".format(cd.get('description'))
+                # options = self.extract_options(comdic.get('options'))
 
         message['text'] = mesg
         return message
@@ -768,6 +805,31 @@ class telegrambot(object):
         return mesg
 
 
+    def runtmate(command):
+        """
+        DESCRIPTION
+            open a ssh channel based on tmate
+        """
+        try:
+            tglogger.debug("Opening SSH access...")
+            call1 = 'cd /home/cobs' # get this path
+            call2 = 'tmate -F new-session'
+            tglogger.debug("Call2: {}".format(call))
+            tglogger.debug(" - tmate requires tmate >= 2.4 and configuratiuon for named access")
+            p = subprocess.Popen(call1, stdout=subprocess.PIPE, shell=True)
+            (output, err) = p.communicate()
+            p = subprocess.Popen(call2, stdout=subprocess.PIPE, shell=True)
+            (output, err) = p.communicate()
+            if debug:
+                print (output)
+            if vers == '3':
+                output = output.decode()
+            mesg = "{}".format(output)
+        except subprocess.CalledProcessError:
+            mesg = "martas: check_call didnt work"
+        except:
+            mesg = "martas: check_call problem"
+        return mesg
 
     def sensors():
         """
@@ -909,445 +971,114 @@ class telegrambot(object):
 
         return returndict
 
-
-# Init values:
-try:
-    opts, args = getopt.getopt(sys.argv[1:],"hc:T",["config=","Test="])
-except getopt.GetoptError:
-    print ('telegrambot.py -c <config>')
-    sys.exit(2)
-for opt, arg in opts:
-    if opt == '-h':
-        print ('usage:')
-        print ('telegrambot.py -c <config>')
-        sys.exit()
-    elif opt in ("-c", "--config"):
-        telegramcfg = arg
-    elif opt in ("-T", "--Test"):
-        travistestrun = True
-        telegramcfg = 'telegrambot.cfg'
-
-#init class
-tb = telegrambot()
-    
-tglogger = tb.logger
-    
-#    .logpath
-#    camport = tgpar.camport
-#    tmppath = tgpar.tmppath
-
-
-try:
-    proxy = ''
-    tgconf = GetConf(telegramcfg, confdict=confdict)
-    tglogger = setuplogger(name='telegrambot',loglevel=tgconf.get('loglevel'),path=tgconf.get('bot_logging').strip())
-    if travistestrun:
-        tglogger = setuplogger(name='telegrambot',loglevel='DEBUG',path='stdout')
-    tglogpath = tgconf.get('bot_logging').strip()
-    bot_id = tgconf.get('bot_id').strip()
-    purpose = tgconf.get('purpose')
-    martasconfig = tgconf.get('martasconfig').strip()
-    if martasconfig:
-        martasconfig = martasconfig.strip()
-    camport = tgconf.get('camport').strip()
-    if camport:
-        camport = camport.strip()
-    martasapp = tgconf.get('martasapp')
-    if martasapp:
-        martasapp = martasapp.strip()
-    martaspath = tgconf.get('martaspath')
-    marcosconfig = tgconf.get('marcosconfig')
-    if marcosconfig:
-        marcosconfig = marcosconfig.strip()
-    proxy = tgconf.get('proxy')
-    if proxy:
-        proxy = proxy.strip()
-    proxyport = tgconf.get('proxyport')
-
-    if proxy:
-        print (" found proxy")
-        import urllib3
-        proxy_url="http://{}:{}".format(proxy,proxyport)
-        telepot.api._pools = {'default': urllib3.ProxyManager(proxy_url=proxy_url, num_pools=3, maxsize=10, retries=False, timeout=30),}
-        telepot.api._onetime_pool_spec = (urllib3.ProxyManager, dict(proxy_url=proxy_url, num_pools=1, maxsize=1, retries=False, timeout=30))
-        print (" ... established to {}".format(proxy_url))
-
-    # Extract command lists
-    for command in stationcommands:
-        tglogger.debug("Checking for alternative commands for {}".format(command))
-        try:
-            comlst = [el for el in tgconf.get(command,[]) if not el=='']
-            if len(comlst) > 0:
-                commandlist[command].get('commands').extend(comlst)
-        except:
-            pass
-    if not camport=='None':
-        stationcommands['cam'] = 'get a picture from the selected webcam\n  Command options:\n  camport (like 0,1)\n  will be extended to /dev/video[0,1]'
-    tmppath = tgconf.get('tmppath').strip()
-    tgpar.camport = camport
-    tgpar.tmppath = tmppath
-    tgpar.tglogpath = tglogpath
-    tgpar.martasapp = martasapp
-    if purpose:
-        tgpar.purpose = purpose
-    allusers = tgconf.get('allowed_users')
-    if isinstance(allusers, list):
-        allowed_users =  [str(el) for el in allusers]
-    else:
-        allowed_users =  [str(tgconf.get('allowed_users'))]
-    tglogger.debug('Successfully obtained parameters from telegrambot.cfg')
-except:
-    print ("error while reading config file or writing to log file - check content and spaces")
-
+class hconf(object):
+    bot = None
+    lwb = None
+    chat_id = None
+    debug = False
 
 
 def handle(msg):
+    lwbot = hconf.lwb
+    bot = hconf.bot
+    debug = hconf.debug
     content_type, chat_type, chat_id = telepot.glance(msg)
-    tglogger.info("Bot -> ContentType: {}; ChatType: {}".format(content_type, chat_type))
+    hconf.chat_id = chat_id
+    allowed_users = lwbot.configuration.get('allowed_users')
+    if not isinstance(allowed_users,list):
+        allowed_users = [allowed_users]
+    if debug:
+        print ("allowed users:", allowed_users)
+    if lwbot.logger:
+        lwbot.logger.info("Bot -> ContentType: {}; ChatType: {}".format(content_type, chat_type))
     firstname = msg['from']['first_name']
     userid = msg['from']['id']
-
     chat_id = msg['chat']['id']
     command = msg['text'].replace('/','')
-
+    lwbot.configuration['firstname'] = firstname
 
     if not str(chat_id) in allowed_users:
         bot.sendMessage(chat_id, "My mother told me not to speak to strangers, sorry...")
-        tglogger.warning('--------------------- Unauthorized access -------------------------')
-        tglogger.warning('!!! unauthorized access from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname)) 
-        tglogger.warning('-------------------------------------------------------------------')
+        rep = '--------------------- Unauthorized access -------------------------\n!!! unauthorized access from ChatID {} (User: {}) !!!\n-------------------------------------------------------------------'.format(chat_id,firstname)
+        if lwbot.logger:
+            lwbot.logger.info(rep)
+        if debug:
+            print (rep)
     else:
         if content_type == 'text':
-            tglogger.info('Received command "{}" from ChatID {} (User: {})'.format(command,chat_id,firstname))
+            rep = 'Received command "{}" from ChatID {} (User: {})'.format(command,chat_id,firstname)
+            if lwbot.logger:
+                lwbot.logger.info(rep)
+            if debug: - requires the correct user i.e. martas update user debian
+                print (rep)
+            message = lwbot.command(bot, command, chat_id)
+            print (message)
+            #tg.send_message(message)
 
-            message = tg.command(command)
-            tg.send_message(message)
 
-    """
-            if command.find('help') > -1:
-               # -----------------------
-               # HELP
-               # -----------------------
-               hidden = False
-               if command.replace('help','').find('hidden') > -1:
-                   hidden = True
-               bot.sendMessage(chat_id, help(hidden=hidden))
-            elif any([word in command for word in commandlist['badwords'].get('commands')]):
-               # -----------------------
-               # JUST FOR FUN
-               # -----------------------
-               text = "Don't be rude.\nI am just a stupid program, not even an AI\n"
-               bot.sendMessage(chat_id, text)
-            elif any([word in command for word in commandlist['getlog'].get('commands')]):
-               #command.find('getlog') > -1 or command.find('print log') > -1 or command.find('send log') > -1 or command.find('get log') > -1 or command.find('print the log') > -1 or command.find('get the log') > -1:
-               # -----------------------
-               # OBTAINNING LOGS
-               # -----------------------
-               cmd = command.replace('getlog','').replace('print log','').replace('send log','').replace('get log','')
-               try:
-                   N = int(re.search(r'\d+', cmd).group())
-                   cmd = cmd.replace(str(N),'')
-               except:
-                   N = 10
-               if not N:
-                   N = 10
-               cmd = cmd.strip()
-               syslogfiles = ['syslog', 'dmesg', 'messages', 'faillog']
-               martaslog = os.path.dirname(tgpar.logpath)
-               martaslogfiles = glob.glob(os.path.join(martaslog,'*.log'))
-               martaslogfiles = [os.path.basename(ma) for ma in martaslogfiles]
-               if len(cmd) > 3: # at least three characters remaining
-                   tmpname = cmd
-                   for logfile in syslogfiles:
-                       if cmd.find(logfile) > -1:
-                          tmppath = os.path.join('/var/log', logfile)
-                   for logfile in martaslogfiles:
-                       if cmd.find(logfile) > -1:
-                          tmppath = os.path.join(martaslog, logfile)
-                   if cmd.find('telegrambot') > -1:
-                       tmppath = tgpar.tglogpath
-                   elif cmd.find('martas') > -1:
-                       tmppath = tgpar.logpath
-                   elif cmd.find('marcos') > -1:
-                       tmppath = tgpar.marcoslogpath
-                   if os.path.isfile(tmppath):
-                       logpath = tmppath
-               if os.path.isfile(logpath):
-                   tglogger.debug("Checking logfile {}".format(logpath))
-                   mesg = tail(logpath,n=N)
-               else:
-                   mesg = "getlog:\nlogfile not existing"
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['status'].get('commands')]):
-               # -----------------------
-               # Status messages on memory and disk space
-               # -----------------------
-               mesg = getspace()
-               bot.sendMessage(chat_id, mesg)
-               mesg = jobprocess(typ=tgpar.purpose)
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['system'].get('commands')]):
-               # -----------------------
-               # System information, software versions and martas marcos jobs
-               # -----------------------
-               mesg = system()
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['hello'].get('commands')]):
-               # -----------------------
-               # Welcome statement
-               # -----------------------
-               mesg = "Hello {}, nice to talk to you.".format(firstname)
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['cam'].get('commands')]):
-               # -----------------------
-               # Get cam picture
-               # -----------------------
-               #cmd = command
-               #for word in camcommandlist:
-               #    cmd = cmd.replace(word,'')
-               #camport = int(re.search(r'\d+', command).group())
-               usedcamport = getcam(command)
-               if usedcamport == 'None':
-                   mesg = "No camport  (fswebcam properly installed?)"
-                   bot.sendMessage(chat_id, mesg)
-               else:
-                   try:
-                       tglogger.debug("Creating image...")
-                       tglogger.debug("Selected cam port: {} and temporary path {}".format(usedcamport,tmppath))
-                       subprocess.call(["/usr/bin/fswebcam", "-d", usedcamport, os.path.join(tmppath,'webimage.jpg')])
-                       tglogger.debug("Subprocess for image creation finished")
-                       bot.sendPhoto(chat_id, open(os.path.join(tmppath,'webimage.jpg'),'rb'))
-                   except:
-                       mesg = "Cam image not available (fswebcam properly installed?)"
-                       bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['figure1'].get('commands')]):
-               # -----------------------
-               # Send a figure
-               # -----------------------
-               bot.sendPhoto(chat_id, open(tgconf.get('fig1'),'rb'))
-            elif any([word in command for word in commandlist['figure2'].get('commands')]):
-               # -----------------------
-               # Send a figure
-               # -----------------------
-               bot.sendPhoto(chat_id, open(tgconf.get('fig2'),'rb'))
-            elif any([word in command for word in commandlist['imbot'].get('commands')]):
-               # -----------------------
-               # Send MARTAS process command
-               # -----------------------
-               bot.sendMessage(chat_id, "Sending result request to IMBOT...")
-               cmd = command.replace('martas','').replace('MARTAS','')
-               cmd = cmd.strip()
-               yearl = re.findall(r'\d+', cmd)
-               if len(yearl) > 0:
-                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis{a}.json -l /srv/DataCheck/IMBOT/{a}/level".format(a=yearl[-1])
-               else:
-                   command = "/usr/bin/python3 /home/pi/Software/IMBOT/imbot/quickreport.py -m /srv/DataCheck/analysis2020.json -l /srv/DataCheck/IMBOT/2020/level"
-               #subprocess.call([command])
-               os.system(command)
-            elif any([word in command for word in commandlist['martas'].get('commands')]):
-               # -----------------------
-               # Send MARTAS process command
-               # -----------------------
-               bot.sendMessage(chat_id, "Sending acquisition process command...")
-               cmd = command.replace('martas','').replace('MARTAS','')
-               cmd = cmd.strip()
-               if cmd.find('update') > -1:
-                   bot.sendMessage(chat_id, "Updating MARTAS ...")
-                   rest = cmd.replace('update','').strip().split()
-                   user = "cobs"
-                   if 'user' in rest:
-                       idx = rest.index('user')
-                       if len(rest) > idx:
-                           user = rest[idx+1]
-                   elif len(rest) == 1:
-                       user = rest[0]
-                   #print ("Updating for user {}".format(user))
-                   mesg = martasupdate(user=user)
-               else:
-                   commds = ['status', 'restart', 'stop', 'start']
-                   for comm in commds:
-                       if cmd.find(comm) > -1:
-                           rest = cmd.replace(comm,'').strip()
-                           job = "martas"
-                           if len(rest) > 2:
-                               job = rest
-                           mesg = martas(job=job,command=comm)
-                           break
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['marcos'].get('commands')]):
-               # -----------------------
-               # Send MARCOS process command
-               # -----------------------
-               bot.sendMessage(chat_id, "Sending collector process command...")
-               cmd = command.replace('marcos','').replace('MARCOS','')
-               cmd = cmd.strip()
-               commds = ['status', 'restart', 'stop', 'start']
-               for comm in commds:
-                   if cmd.find(comm) > -1:
-                       print ("Found", comm)
-                       rest = cmd.replace(comm,'').strip().split()
-                       broker = ""
-                       if len(rest) == 1:
-                           broker = rest[0]
-                       mesg = marcos(broker=broker,command=comm)
-                       break
-               bot.sendMessage(chat_id, mesg)
-            elif command =='reboot':
-               # -----------------------
-               # Send REBOOT command
-               # -----------------------
-               bot.sendMessage(chat_id, "Rebooting ...")
-               mesg = reboot()
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['plot'].get('commands')]):
-               # -----------------------
-               # Plot data, either recent or from a specific time interval
-               # -----------------------
-               cmd = command
-               for word in commandlist['plot'].get('commands'):
-                   cmd = cmd.replace(word,'')
-               sensoridlist = _identifySensor(cmd)
-               if len(sensoridlist) > 1:
-                   print ("Too many sensors selected - using only {}".format(sensoridlist[0]))
-               elif len(sensoridlist) == 0:
-                   bot.sendMessage(chat_id, "You need to specify a sensorid - check 'sensors' to get IDs")
-               else:
-                   sensorid = sensoridlist[0]
-                   cmd = cmd.replace(sensorid,'')
-                   # Getting time interval
-                   cmd = cmd.split()
-                   l = len(cmd)
-
-                   # default start and endtime
-                   endtime = datetime.utcnow()
-                   starttime = datetime.utcnow()-timedelta(days=1)
-                   datelist = []
-                   if len(cmd) >=1:
-                       for el in cmd:
-                           newdate = _identifyDates(el)
-                           if newdate:
-                               datelist.append(newdate)
-                       if len(datelist) > 0:
-                           starttime = min(datelist)
-                       if len(datelist) > 1:
-                           endtime = max(datelist)
-
-                   suc = tgplot(sensorid,starttime,endtime)
-                   if suc:
-                       bot.sendPhoto(chat_id, open(os.path.join(tmppath,'tmp.png'),'rb'))
-                   else:
-                       mesg = "Plot could not be created" # tgplot
-                       bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['sensor'].get('commands')]):
-               # -----------------------
-               # Obtain sensor information and broadcast it
-               # -----------------------
-               tcmd = command
-               for word in commandlist['sensor'].get('commands'):
-                   tcmd = tcmd.replace(word,'')
-               #tcmd = command.replace('sensors','').replace('sensor','').replace('Sensors','')
-               cmd = tcmd.split()
-               if len(cmd) > 0:
-                   # check whether a sensor of the sensorlist is contained in the remaining text
-                   mesg = ''
-                   sensordict = {}
-                   for se in sensorlist:
-                       se1 = se.get('sensorid').replace('$','').replace('?','').replace('!','')
-                       se2 = se.get('name')
-                       sensordict[se1] = se2
-                   for el in cmd:
-                       if el in sensordict:
-                           tglogger.debug("Returning Sensor statistics for {}".format(el))
-                           mesg += sensorstats(el)
-                       sensorval = list(set([sensordict[ele] for ele in sensordict]))
-                       if el in sensorval:
-                           # get all ids for this name
-                           for ele in sensordict:
-                               if sensordict[ele] == el:
-                                   tglogger.debug("Returning Sensor statistics for {}".format(ele))
-                                   mesg += sensorstats(ele)
-                   if mesg == '':
-                       mesg = sensors()
-               else:
-                   mesg = sensors()
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['switch'].get('commands')]):
-               # -----------------------
-               # Send switch command for mircocontroller
-               # -----------------------
-               tglogger.info("Switching command received")
-               cmd = None
-               #if command.find('state') > -1 or command.find('State') > -1:
-               #    cmd = 'swD'
-               switchcommandoptions = commandlist['switch'].get('options')
-               for opt in switchcommandoptions:
-                   commlist = switchcommandoptions.get(opt)
-                   #print ("Test", opt, commlist)
-                   if any([command.find(word) > -1 for word in commlist]):
-                       #print ("Found ", opt)
-                       cmd = opt
-                       break
-               if not cmd:
-                   cmd = 'swD'
-               tglogger.info(" command extracted: {}".format(cmd))
-               mesg = switch(cmd)
-               bot.sendMessage(chat_id, mesg)
-            elif any([word in command for word in commandlist['getdata'].get('commands')]):
-               # -----------------------
-               # Get data, either recent or from a specific time
-               # -----------------------
-               def CreateSensorMsg(valdict):
-                   mesg = ''
-                   for sensor in valdict:
-                       mesg += "Sensor: {}\n".format(sensor)
-                       contentdict = valdict.get(sensor)
-                       keys = contentdict.get('keys')
-                       for key in keys:
-                           keydict = contentdict.get(key)
-                           mesg += "  {}: {} {} (key: {})\n".format(keydict.get('element'),keydict.get('value'),keydict.get('unit',''),key)
-                           mesg += "  at {}\n".format(contentdict.get('starttime').strftime("%Y-%m-%d %H:%M:%S") )
-                   return mesg
-
-               tglogger.info("Got a data request")
-               cmd = command.replace('data','').replace('get','')
-               cmdsplit = cmd.split()
-               mesg = "Data:\n-----------\n"
-               if len(cmdsplit) > 0:
-                   sensoridlist = _identifySensor(cmd)
-                   #tglogger.info("  found sensors: {}".format(sensoridlist))
-                   for sensorid in sensoridlist:
-                       cmd = cmd.replace(sensorid,'')
-                   starttime = _identifyDates(cmd) # dates is a list
-                   for sensorid in sensoridlist:
-                       valdict = getdata(sensorid=sensorid,starttime=starttime)
-                       #tglogger.info("  got values ...")
-                       #if debug:
-                       #    print ("VALDICT", valdict)
-                       mesg += CreateSensorMsg(valdict)
-               else:
-                   valdict = getdata()
-                   mesg += CreateSensorMsg(valdict)
-               bot.sendMessage(chat_id, mesg)
-    """
-
-if travistestrun:
-    print ("Test run successfully finished - existing")
-    sys.exit(0)
-
-if vers=='2':
-    bot = telepot.Bot(str(bot_id))
-else:
-    bot = telepot.Bot(bot_id)
-MessageLoop(bot, handle).run_as_thread()
-tglogger.info('Listening ...')
-
-# Keep the program running.
-while 1:
+def main(argv):
+    conf = ''
+    debug=False
     try:
-        time.sleep(10)
-    except KeyboardInterrupt:
-        tglogger.info('\n Program interrupted')
-        exit()
-    except:
-        tglogger.error('Other error or exception occured!')
+        opts, args = getopt.getopt(argv,"hc:D",["config=","debug=",])
+    except getopt.GetoptError:
+        print ('telegrambot.py -c <config>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print ('-------------------------------------')
+            print ('Description:')
+            print ('-------------------------------------')
+            print ('Usage:')
+            print ('telegrambot.py -c <config>')
+            print ('-------------------------------------')
+            print ('Options:')
+            print ('-c (required) : provide a path to a configuartion file')
+            print ('-------------------------------------')
+            print ('Example:')
+            sys.exit()
+        elif opt in ("-c", "--config"):
+            conf = os.path.abspath(arg)
+        elif opt in ("-D", "--debug"):
+            debug = True
+
+    # get configuration data
+    lwbot = tbot(configsource=conf, debug=debug)
+    hconf.lwb = lwbot
+    hconf.debug = debug
+    bot = telepot.Bot(lwbot.configuration.get('bot_id'))
+    au = lwbot.configuration.get('allowed_users')
+    # Get chat id from users configuration file
+    if isinstance(au, list):
+        chat_id = au[0]
+    else:
+        chat_id = au
+    hconf.bot = bot
+    MessageLoop(bot, handle).run_as_thread()
+    lwbot.logger.info('Listening ...')
+
+    # Keep the program running.
+    while 1:
+        try:
+            time.sleep(5)
+            t = datetime.now()
+            wd = t.weekday()
+            h = t.hour
+            m = t.minute
+            s = t.second
+            if h == 7 and m == 30 and s >= 2 and s < 7:
+                lwbot.command(bot,'dailyquestionary',chat_id)
+            if h == 20 and m == 0 and s >= 2 and s < 7:
+                ad = int(self.configuration.get('weightday',2))
+                if ad == wd:
+                    lwbot.command(bot,'summary',chat_id)
+        except KeyboardInterrupt:
+            lwbot.logger.info('\n Program interrupted')
+            exit()
+        except:
+            lwbot.logger.error('Other error or exception occured!')
+            sys.exit()
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
 

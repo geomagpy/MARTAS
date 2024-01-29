@@ -17,6 +17,9 @@ pip install platform  # system definitions
 Optional linux packages
 sudo apt-get install fswebcam   # getting cam pictures
 
+Optional for remote ssh link opening:
+install tmate version >= 2.4
+
 TODO:
 
 PROXY: add proxy in configuration file - currently it is hardcoded
@@ -235,6 +238,7 @@ stationcommands = {'getlog':'obtain last n lines of a log file\n  Command option
                    'martas restart-stop-start':'e.g. restart MARTAS process',
                    'marcos restart-stop-start':'e.g. restart MARCOS process',
                    'martasupdate':'update to most recent MARTAS version - requires the correct user i.e. martas update user debian',
+                   'aperta':'open a ssh channel based on tmate',
                    'status':'get information on disk space, memory, and martas-marcos processes',
                    'hello':'say hello, bot',
                    'getdata':'get sensor data\n Command options:\n  use datetime and sensorid\n  e.g. get data from 2020-11-22 11:22 of LEMI025_22_0003',
