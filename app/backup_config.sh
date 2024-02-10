@@ -100,7 +100,8 @@ mkdir -p $BACKUPS
 # J) other configurations
 {
   find /etc/ -type f -name "ntp.conf" -exec cp '{}' $TMPFOLDER/ntp.conf \;
-  #find /etc/ -type f -name "ntp.conf" -exec cp '{}' $TMPFOLDER/ntp.conf \;
+  find /etc/ -type f -name "fstab" -exec cp '{}' $TMPFOLDER/fstab \;
+  find /etc/ -type f -name "hosts" -exec cp '{}' $TMPFOLDER/hosts \;
   #cp -r webdirectory $TMPFOLDER
 } || {
   echo "Could not find configuration files"
