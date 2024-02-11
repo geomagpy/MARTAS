@@ -261,7 +261,7 @@ commandlist = {}
 commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'}
 commandlist['hello'] = {'commands': ['hello','Hello'], 'combination' : 'any'}
 commandlist['imbot'] = {'commands': ['imbot','IMBOT'], 'combination' : 'any'}
-
+commandlist['aperta'] = {'commands': ['aperta','Aperta','Sesam öffne dich'], 'combination' : 'any'}
 commandlist['system'] = {'commands': ['System','system'], 'combination' : 'any'}
 commandlist['martas'] = {'commands': ['Martas','martas','MARTAS'], 'combination' : 'any'}
 commandlist['marcos'] = {'commands': ['Marcos','marcos','MARCOS'], 'combination' : 'any'}
@@ -591,6 +591,33 @@ def getspace():
     except:
         pass
 
+    return mesg
+
+def open_secret_door(duration=3600, debug=False):
+    """
+    DESCRIPTION
+       Open a tmate access for a specific time
+       This method is solely to be activated on remote sensor stations in mobile networks.
+    REQUIREMENTS
+       tmate installation
+       tmate api key and a named session (https://tmate.io/#api_key)
+       and tmate.conf preconfigured on the remote machine
+    """
+    #1. step check whether tmate is running and stop this process
+    #2. Run tmate accecc - do not broadcast login (pwd needs to be known by user)
+    #3. (optional) start a scheduler to kill tmate process after duration
+    mesg = "Opening secret entrance door....\n"
+    try:
+        tmatelocaluser = 'debian'
+        proc1 = subprocess.Popen(['su', tmatelocaluser], stdout=subprocess.PIPE)
+        lines = proc1.stdout.readlines()
+        proc2 = subprocess.Popen(['tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
+        lines += proc2.stdout.readlines()
+        mesg += "success - door open for {} seconds\n".format(duration)
+        if debug:
+            print (lines)
+    except:
+        mesg += "failed\n"
     return mesg
 
 def jobprocess(typ='MARTAS'):
