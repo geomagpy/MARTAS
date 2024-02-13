@@ -606,6 +606,7 @@ def open_secret_door(duration=3600, debug=False):
     #0. check if psutil and tmate are existing. If not return fail
     try:
         import psutil
+        import signal
         if os.path.isfile("/usr/local/bin/tmate"):
             pass
         else:
@@ -619,7 +620,7 @@ def open_secret_door(duration=3600, debug=False):
         # Iterate over the all the running process
         for proc in psutil.process_iter():
             try:
-                if proc.name() == name and proc.status() == psutil.STATUS_RUNNING:
+                if proc.name() == name:
                     pid = proc.pid
                 procs.append(pid)
             except:
@@ -645,11 +646,8 @@ def open_secret_door(duration=3600, debug=False):
     mesg = "Opening secret entrance door....\n"
     try:
         tmatelocaluser = 'debian'
-        proc1 = subprocess.Popen(['su', tmatelocaluser], stdout=subprocess.PIPE)
-        proc2 = subprocess.Popen(['tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
+        proc2 = subprocess.Popen(['sudo', '-u', tmatelocaluser, 'tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
         mesg += "success - door open for {} seconds\n".format(duration)
-        if debug:
-            print (lines)
     except:
         mesg += "failed\n"
 
@@ -1182,7 +1180,7 @@ def handle(msg):
                mesg = upload()
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['aperta'].get('commands')]):
-               mesg = open_secret_door(duration=3600, debug=False)
+               mesg = open_secret_door(duration=3600, debug=True)
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['getip'].get('commands')]):
                # -----------------------
