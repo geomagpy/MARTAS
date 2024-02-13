@@ -603,21 +603,59 @@ def open_secret_door(duration=3600, debug=False):
        tmate api key and a named session (https://tmate.io/#api_key)
        and tmate.conf preconfigured on the remote machine
     """
+    #0. check if psutil and tmate are existing. If not return fail
+    try:
+        import psutil
+        if os.path.isfile("/usr/local/bin/tmate"):
+            pass
+        else:
+            return ("check requirements")
+    except:
+        return ("check requirements")
+
     #1. step check whether tmate is running and stop this process
+    def _find_process(name):
+        procs = list()
+        # Iterate over the all the running process
+        for proc in psutil.process_iter():
+            try:
+                if proc.name() == name and proc.status() == psutil.STATUS_RUNNING:
+                    pid = proc.pid
+                procs.append(pid)
+            except:
+                pass
+        return procs
+
+    def _kill_processes(pids, debug=False):
+        for pid in pids:
+            os.kill(pid, signal.SIGTERM)  # or signal.SIGKILL
+            if debug:
+                print('killed process with pid: {}'.format(pid))
+
+    try:
+        if debug:
+            print ("Killing existing tmate processes")
+        processes = _find_process("tmate")
+        _kill_processes(processes, debug=debug)
+        if debug:
+            print ("... done")
+    except:
+        pass
     #2. Run tmate accecc - do not broadcast login (pwd needs to be known by user)
-    #3. (optional) start a scheduler to kill tmate process after duration
     mesg = "Opening secret entrance door....\n"
     try:
         tmatelocaluser = 'debian'
         proc1 = subprocess.Popen(['su', tmatelocaluser], stdout=subprocess.PIPE)
-        lines = proc1.stdout.readlines()
         proc2 = subprocess.Popen(['tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
-        lines += proc2.stdout.readlines()
         mesg += "success - door open for {} seconds\n".format(duration)
         if debug:
             print (lines)
     except:
         mesg += "failed\n"
+
+    #3. (optional) start a scheduler to kill tmate process after duration
+
+
     return mesg
 
 def jobprocess(typ='MARTAS'):
@@ -1142,6 +1180,9 @@ def handle(msg):
                bot.sendMessage(chat_id, "Obtained an upload data request ...")
                cmd = command.split(" ")
                mesg = upload()
+               bot.sendMessage(chat_id, mesg)
+            elif any([word in command for word in commandlist['aperta'].get('commands')]):
+               mesg = open_secret_door(duration=3600, debug=False)
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['getip'].get('commands')]):
                # -----------------------
