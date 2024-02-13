@@ -647,7 +647,7 @@ def open_secret_door(duration=3600, debug=False):
     try:
         tmatelocaluser = 'debian'
         proc2 = subprocess.Popen(['sudo', '-u', tmatelocaluser, 'tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
-        mesg += "success - door open for {} seconds\n".format(duration)
+        mesg += "success - door open for one session\n".format(duration)
     except:
         mesg += "failed\n"
 
@@ -1180,7 +1180,7 @@ def handle(msg):
                mesg = upload()
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['aperta'].get('commands')]):
-               mesg = open_secret_door(duration=3600, debug=True)
+               mesg = open_secret_door(duration=3600, debug=False)
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['getip'].get('commands')]):
                # -----------------------
