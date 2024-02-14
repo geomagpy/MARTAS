@@ -371,7 +371,7 @@ try:
     tgpar.uploadconfig = tgconf.get('uploadconfig',"").strip()
     tgpar.uploadmemory = tgconf.get('uploadmemory',"").strip()
     tgpar.camoptions = tgconf.get('camoptions',"").strip()
-    print ("3")
+    tgpar.tmatelocaluser = tgconf.get('tmatelocaluser',"").strip()
     if purpose:
         tgpar.purpose = purpose
     allusers = tgconf.get('allowed_users')
@@ -593,7 +593,7 @@ def getspace():
 
     return mesg
 
-def open_secret_door(duration=3600, debug=False):
+def open_secret_door(user='debian',duration=3600, debug=False):
     """
     DESCRIPTION
        Open a tmate access for a specific time
@@ -645,14 +645,12 @@ def open_secret_door(duration=3600, debug=False):
     #2. Run tmate accecc - do not broadcast login (pwd needs to be known by user)
     mesg = "Opening secret entrance door....\n"
     try:
-        tmatelocaluser = 'debian'
-        proc2 = subprocess.Popen(['sudo', '-u', tmatelocaluser, 'tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
+        proc2 = subprocess.Popen(['sudo', '-u', user, 'tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
         mesg += "success - door open for one session\n".format(duration)
     except:
         mesg += "failed\n"
 
     #3. (optional) start a scheduler to kill tmate process after duration
-
 
     return mesg
 
@@ -1180,7 +1178,7 @@ def handle(msg):
                mesg = upload()
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['aperta'].get('commands')]):
-               mesg = open_secret_door(duration=3600, debug=False)
+               mesg = open_secret_door(user=tgpar.tmatelocaluser, duration=3600, debug=False)
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['getip'].get('commands')]):
                # -----------------------
