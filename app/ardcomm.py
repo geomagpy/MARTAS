@@ -103,7 +103,7 @@ def main(argv):
             print ('-h                             help')
             print ('-c                             command to send:')
             print ('                               Status          : return the current switch status')
-            print ('                               P:switch:pin  : e.g. ACMpin:0:4 = switch off pin 4')
+            print ('                               P:switch:pin  : e.g. swP:0:4 = switch off pin 4')
             print ('-p                             set port - default is /dev/ttyACM0')
             print ('-b                             baudrate - default is 9600')
             print ('-a                             parity - default is "N"')
@@ -115,7 +115,7 @@ def main(argv):
             print ('------------------------------------------------------')
             print ('Examples:')
             print ('1. Switch on pin 4')
-            print ('   python ardcomm.py -c "AMCpin:1:4')
+            print ('   python ardcomm.py -c "swP:1:4')
             sys.exit()
         elif opt in ("-c", "--command"):
             command = arg
