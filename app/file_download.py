@@ -231,7 +231,7 @@ def GetBool(string):
         return False
 
 
-def walk_dir(directory_path, filename, date, dateformat):
+def walk_dir(directory_path, filename, date, dateformat, debug=False):
     """
     Method to extract filename with wildcards or date patterns by walking through a local directory structure
     """
@@ -243,7 +243,8 @@ def walk_dir(directory_path, filename, date, dateformat):
         filepat = filename
     else:
         filepat = filename % date
-    #print ("Checking directory {} for files with {}".format(directory_path, filepat))
+    if debug:
+        print ("Checking directory {} for files with {}".format(directory_path, filepat))
     for root, _, filenames in os.walk(directory_path):
         for filename in filenames:
             if fnmatch.fnmatch(filename, filepat):
@@ -640,7 +641,7 @@ def CreateTransferList(config={},datelist=[],debug=False):
             print (" Local directory access ") 
         ### Search local directory - Working
         for date in datelist:
-            path = walk_dir(source, filename, date, dateformat)
+            path = walk_dir(source, filename, date, dateformat,debug=debug)
             if len(path) > 0:
                 filelist.extend(path)
     elif protocol == 'html':
@@ -681,6 +682,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
     protocol = config.get('protocol')
     source = config.get('source')
     destination = config.get('destination')
+    usedatedir = config.get('datedirectory','')
     deleteremote = config.get('deleteremote',False)
     user = config.get('rmuser')
     password = config.get('rmpassword')
@@ -693,7 +695,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
     #filename = config.get('filenamestructure')
     #dateformat = config.get('dateformat')
 
-    def createdestinationpath(localpath,stationid,sensorid, forcelocal=False):
+    def createdestinationpath(localpath,stationid,sensorid, datedir='', forcelocal=False):
             subdir = 'raw'
             if not stationid and not sensorid or forcelocal:
                 destpath = os.path.join(localpath)
@@ -703,6 +705,8 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                 destpath = os.path.join(localpath,stationid.upper())
             else:
                 destpath = os.path.join(localpath,stationid.upper(),sensorid,'raw')
+            if not datedir == '':
+                destpath = os.path.join(destpath,datedir)
             return destpath
 
 
@@ -731,6 +735,17 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
         for f in filelist:
             if debug:
                 print ("   Accessing file {}".format(f))
+            if usedatedir:
+                datedir = ''
+                # get year from filename or ctime/mtime
+                tcheck = datetime.fromtimestamp(os.path.getmtime(f))
+                fyear = tcheck.year
+                fmonth = tcheck.month
+                if usedatedir == 'year':
+                    # get year from filename or ctime/mtime
+                    datedir = fyear
+                elif usedatedir == 'month':
+                    datedir = '{}/{:02d}'.format(fyear.fmonth)
             path = os.path.normpath(f)
             li = path.split(os.sep)
             if not sensorid and not protocol in ['ftp','FTP']:
@@ -744,7 +759,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                 sensid = sensorid
 
             
-            destpath = createdestinationpath(destination,stationid,sensid,forcelocal=forcelocal)
+            destpath = createdestinationpath(destination,stationid,sensid,datedir='',forcelocal=forcelocal)
 
             destname = os.path.join(destpath,li[-1])
 
