@@ -163,6 +163,9 @@ walksubdirs     :      False
 # two subdirectories will be created if not existing - based on stationID and sensorID
 # e.g. WIC/LEMI025_22_0003
 rawpath            :      /srv/archive
+# setting datedirectory will lead to date related subdirectories within raw data folder
+# supported are "year" i.e. /raw/2024/* or "month" i.e. /raw/2024/03/*
+#datedirectory      :      month
 
 # If forcedirectory, then rawpath is used for saving data
 forcedirectory     :      False
@@ -706,7 +709,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             else:
                 destpath = os.path.join(localpath,stationid.upper(),sensorid,'raw')
             if not datedir == '':
-                destpath = os.path.join(destpath,datedir)
+                destpath = os.path.join(destpath,str(datedir))
             return destpath
 
 
@@ -717,7 +720,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
 
     if debug:
         print ("   Please Note: files will be copied to local filesystem even when debug is selected")
-  
+
     localpathlist = []
 
     if not protocol == '' or (protocol == '' and not destination == tempfile.gettempdir()):
@@ -745,7 +748,9 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                     # get year from filename or ctime/mtime
                     datedir = fyear
                 elif usedatedir == 'month':
-                    datedir = '{}/{:02d}'.format(fyear.fmonth)
+                    datedir = '{}/{:02d}'.format(fyear,fmonth)
+            if debug:
+                print ("date related subdirectory:", datedir)
             path = os.path.normpath(f)
             li = path.split(os.sep)
             if not sensorid and not protocol in ['ftp','FTP']:
@@ -758,8 +763,9 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             else:
                 sensid = sensorid
 
-            
             destpath = createdestinationpath(destination,stationid,sensid,datedir=datedir,forcelocal=forcelocal)
+            if debug:
+                print ("Destinationpath:", destpath)
 
             destname = os.path.join(destpath,li[-1])
 
