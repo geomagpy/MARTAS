@@ -759,7 +759,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                 sensid = sensorid
 
             
-            destpath = createdestinationpath(destination,stationid,sensid,datedir='',forcelocal=forcelocal)
+            destpath = createdestinationpath(destination,stationid,sensid,datedir=datedir,forcelocal=forcelocal)
 
             destname = os.path.join(destpath,li[-1])
 
