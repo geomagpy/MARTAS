@@ -736,10 +736,10 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             ftp.cwd(source)
 
         for f in filelist:
+            datedir = ''
             if debug:
                 print ("   Accessing file {}".format(f))
-            if usedatedir:
-                datedir = ''
+            if usedatedir in ['year','month']:
                 # get year from filename or ctime/mtime
                 tcheck = datetime.fromtimestamp(os.path.getmtime(f))
                 fyear = tcheck.year
@@ -749,8 +749,8 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                     datedir = fyear
                 elif usedatedir == 'month':
                     datedir = '{}/{:02d}'.format(fyear,fmonth)
-            if debug:
-                print ("date related subdirectory:", datedir)
+                if debug:
+                    print ("date related subdirectory:", datedir)
             path = os.path.normpath(f)
             li = path.split(os.sep)
             if not sensorid and not protocol in ['ftp','FTP']:
