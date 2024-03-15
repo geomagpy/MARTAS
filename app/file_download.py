@@ -17,6 +17,7 @@ import zipfile
 import tempfile
 from dateutil import parser
 from shutil import copyfile
+import filecmp
 import subprocess
 import socket
 
@@ -794,7 +795,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             elif protocol in ['html','HTML']:
                 pass
             elif protocol in ['']:
-                if not os.path.exists(destname):
+                if not os.path.exists(destname) or not filecmp.cmp(f, destname):
                     copyfile(f, destname)
                     if deleteremote in [True,'True']:
                         os.remove(f)
