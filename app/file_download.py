@@ -17,6 +17,7 @@ import zipfile
 import tempfile
 from dateutil import parser
 from shutil import copyfile
+import filecmp
 import subprocess
 import socket
 
@@ -163,6 +164,9 @@ walksubdirs     :      False
 # two subdirectories will be created if not existing - based on stationID and sensorID
 # e.g. WIC/LEMI025_22_0003
 rawpath            :      /srv/archive
+# setting datedirectory will lead to date related subdirectories within raw data folder
+# supported are "year" i.e. /raw/2024/* or "month" i.e. /raw/2024/03/*
+#datedirectory      :      month
 
 # If forcedirectory, then rawpath is used for saving data
 forcedirectory     :      False
@@ -231,7 +235,7 @@ def GetBool(string):
         return False
 
 
-def walk_dir(directory_path, filename, date, dateformat):
+def walk_dir(directory_path, filename, date, dateformat, debug=False):
     """
     Method to extract filename with wildcards or date patterns by walking through a local directory structure
     """
@@ -243,7 +247,8 @@ def walk_dir(directory_path, filename, date, dateformat):
         filepat = filename
     else:
         filepat = filename % date
-    #print ("Checking directory {} for files with {}".format(directory_path, filepat))
+    if debug:
+        print ("Checking directory {} for files with {}".format(directory_path, filepat))
     for root, _, filenames in os.walk(directory_path):
         for filename in filenames:
             if fnmatch.fnmatch(filename, filepat):
@@ -640,7 +645,7 @@ def CreateTransferList(config={},datelist=[],debug=False):
             print (" Local directory access ") 
         ### Search local directory - Working
         for date in datelist:
-            path = walk_dir(source, filename, date, dateformat)
+            path = walk_dir(source, filename, date, dateformat,debug=debug)
             if len(path) > 0:
                 filelist.extend(path)
     elif protocol == 'html':
@@ -681,6 +686,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
     protocol = config.get('protocol')
     source = config.get('source')
     destination = config.get('destination')
+    usedatedir = config.get('datedirectory','')
     deleteremote = config.get('deleteremote',False)
     user = config.get('rmuser')
     password = config.get('rmpassword')
@@ -693,7 +699,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
     #filename = config.get('filenamestructure')
     #dateformat = config.get('dateformat')
 
-    def createdestinationpath(localpath,stationid,sensorid, forcelocal=False):
+    def createdestinationpath(localpath,stationid,sensorid, datedir='', forcelocal=False):
             subdir = 'raw'
             if not stationid and not sensorid or forcelocal:
                 destpath = os.path.join(localpath)
@@ -703,6 +709,8 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                 destpath = os.path.join(localpath,stationid.upper())
             else:
                 destpath = os.path.join(localpath,stationid.upper(),sensorid,'raw')
+            if not datedir == '':
+                destpath = os.path.join(destpath,str(datedir))
             return destpath
 
 
@@ -713,7 +721,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
 
     if debug:
         print ("   Please Note: files will be copied to local filesystem even when debug is selected")
-  
+
     localpathlist = []
 
     if not protocol == '' or (protocol == '' and not destination == tempfile.gettempdir()):
@@ -729,8 +737,21 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             ftp.cwd(source)
 
         for f in filelist:
+            datedir = ''
             if debug:
                 print ("   Accessing file {}".format(f))
+            if usedatedir in ['year','month']:
+                # get year from filename or ctime/mtime
+                tcheck = datetime.fromtimestamp(os.path.getmtime(f))
+                fyear = tcheck.year
+                fmonth = tcheck.month
+                if usedatedir == 'year':
+                    # get year from filename or ctime/mtime
+                    datedir = fyear
+                elif usedatedir == 'month':
+                    datedir = '{}/{:02d}'.format(fyear,fmonth)
+                if debug:
+                    print ("date related subdirectory:", datedir)
             path = os.path.normpath(f)
             li = path.split(os.sep)
             if not sensorid and not protocol in ['ftp','FTP']:
@@ -743,8 +764,9 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             else:
                 sensid = sensorid
 
-            
-            destpath = createdestinationpath(destination,stationid,sensid,forcelocal=forcelocal)
+            destpath = createdestinationpath(destination,stationid,sensid,datedir=datedir,forcelocal=forcelocal)
+            if debug:
+                print ("Destinationpath:", destpath)
 
             destname = os.path.join(destpath,li[-1])
 
@@ -773,7 +795,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             elif protocol in ['html','HTML']:
                 pass
             elif protocol in ['']:
-                if not os.path.exists(destname):
+                if not os.path.exists(destname) or not filecmp.cmp(f, destname):
                     copyfile(f, destname)
                     if deleteremote in [True,'True']:
                         os.remove(f)
