@@ -209,7 +209,7 @@ class GSM19Protocol(LineReceiver):
             # extract only ascii characters
             line = ''.join(filter(lambda x: x in string.printable, str(line)))
         except:
-            log.msg ("gsm19protocol: error while decoding received line")
+            log.msg ("gsm19protocol: error while decoding received line: {}".format(line))
             line = ''
 
         ok = True
