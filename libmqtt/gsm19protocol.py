@@ -203,10 +203,14 @@ class GSM19Protocol(LineReceiver):
 
     def lineReceived(self, line):
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        if self.pvers > 2:
-            line=line.decode('ascii')
-        # extract only ascii characters
-        line = ''.join(filter(lambda x: x in string.printable, str(line)))
+        try:
+            if self.pvers > 2:
+                line=line.decode('ascii')
+            # extract only ascii characters
+            line = ''.join(filter(lambda x: x in string.printable, str(line)))
+        except:
+            log.msg ("gsm19protocol: error while decoding received line")
+            line = ''
 
         ok = True
         try:
