@@ -1337,6 +1337,56 @@ Then run the following command and follow the instructions:
 
 IMPORTANT: Recovered configuration files will replace all previously exisiting files. Please note: if python paths are changing (i.e. now python3, previously python2) then these paths need to be updated after recovery. Please carefully chech /etc/martas/init/*.sh, /etc/init.d/martas,  as well as all configuration files in /etc/martas. 
 
+#### 13.1.5 optional use of a python environment
+
+##### a) using venv
+
+Create a python environment for all MARTAS related packages using 
+
+        python3 -m venv ~/martasenv
+
+Activate the python environment before installing packages
+
+        source ~/martasenv/bin/activate
+
+Optional: You might want to install the requires packages before installing MARTAS (otherwise MARTAS will install them) 
+
+        pip install geomagpy
+        pip install pyserial
+        pip install paho-mqtt
+        pip install twisted
+        pip install python-telegram-bot==13.4
+        pip install telegram-send
+        pip install psutil
+        pip install telepot
+        pip install platform
+
+Provide the correct path to the python executable during MARTAS installation (replace USER or the path accordingly):
+
+        python path (default: /usr/bin/python3): /home/USER/martasenv/bin/python
+
+
+##### b) using conda
+
+Download and install a current mini/anaconda version
+Follow the instructions as provided here: 
+
+Create a new conda environment
+
+
+Activate the conda python environment before installing packages
+
+        conda activate martasenv
+
+Install required conda packages before installing MARTAS ( to be tested )
+
+        conda install numpy
+        conda install matplotlib 
+        conda install scipy
+        conda install twisted
+        conda install pyserial
+        pip install geomagpy
+
 ### 13.2 Full installation on Raspberry - MARCOS/MARTAS
 
 
