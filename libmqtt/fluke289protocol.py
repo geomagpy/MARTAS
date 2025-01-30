@@ -2,6 +2,8 @@
 fluke289protocol written 2023 by richard.mandl@geosphere.at
 for MARTAS MQTT protocol by Roman Leonhardt and Rachel Bailey to be used in the Conrad Observatory.
 Makes sense only when using a Fluke 289 mulimeter or compatible
+Example for a line in sensors.txt:
+    FLUKE_14430039_0001,USB0,115200,8,1,N,active,-,1,1,fluke289,FLUKE,14430039,0001,-,-,GPS,electric,multimeter
 """
 from __future__ import print_function
 from __future__ import absolute_import
