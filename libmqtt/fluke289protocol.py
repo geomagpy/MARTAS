@@ -204,7 +204,8 @@ class fluke289Protocol:
         data = ','.join(list(map(str,darray)))
         senddata = False
         head = header
-        topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        #topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        topic = self.confdict.get('station') + '/' + sensorid
         coll = int(self.sensordict.get('stack'))
         if coll > 1:
             self.metacnt = 1 # send meta data with every block
