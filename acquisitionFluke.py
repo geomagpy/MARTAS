@@ -103,7 +103,7 @@ hostname = socket.gethostname()
 msgcount = 0
 
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL','fluke289'] # should be provided by MagPy
 """
 Protocol types:
 ok		Env   		: py2,py3	: passive		: environment
@@ -126,7 +126,6 @@ ok		Disdro		: py2		: active 		: environment
 ok              AD7714          : py2 		: autonomous		: general ADC
 current work              IMFile          : py3 		: active		: read files
 current work              FourPL          : py3 		: active		: 4point light geoelectric
-current work              BME280I2C       : py3 		: active		: I2C pins on raspberry with BME280 T-humidity-pressure
 """
 
 def SendInit(confdict,sensordict):
@@ -173,7 +172,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
     proto = "{}Prot{}".format(protocolname,amount)
 
     try:
-        rate = int(sensordict.get('rate'))
+        rate = float(sensordict.get('rate'))
         log.msg("  -> using provided sampling rate of {} sec".format(rate))
     except:
         log.msg("  -> did not find appropriate sampling rate - using 30 sec")
