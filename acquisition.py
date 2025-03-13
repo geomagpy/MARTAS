@@ -103,6 +103,8 @@ hostname = socket.gethostname()
 msgcount = 0
 
 
+SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C'] # should be provided by MagPy
+# merge possible?
 SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C','fluke289'] # should be provided by MagPy
 """
 Protocol types:
