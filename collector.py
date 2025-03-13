@@ -368,6 +368,11 @@ def on_message(client, userdata, msg):
     global verifiedlocation
     global debug
     arrayinterpreted = False
+    wsarrayinterpreted = False
+    diarrayinterpreted = False
+    siarrayinterpreted = False
+    soarrayinterpreted = False
+    dbarrayinterpreted = False
     if stationid in ['all','All','ALL']:
         stid = msg.topic.split('/')[0]
     else:
@@ -507,10 +512,10 @@ def on_message(client, userdata, msg):
                             filename = "{}-{:02d}-{:02d}".format(datearray[0],datearray[1],datearray[2])
                             acs.dataToFile(location, sensorid, filename, data_bin, header)
             if 'websocket' in destination:
-                if not arrayinterpreted:
+                if not wsarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    arrayinterpreted = True
+                    wsarrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
                     time = num2date(el).replace(tzinfo=None)
                     msecSince1970 = int((time - datetime(1970,1,1)).total_seconds()*1000)
@@ -524,14 +529,14 @@ def on_message(client, userdata, msg):
                 global number
                 amount = int(number)
                 cover = 5
-                if not arrayinterpreted:
+                if not diarrayinterpreted:
                     ar = interprete_data(msg.payload, stream, sensorid)
                     if not sensorid in senslst:
                         senslst.append(sensorid)
                         st.append(DataStream([],{},ar))
                     idx = senslst.index(sensorid)
                     st[idx].extend(stream.container,{'SensorID':sensorid},ar)
-                    arrayinterpreted = True
+                    diarrayinterpreted = True
                 st[idx].ndarray = np.asarray([np.asarray(el[-cover:]) for el in st[idx].ndarray])
                 if len(st) < 2:
                      print ("Not enough streams for subtraction yet")
@@ -547,7 +552,7 @@ def on_message(client, userdata, msg):
                             part2 = (st[1].header.get('SensorID').split('_')[1])
                         except:
                             part2 = 'unkown'
-                        name = "Diff_{}-{}_0001".format(part1,part2)
+                        name = "Diff_{}{}_0001".format(part1,part2)
                         # get head line for pub
                         #name = "diff_xxx_0001"
                         keys = sub._get_key_headers(numerical=True)
@@ -569,25 +574,27 @@ def on_message(client, userdata, msg):
                             valstr = int(val[0]*1000)
                         data = "{},{}".format(timestr,valstr)
                         #print (data)
-                        topic = "wic/{}".format(name)
+                        topic = "{}/{}".format(stid,name)
                         client.publish(topic+"/data", data, qos=qos)
                         client.publish(topic+"/meta", head, qos=qos)
+                        if debug:
+                            print (" -> diff {} published".format(name))
                 except:
                     print ("Found error in subtraction")
             if 'stdout' in destination:
-                if not arrayinterpreted:
+                if not soarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    arrayinterpreted = True
+                    soarrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
                     time = num2date(el).replace(tzinfo=None)
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     log.msg("{}: {},{}".format(sensorid,time,datastring))
             elif 'db' in destination:
-                if not arrayinterpreted:
+                if not dbarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    arrayinterpreted = True
+                    dbarrayinterpreted = True
                 # create a stream.header
                 #if debug:
                 #    log.msg(stream.ndarray)
@@ -599,10 +606,10 @@ def on_message(client, userdata, msg):
                 else:
                     writeDB(db,stream)
             elif 'stringio' in destination:
-                if not arrayinterpreted:
+                if not siarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, stream, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    arrayinterpreted = True
+                    siarrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
                     time = num2date(el).replace(tzinfo=None)
                     date = datetime.strftime(time,"%Y-%m-%d %H:%M:%S.%f")

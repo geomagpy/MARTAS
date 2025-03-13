@@ -261,7 +261,7 @@ commandlist = {}
 commandlist['sensor'] = {'commands': ['sensors','sensor','Sensors','Sensor'], 'combination' : 'any'}
 commandlist['hello'] = {'commands': ['hello','Hello'], 'combination' : 'any'}
 commandlist['imbot'] = {'commands': ['imbot','IMBOT'], 'combination' : 'any'}
-
+commandlist['aperta'] = {'commands': ['aperta','Aperta','Sesam öffne dich'], 'combination' : 'any'}
 commandlist['system'] = {'commands': ['System','system'], 'combination' : 'any'}
 commandlist['martas'] = {'commands': ['Martas','martas','MARTAS'], 'combination' : 'any'}
 commandlist['marcos'] = {'commands': ['Marcos','marcos','MARCOS'], 'combination' : 'any'}
@@ -371,7 +371,7 @@ try:
     tgpar.uploadconfig = tgconf.get('uploadconfig',"").strip()
     tgpar.uploadmemory = tgconf.get('uploadmemory',"").strip()
     tgpar.camoptions = tgconf.get('camoptions',"").strip()
-    print ("3")
+    tgpar.tmatelocaluser = tgconf.get('tmatelocaluser',"").strip()
     if purpose:
         tgpar.purpose = purpose
     allusers = tgconf.get('allowed_users')
@@ -590,6 +590,67 @@ def getspace():
         mesg += "\nMemory total: {}MB\nMemory available: {}MB\nCPU usage: {}%".format(total,avail,cpu)
     except:
         pass
+
+    return mesg
+
+def open_secret_door(user='debian',duration=3600, debug=False):
+    """
+    DESCRIPTION
+       Open a tmate access for a specific time
+       This method is solely to be activated on remote sensor stations in mobile networks.
+    REQUIREMENTS
+       tmate installation
+       tmate api key and a named session (https://tmate.io/#api_key)
+       and tmate.conf preconfigured on the remote machine
+    """
+    #0. check if psutil and tmate are existing. If not return fail
+    try:
+        import psutil
+        import signal
+        if os.path.isfile("/usr/local/bin/tmate"):
+            pass
+        else:
+            return ("check requirements")
+    except:
+        return ("check requirements")
+
+    #1. step check whether tmate is running and stop this process
+    def _find_process(name):
+        procs = list()
+        # Iterate over the all the running process
+        for proc in psutil.process_iter():
+            try:
+                if proc.name() == name:
+                    pid = proc.pid
+                procs.append(pid)
+            except:
+                pass
+        return procs
+
+    def _kill_processes(pids, debug=False):
+        for pid in pids:
+            os.kill(pid, signal.SIGTERM)  # or signal.SIGKILL
+            if debug:
+                print('killed process with pid: {}'.format(pid))
+
+    try:
+        if debug:
+            print ("Killing existing tmate processes")
+        processes = _find_process("tmate")
+        _kill_processes(processes, debug=debug)
+        if debug:
+            print ("... done")
+    except:
+        pass
+    #2. Run tmate accecc - do not broadcast login (pwd needs to be known by user)
+    mesg = "Opening secret entrance door....\n"
+    try:
+        proc2 = subprocess.Popen(['sudo', '-u', user, 'tmate', '-F', 'new-session'], stdout=subprocess.PIPE)
+        mesg += "success - door open for one session\n".format(duration)
+    except:
+        mesg += "failed\n"
+
+    #3. (optional) start a scheduler to kill tmate process after duration
 
     return mesg
 
@@ -1115,6 +1176,9 @@ def handle(msg):
                bot.sendMessage(chat_id, "Obtained an upload data request ...")
                cmd = command.split(" ")
                mesg = upload()
+               bot.sendMessage(chat_id, mesg)
+            elif any([word in command for word in commandlist['aperta'].get('commands')]):
+               mesg = open_secret_door(user=tgpar.tmatelocaluser, duration=3600, debug=False)
                bot.sendMessage(chat_id, mesg)
             elif any([word in command for word in commandlist['getip'].get('commands')]):
                # -----------------------

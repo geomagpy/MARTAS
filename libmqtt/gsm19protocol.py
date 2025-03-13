@@ -94,8 +94,8 @@ class GSM19Protocol(LineReceiver):
         typ = "none"
         dontsavedata = False
 
-        packcode = '6hLLl'
-        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,var1]', '[f,err]', '[nT,none]', '[1000,1000]', packcode, struct.calcsize('<'+packcode))
+        packcode = '6hLLl6hL'
+        header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,var1,sectime]', '[f,err,sectime]', '[nT,none,none]', '[1000,1000,1]', packcode, struct.calcsize('<'+packcode))
 
         try:
             # Extract data
@@ -185,6 +185,8 @@ class GSM19Protocol(LineReceiver):
                         datearray.append(int(errorcode*1000.))
                     else:
                         datearray.append(int(gradient*1000.))
+                    internalarray = acs.timeToArray(secondtime)
+                    datearray.extend(internalarray)
                     data_bin = struct.pack('<'+packcode,*datearray)
                 except:
                     log.msg('GSM19 - Protocol: Error while packing binary data')
@@ -201,10 +203,14 @@ class GSM19Protocol(LineReceiver):
 
     def lineReceived(self, line):
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        if self.pvers > 2:
-            line=line.decode('ascii')
-        # extract only ascii characters
-        line = ''.join(filter(lambda x: x in string.printable, str(line)))
+        try:
+            if self.pvers > 2:
+                line=line.decode('ascii')
+            # extract only ascii characters
+            line = ''.join(filter(lambda x: x in string.printable, str(line)))
+        except:
+            log.msg ("gsm19protocol: error while decoding received line: {}".format(line))
+            line = ''
 
         ok = True
         try:
