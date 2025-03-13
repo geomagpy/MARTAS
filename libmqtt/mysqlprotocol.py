@@ -147,7 +147,7 @@ class MySQLProtocol(object):
                 delta = now-lt
                 if self.debug:
                     log.msg("  -> DEBUG - Sensor {}: Timediff = {} sec from now".format(sens, delta.total_seconds()))
-                if delta.total_seconds() < self.deltathreshold:
+                if delta.total_seconds() < float(self.deltathreshold):
                     senslist3.append(sens)
             except:
                 if self.debug:
@@ -193,14 +193,21 @@ class MySQLProtocol(object):
 
         def getList(sql):
             cursor = self.db.cursor()
+            keys=[]
             try:
                 cursor.execute(sql)
             except mdb.mysql.IntegrityError as message:
-                return message
+                log.msg("  -> ERROR - get SQL data: {}".format(message))
+                cursor.close()
+                return keys
             except mdb.mysql.Error as message:
-                return message
+                log.msg("  -> ERROR - get SQL data: {}".format(message))
+                cursor.close()
+                return keys
             except:
-                return 'dbgetlines: unkown error'
+                log.msg("  -> ERROR - get SQL data: dbgetlines: unkown error")
+                cursor.close()
+                return keys
             head = cursor.fetchall()
             keys = list(np.transpose(np.asarray(head))[0])
             return keys
@@ -220,107 +227,108 @@ class MySQLProtocol(object):
             dataid = sensorid+'_'+self.revision
             keyssql = 'SHOW COLUMNS FROM %s' % (dataid)
             keystab = getList(keyssql)
-            if 'time' in keystab:
-                keystab.remove('time')
-            if 'flag' in keystab:
-                keystab.remove('flag')
-            if 'typ' in keystab:
-                keystab.remove('typ')
-            if 'comment' in keystab:
-                keystab.remove('comment')
-            keys = ','.join(keystab)
-            if self.debug:
-                log.msg("  -> DEBUG - requesting header {}".format(sensorid))
-            sql1 = 'SELECT SensorElements FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
-            sql2 = 'SELECT Sensorkeys FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
-            sql3 = 'SELECT ColumnUnits FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
-            sql4 = 'SELECT ColumnContents FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
-            try:
-                elem = getList(sql1)[0].split(',')
-            except:
-                elem =[]
-            try:
-                keyssens = getList(sql2)[0].split(',')
-            except:
-                keyssens =[]
-            try:
-                unit = getList(sql3)[0].split(',')
-            except:
-                unit =[]
-            try:
-                cont = getList(sql4)[0].split(',')
-            except:
-                cont =[]
-            units, elems = [], []
-            for key in keystab:
-                try:
-                    pos1 = keyssens.index(key)
-                    ele = elem[pos1]
-                except:
-                    ele = key
-                elems.append(ele)
-                try:
-                    pos2 = cont.index(ele)
-                    units.append(unit[pos2])
-                except:
-                    units.append('None')
-            if self.debug:
-                log.msg("  -> DEBUG - creating head line {}".format(sensorid))
-            multplier = '['+','.join(map(str, [10000]*len(keystab)))+']'
-            packcode = '6HL'+''.join(['q']*len(keystab))
-            header = ("# MagPyBin {} {} {} {} {} {} {}".format(sensorid, '['+','.join(keystab)+']', '['+','.join(elems)+']', '['+','.join(units)+']', multplier, packcode, struct.calcsize('<'+packcode)))
-
-            # 2. Getting dict
-            sql = 'SELECT DataSamplingRate FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
-            sr = float(getList(sql)[0])
-            coverage = int(self.requestrate/sr)+120
-
-            # 3. Getting data
-            # get data and create typical message topic
-            # based on sampling rate and collection rate -> define coverage
-
-            li = sorted(mdb.dbselect(self.db, 'time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
-            if not self.lastt[index]:
-                self.lastt[index]=li[0][0]
-
-            # drop
-            newdat = False
-            newli = []
-            for elem in li:
-                if elem[0] == self.lastt[index]:
-                    newdat = True
-                if newdat:
-                    newli.append(elem)
-
-            if not len(newli) > 0:
-                # if last time not included in li then newli will be empty
-                # in this case just add the list
-                for elem in li:
-                    newli.append(elem)
-
-            for dataline in newli:
-                timestamp = dataline[0]
-                data_bin = None
-                datearray = ''
-                try:
-                    datearray = acs.timeToArray(timestamp)
-                    for i,para in enumerate(keystab):
-                        try:
-                            val=int(float(dataline[i+1])*10000)
-                        except:
-                            val=999990000
-                        datearray.append(val)
-                    data_bin = struct.pack('<'+packcode,*datearray)  # little endian
-                except:
-                    log.msg('Error while packing binary data')
-
-                if not self.confdict.get('bufferdirectory','') == '' and data_bin:
-                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            if len(keystab) > 0:
+                if 'time' in keystab:
+                    keystab.remove('time')
+                if 'flag' in keystab:
+                    keystab.remove('flag')
+                if 'typ' in keystab:
+                    keystab.remove('typ')
+                if 'comment' in keystab:
+                    keystab.remove('comment')
+                keys = ','.join(keystab)
                 if self.debug:
-                    log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
-                self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
+                    log.msg("  -> DEBUG - requesting header {}".format(sensorid))
+                sql1 = 'SELECT SensorElements FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
+                sql2 = 'SELECT Sensorkeys FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
+                sql3 = 'SELECT ColumnUnits FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
+                sql4 = 'SELECT ColumnContents FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
+                try:
+                    elem = getList(sql1)[0].split(',')
+                except:
+                    elem =[]
+                try:
+                    keyssens = getList(sql2)[0].split(',')
+                except:
+                    keyssens =[]
+                try:
+                    unit = getList(sql3)[0].split(',')
+                except:
+                    unit =[]
+                try:
+                    cont = getList(sql4)[0].split(',')
+                except:
+                    cont =[]
+                units, elems = [], []
+                for key in keystab:
+                    try:
+                        pos1 = keyssens.index(key)
+                        ele = elem[pos1]
+                    except:
+                        ele = key
+                    elems.append(ele)
+                    try:
+                        pos2 = cont.index(ele)
+                        units.append(unit[pos2])
+                    except:
+                        units.append('None')
+                if self.debug:
+                    log.msg("  -> DEBUG - creating head line {}".format(sensorid))
+                multplier = '['+','.join(map(str, [10000]*len(keystab)))+']'
+                packcode = '6HL'+''.join(['q']*len(keystab))
+                header = ("# MagPyBin {} {} {} {} {} {} {}".format(sensorid, '['+','.join(keystab)+']', '['+','.join(elems)+']', '['+','.join(units)+']', multplier, packcode, struct.calcsize('<'+packcode)))
 
-            self.lastt[index]=li[-1][0]
+                # 2. Getting dict
+                sql = 'SELECT DataSamplingRate FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
+                sr = float(getList(sql)[0])
+                coverage = int(self.requestrate/sr)+120
+
+                # 3. Getting data
+                # get data and create typical message topic
+                # based on sampling rate and collection rate -> define coverage
+
+                li = sorted(mdb.dbselect(self.db, 'time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
+                if not self.lastt[index]:
+                    self.lastt[index]=li[0][0]
+
+                # drop
+                newdat = False
+                newli = []
+                for elem in li:
+                    if elem[0] == self.lastt[index]:
+                        newdat = True
+                    if newdat:
+                        newli.append(elem)
+
+                if not len(newli) > 0:
+                    # if last time not included in li then newli will be empty
+                    # in this case just add the list
+                    for elem in li:
+                        newli.append(elem)
+
+                for dataline in newli:
+                    timestamp = dataline[0]
+                    data_bin = None
+                    datearray = ''
+                    try:
+                        datearray = acs.timeToArray(timestamp)
+                        for i,para in enumerate(keystab):
+                            try:
+                                val=int(float(dataline[i+1])*10000)
+                            except:
+                                val=999990000
+                            datearray.append(val)
+                        data_bin = struct.pack('<'+packcode,*datearray)  # little endian
+                    except:
+                        log.msg('Error while packing binary data')
+
+                    if not self.confdict.get('bufferdirectory','') == '' and data_bin:
+                        acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                    if self.debug:
+                        log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
+                    self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
+
+                self.lastt[index]=li[-1][0]
 
         t2 = datetime.utcnow()
         if self.debug:

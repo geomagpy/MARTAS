@@ -8,3 +8,4 @@ dist/*.egg
 GeomagPy.egg-info
 oldstuff
 .idea
+.DS_Store

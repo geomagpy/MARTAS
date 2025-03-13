@@ -103,7 +103,7 @@ class EnvProtocol(LineReceiver):
     def lineReceived(self, line):
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
         if self.pvers > 2:
-            line=line.decode('ascii')
+            line=line.decode('latin')
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
         try:

@@ -2,6 +2,29 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
+####v<1.0.8>, <xxxx-xx-xx> --
+
+v1.0.8 general:
+    - improved installation instructions in README - recipies
+
+v1.0.8 additions:
+    - added library for BME280 T-humidity-pressure - I2C support for raspberry
+
+v1.0.8 fixes:
+
+####v<1.0.7>, <2023-09-24> --
+
+v1.0.7 general:
+    - extendend and corrected README manual
+
+v1.0.7 additions:
+    - extended backup
+
+v1.0.7 fixes:
+    - python3 fix for POS1 instrument - serial init
+    - fixed abort of file_upload when memory file is emtpy
+    - python3 fix for Env05 Environmental sensors
+
 ####v<1.0.6>, <2023-01-03> --
 
 v1.0.6 general:

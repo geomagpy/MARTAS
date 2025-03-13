@@ -691,7 +691,7 @@ def main(argv):
             if debug:
                 print ("Running space job")
             try:
-                spacename = "{}-diskspace".format(jobname)
+                spacename = "{}-{}-diskspace".format(hostname,jobname)
                 statusmsg[spacename] = getspace(basedirectory)
             except:
                 statusmsg['diskspace'] = "Checking disk space failed"

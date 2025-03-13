@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from core import acquisitionsupport as acs
+import sys
 
 
 ## POS1 protocol
@@ -45,7 +46,7 @@ class POS1Protocol(LineReceiver):
         """
         print ("Begin Initialization of POS1")
         self.client = client
-        self.sensordict = sensordict    
+        self.sensordict = sensordict
         self.confdict = confdict
         self.count = 0  ## counter for sending header information
         self.sensor = sensordict.get('sensorid')
@@ -168,7 +169,9 @@ class POS1Protocol(LineReceiver):
     def dataReceived(self, data):
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        # extract only ascii characters 
+        # extract only ascii characters
+        if sys.version_info >= (3,0):
+            data = data.decode()
 
         ok = False
         try:

@@ -259,6 +259,21 @@ def walk_dir(directory_path, filename, date, dateformat):
                     pathlist.append(file_path)
     return pathlist
 
+"""
+def list_recursive(ftp, remotedir):
+    #""
+    Get a recursive file listing on FTP sites
+    https://stackoverflow.com/questions/65123271/recursive-file-list-with-ftp
+    #""
+    ftp.cwd(remotedir)
+    for entry in ftp.mlsd():
+        if entry[1]['type'] == 'dir':
+            remotepath = remotedir + "/" + entry[0]
+            print(time.time() - t0, remotepath)
+            list_recursive(ftp, remotepath)
+        else:
+            print(entry)
+"""
 
 def dir_extract(lines, filename, date, dateformat):
     """
@@ -459,7 +474,7 @@ def CheckConfiguration(config={},debug=False):
 
     creddb =  config.get('dbcredentials')
     if not creddb == '':
-        print("   Accessing data bank ...")
+        print("   Accessing local data bank ...")
         # required for either writeing to DB or getting meta in case of writing archive
         try:
             db = mysql.connect(host=mpcred.lc(creddb,'host'),user=mpcred.lc(creddb,'user'),passwd=mpcred.lc(creddb,'passwd'),db=mpcred.lc(creddb,'db'))
@@ -467,7 +482,7 @@ def CheckConfiguration(config={},debug=False):
         except:
             print("   -> failure - check your credentials")
             db = None
-            success = False
+            #success = False
             #sys.exit()
     config['db'] = db
 
