@@ -63,6 +63,8 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "app"), os.path.join(homedir, ".martas", "app"))
     if not os.path.isdir(os.path.join(homedir,".martas","doc")):
         shutil.copytree(os.path.join(file_path, "doc"), os.path.join(homedir, ".martas", "doc"))
+    if not os.path.isdir(os.path.join(homedir,".martas","init")):
+        shutil.copytree(os.path.join(file_path, "init"), os.path.join(homedir, ".martas", "init"))
     if not os.path.isdir(os.path.join(homedir,".martas","web")):
         shutil.copytree(os.path.join(file_path, "web"), os.path.join(homedir, ".martas", "web"))
     #

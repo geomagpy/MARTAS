@@ -12,7 +12,8 @@ install_requires=[
             "geomagpy > 1.1.9",
             "numpy >= 1.21.0",
             "scipy >= 1.7.3",
-            "requests >= 2.0.0",
+            "pyserial",
+            "twisted",
             "setuptools"
           ]
 
