@@ -9,7 +9,7 @@ imbot_init will create folders, setup all configuration files, eventually instal
 """
 import sys
 sys.path.insert(1, '/home/leon/Software/magpy/')  # should be magpy2
-sys.path.insert(1, '/home/leon/Software/MARTAS')  # should be magpy2
+sys.path.insert(1, '/')  # should be magpy2
 
 import shutil
 import getopt
