@@ -4,12 +4,9 @@ except ImportError:
     from distutils.core import setup
 import sys
 import shutil
-#import os
-#current_directory = os.getcwd()
-#print("The current working directory is:", current_directory)
 exec(open('martas/version.py').read())
-#shutil.copyfile('acquisition.py','scripts/acquisition')
-#shutil.copyfile('collector.py','scripts/collector')
+shutil.copyfile('martas/acquisition.py','scripts/acquisition')
+shutil.copyfile('martas/collector.py','scripts/collector')
 shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
 shutil.copyfile('martas/marcos_init.py', 'scripts/marcos_init')
 
@@ -27,7 +24,7 @@ setup(
     version=__version__,
     author='R. Leonhardt',
     author_email='roman.leonhardt@geosphere.at',
-    packages=['app', 'conf', 'core', 'doc', 'init', 'install', 'libmqtt', 'telegram', 'web'],
+    packages=['martas/app', 'conf', 'martas/core', 'doc', 'init', 'install', 'martas/lib', 'martas/telegram', 'web'],
     scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init', 'scripts/marcos_init'],
     url='',
     license='LICENSE.txt',
