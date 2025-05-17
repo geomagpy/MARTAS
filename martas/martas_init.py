@@ -9,7 +9,7 @@ imbot_init will create folders, setup all configuration files, eventually instal
 """
 import sys
 sys.path.insert(1, '/home/leon/Software/magpy/')  # should be magpy2
-sys.path.insert(1, '/home/leon/Software/MARTAS/')  # should be magpy2
+#sys.path.insert(1, '/home/leon/Software/MARTAS/')  # should be magpy2
 
 import shutil
 import getopt
@@ -53,7 +53,7 @@ def main(argv):
 
     import martas
     file_path = os.path.dirname(martas.__file__)
-    #print(file_path)
+    print(file_path)
     if not debug:
         os.makedirs(os.path.join(homedir,dir), exist_ok=True)
         # create sudirs
@@ -63,9 +63,9 @@ def main(argv):
     if not os.path.isdir(os.path.join(homedir,dir,"conf")):
         shutil.copytree(os.path.join(file_path, "conf"), os.path.join(homedir, dir, "conf"))
     if not os.path.isdir(os.path.join(homedir,dir,"app")):
-        shutil.copytree(os.path.join(file_path, "martas", "app"), os.path.join(homedir, dir, "app"))
+        shutil.copytree(os.path.join(file_path, "app"), os.path.join(homedir, dir, "app"))
     if not os.path.isdir(os.path.join(homedir,dir,"telegram")):
-        shutil.copytree(os.path.join(file_path, "martas", "telegram"), os.path.join(homedir, dir, "telegram"))
+        shutil.copytree(os.path.join(file_path, "telegram"), os.path.join(homedir, dir, "telegram"))
     if not os.path.isdir(os.path.join(homedir,dir,"doc")):
         shutil.copytree(os.path.join(file_path, "doc"), os.path.join(homedir, dir, "doc"))
     if not os.path.isdir(os.path.join(homedir,dir,"init")):
@@ -74,6 +74,8 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "install"), os.path.join(homedir, dir, "install"))
     if not os.path.isdir(os.path.join(homedir,dir,"web")):
         shutil.copytree(os.path.join(file_path, "web"), os.path.join(homedir, dir, "web"))
+    #shutil.copyfile(os.path.join(file_path, "collector.py"), os.path.join(homedir, dir, "collector.py"))
+    #shutil.copyfile(os.path.join(file_path, "acquisition.py"), os.path.join(homedir, dir, "acquisition.py"))
     #
     print ("Now update all the configuration files...")
 

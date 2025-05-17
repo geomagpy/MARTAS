@@ -2,6 +2,7 @@ try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
+
 import sys
 import shutil
 exec(open('martas/version.py').read())
@@ -24,13 +25,13 @@ setup(
     version=__version__,
     author='R. Leonhardt',
     author_email='roman.leonhardt@geosphere.at',
-    packages=['martas/app', 'conf', 'martas/core', 'doc', 'init', 'install', 'martas/lib', 'martas/telegram', 'web'],
+    packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.install', 'martas.lib', 'martas.telegram', 'martas.web'],
     scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init', 'scripts/marcos_init'],
     url='',
     license='LICENSE.txt',
     description='MARTAS',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    package_data={'conf': ['*.cfg'], 'doc': ['*.pdf', '*.md'], 'init': ['*.sh', '*.json'], 'install': ['*.sh'], 'web': ['*.js', '*.html']  },
+    package_data={'martas': ['conf/*.cfg', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'web/*.js', 'web/*.html']  },
     install_requires=install_requires,
 )

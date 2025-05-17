@@ -77,9 +77,9 @@ except ImportError: # Python 3.x
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
-from martas.core import acquisitionsupport as acs
+from core import acquisitionsupport as acs
 from martas.version import __version__
-from martas.core.martas import martaslog as ml
+from core.martas import martaslog as ml
 
 ## Import MQTT
 ## -----------------------------------------------------------
@@ -97,7 +97,7 @@ ws_available = True
 try:
     # available since MagPy 0.3.99 in magpy.collector
     # since MARTAS 0.1.9 in core
-    from martas.core.websocket_server import WebsocketServer
+    from core.websocket_server import WebsocketServer
 except:
     ws_available = False
 
