@@ -5,15 +5,12 @@ from __future__ import absolute_import
 # Import packages
 # ###################################################################
 
-import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
-from datetime import datetime, timedelta
-from twisted.protocols.basic import LineReceiver
+from datetime import datetime
 from twisted.python import log
-from core import acquisitionsupport as acs
-from magpy.stream import KEYLIST
+from martas.core import acquisitionsupport as acs
 
 
 def send_command(ser,command,eol,hex=False):

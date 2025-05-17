@@ -7,11 +7,11 @@ import shutil
 #import os
 #current_directory = os.getcwd()
 #print("The current working directory is:", current_directory)
-exec(open('doc/version.py').read())
+exec(open('martas/version.py').read())
 #shutil.copyfile('acquisition.py','scripts/acquisition')
 #shutil.copyfile('collector.py','scripts/collector')
-shutil.copyfile('core/martas_init.py','scripts/martas_init')
-shutil.copyfile('core/marcos_init.py','scripts/marcos_init')
+shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
+shutil.copyfile('martas/marcos_init.py', 'scripts/marcos_init')
 
 install_requires=[
             "geomagpy > 1.1.9",
