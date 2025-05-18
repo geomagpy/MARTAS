@@ -68,14 +68,14 @@ def main(argv):
     #
     # copy files into subdirs
     if redo:
-        shutil.rmtree(os.path.join(homedir, dir, "app"))
-        shutil.rmtree(os.path.join(homedir, dir, "conf"))
-        shutil.rmtree(os.path.join(homedir, dir, "doc"))
-        shutil.rmtree(os.path.join(homedir, dir, "init"))
-        shutil.rmtree(os.path.join(homedir, dir, "install"))
-        shutil.rmtree(os.path.join(homedir, dir, "logrotate"))
-        shutil.rmtree(os.path.join(homedir, dir, "telegram"))
-        shutil.rmtree(os.path.join(homedir, dir, "web"))
+        shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "conf"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "init"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "install"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "logrotate"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "telegram"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "web"),ignore_errors=True)
     if not os.path.isdir(os.path.join(homedir,dir,"conf")):
         shutil.copytree(os.path.join(file_path, "conf"), os.path.join(homedir, dir, "conf"))
     if not os.path.isdir(os.path.join(homedir,dir,"app")):
@@ -136,10 +136,10 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "monitor.cfg"), os.path.join(confpath, "monitor.bak"))
     shutil.copyfile(os.path.join(confpath, "martas.cfg"), os.path.join(confpath, "martas.bak"))
     shutil.copyfile(os.path.join(confpath, "marcos.cfg"), os.path.join(confpath, "marcos.bak"))
-    shutil.copyfile(os.path.join(confpath, "obsdaqr.cfg"), os.path.join(confpath, "obsdaq.bak"))
-    shutil.copyfile(os.path.join(confpath, "sensors.cfg"), os.path.join(confpath, "seonsors.bak"))
+    shutil.copyfile(os.path.join(confpath, "obsdaq.cfg"), os.path.join(confpath, "obsdaq.bak"))
+    shutil.copyfile(os.path.join(confpath, "sensors.cfg"), os.path.join(confpath, "sensors.bak"))
     shutil.copyfile(os.path.join(confpath, "telegram.cfg"), os.path.join(confpath, "telegram.bak"))
-    shutil.copyfile(os.path.join(confpath, "threhold.cfg"), os.path.join(confpath, "threhold.bak"))
+    shutil.copyfile(os.path.join(confpath, "threshold.cfg"), os.path.join(confpath, "threshold.bak"))
 
     print (" ------------------------------------------- ")
     print (" Please insert a path for log files:")
@@ -265,6 +265,47 @@ def main(argv):
             jobname = ''.join(filter(str.isalnum, newjobname))
         print (" -> MARTAS job name: {}".format(jobname))
 
+        print(" ------------------------------------------- ")
+        print(" Creating run time script")
+        runscript = []
+        runscript.append("# MARTAS acquisition program")
+        runscript.append("")
+        runscript.append('PYTHON={}'.format(sys.executable))
+        runscript.append('BOT="acquisition.py"')
+        runscript.append('OPT="-c {}"'.format(os.path.join(confpath, "martas.cfg")))
+        runscript.append("")
+        runscript.append('check_process()')
+        runscript.append("{")
+        runscript.append("    result=`ps aux | grep \"$BOT\" | grep -v grep | wc -l`")
+        runscript.append("}")
+        runscript.append('get_pid()')
+        runscript.append("{")
+        runscript.append("    pid=`ps -ef | awk -v pattern=\"$BOT\" \"$0 ~ pattern{print $2}\"`")
+        runscript.append("}")
+        runscript.append("")
+        runscript.append("# Run it")
+        runscript.append("# ######")
+        runscript.append("check_process")
+        runscript.append("if [\"$result\" = \"0\"]; then")
+        runscript.append("    echo \"$BOT is not running\" ")
+        runscript.append("    echo \"Starting $BOT\"")
+        runscript.append("    echo \"--------------------\"")
+        runscript.append("    sleep 2")
+        runscript.append("    $PYTHON --version")
+        runscript.append("    $PYTHON $BOT $OPT")
+        #runscript.append("else")
+        #runscript.append("    get_pid")
+        #runscript.append("    echo \"Stopping $BOT\" ")
+        #runscript.append("    echo \"--------------------\"")
+        #runscript.append("    pkill - f $BOT")
+        #runscript.append("    echo \"... stopped\"")
+        runscript.append("fi")
+        with open(os.path.join(homedir, dir, "runmartas.sh"), "wt") as fout:
+            for line in runscript:
+                fout.write(line+"\n")
+
+        cronlist.append("# Running MARTAS ")
+        cronlist.append("25  7,23  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
 
     elif initjob == "MARCOS":
         print (" You can have multiple collector jobs on one machine.")
@@ -280,11 +321,18 @@ def main(argv):
         print (" -> MARCOS job name: {}".format(jobname))
 
     cronlist.append("# Log rotation for {}".format(jobname))
-    cronlist.append("30 2 * * * /usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "logrotate", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))))
+    cronlist.append("30  2     * * *    /usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "logrotate", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))))
+    # backup
+    # cleanup
+    # archive
+    # threshold
+    # monitor
+
 
     replacedict = { "/logpath" : logpath,
                     "/sensorpath" : os.path.join(confpath, "sensors.cfg"),
-                    "/initdir/" : initpath,
+                    "/initdir" : initpath,
+                    "/obsdaqpath" : os.path.join(confpath, "obsdaq.cfg"),
                     "myhome" : stationname,
                     "brokeraddress" : mqttbroker,
                     "1883"  :  mqttport,
