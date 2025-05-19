@@ -2,22 +2,38 @@
 
 **MagPys Automated Real Time Acquisition System**
 
-MARTAS is collection of python applications and packages supporting data acquisition,
-collection, storage, monitoring and analysis in heterogenuous sensor environments.
-MARTAS is designed to support professional observatory networks. Data acquisition makes use
-of an instrument library which currently includes many sensors typically used in
-observatories arround the globe and some development platforms. Basically, incoming
-sensor data is converted to a general purpose data/meta information object which
-is directly streamed via MQTT (message queue transport) to a data broker. Such data broker, called MARCOS (MagPys Automated Realtime Collector and Organization System), can be setup within the MARTAS environment. These collection routines, coming along with MARTAS, can access such data stream and store/organize such data and meta information in files, data banks or forward
-them to web sockets. All data can directly be analyszed using MagPy which
-contains many time domain and frequency domain time series anaylsis methods.
+MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
+and analysis in heterogeneous sensor environments. MARTAS is designed to support professional observatory networks. 
+Data acquisition makes use of an instrument library which currently includes many sensors typically used in
+observatories around the globe and some development platforms. Basically, incoming sensor data is converted to a 
+general purpose data/meta information object which is directly streamed via MQTT (message queue transport) to a data 
+broker. Such data broker, called MARCOS (MagPys Automated Realtime Collector and Organization System), can be setup 
+within the MARTAS environment. MARCOS collection routines can access MQTT data stream and store/organize such data and 
+meta information in files, data banks or forward them to web sockets. All data can directly be analysed using MagPy 
+which contains many time domain and frequency domain time series analysis methods.
 
-Developers: R. Leonhardt, R. Mandl, R. Bailey (ZAMG)
+Developers: R. Leonhardt, R. Mandl, R. Bailey (GeoSphere Austria)
 
-## 1. Introduction
+### Table of Contents
 
-MARTAS has originally been developed to support realtime geomagnetic data acqusition. The principle idea was to provide a unique platform to obtain data from serial interfaces, and to stream and record this data within a generalized format to a data archive. Previously any system connected via serial interface to a recording computer was registered by its own software usually in a company specific format. Intercomparison of such data, extraction of meta information, realtime data transport and basically any analysis requiring different sources is significantly hampered.
-MARTAS contains a communication library which supports many commonly used instruments as listed below. With these libraries, data AND meta information is obtained from connected sensors. This data is then converted to a data stream containing essential meta information. This data stream has a general format which can be used for basically every imaginable timeseries. The data stream is broadcasted/published on a messaging queue transport type (MQTT) broker, a state-of-the-art standard protocol of the Internet-of-Things (IOT). A receiver contained in the MARTAS package (MARCOS - MagPys Automated Realtime Collector and Organization System) subscribes to such data streams and allows to store this data in various different archiving types (files (like CDF, CSV, TXT, BIN), databases). Various logging methods, comparison functions, threshold tickers, and process communication routines complement the MARTAS package.
+
+
+
+## 1. About
+
+MARTAS has originally been developed to support realtime geomagnetic data acquisition. The principle idea was providing
+a unique platform to obtain data from serial interfaces, and to stream and record this data within a generalized format
+to a data archive. Previously any system connected via serial interface to a recording computer was registered by its
+own software usually in a company specific format. Intercomparison of such data, extraction of meta information, 
+realtime data transport and basically any analysis requiring different sources is significantly hampered.
+MARTAS contains a communication library which supports many commonly used instruments as listed below. With these 
+libraries, data AND meta information is obtained from connected sensors. This data is then converted to a data stream 
+containing essential meta information. This data stream has a general format which can be used for basically every 
+imaginable timeseries. The data stream is broadcasted/published on a messaging queue transport type (MQTT) broker, a 
+state-of-the-art standard protocol of the Internet-of-Things (IOT). A receiver contained in the MARTAS package 
+(MARCOS - MagPy's Automated Realtime Collector and Organization System) subscribes to such data streams and allows to 
+store this data in various different archiving types (files (like CDF, CSV, TXT, BIN), databases). Various logging 
+methods, comparison functions, threshold tickers, and process communication routines complement the MARTAS package.
 
 Currently supported systems are:
 
@@ -37,40 +53,34 @@ Currently supported systems are:
 - Mingeo ObsDAQ 24bit-ADC in combination with PalmAcq logger
 - all data files readable by MagPy
 
-and basically all I2C Sensors and others connectable to a Arduino Microcontroller board
+and basically all I2C Sensors and others connectable to Microcontroller boards like [Arduino]()
 (requiring a specific serial output format in the microcontroller program - appendix)
 
 
-Note: in the folling examples we use "USER" as username and "USERS" as group.
-Replace these names with your user:group names. All instructions asume that you have a profound knowledge of debian like linux systems, as such a system is the only prerequisite to run MARTAS.
+Note: in the following examples we use "USER" as username and "USERS" as group. Replace these names with your 
+user:group names. All instructions assume that you have a profound knowledge of debian like linux systems, as such a 
+system is the only prerequisite to run MARTAS.
 
 
-## 2. INSTALLTION
+## 2. Installation
 
 ### 2.1 Installation requirements
 
-All installation instructions assume a linux (debian-like) system.
-Although MARTAS is platform independent, it is currently only tested and used
-on debian like LINUX systems.
+All installation instructions assume a linux (debian-like) system. Although the core methods of MARTAS are platform 
+independent, it is currently only tested and used on debian like LINUX systems.
 
-    PYTHON:
-    - tested and running on python 2.7/3.x
-    - any future development will be directed to python 3.x
-
-    Required packages:
-    - Geomagpy >= 1.0.0 (and its requirements)
-        sudo pip install geomagpy
+    SYSTEM:
     - mosquitto (MQTT client - broker)
         sudo apt-get install mosquitto mosquitto-clients
-    - paho-mqtt (MQTT python)
-        sudo pip install paho-mqtt
-    - pyserial
-        sudo pip install pyserial
-    - twisted
-        sudo pip install twisted
-        sudo pip install service_identity
+    - MAROCS only (if MariaDB is used)
+        sudo apt-get install mariadb
+        sudo apt-get install percona-toolkit
 
-    Optional packages:
+    PYTHON:
+    - python >= 3.7
+    - all other requirements will be solved during installation
+
+    Optional python packages:
     - pyownet  (one wire support)
         sudo pip install pyownet
         sudo apt-get install owserver
@@ -732,22 +742,37 @@ Go to your channel overview and add (i.e. MyFirstBot) as administrator to your c
 
 MARTAS comes along with a number of application scripts to support data acquisition, collection of data, access of remote data sources and organizations tools for databases. All these scripts can be found within the directory MARTAS/apps. Below you will find a comprehensive list of these scripts and their purpose. In the following you will find subsections with detailed instructions and example applications for all of these programs.
 
-Script           |   Purpose                                         | Configuration  | py2/py3   |  Section
----------------- | ------------------------------------------------- | -------------- | --------- | --------
-addcred.py       | Create credential information for scripts         |                | py3       | 8.2
-archive.py       | Read database tables and create archive files     | archive.cfg    | py3       | 8.3
-ardcomm.py       | Communicating with arduino microcontroller        |                | py2/py3   | 8.4
-backup_config.sh | Shell script to backup MARTAS configuartion data  |                | -         |
-db_truncate.py   | Check database tables (not DATAINFO) and delete data exceeding a certain age     |  truncate.cfg   |  py3  | 8.10
-file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs     |  collect.cfg   |  py3  |  8.5
-file_upload.py   | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3   | 8.6
-threshold.py     |      |     |    | 7.1
-monitor.py       |      |     |    | 7.2
-speedtest.py     | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files     |     |    | 8.8
-testnote.py      | Test telegram messenger notifications     |     |  py3  | 8.9
-gamma.py         | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3  | 8.7
-obsdaq.py        | communicate with ObsDAQ ADC | obsdaq.cfg | py2/py3 | 10.1.5
-palmacq.py       | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3 | 10.1.5
+| Script |   Purpose                                      | Configuration | Version               |  Section |
+|--------| ---------------------------------------------- | ------------ |-----------------------| -------- |
+| addcred.py | Create credential information for scripts         |                | REMOVE                | 8.2 |
+| archive.py | Read database tables and create archive files  | archive.cfg  | py3                   | 8.3 |
+| ardcomm.py | Communicating with arduino microcontroller     |              | py2/py3               | 8.4 |
+| checkdatainfo.py | | |                       | |
+| collectfile.py | | | REMOVE                | |
+| db_truncate.py | Check database tables (not DATAINFO) and delete data exceeding a certain age |  truncate.cfg | py3                   | 8.10 |
+| deleteold.py | | |                       | |
+| di.py | | |                       | |
+| file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs |  collect.cfg  | py3                   |  8.5 |
+| file_upload.py | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3                   | 8.6 |
+| gamma.py | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3                   | 8.7 |
+| monitor.py | | |                       | |
+| monitor_martas.py | | | REMOVE                | |
+| mpconvert.py | | | REMOVE                | |
+| obsdaq.py | communicate with ObsDAQ ADC | obsdaq.cfg | py2/py3               | 10.1.5 |
+| optimzetables.py | | |                       | |
+| palmacq.py | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3               | 10.1.5 |
+| replacenumdates.py | | |                       | |
+| senddata.py | | |                       | |
+| sendip.py | | |                       | |
+| serialinit.py | | |                       | |
+| speedtest.py | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files |     |                       | 8.8 |
+| statemachine.py | | |                       | |
+| telegramnote.py | | | REMOVE - sendtelegram | |
+| testnote.py | | | REMOVE - unittest     | |
+| testserial.py | | |                       | |
+| threshold.py | | |                       | |
+
+
 
 ### 8.2 addcred.py
 

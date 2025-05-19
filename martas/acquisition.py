@@ -42,9 +42,6 @@ sudo python acquisition.py
 
 """
 
-from __future__ import print_function
-from __future__ import absolute_import
-
 # ###################################################################
 # Import packages
 # ###################################################################
@@ -66,6 +63,7 @@ from core import acquisitionsupport as acs
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
+from martas.core import methods as mm
 from martas.version import __version__
 
 ## Import support packages
@@ -280,6 +278,7 @@ def main(argv):
     creduser = ''
     credhost = ''
     pwd = 'None'
+    debug = False
 
     ##  Get eventually provided options
     ##  ----------------------------
@@ -300,8 +299,6 @@ def main(argv):
             print('Options:')
             print('-h                             help')
             print('-m                             path to martas configuration')
-            print('-c                             credentials, if authentication is used')
-            print('-P                             alternatively provide password')
             print('------------------------------------------------------')
             print('Examples:')
             print('1. Basic (using defauilt martas.cfg')
@@ -311,15 +308,14 @@ def main(argv):
             sys.exit()
         elif opt in ("-m", "--martas"):
             martasfile = arg
-        elif opt in ("-c", "--credentials"):
-            cred = arg
-        elif opt in ("-P", "--password"):
-            pwd = arg
+        elif opt in ("-D", "--debug"):
+            debug = True
 
 
     ##  Load defaults dict
     ##  ----------------------------
-    conf = acs.GetConf(martasfile)
+    #conf = acs.GetConf(martasfile)
+    conf = mm.get_conf(martasfile)
     # Add a ceck routine here whether conf information was obtained
 
     broker = conf.get('broker')
@@ -328,7 +324,8 @@ def main(argv):
 
     ##  Get Sensor data
     ##  ----------------------------
-    sensorlist = acs.GetSensors(conf.get('sensorsconf'))
+    #sensorlist = acs.GetSensors(conf.get('sensorsconf'))
+    sensorlist = mm.get_sensors(conf.get('sensorsconf'))
 
 
     ## Check for credentials

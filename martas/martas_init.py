@@ -360,7 +360,10 @@ def main(argv):
                     "brokeraddress" : mqttbroker,
                     "1883"  :  mqttport,
                     "mqttqos  :  0": "mqttqos  :  {}".format(mqttqos),
+                    "home/username/.magpycred" : os.path.join(homedir, ".magpycred"),
                     }
+    if mqttcred:
+        replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)
 
     # file for which replacements will happen and new names
     files_to_change = { "martasconf" : {"source" : os.path.join(homedir, dir, "conf", "martas.bak") ,
