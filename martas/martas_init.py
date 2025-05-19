@@ -112,6 +112,16 @@ def main(argv):
     print ("""               You started the MARTAS initialization routine.
                Please provide some additional information so
                that MARTAS or MARCOS can be set up correctly.
+               BEFORE CONTINUING:
+               - MARTAS/MARCOS: make sure you have e-mail/telegram credentials
+               - MARTAS/MARCOS: make sure you have MQTT credentials
+               - MARTAS: accessible buffer directory
+               - MARCOS: archiving requires accessible directory path
+               - MARCOS: if you want to use a MySQL/Maria database
+                         * install MariaDB and create an empty DB (see manual)
+                         * credentials
+                         * percona installed (apt install percona)
+               - MARTAS: sensors need to be setup manually after init
                PLEASE NOTE: After finishing the setup you
                can modify all configurations manually anytime.
                Please consult the manual. """)
@@ -267,6 +277,7 @@ def main(argv):
 
         print(" ------------------------------------------- ")
         print(" Creating run time script")
+        #TODO include a start, restart and stop option (default, replacing martasrestart is start option, monitor might trigger restart)
         runscript = []
         runscript.append("# MARTAS acquisition program")
         runscript.append("")
@@ -305,26 +316,38 @@ def main(argv):
                 fout.write(line+"\n")
 
         cronlist.append("# Running MARTAS ")
-        cronlist.append("25  7,23  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
+        cronlist.append("15  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
 
     elif initjob == "MARCOS":
         print (" You can have multiple collector jobs on one machine.")
         print (" Make sure they have different names.")
         print (" ------------------------------------------- ")
         print (" Please insert a name for the collector:")
-        print (" (press return for accepting default: {})".format(marcosjob))
+        print (" (press return for accepting default: {})".format(jobname))
         print (" (the given name will be extended by '...-collect')")
         print (" (ideally you provide the name of the MARTAS from which you are collecting data)")
         newjobname = input()
         if newjobname:
             jobname = ''.join(filter(str.isalnum, newjobname))
         print (" -> MARCOS job name: {}".format(jobname))
+        marcosjob = "collect-{}".format(jobname)
+
+        cronlist.append("# Archiving ")
+        cronlist.append("20  0  * * *    $PYTHON {} > {} 2>&1".format(os.path.join(homedir, dir,"app","archive.py"),os.path.join(homedir, dir, "log","archive.log")))
+        cronlist.append("# Running MARCOS process {} ".format(jobname))
+        cronlist.append("17  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(homedir, dir, "log",marcosjob+".log")))
+        # optimizetable
 
     cronlist.append("# Log rotation for {}".format(jobname))
-    cronlist.append("30  2     * * *    /usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "logrotate", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))))
-    # backup
-    # cleanup
-    # archive
+    cronlist.append("30  2     * * *    /usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "scripts", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))))
+    cronlist.append("# Running cleanup")
+    cronlist.append("9  0  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "cleanup.sh"),
+                                                                  os.path.join(homedir, dir, "log",
+                                                                               "cleanup.log")))
+    cronlist.append("# Running backup")
+    cronlist.append("7  0  * * 1    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "backup.sh"),
+                                                                  os.path.join(homedir, dir, "log",
+                                                                               "backup.log")))
     # threshold
     # monitor
 

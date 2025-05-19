@@ -9,7 +9,6 @@ exec(open('martas/version.py').read())
 shutil.copyfile('martas/acquisition.py','scripts/acquisition')
 shutil.copyfile('martas/collector.py','scripts/collector')
 shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
-shutil.copyfile('martas/marcos_init.py', 'scripts/marcos_init')
 
 install_requires=[
             "geomagpy > 1.1.9",
@@ -25,13 +24,13 @@ setup(
     version=__version__,
     author='R. Leonhardt',
     author_email='roman.leonhardt@geosphere.at',
-    packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.install', 'martas.lib', 'martas.logrotate', 'martas.telegram', 'martas.web'],
-    scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init', 'scripts/marcos_init'],
+    packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.install', 'martas.lib', 'martas.logrotate', 'martas.scripts', 'martas.telegram', 'martas.web'],
+    scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init'],
     url='',
     license='LICENSE.txt',
     description='MARTAS',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    package_data={'martas': ['conf/*.cfg', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'web/*.js', 'web/*.html']  },
+    package_data={'martas': ['conf/*.cfg', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'scripts/*.sh', 'web/*.js', 'web/*.html']  },
     install_requires=install_requires,
 )
