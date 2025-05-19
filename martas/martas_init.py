@@ -100,6 +100,7 @@ def main(argv):
     logpath = "/tmp"
     jobname = "martas"
     marcosjob = "marcos"
+    mailcred = ""
     initjob = "MARTAS"
     stationname = "WIC"
     mqttbroker = "localhost"
@@ -216,9 +217,22 @@ def main(argv):
             print("  Insert username of MQTT broker:")
             mqttuser = input()
             print("  Insert password of MQTT broker:")
-            mqttpwd = input()
+            import getpass
+            mqttpwd = getpass.getpass()
+            #mqttpwd = input()
             cred.cc("transfer",newmqttcred,user=mqttuser,passwd=mqttpwd,address=mqttbroker,port=int(mqttport))
     print (" -> MQTT credentials: {}".format(mqttcred))
+
+
+    print (" ------------------------------------------- ")
+    print (" E-mail notifications:")
+    print (" (provide the credential shortcut of MagPy's cred module)")
+    newmailcred = input()
+    if newmailcred:
+        # check whether existing
+        mailcred = newmailcred
+    print (" -> E-mail credentials: {}".format(mailcred))
+
 
     print (" ------------------------------------------- ")
     print (" Please select - you are initializing (A) a acquisition/MARTAS or (B) a collector/MARCOS")
@@ -265,15 +279,6 @@ def main(argv):
                 print(" ! you don't have write access to the specific directory - aborting")
                 sys.exit()
             bufferpath = newbufferpath
-
-        # TODO drop this block
-        print (" ------------------------------------------- ")
-        print (" Please insert a name for the MARTAS job:")
-        print (" (press return for accepting default: {})".format(jobname))
-        newjobname = input()
-        if newjobname:
-            jobname = ''.join(filter(str.isalnum, newjobname))
-        print (" -> MARTAS job name: {}".format(jobname))
 
         print(" ------------------------------------------- ")
         print(" Creating run time script")

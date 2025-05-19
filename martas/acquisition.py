@@ -54,12 +54,11 @@ sudo python acquisition.py
 
 import threading
 import sys, getopt, os
-from datetime import datetime
+from datetime import datetime, timezone
 
 ## Import MagPy packages
 ## -----------------------------------------------------------
 from magpy.opt import cred as mpcred
-from core import acquisitionsupport as acs
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
@@ -69,6 +68,7 @@ from martas.version import __version__
 ## Import support packages
 ## -----------------------------------------------------------
 import socket
+import subprocess
 
 ## Import MQTT
 ## -----------------------------------------------------------
@@ -93,12 +93,40 @@ from twisted.internet.serialport import SerialPort
 # Default specifications and initialization parameters
 # ###################################################################
 
-now = datetime.utcnow()
+now = datetime.now(timezone.utc).replace(tzinfo=None)
 hostname = socket.gethostname()
 msgcount = 0
 
 
-SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C'] # should be provided by MagPy
+SUPPORTED_PROTOCOLS = {'Env' : {"name" : "Envrionement 05 sensor", "type" : "passive", "status" : "productive"},
+                       'Ow' : {"name" : "One wire sensors", "status" : "productive"},
+                       'Lemi' : {"name" : "LEMI sensors L25 and L36", "status" : "productive"},
+                       'Arduino' : {"name" : "Arduino microcontroller", "status" : ""},
+                       'GSM90' : {"name" : "GEM Systems Overhauser observatory 90", "type" : "passive (init)", "status" : "productive"},
+                       'GSM19' : {"name" : "GEM Systems Overhauser mobile 19", "status" : "productive"},
+                       'Cs' : {"name" : "G823 Geometrics Cesium ", "status" : "productive"},
+                       'POS1' : {"name" : "Quantum POS1 Overhauser", "type" : "passive (init)", "status" : "productive"},
+                       'MySQL' : {"name" : "MariaDB/MySQL database", "status" : "productive"},
+                       'Lm' : {"name" : "", "status" : ""},
+                       'Lnm' : {"name" : "Thiess Laser Disdrometer", "status" : ""},
+                       'BM35' : {"name" : "Pressure", "type" : "passive (init)", "status" : "productive"},
+                       'Test' : {"name" : "Test environment"},
+                       'GP20S3' : {"name" : "GEM Systems Potassium Gradiometer", "status" : "productive"},
+                       'Active' : {"name" : ""},
+                       'ActiveArduino' : {"name" : "One wire sensors"},
+                       'DSP' : {"name" : "Wind speed"},
+                       'Disdro' : {"name" : ""},
+                       'ad7714' : {"name" : "24bit AD77"},
+                       'cr1000jc' : {"name" : ""},
+                       'GIC' : {"name" : "GIC Webservice Austria TU Graz"},
+                       'obsdaq' : {"name" : "Mingeo Obsdaq 24bit"},
+                       'imfile' : {"name" : "MagPy readable data files"},
+                       'FourPL' : {"name" : "Lippmann 4PL geoelectric sensor", "status" : "productive"},
+                       'BME280I2C' : {"name" : "BME280 T/P/rh probe on I2C", "status" : "productive"},
+                       }
+
+#SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C'] # should be provided by MagPy
+
 """
 Protocol types:
 ok		Env   		: py2,py3	: passive		: environment
@@ -136,16 +164,16 @@ def do_every (interval, worker_func, iterations = 0):
         threading.Timer(interval,do_every, [interval, worker_func, 0 if iterations == 0 else iterations-1]).start ()
     worker_func()
 
-def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
+def active_thread(confdict,sensordict, mqttclient, activeconnections):
     """
     1. identify protocol from sensorid
     2. Apply protocol (read serial and return data)
     3. add data to Publish
     -> do all that in while True
     """
-
+    protocol = None
     sensorid = sensordict.get('sensorid')
-    log.msg("Starting ActiveThread for {}".format(sensorid))
+    log.msg("Starting active thread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
     log.msg("  -> Importing protocol {}".format(protocolname))
 
@@ -181,7 +209,7 @@ def ActiveThread(confdict,sensordict, mqttclient, activeconnections):
 
     return activeconnection
 
-def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
+def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
     """
     1. identify protocol from sensorid
     2. Apply protocol (read serial and return data)
@@ -189,7 +217,7 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
     -> do all that in while True
     """
     sensorid = sensordict.get('sensorid')
-    log.msg("Starting PassiveThread for {}".format(sensorid))
+    log.msg("Starting passive thread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
     log.msg("  -> Found protocol {}".format(protocolname))
     protlst = [establishedconnections[key] for key in establishedconnections]
@@ -212,13 +240,13 @@ def PassiveThread(confdict,sensordict, mqttclient, establishedconnections):
 
     return passiveconnection
 
-def AutoThread(confdict,sensordict, mqttclient, establishedconnections):
+def auto_thread(confdict,sensordict, mqttclient, establishedconnections):
     """
     1. identify protocol from sensorid
     2. Apply protocol (an autonoumous thread will be started, who publishes data)
     """
     sensorid = sensordict.get('sensorid')
-    log.msg("Starting AutoThread for {}".format(sensorid))
+    log.msg("Starting auto thread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
     log.msg("  -> Found protocol {}".format(protocolname))
     protlst = [establishedconnections[key] for key in establishedconnections]
@@ -241,7 +269,7 @@ def AutoThread(confdict,sensordict, mqttclient, establishedconnections):
 # MQTT connect:
 # -------------------------------------------------------------------
 
-def onConnect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc):
     log.msg("Connected with result code " + str(rc))
     global msgcount
     if rc == 0 and msgcount < 4:
@@ -251,11 +279,11 @@ def onConnect(client, userdata, flags, rc):
     msgcount += 1
     # add a counter here with max logs
 
-def onMessage(client, userdata, message):
+def on_message(client, userdata, message):
    # Decode the payload to get rid of the 'b' prefix and single quotes:
    log.msg('It is ' + str(message.payload.decode("utf-8")))
 
-def onDisconnect(client, userdata, message):
+def on_disconnect(client, userdata, message):
    log.msg("Disconnected from the broker.")
 
 #####################################################################
@@ -314,51 +342,44 @@ def main(argv):
 
     ##  Load defaults dict
     ##  ----------------------------
-    #conf = acs.GetConf(martasfile)
     conf = mm.get_conf(martasfile)
-    # Add a ceck routine here whether conf information was obtained
+    # Add a check routine here whether conf information was obtained
+    if debug:
+        print ("DEBUG selected")
+        print ("Configuration data:", conf)
 
-    broker = conf.get('broker')
-    mqttport = int(conf.get('mqttport'))
-    mqttdelay = int(conf.get('mqttdelay'))
+    broker = conf.get('broker',"")
+    mqttport = int(conf.get('mqttport',1883))
+    mqttdelay = int(conf.get('mqttdelay',60))
 
     ##  Get Sensor data
     ##  ----------------------------
-    #sensorlist = acs.GetSensors(conf.get('sensorsconf'))
     sensorlist = mm.get_sensors(conf.get('sensorsconf'))
 
+    if debug:
+        print ("DEBUG selected")
+        print ("Sensor data:", sensorlist)
 
     ## Check for credentials
     ## ----------------------------
+    cred = conf.get('mqttcred',"")
     if not cred == '':
         try:
             print ("Accessing credential information for {}".format(cred))
             credpath = conf.get('credentialpath',None)
-            credhost = mpcred.lc(cred,'address',path=credpath)
             creduser = mpcred.lc(cred,'user',path=credpath)
             pwd = mpcred.lc(cred,'passwd',path=credpath)
         except:
             print ("error when accessing credentials")
+            cred = ""
             pass
 
     ## create MQTT client
     ##  ----------------------------
     client = mqtt.Client(clean_session=True)
-    user = conf.get('mqttuser','')
-    if not user in ['','-',None,'None']:
+    if cred:
         # Should have two possibilities:
-        # 1. check whether credentials are provided
-        if not cred == '':
-            if not creduser == user:
-                print ('User names provided in credentials ({}) and martas.cfg ({}) differ. Please check!'.format(creduser, user))
-                pwd = 'None'
-        if pwd == 'None':
-            # 2. request pwd input
-            print ('MQTT Authentication required for User {}:'.format(user))
-            import getpass
-            pwd = getpass.getpass()
-
-        client.username_pw_set(username=user,password=pwd)
+        client.username_pw_set(username=creduser,password=pwd)
 
     ##  Start Twisted logging system
     ##  ----------------------------
@@ -380,7 +401,7 @@ def main(argv):
 
     ## connect to MQTT client
     ##  ----------------------------
-    client.on_connect = onConnect
+    client.on_connect = on_connect
     try:
         client.connect(broker, mqttport, mqttdelay)
         client.loop_start()
@@ -400,7 +421,6 @@ def main(argv):
             initdir = conf.get('initdir')
             initapp = os.path.join(initdir,init)
             # Check if provided initscript is existing
-            import subprocess
             try:
                 log.msg("  - running initialization {}".format(initapp))
                 # initcall = "{} {}".format(sys.executable, initapp)  # only for python scripts
@@ -413,26 +433,26 @@ def main(argv):
                 pass
         if sensor.get('mode') in ['p','passive','Passive','P']:
             try:
-                connected = PassiveThread(conf,sensor,client,establishedconnections)
-                log.msg(" - PassiveThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+                connected = passive_thread(conf,sensor,client,establishedconnections)
+                log.msg(" - Passive thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
                 establishedconnections.update(connected)
                 passive_count +=1
             except:
-                log.msg(" - !!! PassiveThread failed for {} !!!".format(sensor.get('sensorid')))
+                log.msg(" - !!! Passive thread failed for {} !!!".format(sensor.get('sensorid')))
                 pass
         elif sensor.get('mode') in ['a','active','Active','A']:
             try:
-                log.msg(" - ActiveThread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
-                connected_act = ActiveThread(conf,sensor,client,establishedconnections)
+                log.msg(" - Active thread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
+                connected_act = active_thread(conf,sensor,client,establishedconnections)
             except:
-                log.msg(" - !!! ActiveThread failed for {} !!!".format(sensor.get('sensorid')))
+                log.msg(" - !!! Active thread failed for {} !!!".format(sensor.get('sensorid')))
                 pass
         elif sensor.get('mode') in ['autonomous']:
             try:
-                log.msg(" - AutoThread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
-                connected_act = AutoThread(conf,sensor,client,establishedconnections)
+                log.msg(" - Auto thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+                connected_act = auto_thread(conf,sensor,client,establishedconnections)
             except Exception as e:
-                log.msg(" - !!! AutoThread failed for {} !!!".format(sensor.get('sensorid')))
+                log.msg(" - !!! Auto thread failed for {} !!!".format(sensor.get('sensorid')))
                 log.msg(e)
                 pass
         else:
