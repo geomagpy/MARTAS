@@ -62,6 +62,7 @@ from magpy.opt import cred as mpcred
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
+sys.path.insert(1,'/home/leon/Software/MARTAS/')
 from martas.core import methods as mm
 from martas.version import __version__
 
@@ -69,10 +70,12 @@ from martas.version import __version__
 ## -----------------------------------------------------------
 import socket
 import subprocess
+import importlib
 
 ## Import MQTT
 ## -----------------------------------------------------------
 import paho.mqtt.client as mqtt
+# TODO get version
 
 ## Import twisted for serial port communication and web server
 ## -----------------------------------------------------------
@@ -171,6 +174,7 @@ def active_thread(confdict,sensordict, mqttclient, activeconnections):
     3. add data to Publish
     -> do all that in while True
     """
+    prot = {}
     protocol = None
     sensorid = sensordict.get('sensorid')
     log.msg("Starting active thread for {}".format(sensorid))
@@ -179,21 +183,21 @@ def active_thread(confdict,sensordict, mqttclient, activeconnections):
 
     protlst = [activeconnections[key] for key in activeconnections]
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
-    #amount = 1                           # Load existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
-        importstr = "from libmqtt.{}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        module = "martas.lib.{}protocol".format(protocolname.lower())
+        cls = "{}Protocol".format(protocolname)
         if confdict.get('debug') == 'True':
-            log.msg("DEBUG -> Importstring looks like: {}".format(importstr))
-
-        evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
-        exec (importstr)
-        protocol = eval(evalstr)
-        log.msg(evalstr)
+            log.msg("DEBUG -> Importing: {} from {}".format(cls,module))
+        prot[amount] = getattr(importlib.import_module(module), cls)
+        if confdict.get('debug') == 'True':
+            print("... importing done")
+            print("Initializing the protocol ...")
+        protocol = prot.get(amount)(mqttclient, sensordict, confdict)
+        log.msg("... protocol successfully initialized")
     else:
-        log.msg("  -> did not find protocol in SUPPORTED_PROTOCOL list")
+        log.msg("  -> did not find protocol in SUPPORTED_PROTOCOLS")
 
     log.msg("  -> Starting active thread ...")
-    proto = "{}Prot{}".format(protocolname,amount)
 
     try:
         rate = int(sensordict.get('rate'))
@@ -216,6 +220,7 @@ def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
     3. add data to Publish
     -> do all that in while True
     """
+    prot = {}
     sensorid = sensordict.get('sensorid')
     log.msg("Starting passive thread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
@@ -224,12 +229,18 @@ def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
-        importstr = "from libmqtt.{}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        module = "martas.lib.{}protocol".format(protocolname.lower())
+        cls = "{}Protocol".format(protocolname)
         if confdict.get('debug') == 'True':
-            log.msg("DEBUG  -> Importstring looks like: {}".format(importstr))
-        evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
-        exec(importstr)
-        protocol = eval(evalstr)
+            log.msg("DEBUG -> Importing: {} from {}".format(cls, module))
+        prot[amount] = getattr(importlib.import_module(module), cls)
+        if confdict.get('debug') == 'True':
+            print("... importing done")
+            print("Initializing the protocol ...")
+        protocol = prot.get(amount)(mqttclient, sensordict, confdict)
+        log.msg("... protocol successfully initialized")
+    else:
+        log.msg("  -> did not find protocol in SUPPORTED_PROTOCOLS")
 
     port = confdict['serialport']+sensordict.get('port')
     log.msg("  -> Connecting to port {} ...".format(port))
@@ -245,6 +256,7 @@ def auto_thread(confdict,sensordict, mqttclient, establishedconnections):
     1. identify protocol from sensorid
     2. Apply protocol (an autonoumous thread will be started, who publishes data)
     """
+    prot = {}
     sensorid = sensordict.get('sensorid')
     log.msg("Starting auto thread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
@@ -253,12 +265,18 @@ def auto_thread(confdict,sensordict, mqttclient, establishedconnections):
     amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
     #amount = 1                           # Load existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
-        importstr = "from libmqtt.{}protocol import {}Protocol as {}Prot{}".format(protocolname.lower(),protocolname,protocolname,amount)
+        module = "martas.lib.{}protocol".format(protocolname.lower())
+        cls = "{}Protocol".format(protocolname)
         if confdict.get('debug') == 'True':
-            log.msg("DEBUG  -> Importstring looks like: {}".format(importstr))
-        evalstr = "{}Prot{}(mqttclient,sensordict, confdict)".format(protocolname,amount)
-        exec(importstr)
-        protocol = eval(evalstr)
+            log.msg("DEBUG -> Importing: {} from {}".format(cls, module))
+        prot[amount] = getattr(importlib.import_module(module), cls)
+        if confdict.get('debug') == 'True':
+            print("... importing done")
+            print("Initializing the protocol ...")
+        protocol = prot.get(amount)(mqttclient, sensordict, confdict)
+        log.msg("... protocol successfully initialized")
+    else:
+        log.msg("  -> did not find protocol in SUPPORTED_PROTOCOLS")
 
     autoconnection = {sensorid: protocolname}
     log.msg("  ->  autonomous connection established")
@@ -307,12 +325,14 @@ def main(argv):
     credhost = ''
     pwd = 'None'
     debug = False
+    test = False
+    conf={}
 
     ##  Get eventually provided options
     ##  ----------------------------
-    usagestring = 'acquisition.py -m <martas> -c <credentials> -P <password>'
+    usagestring = 'acquisition.py -m <martas>'
     try:
-        opts, args = getopt.getopt(argv,"hm:c:P:U",["martas=","credentials=","password=","debug=",])
+        opts, args = getopt.getopt(argv,"hm:TD",["martas=","test=","debug=",])
     except getopt.GetoptError:
         print('Check your options:')
         print(usagestring)
@@ -336,17 +356,29 @@ def main(argv):
             sys.exit()
         elif opt in ("-m", "--martas"):
             martasfile = arg
+        elif opt in ("-T", "--test"):
+            test = True
         elif opt in ("-D", "--debug"):
             debug = True
 
 
+    if debug:
+        print (" Running acquisition tool in debug mode")
     ##  Load defaults dict
     ##  ----------------------------
     conf = mm.get_conf(martasfile)
+
+    if test:
+        # When running test then conf will be predefined
+        conf["station"] = "TST"
+        conf["broker"] = "localhost"
+        conf["bufferdirectory"] = "/tmp"
+        conf["logging"] = "sys.stdout"
+        conf["debug"] = "True"
+
     # Add a check routine here whether conf information was obtained
     if debug:
-        print ("DEBUG selected")
-        print ("Configuration data:", conf)
+        print ("Configuration:", conf)
 
     broker = conf.get('broker',"")
     mqttport = int(conf.get('mqttport',1883))
@@ -354,10 +386,11 @@ def main(argv):
 
     ##  Get Sensor data
     ##  ----------------------------
-    sensorlist = mm.get_sensors(conf.get('sensorsconf'))
+    sensorlist = mm.get_sensors(conf.get('sensorsconf',""))
+    if test:
+        sensorlist = [{'sensorid': 'TEST_1234_0001', 'port': 'USB0', 'baudrate': '57600', 'bytesize': '8', 'stopbits': '1', 'parity': 'N', 'mode': 'active', 'init': '', 'rate': '-', 'stack': '1', 'protocol': 'Test', 'name': 'Test', 'serialnumber': '1234', 'revision': '0001', 'path': '-', 'pierid': 'MyPier', 'ptime': 'NTP', 'sensorgroup': 'Test environment'}]
 
     if debug:
-        print ("DEBUG selected")
         print ("Sensor data:", sensorlist)
 
     ## Check for credentials
@@ -441,12 +474,12 @@ def main(argv):
                 log.msg(" - !!! Passive thread failed for {} !!!".format(sensor.get('sensorid')))
                 pass
         elif sensor.get('mode') in ['a','active','Active','A']:
-            try:
-                log.msg(" - Active thread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
-                connected_act = active_thread(conf,sensor,client,establishedconnections)
-            except:
-                log.msg(" - !!! Active thread failed for {} !!!".format(sensor.get('sensorid')))
-                pass
+            #try:
+            log.msg(" - Active thread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
+            connected_act = active_thread(conf,sensor,client,establishedconnections)
+            #except:
+            #    log.msg(" - !!! Active thread failed for {} !!!".format(sensor.get('sensorid')))
+            #    pass
         elif sensor.get('mode') in ['autonomous']:
             try:
                 log.msg(" - Auto thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))

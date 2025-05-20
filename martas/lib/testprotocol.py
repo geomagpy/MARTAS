@@ -1,6 +1,4 @@
-from __future__ import print_function
-from __future__ import absolute_import
-
+#!/usr/bin/env python
 # ###################################################################
 # Import packages
 # ###################################################################
@@ -8,18 +6,23 @@ from __future__ import absolute_import
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
-from datetime import datetime
+from datetime import datetime, timezone
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 
 from random import randint
 
+"""
+TestProtocol:
+a typical sensors input would look like:
+TEST_1234_0001,USB0,57600,8,1,N,active,,-,1,Test,Test,1234,0001,-,MyPier,NTP,Test environment
+"""
 
 class TestProtocol(object):
     """
     Protocol to simulate a record. Test is an active protocol.
     It will create a random number between 40 and 60 and send it at regular intervals.
-    Can be used for testing procedures.
+    To be used for testing procedures.
     """
     def __init__(self, client, sensordict, confdict):
         """
@@ -45,28 +48,27 @@ class TestProtocol(object):
         log.msg("  -> setting QOS:", self.qos)
 
     def processData(self, data):
-        """Process Environment data """
+        """Processing test data """
 
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         filename = outdate
-        actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
-        outtime = datetime.strftime(currenttime, "%H:%M:%S")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         packcode = '6hLl'
         sensorid = self.sensor
         header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, '[x]', '[RN]', '[random]', '[1000]', packcode, struct.calcsize('<'+packcode))
+        datearray = mm.time_to_array(timestamp)
+        data_bin = None
 
         try:
-            datearray = acs.timeToArray(timestamp)
             datearray.append(int(data*1000))
             data_bin = struct.pack('<'+packcode,*datearray)  #use little endian byte order
         except:
             log.msg('Error while packing binary data')
             pass
 
-        if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+        if not self.confdict.get('bufferdirectory','') == '' and data_bin:
+            mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
         return ','.join(list(map(str,datearray))), header
 
     def sendRequest(self):
@@ -103,6 +105,4 @@ class TestProtocol(object):
                 if self.count >= self.metacnt:
                     self.count = 0
         except:
-            log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
-
-
+            log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), value))

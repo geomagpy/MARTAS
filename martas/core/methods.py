@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
 
+import unittest
 from magpy.core import database
 from magpy.core import methods
 from magpy.opt import cred as cred
@@ -8,6 +9,7 @@ import os
 import sys
 import glob
 from datetime import datetime
+import dateutil.parser as dparser
 import paho.mqtt.client as mqtt
 import json
 import socket
@@ -27,16 +29,63 @@ Methods:
 | class           |  method  |  version |  tested  |              comment             | manual | *used by |
 | --------------- |  ------  |  ------- |  ------- |  ------------------------------- | ------ | ---------- |
 |  **martaslog**  |          |          |          |                                  |        |            |
-|  martaslog      |          |  2.0.0   |          |                                  | -      |            |
-|  martaslog      |          |  2.0.0   |          |                                  | 5.2     | |
-|  **basic**      |            |  2.0.0 |     yes  |                                  | 5.1     | |
-|                 |  get_conf  |  2.0.0 |     -  |                                  | -       | marcosscripts |
-|                 |  sendmail  |  2.0.0 |     -  |  identical method in imbot       | -       | imbot |
-|                 |  sendtelegram |  2.0.0  | -  |  identical method in imbot       | 5.1     | marcosscripts, imbot |
+|  martaslog      |  __init__  |  2.0.0 |          |                                  | -     | |
+|  martaslog      |  msg     |  2.0.0   |          |                                  | -     | |
+|  martaslog      |  notify  |  2.0.0   |          |                                  | -      |            |
+|  martaslog      |  receiveroption  |  2.0.0 |    |                                  | -     | |
+|  martaslog      |  updatelog |  2.0.0 |          |                                  | -     | |
+|  **basic**      |            |  2.0.0 |          |                                  |      | |
+|                 |  datetime_to_array  |  2.0.0 |  yes |                            | -       | libs |
+|                 |  data_to_file  |  2.0.0 |  yes |                            | -       | libs |
+|                 |  get_conf  |  2.0.0 |      yes |                                  | -       | marcosscripts |
+|                 |  get_sensors  |  2.0.0 |   yes |                                  | -       | marcosscripts |
+|                 |  sendmail  |  2.0.0 |       -  |  identical method in imbot       | -       | imbot |
+|                 |  sendtelegram |  2.0.0  |   -  |  identical method in imbot       | 5.1     | marcosscripts, imbot |
+|                 |  time_to_array  |  2.0.0 | yes |                                  | -       | libs |
 
 """
 
 SENSORELEMENTS =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','stack','protocol','name','serialnumber','revision','path','pierid','ptime','sensorgroup','sensordesc']
+
+
+def datetime_to_array(t):
+    return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
+
+
+def data_to_file(outputdir, sensorid, filedate, bindata, header):
+    # File Operations
+    try:
+        #hostname = socket.gethostname()
+        path = os.path.join(outputdir,sensorid)
+        # outputdir defined in main options class
+        if not os.path.exists(path):
+            os.makedirs(path)
+    except:
+        print ("buffer {}: bufferdirectory could not be created - check permissions".format(sensorid))
+    try:
+        savefile = os.path.join(path, sensorid+'_'+filedate+".bin")
+        if sys.version_info>(3,0,0):
+            if not os.path.isfile(savefile):
+                with open(savefile, "wb") as myfile:
+                    head = "{}{}".format(header,"\n")
+                    myfile.write(head.encode('utf-8'))
+                    myfile.write(bindata)
+                    myfile.write("\n".encode('utf-8'))
+            else:
+                with open(savefile, "ab") as myfile:
+                    myfile.write(bindata)
+                    myfile.write("\n".encode('utf-8'))
+        else:
+            if not os.path.isfile(savefile):
+                with open(savefile, "wb") as myfile:
+                    myfile.write(header + "\n")
+                    myfile.write("{}{}".format(bindata,"\n"))
+            else:
+                with open(savefile, "a") as myfile:
+                    myfile.write("{}{}".format(bindata,"\n"))
+    except:
+        print("buffer {}: Error while saving file".format(sensorid))
+
 
 def get_conf(path, confdict=None):
     """
@@ -58,7 +107,6 @@ def get_conf(path, confdict=None):
         confdict = {}
 
     try:
-        #config = open(path,'r')
         with open(path, 'r') as config:
             confs = config.readlines()
             for conf in confs:
@@ -144,55 +192,59 @@ def get_sensors(path, identifier=None, secondidentifier=None):
 
     """
     sensorlist = []
+
+    if not path:
+        return sensorlist
+
     if path.endswith('json'):
         # Load new json version of sensors configuration
         # 'sensorid':'ENV05_2_0001', 'port':'USB0', 'baudrate':9600, 'bytesize':8, 'stopbits':1, 'parity':'EVEN', 'mode':'a', 'init':None, 'rate':10, 'protocol':'Env', 'name':'ENV05', 'serialnumber':'2', 'revision':'0001', 'path':'-', 'pierid':'A2', 'ptime':'NTP', 'sensordesc':'Environment sensor measuring temperature and humidity'
         pass
     else:
-        sensors = open(path,'r')
-        sensordata = sensors.readlines()
-        sensorlist = []
-        sensordict = {}
-        elements = SENSORELEMENTS
-
-        # add identifier here
-        #
-
-        for item in sensordata:
+        with open(path, 'r') as sensors:
+            sensordata = sensors.readlines()
+            sensorlist = []
             sensordict = {}
-            try:
-                parts = item.split(',')
-                if item.startswith('#'):
-                    continue
-                elif item.isspace():
-                    continue
-                elif item.startswith('!') and not identifier:
-                    continue
-                elif item.startswith('?') and not identifier:
-                    continue
-                elif item.startswith('$') and not identifier:
-                    continue
-                elif not identifier and len(item) > 8:
-                    for idx,part in enumerate(parts):
-                        sensordict[elements[idx]] = part
-                elif item.startswith(str(identifier)) and len(item) > 8:
-                    if not secondidentifier:
+            elements = SENSORELEMENTS
+
+            # add identifier here
+            #
+
+            for item in sensordata:
+                sensordict = {}
+                try:
+                    parts = item.split(',')
+                    if item.startswith('#'):
+                        continue
+                    elif item.isspace():
+                        continue
+                    elif item.startswith('!') and not identifier:
+                        continue
+                    elif item.startswith('?') and not identifier:
+                        continue
+                    elif item.startswith('$') and not identifier:
+                        continue
+                    elif not identifier and len(item) > 8:
                         for idx,part in enumerate(parts):
-                            if idx == 0:
-                                part = part.strip(str(identifier))
                             sensordict[elements[idx]] = part
-                    elif secondidentifier in parts:
-                        for idx,part in enumerate(parts):
-                            if idx == 0:
-                                part = part.strip(str(identifier))
-                            sensordict[elements[idx]] = part
-                    else:
-                        pass
-            except:
-                # Possible issue - empty line
-                pass
-            if not sensordict == {}:
-                sensorlist.append(sensordict)
+                    elif item.startswith(str(identifier)) and len(item) > 8:
+                        if not secondidentifier:
+                            for idx,part in enumerate(parts):
+                                if idx == 0:
+                                    part = part.strip(str(identifier))
+                                sensordict[elements[idx]] = part
+                        elif secondidentifier in parts:
+                            for idx,part in enumerate(parts):
+                                if idx == 0:
+                                    part = part.strip(str(identifier))
+                                sensordict[elements[idx]] = part
+                        else:
+                            pass
+                except:
+                    # Possible issue - empty line
+                    pass
+                if not sensordict == {}:
+                    sensorlist.append(sensordict)
 
     return sensorlist
 
@@ -297,6 +349,34 @@ def sendtelegram(message, configpath="", debug=True):
     print(requests.get(url).json())  # this sends the message
     return True
 
+
+def time_to_array(timestring):
+    """
+    DESCRIPTION
+        Converts a ISO time string to an dt like array.
+        Speedtests indicate that this is by far the fastest method.
+        A combination of dparser and datetime_to_array would need 20 times longer.
+        Accepted strings look like:
+        013-12-12T23:12:23.122324
+        013-12-12 23:12:23.122324
+    APPLICATION
+        in libraries
+    """
+
+    try:
+        splittedfull = timestring.split(' ')
+        if not len(splittedfull) > 1:
+            splittedfull = timestring.split('T') # ISO format
+        splittedday = splittedfull[0].split('-')
+        splittedsec = splittedfull[1].split('.')
+        splittedtime = splittedsec[0].split(':')
+        datearray = splittedday + splittedtime
+        datearray.append(splittedsec[1])
+        datearray = list(map(int,datearray))
+        return datearray
+    except:
+        print('Error while extracting time array')
+        return []
 
 class martaslog(object):
     """
@@ -407,3 +487,38 @@ class martaslog(object):
             dictionary[elem] = options[elem]
         print("Dictionary {} updated".format(receiver))
 
+
+
+class TestMethods(unittest.TestCase):
+    """
+    Test environment for all methods
+    """
+
+    def test_datetime_to_array(self):
+        dt = datetime(2021,11,22)
+        ar = datetime_to_array(dt)
+        self.assertEqual(ar[1],11)
+
+    def test_get_conf(self):
+        cfg = get_conf("../conf/martas.cfg")
+        self.assertEqual(cfg.get("station"),"myhome")
+
+    def test_get_sensors(self):
+        recent = True
+        sens = get_sensors("../conf/sensors.cfg")
+        self.assertEqual(sens,[])
+
+    def test_sendmail(self):
+        pass
+
+    def test_sendtelegram(self):
+        pass
+
+    def test_time_to_array(self):
+        s = "2021-11-22 23:12:23.122324"
+        ar = time_to_array(s)
+        self.assertEqual(ar[1],11)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
