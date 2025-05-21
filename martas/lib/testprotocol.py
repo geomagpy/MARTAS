@@ -9,6 +9,7 @@ import string # for ascii selection
 from datetime import datetime, timezone
 from twisted.python import log
 from martas.core import methods as mm
+from martas.lib import publishing
 
 from random import randint
 
@@ -44,9 +45,19 @@ class TestProtocol(object):
         self.metacnt = 10
         self.qos = int(confdict.get('mqttqos',0))
         self.payloadformat = confdict.get("payloadformat","martas")
+        log.msg("  -> setting MQTT publishing format:", self.payloadformat)
         if not self.qos in [0,1,2]:
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
+        # debug mode
+        debugtest = confdict.get('debug')
+        self.debug = False
+        if debugtest == 'True':
+            log.msg('     DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            self.debug = True    # prints many test messages
+        else:
+            log.msg('  -> Debug mode = {}'.format(debugtest))
+
 
     def processData(self, data):
         """Processing test data """
@@ -93,56 +104,20 @@ class TestProtocol(object):
             else:
                 senddata = True
 
-            #TODO select broadcast format
-            # senddict == dictionary with senddict[topic] = payload - this way multiple formats can be broadcasted
-            #senddict = payload_to_im(senddict, data, head, imo=self.confdict.get('station'), metar=self.sensordict)
-            #senddict = payload_to_martas(senddict, data, head, imo=self.confdict.get('station'), metar=self.sensordict)
-            if self.payloadformat == "immqtt":
-                print ("Delivering data using INTERMAGNET style")
-                # Topic
-                #impf/<iaga-code>/<cadence>/<publication-level>/<elements-recorded>
-                #impf/esk/pt1m/1/hdzs
-                # Payload
-                # {
-                #     "startDate": "2023-01-01T00:00",
-                #     "geomagneticFieldX": [ 17595.02, null, 17594.99 ],
-                #     "geomagneticFieldY": [ -329.19, -329.18, -329.21 ],
-                #     "geomagneticFieldZ": [ 46702.70, 46703.01, 46703.24 ]
-                # }
-                # "ginCode": (IMF)
-                # "decbas": (IMF)
-                # "latitude": (IMF, IAGA-2002, ImagCDF)
-                # "longitude": (IMF, IAGA-2002, ImagCDF)
-                # "elevation": (IAGA-2002, ImagCDF)
-                # "institute": (IAGA-2002, ImagCDF - called "Source of data" in IAGA-2002)
-                # "name": (IAGA-2002, ImagCDF - called "ObservatoryName" in ImagCDF)
-                # "sensorOrientation": (IAGA-2002, ImagCDF - called "VectorSensOrient in CDF)
-                # "digitalSampling": (IAGA-2002)
-                # "dataIntervalType": (IAGA-2002)
-                # "publicationDate": (IAGA-2002, ImagCDF)
-                # "standardLevel": (ImagCDF)
-                # "standardName": (ImagCDF)
-                # "standardVersion": (ImagCDF)
-                # "partialStandDesc": (ImagCDF)
-                # "source": (ImagCDF)
-                # "termsOfUse": (ImagCDF)
-                # "uniqueIdentifier": (ImagCDF)
-                # "parentIdentifiers": (ImagCDF)
-                # "referenceLinks": (ImagCDF)
-                # "comments": (IAGA-2002)
-            else:
-                print ("Delivering data using MARTAS style")
-            print (topic, data, senddata, head)
+            pubdict = {}
             if senddata:
-                self.client.publish(topic+"/data", data, qos=self.qos)
-                if self.count == 0:
-                    ## 'Add' is a string containing dict info like: 
-                    ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,... 
-                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
-                    self.client.publish(topic+"/dict", add, qos=self.qos)
-                    self.client.publish(topic+"/meta", head, qos=self.qos)
-                self.count += 1
-                if self.count >= self.metacnt:
-                    self.count = 0
+                if self.payloadformat == "intermagnet":
+                    pubdict = publishing.intermagnet(None, topic=topic, data=data, head=head,
+                                            imo=self.confdict.get('station', ''), meta=self.sensordict)
+                else:
+                    pubdict, count = publishing.martas(None, topic=topic, data=data, head=head, count=self.count,
+                                            changecount=self.metacnt,
+                                            imo=self.confdict.get('station', ''), meta=self.sensordict)
+                    self.count = count
+                for topic in pubdict:
+                    if self.debug:
+                        print ("Publishing", topic, pubdict.get(topic))
+                    self.client.publish(topic, pubdict.get(topic), qos=self.qos)
+
         except:
             log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), value))
