@@ -11,7 +11,7 @@ import socket # for hostname identification
 import string # for ascii selection
 from datetime import datetime
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import subprocess
 
 try:
@@ -136,7 +136,7 @@ class BME280I2CProtocol(object):
         header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize(packcode))
 
         if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
         return ','.join(list(map(str,datearray))), header
 

@@ -11,7 +11,7 @@ import string # for ascii selection
 from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 
 
 def datetime2array(t):
@@ -123,7 +123,7 @@ class BM35Protocol(LineReceiver):
                 log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
 
             if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
             returndata = ','.join(list(map(str,datearray)))
         else:
             returndata = ''

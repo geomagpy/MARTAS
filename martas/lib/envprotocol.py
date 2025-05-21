@@ -13,7 +13,7 @@ import sys
 from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 
 
 class EnvProtocol(LineReceiver):
@@ -85,7 +85,7 @@ class EnvProtocol(LineReceiver):
             dew = float(valrh[0])
 
         try:
-            datearray = acs.timeToArray(timestamp)
+            datearray = mm.time_to_array(timestamp)
             datearray.append(int(temp*1000))
             datearray.append(int(dew*1000))
             datearray.append(int(rh*1000))
@@ -95,7 +95,7 @@ class EnvProtocol(LineReceiver):
             pass
 
         if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
         return ','.join(list(map(str,datearray))), header
 
     def lineReceived(self, line):

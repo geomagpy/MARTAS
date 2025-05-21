@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-
 # ###################################################################
 # Import packages
 # ###################################################################
@@ -9,10 +6,11 @@ import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from twisted.python import log
 
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
+from martas.core import methods as mm
 from magpy.stream import read, num2date
 import glob
 import os
@@ -200,7 +198,7 @@ class imfileProtocol(object):
                 data_bin = None
                 datearray = ''
                 try:
-                    datearray = acs.timeToArray(timestamp)
+                    datearray = mm.time_to_array(timestamp)
                     for i,para in enumerate(keystab):
                         try:
                             val=int(float(dataline[i+1])*10000)
@@ -212,7 +210,7 @@ class imfileProtocol(object):
                     log.msg('Error while packing binary data')
 
                 if not self.confdict.get('bufferdirectory','') == '' and data_bin:
-                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, bufferfilename, data_bin, header)
+                    mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, bufferfilename, data_bin, header)
                 if self.debug:
                     log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
                 self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)

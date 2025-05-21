@@ -55,6 +55,10 @@ sudo python acquisition.py
 import threading
 import sys, getopt, os
 from datetime import datetime, timezone
+import time
+import socket
+import subprocess
+import importlib
 
 ## Import MagPy packages
 ## -----------------------------------------------------------
@@ -66,16 +70,10 @@ sys.path.insert(1,'/home/leon/Software/MARTAS/')
 from martas.core import methods as mm
 from martas.version import __version__
 
-## Import support packages
-## -----------------------------------------------------------
-import socket
-import subprocess
-import importlib
-
 ## Import MQTT
 ## -----------------------------------------------------------
 import paho.mqtt.client as mqtt
-# TODO get version
+import paho.mqtt
 
 ## Import twisted for serial port communication and web server
 ## -----------------------------------------------------------
@@ -186,13 +184,14 @@ def active_thread(confdict,sensordict, mqttclient, activeconnections):
     if protocolname in SUPPORTED_PROTOCOLS:
         module = "martas.lib.{}protocol".format(protocolname.lower())
         cls = "{}Protocol".format(protocolname)
+        pname =  "{}{}".format(protocolname, amount)
         if confdict.get('debug') == 'True':
             log.msg("DEBUG -> Importing: {} from {}".format(cls,module))
-        prot[amount] = getattr(importlib.import_module(module), cls)
+        prot[pname] = getattr(importlib.import_module(module), cls)
         if confdict.get('debug') == 'True':
             print("... importing done")
             print("Initializing the protocol ...")
-        protocol = prot.get(amount)(mqttclient, sensordict, confdict)
+        protocol = prot.get(pname)(mqttclient, sensordict, confdict)
         log.msg("... protocol successfully initialized")
     else:
         log.msg("  -> did not find protocol in SUPPORTED_PROTOCOLS")
@@ -231,13 +230,14 @@ def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
     if protocolname in SUPPORTED_PROTOCOLS:
         module = "martas.lib.{}protocol".format(protocolname.lower())
         cls = "{}Protocol".format(protocolname)
+        pname =  "{}{}".format(protocolname, amount)
         if confdict.get('debug') == 'True':
             log.msg("DEBUG -> Importing: {} from {}".format(cls, module))
-        prot[amount] = getattr(importlib.import_module(module), cls)
+        prot[pname] = getattr(importlib.import_module(module), cls)
         if confdict.get('debug') == 'True':
             print("... importing done")
             print("Initializing the protocol ...")
-        protocol = prot.get(amount)(mqttclient, sensordict, confdict)
+        protocol = prot.get(pname)(mqttclient, sensordict, confdict)
         log.msg("... protocol successfully initialized")
     else:
         log.msg("  -> did not find protocol in SUPPORTED_PROTOCOLS")
@@ -267,13 +267,14 @@ def auto_thread(confdict,sensordict, mqttclient, establishedconnections):
     if protocolname in SUPPORTED_PROTOCOLS:
         module = "martas.lib.{}protocol".format(protocolname.lower())
         cls = "{}Protocol".format(protocolname)
+        pname =  "{}{}".format(protocolname, amount)
         if confdict.get('debug') == 'True':
             log.msg("DEBUG -> Importing: {} from {}".format(cls, module))
-        prot[amount] = getattr(importlib.import_module(module), cls)
+        prot[pname] = getattr(importlib.import_module(module), cls)
         if confdict.get('debug') == 'True':
             print("... importing done")
             print("Initializing the protocol ...")
-        protocol = prot.get(amount)(mqttclient, sensordict, confdict)
+        protocol = prot.get(pname)(mqttclient, sensordict, confdict)
         log.msg("... protocol successfully initialized")
     else:
         log.msg("  -> did not find protocol in SUPPORTED_PROTOCOLS")
@@ -287,7 +288,7 @@ def auto_thread(confdict,sensordict, mqttclient, establishedconnections):
 # MQTT connect:
 # -------------------------------------------------------------------
 
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc, properties):
     log.msg("Connected with result code " + str(rc))
     global msgcount
     if rc == 0 and msgcount < 4:
@@ -409,7 +410,22 @@ def main(argv):
 
     ## create MQTT client
     ##  ----------------------------
-    client = mqtt.Client(clean_session=True)
+    pahovers = paho.mqtt.__version__
+    pahomajor = int(pahovers[0])
+    client = None
+    if debug:
+        print (" MQTT version ", pahovers)
+    if pahomajor <= 1:
+        client = mqtt.Client(clean_session=True)
+    else:
+        mqttversion = conf.get("mqttversion", "2")
+        if mqttversion == "2":
+            print (" Importing MQTT API version 2")
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, clean_session=True)
+        else:
+            print (" Importing MQTT API version 1")
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, clean_session=True)
+
     if cred:
         # Should have two possibilities:
         client.username_pw_set(username=creduser,password=pwd)
@@ -500,12 +516,10 @@ def main(argv):
 
     # TODO other solution - when the main thread stops, the deamons are killed!
     got_here = True
-    print("this is the end of the main thread...")
+    print("main thread running ...")
     if got_here:
-        import time
         while True:
             time.sleep(100)
-
 
 
 if __name__ == "__main__":

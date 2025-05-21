@@ -35,6 +35,7 @@ Methods:
 |  martaslog      |  receiveroption  |  2.0.0 |    |                                  | -     | |
 |  martaslog      |  updatelog |  2.0.0 |          |                                  | -     | |
 |  **basic**      |            |  2.0.0 |          |                                  |      | |
+|                 |  add_sensor  |  2.0.0 |  - |                            | -       | mysql,ow,arduino libs |
 |                 |  datetime_to_array  |  2.0.0 |  yes |                            | -       | libs |
 |                 |  data_to_file  |  2.0.0 |  yes |                            | -       | libs |
 |                 |  get_conf  |  2.0.0 |      yes |                                  | -       | marcosscripts |
@@ -48,12 +49,91 @@ Methods:
 SENSORELEMENTS =  ['sensorid','port','baudrate','bytesize','stopbits', 'parity','mode','init','rate','stack','protocol','name','serialnumber','revision','path','pierid','ptime','sensorgroup','sensordesc']
 
 
+
+def add_sensors(path, dictionary, block=None):
+    """
+    DESCRIPTION:
+        append sensor information to sensors.cfg
+    PATH:
+        sensors.conf
+    """
+
+    owheadline = "# OW block (automatically determined)"
+    arduinoheadline = "# Arduino block (automatically determined)"
+    mysqlheadline = "# SQL block (automatically determined)"
+    owidentifier = '!'
+    arduinoidentifier = '?'
+    mysqlidentifier = '$'
+    delimiter = '\n'
+    num = []
+    headline = ""
+    identifier = ""
+
+    def makeline(dictionary,delimiter):
+        lst = []
+        for el in SENSORELEMENTS:
+            lst.append(str(dictionary.get(el,'-')))
+        return ','.join(lst)+delimiter
+
+    newline = makeline(dictionary,delimiter)
+
+    # 1. if not block in ['OW','Arduino'] abort
+    if not block in ['OW','ow','Ow','Arduino','arduino','ARDUINO','SQL','MySQL','mysql','MYSQL','sql']:
+        print ("provided block needs to be 'OW', 'Arduino' or 'SQL'")
+        return False
+
+    # 2. check whether sensors.cfg existis
+    # abort if not
+    # read all lines
+    try:
+        sensors = open(path,'r')
+    except:
+        print ("could not read sensors.cfg")
+        return False
+    sensordata = sensors.readlines()
+    if not len(sensordata) > 0:
+        print ("no data found in sensors.cfg")
+        return False
+
+    if block in ['OW','ow','Ow']:
+        num = [line for line in sensordata if line.startswith(owheadline)]
+        identifier = owidentifier
+        headline = owheadline
+    elif block in ['Arduino','arduino','ARDUINO']:
+        num = [line for line in sensordata if line.startswith(arduinoheadline)]
+        identifier = arduinoidentifier
+        headline = arduinoheadline
+    elif block in ['SQL','MySQL','mysql','MYSQL','sql']:
+        num = [line for line in sensordata if line.startswith(mysqlheadline)]
+        identifier = mysqlidentifier
+        headline = mysqlheadline
+
+    # 3. Append/Insert line
+    if len(num) > 0:
+            cnt = [idx for idx,line in enumerate(sensordata) if line.startswith(identifier) or  line.startswith('#'+identifier)]
+            lastline = max(cnt)
+            if not (identifier+newline) in sensordata:
+                if not ('#'+identifier+newline) in sensordata:
+                    sensordata.insert(lastline+1,identifier+newline)
+    else:
+            sensordata.append(delimiter)
+            sensordata.append(headline+delimiter)
+            sensordata.append(identifier+newline)
+
+    # 6. write all lines to sensors.cfg
+    with open(path, 'w') as f:
+        f.write(''.join(sensordata))
+
+    return True
+
+
 def datetime_to_array(t):
     return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
 
-def data_to_file(outputdir, sensorid, filedate, bindata, header):
+def data_to_file(outputdir="", sensorid="", filedate="", bindata=None, header=None):
     # File Operations
+    path = ""
     try:
         #hostname = socket.gethostname()
         path = os.path.join(outputdir,sensorid)
@@ -63,7 +143,8 @@ def data_to_file(outputdir, sensorid, filedate, bindata, header):
     except:
         print ("buffer {}: bufferdirectory could not be created - check permissions".format(sensorid))
     try:
-        savefile = os.path.join(path, sensorid+'_'+filedate+".bin")
+        fname = "{}_{}.bin".format(sensorid, filedate)
+        savefile = os.path.join(path, fname)
         if sys.version_info>(3,0,0):
             if not os.path.isfile(savefile):
                 with open(savefile, "wb") as myfile:

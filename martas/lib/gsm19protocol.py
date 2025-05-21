@@ -13,7 +13,7 @@ import numpy as np
 from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 
 
 ## GEM -GSM19 protocol
@@ -177,14 +177,14 @@ class GSM19Protocol(LineReceiver):
         try:
             if not typ == "none":
                 # extract time data
-                datearray = acs.timeToArray(maintime)
+                datearray = mm.time_to_array(maintime)
                 try:
                     datearray.append(int(intensity*1000.))
                     if typ == 'base':
                         datearray.append(int(errorcode*1000.))
                     else:
                         datearray.append(int(gradient*1000.))
-                    internalarray = acs.timeToArray(secondtime)
+                    internalarray = mm.time_to_array(secondtime)
                     datearray.extend(internalarray)
                     data_bin = struct.pack('<'+packcode,*datearray)
                 except:
@@ -195,7 +195,7 @@ class GSM19Protocol(LineReceiver):
             pass
 
         if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), self.sensor, filename, data_bin, header)
+            mm.data_to_file(self.confdict.get('bufferdirectory'), self.sensor, filename, data_bin, header)
 
         return ','.join(list(map(str,datearray))), header
 

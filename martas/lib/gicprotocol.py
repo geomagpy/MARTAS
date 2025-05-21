@@ -8,7 +8,7 @@ from __future__ import absolute_import
 import struct # for binary representation
 import socket # for hostname identification
 from datetime import datetime
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 from magpy.opt import cred as mpcred
 from twisted.python import log
 
@@ -109,7 +109,7 @@ class GICProtocol():
                         print (gic)
                         print (temperature)
                     if not gic==999999:
-                        datearray = acs.timeToArray(timestamp)
+                        datearray = mm.time_to_array(timestamp)
                         datearray.append(int(gic*1000))
                         datearray.append(int(temperature*1000))
                         data_bin = struct.pack('<'+packcode,*datearray)  #use little endian byte order
@@ -118,7 +118,7 @@ class GICProtocol():
                     pass
 
                 if not self.confdict.get('bufferdirectory','') == '':
-                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                    mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
                 datadict[sensorid] = {'line': ','.join(list(map(str,datearray))), 'head':header}
 
         return datadict

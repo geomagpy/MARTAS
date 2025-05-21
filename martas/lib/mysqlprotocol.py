@@ -12,7 +12,7 @@ import numpy as np
 from datetime import datetime
 from twisted.python import log
 
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import magpy.opt.cred as mpcred
 import magpy.database as mdb
 
@@ -83,7 +83,7 @@ class MySQLProtocol(object):
 
         sensorlist = self.GetDBSensorList(self.db, searchsql='')
         self.sensor = ''
-        existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='$')
+        existinglist = mm.get_sensors(confdict.get('sensorsconf'),identifier='$')
 
         # if there is a sensor in existinglist which is not an active sensor, then drop it
         for sensdict in existinglist:
@@ -171,7 +171,7 @@ class MySQLProtocol(object):
             values['sensorgroup'] = vals[4]
             values['sensordesc'] = vals[5].replace(',',';')
 
-            success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='SQL')
+            success = mm.add_sensors(self.confdict.get('sensorsconf'), values, block='SQL')
 
         return senslist3
 
@@ -308,7 +308,7 @@ class MySQLProtocol(object):
                     data_bin = None
                     datearray = ''
                     try:
-                        datearray = acs.timeToArray(timestamp)
+                        datearray = mm.time_to_array(timestamp)
                         for i,para in enumerate(keystab):
                             try:
                                 val=int(float(dataline[i+1])*10000)
@@ -320,7 +320,7 @@ class MySQLProtocol(object):
                         log.msg('Error while packing binary data')
 
                     if not self.confdict.get('bufferdirectory','') == '' and data_bin:
-                        acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                        mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
                     if self.debug:
                         log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
                     self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)

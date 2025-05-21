@@ -302,7 +302,7 @@ class obsdaqProtocol(LineReceiver):
             except:
                 log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
             if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
             returndata = ','.join(list(map(str,datearray)))
 
             if supplement:
@@ -317,7 +317,7 @@ class obsdaqProtocol(LineReceiver):
                 except:
                     log.msg('{} protocol: Error while packing binary supplement data'.format(self.sensordict.get('protocol')))
                 if not self.confdict.get('bufferdirectory','') == '':
-                    acs.dataToFile(self.confdict.get('bufferdirectory'), self.sensoridSup, filename, data_bin_Sup, headerSup)
+                    mm.data_to_file(self.confdict.get('bufferdirectory'), self.sensoridSup, filename, data_bin_Sup, headerSup)
                 returndataSup = ','.join(list(map(str,datearraySup)))
             else:
                 returndataSup = ''

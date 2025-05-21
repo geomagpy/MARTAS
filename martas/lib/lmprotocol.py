@@ -11,7 +11,7 @@ import string # for ascii selection
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 
 
 ## Lippmann protocol
@@ -90,14 +90,14 @@ class LmProtocol(LineReceiver):
             intensity = 88888.0
 
         try:
-            datearray = acs.timeToArray(timestamp)
+            datearray = mm.time_to_array(timestamp)
             datearray.append(int(intensity*1000))
             data_bin = struct.pack('<'+packcode,*datearray)
         except:
             log.msg('Error while packing binary data')
 
         if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
         return ','.join(list(map(str,datearray))), header
 

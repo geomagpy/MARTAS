@@ -11,7 +11,7 @@ import string # for ascii selection
 from datetime import datetime
 #from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import serial
 import subprocess
 import sys
@@ -113,7 +113,7 @@ class ActiveArduinoProtocol(object):
         if self.debug:
             log.msg("DEBUG - Running on board {}".format(self.board))
         # get existing sensors for the relevant board
-        self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
+        self.existinglist = mm.get_sensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
         self.sensor = ''
         self.ser = None
 
@@ -156,7 +156,7 @@ class ActiveArduinoProtocol(object):
 
         datearray = self.datetime2array(currenttime)
 
-        #datearray = acs.timeToArray(timestamp)
+        #datearray = mm.time_to_array(timestamp)
         packcode = '6hL'
         #sensorid = self.sensordict.get(idnum)
         #events = self.eventdict.get(idnum).replace('evt','').split(',')[3:-1]
@@ -188,7 +188,7 @@ class ActiveArduinoProtocol(object):
         header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, key, ele, unit, multplier, packcode, struct.calcsize('<'+packcode))
 
         if not self.confdict.get('bufferdirectory','') == '':
-            acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+            mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
         return ','.join(list(map(str,datearray))), header
 
@@ -352,8 +352,8 @@ class ActiveArduinoProtocol(object):
                         values['stack'] = 0
                         values['sensorid'] = sensoridenti[0]+'_'+relevantdict.get('SensorID')+'_'+relevantdict.get('SensorRevision')
                         log.msg("Arduino: Writing new sensor input to sensors.cfg ...")
-                        success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
-                        #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='Arduino')
+                        success = mm.add_sensors(self.confdict.get('sensorsconf'), values, block='Arduino')
+                        #success = mm.add_sensors(self.confdict.get('sensorsconf'), values, block='Arduino')
                         print ("Add sensor done")
                         self.existinglist.append(values)
                         print ("sensor added to arduino list")

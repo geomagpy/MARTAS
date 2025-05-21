@@ -34,7 +34,7 @@ import struct
 from datetime import datetime
 
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import time
 
 # Raspberry Pi specific
@@ -398,7 +398,7 @@ def interruptRead(s):
     data_bin = struct.pack(packcode,*darray)
     filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
     if not Objekt.confdict.get('bufferdirectory','') == '':
-        acs.dataToFile(Objekt.confdict.get('bufferdirectory'), sensorid, filedate, data_bin, header)
+        mm.data_to_file(Objekt.confdict.get('bufferdirectory'), sensorid, filedate, data_bin, header)
 
     # VIA MQTT
     # instead of external program file TODO: better!

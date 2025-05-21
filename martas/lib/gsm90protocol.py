@@ -12,7 +12,7 @@ import sys
 from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 
 
 ## GEM -GSM90 protocol
@@ -152,19 +152,19 @@ class GSM90Protocol(LineReceiver):
             ## GSM90 does not provide any info on whether the GPS reading is OK or not
 
             # extract time data
-            datearray = acs.timeToArray(maintime)
+            datearray = mm.time_to_array(maintime)
             try:
                 datearray.append(int(intensity*1000.))
                 datearray.append(err_code)
                 #print timestamp, internal_time
-                internalarray = acs.timeToArray(secondtime)
+                internalarray = mm.time_to_array(secondtime)
                 datearray.extend(internalarray)
                 data_bin = struct.pack('<'+packcode,*datearray)
             except:
                 log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
 
             if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
 
         except:
             log.msg('{} protocol: Error with binary save routine'.format(self.sensordict.get('protocol')))

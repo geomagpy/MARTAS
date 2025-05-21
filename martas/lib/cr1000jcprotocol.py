@@ -15,7 +15,7 @@ from __future__ import absolute_import
 import struct # for binary representation
 from datetime import datetime, timedelta
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import threading
 import time
 
@@ -158,7 +158,7 @@ if cr1000imported:
             # date of dataloggers timestamp
             filedate = datetime.strftime(datetime(darray[0],darray[1],darray[2]), "%Y-%m-%d")
             if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filedate, data_bin, header)
+                mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filedate, data_bin, header)
                 if debug:
                     log.msg('Daten gesichert...')
 

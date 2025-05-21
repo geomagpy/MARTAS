@@ -42,7 +42,8 @@ class TestProtocol(object):
         self.datalst = []
         self.datacnt = 0
         self.metacnt = 10
-        self.qos=int(confdict.get('mqttqos',0))
+        self.qos = int(confdict.get('mqttqos',0))
+        self.payloadformat = confdict.get("payloadformat","martas")
         if not self.qos in [0,1,2]:
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
@@ -92,7 +93,46 @@ class TestProtocol(object):
             else:
                 senddata = True
 
-            print (topic, data, senddata)
+            #TODO select broadcast format
+            # senddict == dictionary with senddict[topic] = payload - this way multiple formats can be broadcasted
+            #senddict = payload_to_im(senddict, data, head, imo=self.confdict.get('station'), metar=self.sensordict)
+            #senddict = payload_to_martas(senddict, data, head, imo=self.confdict.get('station'), metar=self.sensordict)
+            if self.payloadformat == "immqtt":
+                print ("Delivering data using INTERMAGNET style")
+                # Topic
+                #impf/<iaga-code>/<cadence>/<publication-level>/<elements-recorded>
+                #impf/esk/pt1m/1/hdzs
+                # Payload
+                # {
+                #     "startDate": "2023-01-01T00:00",
+                #     "geomagneticFieldX": [ 17595.02, null, 17594.99 ],
+                #     "geomagneticFieldY": [ -329.19, -329.18, -329.21 ],
+                #     "geomagneticFieldZ": [ 46702.70, 46703.01, 46703.24 ]
+                # }
+                # "ginCode": (IMF)
+                # "decbas": (IMF)
+                # "latitude": (IMF, IAGA-2002, ImagCDF)
+                # "longitude": (IMF, IAGA-2002, ImagCDF)
+                # "elevation": (IAGA-2002, ImagCDF)
+                # "institute": (IAGA-2002, ImagCDF - called "Source of data" in IAGA-2002)
+                # "name": (IAGA-2002, ImagCDF - called "ObservatoryName" in ImagCDF)
+                # "sensorOrientation": (IAGA-2002, ImagCDF - called "VectorSensOrient in CDF)
+                # "digitalSampling": (IAGA-2002)
+                # "dataIntervalType": (IAGA-2002)
+                # "publicationDate": (IAGA-2002, ImagCDF)
+                # "standardLevel": (ImagCDF)
+                # "standardName": (ImagCDF)
+                # "standardVersion": (ImagCDF)
+                # "partialStandDesc": (ImagCDF)
+                # "source": (ImagCDF)
+                # "termsOfUse": (ImagCDF)
+                # "uniqueIdentifier": (ImagCDF)
+                # "parentIdentifiers": (ImagCDF)
+                # "referenceLinks": (ImagCDF)
+                # "comments": (IAGA-2002)
+            else:
+                print ("Delivering data using MARTAS style")
+            print (topic, data, senddata, head)
             if senddata:
                 self.client.publish(topic+"/data", data, qos=self.qos)
                 if self.count == 0:

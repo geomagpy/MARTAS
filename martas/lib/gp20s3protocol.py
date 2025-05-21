@@ -12,7 +12,7 @@ import sys
 from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import numpy as np
 
 ## GEM -GP20S3 protocol
@@ -260,7 +260,7 @@ class GP20S3Protocol(LineReceiver):
                 #if validity_check([intensity1,intensity2,intensity3], thresholds,debug=False):
 
                 # extract time data
-                datearray = acs.timeToArray(maintime)
+                datearray = mm.time_to_array(maintime)
                 try:
                     datearray.append(int(intensity1*1000.))
                     datearray.append(int(intensity2*1000.))
@@ -268,14 +268,14 @@ class GP20S3Protocol(LineReceiver):
                     datearray.append(int(grad1*1000.))
                     datearray.append(int(grad2*1000.))
                     datearray.append(int(grad3*1000.))
-                    internalarray = acs.timeToArray(secondtime)
+                    internalarray = mm.time_to_array(secondtime)
                     datearray.extend(internalarray)
                     data_bin = struct.pack('<'+packcode,*datearray)
                 except:
                     log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
 
                 if not self.confdict.get('bufferdirectory','') == '':
-                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                    mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
                 #else:
                 #   datearray = []
             except:
@@ -288,7 +288,7 @@ class GP20S3Protocol(LineReceiver):
             statusname = "Status_123_0001"
             try:
                 # extract time data
-                headarray = acs.timeToArray(maintime)
+                headarray = mm.time_to_array(maintime)
                 try:
                     headarray.append(int(tsens1))			# x
                     headarray.append(int(tsens2))			# y
@@ -320,7 +320,7 @@ class GP20S3Protocol(LineReceiver):
                         print ("Header looks like: {} ".format(headheader))
                         print ("Writing to file: {}, {}, {}".format(statusname,filename,headheader))
                     if not self.confdict.get('bufferdirectory','') == '':
-                        acs.dataToFile(self.confdict.get('bufferdirectory'), statusname, filename, data_bin, headheader)
+                        mm.data_to_file(self.confdict.get('bufferdirectory'), statusname, filename, data_bin, headheader)
                 except:
                     log.msg('GSMP20 - Protocol: Error while packing binary data')
             except:

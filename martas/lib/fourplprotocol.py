@@ -144,7 +144,7 @@ import socket # for hostname identification
 import string # for ascii selection
 from datetime import datetime, timedelta
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import serial
 
 
@@ -421,7 +421,7 @@ class FourPLProtocol(object):
                 data = ','.join(list(map(str,datearray)))
 
                 if not self.confdict.get('bufferdirectory','') == '':
-                    acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                    mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
             else:
                 data = ''
                 header = ''

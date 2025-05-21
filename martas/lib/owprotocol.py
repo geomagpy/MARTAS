@@ -12,7 +12,7 @@ import string # for ascii selection
 from datetime import datetime
 #from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 
 try:
     import pyownet
@@ -51,7 +51,7 @@ if onewire:
             self.removelist = [] # list of sensorspaths from sensors.cfg which are not found
             # Extract eventually existing one wire sensors from sensors.cfg
             log.msg("  -> one wire: Checking existing sensors ...")
-            self.existinglist = acs.GetSensors(confdict.get('sensorsconf'),identifier='!')
+            self.existinglist = mm.get_sensors(confdict.get('sensorsconf'),identifier='!')
             log.msg("  -> one wire: Checking for new sensors ...")
             self.sensorarray = self.GetOneWireSensorList(self.existinglist)
             self.count = [0]*len(self.sensorarray)  ## counter for sending header information
@@ -141,8 +141,8 @@ if onewire:
                             values['stack'] = 0
                             values['sensorid'] = '{}_{}_{}'.format(typ,idel,revision)
                             log.msg("OW: Writing new sensor input to sensors.cfg ...")
-                            success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
-                            #success = acs.AddSensor(self.confdict.get('sensorsconf'), values, block='OW')
+                            success = mm.add_sensors(self.confdict.get('sensorsconf'), values, block='OW')
+                            #success = mm.add_sensors(self.confdict.get('sensorsconf'), values, block='OW')
                             if success:
                                 log.msg("    {} written".format(values.get('sensorid')))
                                 # extend existingpathlist
@@ -252,7 +252,7 @@ if onewire:
             data_bin = None
             datearray = ''
             try:
-                datearray = acs.timeToArray(timestamp)
+                datearray = mm.time_to_array(timestamp)
                 paralst = typedef.get(sensorid.split('_')[0])
                 for para in paralst:
                     if para in datadict:
@@ -262,7 +262,7 @@ if onewire:
                 log.msg('Error while packing binary data')
 
             if not self.confdict.get('bufferdirectory','') == '' and data_bin:
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
             #print ("Sending", ','.join(list(map(str,datearray))), header)
             return ','.join(list(map(str,datearray))), header
 

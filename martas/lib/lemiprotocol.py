@@ -41,7 +41,7 @@ import os     # binary data saved directly without acs helper method
 from datetime import datetime, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 from subprocess import check_call
 
 
@@ -170,7 +170,7 @@ class LemiProtocol(LineReceiver):
         date = datetime.strftime(currenttime, "%Y-%m-%d")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
-        datearray = acs.timeToArray(timestamp)
+        datearray = mm.time_to_array(timestamp)
         date_bin = struct.pack('<6hL',datearray[0]-2000,datearray[1],datearray[2],datearray[3],datearray[4],datearray[5],datearray[6])   ## Added "<" to pack code to get correct length in new machines
 
         # define pathname for local file storage
@@ -284,7 +284,7 @@ class LemiProtocol(LineReceiver):
             tincr = idx/10.
             timear = gpstime+timedelta(seconds=tincr)
             gps_time = datetime.strftime(timear.replace(tzinfo=None), "%Y-%m-%d %H:%M:%S.%f")
-            datalst = acs.timeToArray(gps_time)
+            datalst = mm.time_to_array(gps_time)
             datalst.append(xarray[idx]/1000.)
             datalst.append(yarray[idx]/1000.)
             datalst.append(zarray[idx]/1000.)

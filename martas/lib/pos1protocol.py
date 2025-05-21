@@ -8,10 +8,11 @@ from __future__ import absolute_import
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+import numpy as np
 from datetime import datetime
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
-from martas.core import acquisitionsupport as acs
+from martas.core import methods as mm
 import sys
 
 
@@ -91,6 +92,7 @@ class POS1Protocol(LineReceiver):
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         filename = outdate
         sensorid = self.sensor
+        data_bin = None
 
         packcode = '6hLLLh6hL'
         header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,df,var1,sectime]', '[f,df,var1,GPStime]', '[nT,nT,none,none]', '[1000,1000,1,1]', packcode, struct.calcsize('<'+packcode))
@@ -131,7 +133,7 @@ class POS1Protocol(LineReceiver):
             if delta-self.ntp_gps_offset > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
-                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
+                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, delta))
             else:
                 self.errorcnt['time'] = 0 
         except:
@@ -146,8 +148,8 @@ class POS1Protocol(LineReceiver):
 
         try:
             # extract time data
-            datearray = acs.timeToArray(maintime)
-            sectarray = acs.timeToArray(secondtime)
+            datearray = mm.time_to_array(maintime)
+            sectarray = mm.time_to_array(secondtime)
             try:
                 datearray.append(int(intensity*1000))
                 datearray.append(int(sigma_int*1000))
@@ -158,7 +160,7 @@ class POS1Protocol(LineReceiver):
                 log.msg('POS1 - Protocol: Error while packing binary data')
                 pass
             if not self.confdict.get('bufferdirectory','') == '':
-                acs.dataToFile(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
+                mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
         except:
             log.msg('POS1 - Protocol: Error with binary save routine')
             pass
