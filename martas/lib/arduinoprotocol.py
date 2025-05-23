@@ -103,7 +103,7 @@ class ArduinoProtocol(LineReceiver):
 
     def processArduinoData(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")

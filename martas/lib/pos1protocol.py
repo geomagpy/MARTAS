@@ -85,7 +85,7 @@ class POS1Protocol(LineReceiver):
         if len(data) != 44:
             log.err('POS1 - Protocol: Unable to parse data of length %i' % len(data))
 
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")

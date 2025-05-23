@@ -147,7 +147,7 @@ class ActiveArduinoProtocol(object):
 
     def processArduinoData(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         #actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         #outtime = datetime.strftime(currenttime, "%H:%M:%S")
@@ -398,12 +398,12 @@ class ActiveArduinoProtocol(object):
             ser.flush()
             try:
                 ser.write(command)
-                #responsetime1 = datetime.utcnow()
+                #responsetime1 = datetime.now(timezone.utc).replace(tzinfo=None)
                 time.sleep(.1)
                 while not dedata.find(end) > -1 and not cnt == maxcnt:
                    cnt+=1
                    data = ser.readline()
-                   #responsetime2 = datetime.utcnow()
+                   #responsetime2 = datetime.now(timezone.utc).replace(tzinfo=None)
                    if sys.version_info >= (3, 0):
                        dedata = str(data.decode("utf-8"))
                    else:

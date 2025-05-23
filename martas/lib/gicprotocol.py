@@ -74,7 +74,7 @@ class GICProtocol():
         if not data:
             log.msg('  -> {} - received empty data structure'.format(self.sensor))
             return {}
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         datadict = {}
         for el in data:
             dataname = el.get("client")

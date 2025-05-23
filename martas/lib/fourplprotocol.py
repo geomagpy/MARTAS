@@ -45,10 +45,10 @@ def lineread(ser,eol):
 def send_command(ser,command,eol,hex=False):
 
     command = command
-    sendtime = date2num(datetime.utcnow())
+    sendtime = date2num(datetime.now(timezone.utc).replace(tzinfo=None))
     ser.write(command.encode())
     response = lineread(ser,eol)
-    receivetime = date2num(datetime.utcnow())
+    receivetime = date2num(datetime.now(timezone.utc).replace(tzinfo=None))
     meantime = np.mean([receivetime,sendtime])
 
     return response, num2date(meantime).replace(tzinfo=None)
@@ -111,7 +111,7 @@ if test==1:
         comms = ["S","M","T"]
         sum0,sum90 = [],[]
         print ("------------------------")
-        print ("Date:", datetime.utcnow())
+        print ("Date:", datetime.now(timezone.utc).replace(tzinfo=None))
         for comm in comms:
             #answer,actime = send_command(ser,comm,eol)
             if comm == "M":
@@ -171,10 +171,10 @@ def lineread(ser,eol):
 def send_command(ser,command,eol,hex=False):
 
     command = command
-    sendtime = date2num(datetime.utcnow())
+    sendtime = date2num(datetime.now(timezone.utc).replace(tzinfo=None))
     ser.write(command.encode())
     response = lineread(ser,eol)
-    receivetime = date2num(datetime.utcnow())
+    receivetime = date2num(datetime.now(timezone.utc).replace(tzinfo=None))
     meantime = np.mean([receivetime,sendtime])
 
     return response, num2date(meantime).replace(tzinfo=None)
@@ -353,7 +353,7 @@ class FourPLProtocol(object):
             Author: Thierry Husson 2012
             """
             if dt == None:
-                dt = datetime.utcnow()
+                dt = datetime.now(timezone.utc).replace(tzinfo=None)
             seconds = (dt.replace(tzinfo=None) - dt.min).seconds
             rounding = (seconds+roundTo/2) // roundTo * roundTo
             return dt + timedelta(0,rounding-seconds,-dt.microsecond)
@@ -377,7 +377,7 @@ class FourPLProtocol(object):
         MetaInformation:
         SensorID,Softwareversion,
         """
-        # currenttime = datetime.utcnow()
+        # currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(ntptime, "%Y-%m-%d")
         filename = outdate
         sensorid = self.sensorid
@@ -450,13 +450,13 @@ class FourPLProtocol(object):
         ok = True
         if ok:
             #
-            st = datetime.utcnow()
+            st = datetime.now(timezone.utc).replace(tzinfo=None)
             # start transmission
             comms = ["w","O","S","M","T"]
             sum0,sum90 = [],[]
             if self.debug:
                 print ("------------------------")
-                print ("Date:", datetime.utcnow())
+                print ("Date:", datetime.now(timezone.utc).replace(tzinfo=None))
             for comm in comms:
                 if comm == "M":
                     for o in range(0,self.N):
@@ -481,7 +481,7 @@ class FourPLProtocol(object):
                         Vext=float(answer.replace("w",""))
                     if comm=="O":
                         Vint=float(answer.replace("O",""))
-            et = datetime.utcnow()
+            et = datetime.now(timezone.utc).replace(tzinfo=None)
             actime = self.gettime(st,et)
             result = [meanU0,meanU90,stdU0,stdU90,Vint,Vext]
             if self.debug:

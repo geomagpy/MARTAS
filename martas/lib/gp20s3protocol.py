@@ -109,7 +109,7 @@ class GP20S3Protocol(LineReceiver):
         time 111 field1 field2 field3                                            (every sec or faster)
         """
 
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
@@ -157,7 +157,7 @@ class GP20S3Protocol(LineReceiver):
                         internal_t = datetime.strptime(cdate+'T'+data[0], "%Y-%m-%dT%H%M%S")
                     internal_time = datetime.strftime(internal_t, "%Y-%m-%d %H:%M:%S.%f")
                 except:
-                    internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S.%f")
+                    internal_time = timestamp #datetime.strftime(datetime.now(timezone.utc).replace(tzinfo=None), "%Y-%m-%d %H:%M:%S.%f")
 
             elif len(data_array) == 19:
                 """

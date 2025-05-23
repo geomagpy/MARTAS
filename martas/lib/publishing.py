@@ -104,7 +104,6 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
     dateext = lines[0].split(",")[:7]
     dateline = list(map(int, dateext))
     dt = datetime(*dateline)
-    d = datetime.strptime(dateline[:6], "%Y,%m,%d,%H,%M,%S,%f")
     if cadence == "pt1s":
         dtformat = "%Y-%m-%dT%H:%M:%S"
     elif cadence == "pt1m":

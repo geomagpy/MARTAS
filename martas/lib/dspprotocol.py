@@ -20,7 +20,7 @@ def send_command_ascii(ser,command,eol):
     command = eol+command+eol
     if(ser.isOpen() == False):
         ser.open()
-    sendtime = datetime.utcnow()
+    sendtime = datetime.now(timezone.utc).replace(tzinfo=None)
     # encode to binary if python3
     if sys.version_info >= (3, 0):
         ser.write(command.encode('ascii'))
@@ -29,11 +29,11 @@ def send_command_ascii(ser,command,eol):
     # skipping all empty lines
     while response == '':
         response = ser.readline()
-    #responsetime = datetime.utcnow()
+    #responsetime = datetime.now(timezone.utc).replace(tzinfo=None)
     # decode from binary if py3
     if sys.version_info >= (3, 0):
         response = response.decode('ascii')
-    responsetime = datetime.utcnow()
+    responsetime = datetime.now(timezone.utc).replace(tzinfo=None)
     # return only ascii
     line = ''.join(filter(lambda x: x in string.printable, response))
     line = line.strip()
@@ -126,7 +126,7 @@ class DSPProtocol(object):
            01.6 290 +14.8 0E*4F
            windspeed, winddirection, virtualtemperature, status*pruefsumme
         """
-        # currenttime = datetime.utcnow()
+        # currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(ntptime, "%Y-%m-%d")
         filename = outdate
         header = ''

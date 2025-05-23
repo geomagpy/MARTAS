@@ -229,7 +229,7 @@ if onewire:
 
         def processOwData(self, sensorid, datadict):
             """Process OW data """
-            currenttime = datetime.utcnow()
+            currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
             outdate = datetime.strftime(currenttime, "%Y-%m-%d")
             filename = outdate
             actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")

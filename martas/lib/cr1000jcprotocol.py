@@ -70,7 +70,7 @@ if cr1000imported:
                 # TODO log-Befehl, Abbruch!
                 log.msg('CR1000 not configured for Judd JC')
             else:
-                self.device.settime(datetime.utcnow())
+                self.device.settime(datetime.now(timezone.utc).replace(tzinfo=None))
                 # TODO folgende Ausgabe nur fuers Programmieren!!
                 log.msg('++++++++ Information von den Konfig-Dateien +++++++++++++')
                 log.msg('++ client:')
@@ -86,7 +86,7 @@ if cr1000imported:
             if self.reconnect.is_set():
                 log.msg('exiting, mutex locked!')
                 return
-            t = datetime.utcnow()
+            t = datetime.now(timezone.utc).replace(tzinfo=None)
             past = t-timedelta(seconds=3)
             vals = self.device.get_data('SamplesEvery2s',past,t)
             # vals[0] because we grap no older data, there is only one value in 2 seconds
@@ -100,7 +100,7 @@ if cr1000imported:
                 again = True
             try:
                 if again:
-                    t = datetime.utcnow()
+                    t = datetime.now(timezone.utc).replace(tzinfo=None)
                     past = t-timedelta(seconds=3)
                     darray = datetime2array(vals[0]['Datetime'])
                     log.msg("IT TOOK A SECOND TIME TO GET DATA PROPERLY!") 

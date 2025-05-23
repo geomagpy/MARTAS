@@ -333,7 +333,7 @@ def interruptRead(s):
     triggered by AD7714 /DRDY signal
     """
     # at first get the time...
-    currenttime = datetime.utcnow()
+    currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
     # read from data register
     arrvalue=rxreg(5,CHANNEL)
     if len(arrvalue)==2:

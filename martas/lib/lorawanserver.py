@@ -120,7 +120,7 @@ class lorawanserver(object):
             elif not loradict.get('DatumSec','') == '':
                 time = datetime.strptime(loradict.get('DatumSec'),"%Y-%m-%dT%H:%M:%S.%fZ")
             else:
-                time = datetime.utcnow()
+                time = datetime.now(timezone.utc).replace(tzinfo=None)
             datalst = datetime2array(time)
             packstr = '6hL'
             for elem in datadict:

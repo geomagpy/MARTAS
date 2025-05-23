@@ -108,6 +108,11 @@ def main(argv):
     mqttqos = "1"
     mqttcred = ""
     bufferpath = "/srv/mqtt"
+    destination = "stdout"
+    filepath = "/tmp"
+    databasecredentials = "mydb"
+    payloadformat = "martas"
+
     cronlist = []
     print (" ------------------------------------------- ")
     print ("""               You started the MARTAS initialization routine.
@@ -231,7 +236,10 @@ def main(argv):
     if newmailcred:
         # check whether existing
         mailcred = newmailcred
-    print (" -> E-mail credentials: {}".format(mailcred))
+        val = cred.lc(newmailcred, "user")
+        if not val:
+            print (" ! Mail cerdential do not exist")
+        print (" -> E-mail credentials: {}".format(mailcred))
 
 
     print (" ------------------------------------------- ")
@@ -280,15 +288,24 @@ def main(argv):
                 sys.exit()
             bufferpath = newbufferpath
 
+        print (" ------------------------------------------- ")
+        print (" Please specify the MQTT payload format:")
+        print (" (currently supported are 'martas' and 'intermagnet')")
+        print (" ('intermagnet' is only available for mysql and imfile libraries)")
+        print (" (default is 'martas')")
+        newpayloadformat = input()
+        if newpayloadformat == 'intermagnet':
+            payloadformat = 'intermagnet'
+
         print(" ------------------------------------------- ")
-        print(" Creating run time script")
-        #TODO include a start, restart and stop option (default, replacing martasrestart is start option, monitor might trigger restart)
+        print(" Creating the MARTAS run time script")
         runscript = []
+        runscript.append("#! /bin/bash")
         runscript.append("# MARTAS acquisition program")
         runscript.append("")
         runscript.append('PYTHON={}'.format(sys.executable))
-        runscript.append('BOT="acquisition.py"')
-        runscript.append('OPT="-c {}"'.format(os.path.join(confpath, "martas.cfg")))
+        runscript.append('BOT="acquisition"')
+        runscript.append('OPT="-m {}"'.format(os.path.join(confpath, "martas.cfg")))
         runscript.append("")
         runscript.append('check_process()')
         runscript.append("{")
@@ -299,23 +316,61 @@ def main(argv):
         runscript.append("    pid=`ps -ef | awk -v pattern=\"$BOT\" \"$0 ~ pattern{print $2}\"`")
         runscript.append("}")
         runscript.append("")
+        runscript.append("check_process")
         runscript.append("# Run it")
         runscript.append("# ######")
-        runscript.append("check_process")
-        runscript.append("if [\"$result\" = \"0\"]; then")
-        runscript.append("    echo \"$BOT is not running\" ")
-        runscript.append("    echo \"Starting $BOT\"")
+        runscript.append("case \"$1\" in")
+        runscript.append("  start)")
+        runscript.append("    echo \"Starting $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("        echo \" Starting $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        sleep 2")
+        runscript.append("        $PYTHON --version")
+        runscript.append("        $BOT $OPT")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running already\" ")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  stop)")
+        runscript.append("    echo \"Stopping $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("    else")
+        runscript.append("        echo \" Stopping $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        pkill -f $BOT")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  restart)")
+        runscript.append("    echo \"Restarting $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"1\" ]; then")
+        runscript.append("        echo \" Stopping $BOT\" ")
+        runscript.append("        pkill -f $BOT")
+        runscript.append("    fi")
+        runscript.append("    echo \" Starting $BOT\"")
         runscript.append("    echo \"--------------------\"")
         runscript.append("    sleep 2")
         runscript.append("    $PYTHON --version")
-        runscript.append("    $PYTHON $BOT $OPT")
-        #runscript.append("else")
-        #runscript.append("    get_pid")
-        #runscript.append("    echo \"Stopping $BOT\" ")
-        #runscript.append("    echo \"--------------------\"")
-        #runscript.append("    pkill - f $BOT")
-        #runscript.append("    echo \"... stopped\"")
-        runscript.append("fi")
+        runscript.append("    $BOT $OPT")
+        runscript.append("    ;;")
+        runscript.append("  status)")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \"$BOT is dead\" ")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running\" ")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  *)")
+        runscript.append("    echo \"Usage: $BOT {start|stop|restart|status}\"")
+        runscript.append("    ;;")
+        runscript.append("esac")
+        runscript.append("exit 0")
         with open(os.path.join(homedir, dir, "runmartas.sh"), "wt") as fout:
             for line in runscript:
                 fout.write(line+"\n")
@@ -329,13 +384,139 @@ def main(argv):
         print (" ------------------------------------------- ")
         print (" Please insert a name for the collector:")
         print (" (press return for accepting default: {})".format(jobname))
-        print (" (the given name will be extended by '...-collect')")
+        print (" (the given name will be extended 'collect-NAME')")
         print (" (ideally you provide the name of the MARTAS from which you are collecting data)")
         newjobname = input()
         if newjobname:
             jobname = ''.join(filter(str.isalnum, newjobname))
         print (" -> MARCOS job name: {}".format(jobname))
         marcosjob = "collect-{}".format(jobname)
+
+        print (" ------------------------------------------- ")
+        print (" Please specify an output destination:")
+        print (" (choose from stdout, db, file, websocket, diff)")
+        print (" (multiple selections i.e. file,db are possible)")
+        newdestination = input()
+        if newdestination:
+            valid = ["stdout", "db", "file", "websocket", "diff"]
+            if any(s in newdestination for s in valid):
+                pass
+            else:
+                print("  ! invalid destination - aborting")
+                sys.exit()
+            destination = newdestination
+
+        if destination.find("file") >= 0:
+            print (" ------------------------------------------- ")
+            print (" Please specify a filepath:")
+            filepath = input()
+            if not os.path.isdir(filepath):
+                print ("  ! the selected directory is not yet existing - aborting")
+                sys.exit()
+            if not os.access(filepath, os.W_OK):
+                print (" ! you don't have write access - aborting")
+                sys.exit()
+
+        if destination.find("db") >= 0:
+            print (" ------------------------------------------- ")
+            print (" Please specify credentials (see addcred) for database:")
+            newdatabasecredentials = input()
+            if newdatabasecredentials:
+                val = cred.lc(newdatabasecredentials, "user")
+                if not val:
+                    print (" ! Database credentials do not exist")
+                databasecredentials = newdatabasecredentials
+
+        print(" ------------------------------------------- ")
+        print(" Creating the MARCOS run time script for {}".format(jobname))
+        runscript = []
+        runscript.append("#! /bin/bash")
+        runscript.append("# MARCOS acquisition program")
+        runscript.append("")
+        runscript.append('PYTHON={}'.format(sys.executable))
+        runscript.append('BOT="collector"')
+        runscript.append('OPT="-m {}"'.format(os.path.join(confpath, "{}.cfg".format(marcosjob))))
+        runscript.append("")
+        runscript.append('check_process()')
+        runscript.append("{")
+        runscript.append("    result=`ps aux | grep \"$BOT\" | grep -v grep | wc -l`")
+        runscript.append("}")
+        runscript.append('get_pid()')
+        runscript.append("{")
+        runscript.append("    pid=`ps -ef | awk -v pattern=\"$BOT\" \"$0 ~ pattern{print $2}\"`")
+        runscript.append("}")
+        runscript.append("")
+        runscript.append("check_process")
+        runscript.append("# Run it")
+        runscript.append("# ######")
+        runscript.append("case \"$1\" in")
+        runscript.append("  start)")
+        runscript.append("    echo \"Starting $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("        echo \" Starting $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        sleep 2")
+        runscript.append("        $PYTHON --version")
+        runscript.append("        $BOT $OPT")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running already\" ")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  stop)")
+        runscript.append("    echo \"Stopping $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("    else")
+        runscript.append("        echo \" Stopping $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        pkill -f $BOT")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  restart)")
+        runscript.append("    echo \"Restarting $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"1\" ]; then")
+        runscript.append("        echo \" Stopping $BOT\" ")
+        runscript.append("        pkill -f $BOT")
+        runscript.append("    fi")
+        runscript.append("    echo \" Starting $BOT\"")
+        runscript.append("    echo \"--------------------\"")
+        runscript.append("    sleep 2")
+        runscript.append("    $PYTHON --version")
+        runscript.append("    $BOT $OPT")
+        runscript.append("    ;;")
+        runscript.append("  update)")
+        runscript.append("    echo \"Starting $BOT with meta information update...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"1\" ]; then")
+        runscript.append("        echo \" Stopping $BOT\" ")
+        runscript.append("        pkill -f $BOT")
+        runscript.append("    fi")
+        runscript.append("    echo \" Starting $BOT\"")
+        runscript.append("    echo \"--------------------\"")
+        runscript.append("    sleep 2")
+        runscript.append("    $PYTHON --version")
+        runscript.append("    $BOT $OPT -v")
+        runscript.append("    ;;")
+        runscript.append("  status)")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \"$BOT is dead\" ")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running\" ")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  *)")
+        runscript.append("    echo \"Usage: $BOT {start|stop|restart|status}\"")
+        runscript.append("    ;;")
+        runscript.append("esac")
+        runscript.append("exit 0")
+        with open(os.path.join(homedir, dir, "{}.sh".format(marcosjob)), "wt") as fout:
+            for line in runscript:
+                fout.write(line+"\n")
 
         cronlist.append("# Archiving ")
         cronlist.append("20  0  * * *    $PYTHON {} > {} 2>&1".format(os.path.join(homedir, dir,"app","archive.py"),os.path.join(homedir, dir, "log","archive.log")))
@@ -362,9 +543,13 @@ def main(argv):
                     "/initdir" : initpath,
                     "/obsdaqpath" : os.path.join(confpath, "obsdaq.cfg"),
                     "myhome" : stationname,
+                    "outputdestination" : destination,
+                    "filepath  :  /tmp" : "filepath  :  {}".format(filepath),
+                    "databasecredentials" : databasecredentials,
                     "brokeraddress" : mqttbroker,
                     "1883"  :  mqttport,
                     "mqttqos  :  0": "mqttqos  :  {}".format(mqttqos),
+                    "payloadformat  :  martas": "payloadformat  :  {}".format(payloadformat),
                     "home/username/.magpycred" : os.path.join(homedir, ".magpycred"),
                     }
     if mqttcred:
@@ -376,6 +561,9 @@ def main(argv):
                         "skeletonlogrotate": {"source" : os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
                                               "dest" : os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname)) }
                         }
+    if initjob == "MARCOS":
+        files_to_change["marcosconf"] = {"source" : os.path.join(homedir, dir, "conf", "marcos.bak") ,
+                                        "dest" : os.path.join(homedir, dir, "conf", "{}.cfg".format(marcosjob)) }
     for f in files_to_change:
         d = files_to_change.get(f)
         with open(d.get("source"), "rt") as fin:

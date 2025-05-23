@@ -20,7 +20,7 @@ def send_command_ascii(ser,command,eol):
     command = eol+command+eol
     if(ser.isOpen() == False):
         ser.open()
-    sendtime = datetime.utcnow()
+    sendtime = datetime.now(timezone.utc).replace(tzinfo=None)
     # encode to binary if python3
     if sys.version_info >= (3, 0):
         ser.write(command.encode('ascii'))
@@ -30,7 +30,7 @@ def send_command_ascii(ser,command,eol):
     # skipping all empty lines
     while response == '':
         response = ser.readline()
-    responsetime = datetime.utcnow()
+    responsetime = datetime.now(timezone.utc).replace(tzinfo=None)
     # decode from binary if py3
     if sys.version_info >= (3, 0):
         response = response.decode('ascii')
@@ -141,7 +141,7 @@ class DisdroProtocol(object):
            The MARTAS code reads only some parameters and sends them in realtime. The full raw data
            is saved into a ascii file with the bufferdirectory
         """
-        # currenttime = datetime.utcnow()
+        # currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(ntptime, "%Y-%m-%d")
         timestamp = datetime.strftime(ntptime, "%Y-%m-%d %H:%M:%S.%f")
         filename = outdate

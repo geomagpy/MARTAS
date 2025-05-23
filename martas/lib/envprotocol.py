@@ -58,7 +58,7 @@ class EnvProtocol(LineReceiver):
     def processData(self, data):
         """Process Environment data """
 
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         filename = outdate
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")

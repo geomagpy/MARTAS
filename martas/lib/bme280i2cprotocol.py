@@ -101,7 +101,7 @@ class BME280I2CProtocol(object):
 
     def processBME280Data(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         filename = outdate
 

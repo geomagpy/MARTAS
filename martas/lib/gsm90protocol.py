@@ -75,7 +75,7 @@ class GSM90Protocol(LineReceiver):
 
     def processData(self, data):
         """ GSM90 data """
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
@@ -99,7 +99,7 @@ class GSM90Protocol(LineReceiver):
                         internal_t = datetime.strptime(data[0]+'T'+data[1], "%m-%d-%YT%H%M%S")
                     internal_time = datetime.strftime(internal_t, "%Y-%m-%d %H:%M:%S.%f")
                 except:
-                    internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S.%f")
+                    internal_time = timestamp #datetime.strftime(datetime.now(timezone.utc).replace(tzinfo=None), "%Y-%m-%d %H:%M:%S.%f")
                 #print internal_time
             elif len(data) == 3: # GSM v7.0
                 intensity = float(data[1])
@@ -108,11 +108,11 @@ class GSM90Protocol(LineReceiver):
                     internal_t = datetime.strptime(outdate+'T'+data[0], "%Y-%m-%dT%H%M%S.%f")
                     internal_time = datetime.strftime(internal_t, "%Y-%m-%d %H:%M:%S.%f")
                 except:
-                    internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S.%f")
+                    internal_time = timestamp #datetime.strftime(datetime.now(timezone.utc).replace(tzinfo=None), "%Y-%m-%d %H:%M:%S.%f")
             else:
                 err_code = 0
                 intensity = float(data[0])
-                internal_time = timestamp #datetime.strftime(datetime.utcnow(), "%Y-%m-%d %H:%M:%S")
+                internal_time = timestamp #datetime.strftime(datetime.now(timezone.utc).replace(tzinfo=None), "%Y-%m-%d %H:%M:%S")
         except:
             log.err('{} protocol: Data formatting error. Data looks like: {}'.format(self.sensordict.get('protocol'),data))
 

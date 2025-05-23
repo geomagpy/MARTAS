@@ -166,7 +166,7 @@ class LemiProtocol(LineReceiver):
         #print ("Processing data ...")
         """ TIMESHIFT between serial output (and thus NTP time) and GPS timestamp """
 
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         date = datetime.strftime(currenttime, "%Y-%m-%d")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
         outtime = datetime.strftime(currenttime, "%H:%M:%S")

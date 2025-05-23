@@ -116,7 +116,7 @@ class MySQLProtocol(object):
                           idnum is stored in sensordict['path'] (like ow)
         """
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         senslist1, senslist2, senslist3 = [],[],[]
         # 1. Get search criteria (group and dataid):
@@ -181,7 +181,7 @@ class MySQLProtocol(object):
         source:mysql:
         Method to obtain data from table
         """
-        t1 = datetime.utcnow()
+        t1 = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(t1, "%Y-%m-%d")
         filename = outdate
 
@@ -327,7 +327,7 @@ class MySQLProtocol(object):
 
                 self.lastt[index]=li[-1][0]
 
-        t2 = datetime.utcnow()
+        t2 = datetime.now(timezone.utc).replace(tzinfo=None)
         if self.debug:
             log.msg("  -> DEBUG - Needed {}".format(t2-t1))
 

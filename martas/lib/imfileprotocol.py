@@ -10,8 +10,8 @@ from datetime import datetime, timedelta, timezone
 from twisted.python import log
 
 from martas.core import methods as mm
-from martas.core import methods as mm
-from magpy.stream import read, num2date
+from martas.lib import publishing
+from magpy.stream import read
 import glob
 import os
 
@@ -19,7 +19,7 @@ import os
 ## MySQL protocol
 ## --------------------
 
-class imfileProtocol(object):
+class IMfileProtocol(object):
     """
     DESCRIPTION
        Protocol to read INTERMAGNET (actually MagPy) file data
@@ -49,6 +49,7 @@ class imfileProtocol(object):
         self.datacnt = 0
         self.metacnt = 10
         self.revision = self.sensordict.get('revision','')
+        self.payloadformat = confdict.get("payloadformat","martas")
         try:
             self.requestrate = int(self.sensordict.get('rate','-'))
         except:
@@ -128,7 +129,7 @@ class imfileProtocol(object):
         source:mysql:
         Method to obtain data from table
         """
-        t1 = datetime.utcnow()
+        t1 = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(t1, "%Y-%m-%d")
         bufferfilename = outdate
 
@@ -161,7 +162,7 @@ class imfileProtocol(object):
         # Trim data set and only work with most recent data dependend on request
         # get sampling rate
         ts,te = data._find_t_limits()
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         # always deal with a timerange twice of the requestrate
         tlow = now-timedelta(seconds=self.requestrate*2)
         #TODO define a suitable startcondition for tlow
@@ -194,7 +195,7 @@ class imfileProtocol(object):
         newli = np.transpose(orglist)
 
         for dataline in newli:
-                timestamp = datetime.strftime(num2date(dataline[0]), "%Y-%m-%d %H:%M:%S.%f")
+                timestamp = dataline[0].strftime("%Y-%m-%d %H:%M:%S.%f")
                 data_bin = None
                 datearray = ''
                 try:
@@ -213,14 +214,16 @@ class imfileProtocol(object):
                     mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, bufferfilename, data_bin, header)
                 if self.debug:
                     log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
-                self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
+                self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1, fullhead=data.header)
 
         if self.debug:
-            t2 = datetime.utcnow()
+            t2 = datetime.now(timezone.utc).replace(tzinfo=None)
             log.msg("  -> DEBUG - Needed {}".format(t2-t1))
 
 
-    def sendData(self, sensorid, data, head, stack=None):
+    def sendData(self, sensorid, data, head, stack=None, fullhead=None):
+        if not fullhead:
+            fullhead = {}
 
         topic = self.confdict.get('station') + '/' + sensorid
         senddata = False
@@ -242,16 +245,15 @@ class imfileProtocol(object):
             senddata = True
 
         if senddata:
-                if self.count == 0:
-                    # get all values initially from the database
-                    #add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( sensorid, self.confdict.get('station',''),self.sensordict.get('pierid',''), self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''), self.sensordict.get('ptime','') )
-                    #self.client.publish(topic+"/dict", add, qos=self.qos)
-                    self.client.publish(topic+"/meta", head, qos=self.qos)
+                if self.payloadformat == "intermagnet":
+                    pubdict = publishing.intermagnet(None, topic=topic, data=data, head=head,
+                                            imo=self.confdict.get('station', ''), meta=fullhead)
+                else:
+                    pubdict, count = publishing.martas(None, topic=topic, data=data, head=head, count=self.count,
+                                            changecount=self.metacnt,
+                                            imo=self.confdict.get('station', ''), meta=self.sensordict)
+                    self.count = count
+                for topic in pubdict:
                     if self.debug:
-                        log.msg("  -> DEBUG - Publishing meta --", topic, head)
-                self.client.publish(topic+"/data", data, qos=self.qos)
-                if self.debug:
-                    log.msg("  -> DEBUG - Publishing data")
-                self.count += 1
-                if self.count >= self.metacnt:
-                    self.count = 0
+                        print ("Publishing", topic, pubdict.get(topic))
+                    self.client.publish(topic, pubdict.get(topic), qos=self.qos)

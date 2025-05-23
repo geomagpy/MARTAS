@@ -121,7 +121,7 @@ SUPPORTED_PROTOCOLS = {'Env' : {"name" : "Envrionement 05 sensor", "type" : "pas
                        'cr1000jc' : {"name" : ""},
                        'GIC' : {"name" : "GIC Webservice Austria TU Graz"},
                        'obsdaq' : {"name" : "Mingeo Obsdaq 24bit"},
-                       'imfile' : {"name" : "MagPy readable data files"},
+                       'IMfile' : {"name" : "MagPy readable data files"},
                        'FourPL' : {"name" : "Lippmann 4PL geoelectric sensor", "status" : "productive"},
                        'BME280I2C' : {"name" : "BME280 T/P/rh probe on I2C", "status" : "productive"},
                        }
@@ -418,8 +418,8 @@ def main(argv):
     if pahomajor <= 1:
         client = mqtt.Client(clean_session=True)
     else:
-        mqttversion = conf.get("mqttversion", "2")
-        if mqttversion == "2":
+        mqttversion = int(conf.get("mqttversion", 2))
+        if mqttversion == 2:
             print (" Importing MQTT API version 2")
             client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, clean_session=True)
         else:

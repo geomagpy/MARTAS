@@ -33,10 +33,6 @@ Usage:
 python colector_mqtt.py -x -y -z
 
 """
-
-from __future__ import print_function
-from __future__ import absolute_import
-
 # ###################################################################
 # Import packages
 # ###################################################################
@@ -44,13 +40,8 @@ from __future__ import absolute_import
 ## Import MagPy
 ## -----------------------------------------------------------
 
-#local = True
-#if local:
-#    import sys
-#    sys.path.insert(1,'/home/leon/Software/magpy-git/')
-
-from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, subtractStreams
-from magpy.database import mysql,writeDB
+from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, subtract_streams
+from magpy.core import database
 from magpy.opt import cred as mpcred
 
 ## Import Twisted for websocket and logging functionality
@@ -77,9 +68,10 @@ except ImportError: # Python 3.x
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
-from core import acquisitionsupport as acs
+from martas.core import methods as mm
 from martas.version import __version__
-from core.martas import martaslog as ml
+from martas.core.methods import martaslog as ml
+from martas.core.websocket_server import WebsocketServer
 
 ## Import MQTT
 ## -----------------------------------------------------------
@@ -94,12 +86,6 @@ pyversion = platform.python_version()
 ## Import Webserver for displaying data
 ## -----------------------------------------------------------
 ws_available = True
-try:
-    # available since MagPy 0.3.99 in magpy.collector
-    # since MARTAS 0.1.9 in core
-    from core.websocket_server import WebsocketServer
-except:
-    ws_available = False
 
 # Some variable initialization
 ## -----------------------------------------------------------
@@ -510,7 +496,7 @@ def on_message(client, userdata, msg):
                                 log.msg("      -> please use option l (e.g. -l '/my/path') to define") 
                         if verifiedlocation:
                             filename = "{}-{:02d}-{:02d}".format(datearray[0],datearray[1],datearray[2])
-                            acs.dataToFile(location, sensorid, filename, data_bin, header)
+                            mm.data_to_file(location, sensorid, filename, data_bin, header)
             if 'websocket' in destination:
                 if not wsarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, stream, sensorid)
@@ -543,7 +529,7 @@ def on_message(client, userdata, msg):
                 try:
                     if counter > amount:
                         counter = 0
-                        sub = subtractStreams(st[0],st[1])
+                        sub = subtract_streams(st[0],st[1])
                         try:
                             part1 = (st[0].header.get('SensorID').split('_')[1])
                         except:
@@ -602,9 +588,9 @@ def on_message(client, userdata, msg):
                 if debug:
                     log.msg("writing header: {}".format(headstream[sensorid]))
                 if revision != 'free':
-                    writeDB(db,stream,tablename="{}_{}".format(sensorid,'0001'))
+                    db.write(stream,tablename="{}_{}".format(sensorid,'0001'))
                 else:
-                    writeDB(db,stream)
+                    db.write(stream)
             elif 'stringio' in destination:
                 if not siarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, stream, sensorid)
@@ -834,20 +820,20 @@ def main(argv):
         elif opt in ("-m", "--marcos"):
             marcosfile = arg
             print ("Getting all parameters from configration file: {}".format(marcosfile))
-            conf = acs.GetConf(marcosfile)
+            conf = mm.get_conf(marcosfile)
             if not conf.get('logging','') == '':
                 logging = conf.get('logging').strip()
             if not conf.get('broker','') == '':
                 broker = conf.get('broker').strip()
             if not conf.get('mqttport','') in ['','-']:
-                port = int(conf.get('mqttport').strip())
+                port = int(conf.get('mqttport'))
             if not conf.get('mqttdelay','') in ['','-']:
                 timeout = int(conf.get('mqttdelay').strip())
             if not conf.get('mqttuser','') in ['','-']:
                 user = conf.get('mqttuser').strip()
             if not conf.get('mqttqos','') in ['','-']:
                 try:
-                    qos = int(conf.get('mqttqos').strip())
+                    qos = int(conf.get('mqttqos'))
                 except:
                     qos = 0
             if not conf.get('mqttcredentials','') in ['','-']:
@@ -876,13 +862,13 @@ def main(argv):
                     debug = False
             if not conf.get('socketport','') in ['','-']:
                 try:
-                    socketport = int(conf.get('socketport').strip())
+                    socketport = int(conf.get('socketport'))
                 except:
                     print('socketport could not be extracted from  marcos config file')
                     socketport = 5000
             if not conf.get('webport','') in ['','-']:
                 try:
-                    webport = int(conf.get('webport').strip())
+                    webport = int(conf.get('webport'))
                 except:
                     print('webport could not be extracted from marcos config file')
                     webport = 8080
@@ -1024,7 +1010,9 @@ def main(argv):
                 global db
                 if debug:
                     log.msg("Connecting database {} at host {} with user {}".format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
-                db = mysql.connect(host=mpcred.lc(dbcred,'host'),user=mpcred.lc(dbcred,'user'),passwd=mpcred.lc(dbcred,'passwd'),db=mpcred.lc(dbcred,'db'))
+                #db = mysql.connect(host=mpcred.lc(dbcred,'host'),user=mpcred.lc(dbcred,'user'),passwd=mpcred.lc(dbcred,'passwd'),db=mpcred.lc(dbcred,'db'))
+                dbcon = database.DataBank(mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user'),mpcred.lc(dbcred,'passwd'),mpcred.lc(dbcred,'db'))
+                db = dbcon.db
             except:
                 log.msg('database {} at host {} with user {} could not be connected'.format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
                 log.msg(' ... aborting ...')

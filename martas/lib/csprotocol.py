@@ -63,7 +63,7 @@ class CsProtocol(LineReceiver):
     def processData(self, data):
         """Convert raw ADC counts into SI units as per datasheets"""
 
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         # Correction for ms time to work with databank:
         #currenttime_ms = currenttime.microsecond/1000000.
         #ms_rounded = round(float(currenttime_ms),3)

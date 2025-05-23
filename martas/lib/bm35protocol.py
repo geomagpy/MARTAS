@@ -85,7 +85,7 @@ class BM35Protocol(LineReceiver):
 
     def processData(self, data):
 
-        currenttime = datetime.utcnow()
+        currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
         filename = outdate
         sensorid = self.sensor
