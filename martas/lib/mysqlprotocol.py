@@ -1,5 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
 
 # ###################################################################
 # Import packages
@@ -9,12 +7,13 @@ import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from twisted.python import log
 
 from martas.core import methods as mm
+from martas.lib import publishing
 import magpy.opt.cred as mpcred
-import magpy.database as mdb
+from magpy.core import database
 
 
 ## MySQL protocol
@@ -47,6 +46,7 @@ class MySQLProtocol(object):
 
         self.sensorlist = []
         self.revision = self.sensordict.get('revision','')
+        self.payloadformat = confdict.get("payloadformat","martas")
         try:
             self.requestrate = int(self.sensordict.get('rate','-'))
         except:
@@ -75,7 +75,7 @@ class MySQLProtocol(object):
         log.msg("  -> IMPORTANT: MySQL assumes that database credentials ")
         log.msg("     are saved locally using magpy.opt.cred with the same name as database")
         try:
-            self.db = mdb.mysql.connect(host=mpcred.lc(self.sensor,'host'),user=mpcred.lc(self.sensor,'user'),passwd=mpcred.lc(self.sensor,'passwd'),db=self.sensor)
+            self.db = database.DataBank(host=mpcred.lc(self.sensor,'host'),user=mpcred.lc(self.sensor,'user'),passwd=mpcred.lc(self.sensor,'passwd'),db=self.sensor)
             self.connectionMade(self.sensor)
         except:
             self.connectionLost(self.sensor,"Database could not be connected - check existance/credentials")
@@ -123,11 +123,11 @@ class MySQLProtocol(object):
         searchdataid = 'DataID LIKE "%{}"'.format(self.sensordict.get('revision',''))
         searchgroup = 'SensorGroup LIKE "%{}%"'.format(self.sensordict.get('sensorgroup',''))
         # 2. Perfom search for DataID:
-        senslist1 = mdb.dbselect(db, 'SensorID', 'DATAINFO', searchdataid)
+        senslist1 = self.db.select('SensorID', 'DATAINFO', searchdataid)
         if self.debug:
             log.msg("  -> DEBUG - Search DATAID {}: Found {} tables".format(self.sensordict.get('revision',''),len(senslist1)))
         # 3. Perfom search for group:
-        senslist2 = mdb.dbselect(db, 'SensorID', 'SENSORS', searchgroup)
+        senslist2 = self.db.select('SensorID', 'SENSORS', searchgroup)
         if self.debug:
             log.msg("  -> DEBUG - Searching for GROUP {}: Found {} tables".format(self.sensordict.get('sensorgroup',''),len(senslist2)))
         # 4. Combine searchlists
@@ -138,7 +138,7 @@ class MySQLProtocol(object):
         # 5. Check tables with above search criteria for recent data:
         for sens in senslist:
             datatable = sens + "_" + self.sensordict.get('revision','')
-            lasttime = mdb.dbselect(db,'time',datatable,expert="ORDER BY time DESC LIMIT 1")
+            lasttime = self.db.select('time',datatable,expert="ORDER BY time DESC LIMIT 1")
             try:
                 lt = datetime.strptime(lasttime[0],"%Y-%m-%d %H:%M:%S.%f")
                 delta = now-lt
@@ -159,13 +159,13 @@ class MySQLProtocol(object):
             values['protocol'] = 'MySQL'
             values['port'] = '-'
             cond = 'SensorID = "{}"'.format(sens)
-            vals = mdb.dbselect(db,'SensorName,SensorID,SensorSerialNum,SensorRevision,SensorGroup,SensorDescription,SensorTime','SENSORS',condition=cond)[0]
+            vals = self.db.select('SensorName,SensorID,SensorSerialNum,SensorRevision,SensorGroup,SensorDescription,SensorTime','SENSORS',condition=cond)[0]
             vals = ['-' if el==None else el for el in vals]
             values['serialnumber'] = vals[2]
             values['name'] = vals[0]
             values['revision'] = vals[3]
             values['mode'] = 'active'
-            pier = mdb.dbselect(db,'DataPier','DATAINFO',condition=cond)[0]
+            pier = self.db.select('DataPier','DATAINFO',condition=cond)[0]
             values['pierid'] = pier
             values['ptime'] = vals[6]
             values['sensorgroup'] = vals[4]
@@ -189,20 +189,12 @@ class MySQLProtocol(object):
             log.msg("  -> DEBUG - Sending periodic request ...")
 
         def getList(sql):
-            cursor = self.db.cursor()
+            cursor = self.db.db.cursor()
             keys=[]
             try:
                 cursor.execute(sql)
-            except mdb.mysql.IntegrityError as message:
-                log.msg("  -> ERROR - get SQL data: {}".format(message))
-                cursor.close()
-                return keys
-            except mdb.mysql.Error as message:
-                log.msg("  -> ERROR - get SQL data: {}".format(message))
-                cursor.close()
-                return keys
             except:
-                log.msg("  -> ERROR - get SQL data: dbgetlines: unkown error")
+                log.msg("  -> ERROR - get SQL data")
                 cursor.close()
                 return keys
             head = cursor.fetchall()
@@ -284,7 +276,7 @@ class MySQLProtocol(object):
                 # get data and create typical message topic
                 # based on sampling rate and collection rate -> define coverage
 
-                li = sorted(mdb.dbselect(self.db, 'time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
+                li = sorted(self.db.select('time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
                 if not self.lastt[index]:
                     self.lastt[index]=li[0][0]
 
@@ -332,8 +324,9 @@ class MySQLProtocol(object):
             log.msg("  -> DEBUG - Needed {}".format(t2-t1))
 
 
-    def sendData(self, sensorid, data, head, stack=None):
-
+    def sendData(self, sensorid, data, head, stack=None, fullhead=None):
+        if not fullhead:
+            fullhead = {}
         topic = self.confdict.get('station') + '/' + sensorid
         senddata = False
         if not stack:
@@ -354,16 +347,16 @@ class MySQLProtocol(object):
             senddata = True
 
         if senddata:
-                if self.count == 0:
-                    # get all values initially from the database
-                    #add = "SensoriD:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( sensorid, self.confdict.get('station',''),self.sensordict.get('pierid',''), self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''), self.sensordict.get('ptime','') )
-                    #self.client.publish(topic+"/dict", add, qos=self.qos)
-                    self.client.publish(topic+"/meta", head, qos=self.qos)
+                if self.payloadformat == "intermagnet":
+                    pubdict = publishing.intermagnet(None, topic=topic, data=data, head=head,
+                                            imo=self.confdict.get('station', ''), meta=fullhead)
+                else:
+                    pubdict, count = publishing.martas(None, topic=topic, data=data, head=head, count=self.count,
+                                            changecount=self.metacnt,
+                                            imo=self.confdict.get('station', ''), meta=self.sensordict)
+                    self.count = count
+                for topic in pubdict:
                     if self.debug:
-                        log.msg("  -> DEBUG - Publishing meta --", topic, head)
-                self.client.publish(topic+"/data", data, qos=self.qos)
-                if self.debug:
-                    log.msg("  -> DEBUG - Publishing data")
-                self.count += 1
-                if self.count >= self.metacnt:
-                    self.count = 0
+                        print ("Publishing", topic, pubdict.get(topic))
+                    self.client.publish(topic, pubdict.get(topic), qos=self.qos)
+

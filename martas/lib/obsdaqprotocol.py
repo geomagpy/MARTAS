@@ -22,7 +22,7 @@ import re     # for interpretation of lines
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 import math
@@ -30,16 +30,10 @@ import serial # for initializing command
 import os,sys
 
 # Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-# import support for GetConf2 and dataToFile (can also be obtained from magpy) 
-#from magpy.acquisition import acquisitionsupport as acs
-import acquisitionsupport as acs
+# import support for GetConf2 and dataToFile (can also be obtained from magpy)
+from martas.core import methods as mm
 
 
-def datetime2array(t):
-    return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
 def getRoundingFactor(lsb):
     # rounding factor is used for rounding reasonably
@@ -116,7 +110,7 @@ class obsdaqProtocol(LineReceiver):
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
         # get obsdaq specific constants
-        self.obsdaqconf = acs.GetConf2(self.confdict.get('obsdaqconfpath'))
+        self.obsdaqconf = mm.get_conf(self.confdict.get('obsdaqconfpath'))
         
         self.headernames = '[{},{},{},{}]'.format(self.obsdaqconf.get('NAME_X'),self.obsdaqconf.get('NAME_Y'),self.obsdaqconf.get('NAME_Z'),'ntptime')
         self.headerunits = '[{},{},{},{}]'.format(self.obsdaqconf.get('UNIT_X'),self.obsdaqconf.get('UNIT_Y'),self.obsdaqconf.get('UNIT_Z'),'none')
@@ -191,6 +185,10 @@ class obsdaqProtocol(LineReceiver):
         sensorid = self.sensor
         datearray = []
         dontsavedata = False
+        triggerflag = 0
+        voltage = 0
+        temp = 0
+        x,y,z,p,q = 0,0,0,0,0
 
         packcode = '6hLlll6hL'
         header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[x,y,z,sectime]', self.headernames, self.headerunits, self.headerfactors, packcode, struct.calcsize(packcode))
@@ -291,15 +289,16 @@ class obsdaqProtocol(LineReceiver):
             dontsavedata = True
 
         if not typ == "none":
-            datearray = datetime2array(timestamp)
+            datearray = mm.datetime_to_array(timestamp)
             try:
                 datearray.append(int(x * self.factor_x))
                 datearray.append(int(y * self.factor_y))
                 datearray.append(int(z * self.factor_z))
                 # add secondary time (NTP-time)
-                datearray.extend(datetime2array(currenttime))
+                datearray.extend(mm.datetime_to_array(currenttime))
                 data_bin = struct.pack('<'+packcode,*datearray)
             except:
+                data_bin = None
                 log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
             if not self.confdict.get('bufferdirectory','') == '':
                 mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
@@ -307,7 +306,7 @@ class obsdaqProtocol(LineReceiver):
 
             if supplement:
                 try:
-                    datearraySup = datetime2array(timestamp)
+                    datearraySup = mm.datetime_to_array(timestamp)
                     datearraySup.append(int(voltage *10000))
                     datearraySup.append(int(temp *1000))
                     datearraySup.append(int(p *self.factor_p))

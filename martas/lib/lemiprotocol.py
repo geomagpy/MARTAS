@@ -25,9 +25,6 @@ DEPENDENCIES:
 CALLED BY:
         magpy.bin.acquisition
 '''
-from __future__ import print_function
-from __future__ import absolute_import
-
 
 # ###################################################################
 # Import packages
@@ -38,10 +35,11 @@ import string # for ascii selection
 import sys
 import numpy as np
 import os     # binary data saved directly without acs helper method
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from martas.core import methods as mm
+import subprocess
 from subprocess import check_call
 
 
@@ -268,7 +266,7 @@ class LemiProtocol(LineReceiver):
             if delta-self.ntp_gps_offset > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
-                    log.msg("  -> {} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
+                    log.msg("  -> {} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), self.sensor, delta))
             else:
                 self.errorcnt['time'] = 0
         except:

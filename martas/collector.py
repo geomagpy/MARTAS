@@ -138,6 +138,7 @@ def webProcess(webpath,webport):
     because of having it started as a daemon
     """
     resource = File(webpath)
+    print ("TESTING", webpath, resource)
     factory = Site(resource)
     #endpoint = endpoints.TCP4ServerEndpoint(reactor, 8888)
     #endpoint.listen(factory)
@@ -505,9 +506,8 @@ def on_message(client, userdata, msg):
                     stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     wsarrayinterpreted = True
-                for idx,el in enumerate(stream.ndarray[0]):
-                    time = num2date(el).replace(tzinfo=None)
-                    msecSince1970 = int((time - datetime(1970,1,1)).total_seconds()*1000)
+                for idx,dt in enumerate(stream.ndarray[0]):
+                    msecSince1970 = int((dt - datetime(1970,1,1)).total_seconds()*1000)
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     if debug:
                         print ("Sending {}: {},{} to webserver".format(sensorid, msecSince1970,datastring))
@@ -575,10 +575,9 @@ def on_message(client, userdata, msg):
                     stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     soarrayinterpreted = True
-                for idx,el in enumerate(stream.ndarray[0]):
-                    time = num2date(el).replace(tzinfo=None)
+                for idx,dt in enumerate(stream.ndarray[0]):
                     datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
-                    log.msg("{}: {},{}".format(sensorid,time,datastring))
+                    log.msg("{}: {},{}".format(sensorid, dt, datastring))
             elif 'db' in destination:
                 if not dbarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, sensorid)
@@ -599,48 +598,13 @@ def on_message(client, userdata, msg):
                     stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     siarrayinterpreted = True
-                for idx,el in enumerate(stream.ndarray[0]):
-                    time = num2date(el).replace(tzinfo=None)
-                    date = datetime.strftime(time,"%Y-%m-%d %H:%M:%S.%f")
-                    linelist = list(map(str,[el,date]))
+                for idx,dt in enumerate(stream.ndarray[0]):
+                    date = datetime.strftime(dt,"%Y-%m-%d %H:%M:%S.%f")
+                    linelist = list(map(str,[dt,date]))
                     linelist.extend([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
                     line = ','.join(linelist)
                     eol = '\r\n'
                     output.write(line+eol)
-            elif 'serial' in destination:
-                if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, sensorid)
-                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    arrayinterpreted = True
-                """
-                # send json like structures
-                collcount = 10
-                if sercount <= collcount:
-                    for idx,col in enumerate(stream.ndarray):
-                        if not len(col) == 0:
-                            keyname = KEYLIST[idx]
-                            if idx == 0:
-                                time = num2date(col).replace(tzinfo=None)
-                                col = int((time - datetime(1970,1,1)).total_seconds()*1000)
-                            excol = datacol.get(keyname,[])
-                            datacol[keyname] = excol.append(col)
-                    sersount += 1
-                if sercount == collcount:
-                    sercount = 0
-                    jsonstr={}
-                    jsonstr['sensorid'] = sensorid
-                    jsonstr['nr'] = i
-                    jsonstr['key'] = po.identifier[sensorid+':keylist'][i]
-                    jsonstr['elem'] = po.identifier[sensorid+':elemlist'][i]
-                    jsonstr['unit'] = po.identifier[sensorid+':unitlist'][i]
-                    payload = json.dumps(jsonstr)
-                    # write input to a another serial port (e.g. for radio transmisson) 
-                    # requires serdef = e.g. [115200,8,1,N]
-                    # eventually create minimum 30 sec json blocks
-                    #sendline='{"SensorID":"{}","Units":["Sec1970","degC"],"Keys":{"time":"time","x":"Temperature"}, "time":[{}],"x":[{}]}'.format(sensorid,time,x)
-                    #{"SensorID":"ID","units":["Sec1970","degC"],"keys":{"time":"time","x":"Temperature"}, "data":{"time":[12,13,45],"x":[12,13,45]}}
-                    #ser.write("{}: {},{}".format(sensorid,msecSince1970,datastring))
-                """
             else:
                 pass
         else:
@@ -848,7 +812,7 @@ def main(argv):
                 stationid = conf.get('station').strip().lower()
                 stid = stationid
             if not conf.get('destination','') in ['','-']:
-                destination=conf.get('destination').strip()
+                destination=conf.get('destination')
             if not conf.get('filepath','') in ['','-']:
                 location=conf.get('filepath').strip()
             if not conf.get('databasecredentials','') in ['','-']:
@@ -978,6 +942,7 @@ def main(argv):
         qos = 0
 
     if 'stringio' in destination:
+        #TODO seems to be unfinished - started that long ago without documentation and need to find out why ;)
         output = StringIO()
     if 'file' in destination:
         if location in [None,''] and not os.path.exists(location):

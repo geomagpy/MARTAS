@@ -31,7 +31,7 @@ GAIN = 1
 
 
 import struct
-from datetime import datetime
+from datetime import datetime, timezone
 
 from twisted.python import log
 from martas.core import methods as mm

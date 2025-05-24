@@ -168,7 +168,9 @@ messages is 100. In order to change that modify the **max\_queued\_messages** co
 
 ## 3. Initialization of MARTAS/MARCOS
 
-In the following we are setting up MARTAS to acquire measurement data from any connected system, to store it locally within a buffer directory and to permanenty stream it to a data broker. In the examples, we will use the same MARTAS system as data broker.
+In the following we are setting up MARTAS to acquire measurement data from any connected system, to store it locally
+within a buffer directory and to permanenty stream it to a data broker. In the examples, we will use the same MARTAS 
+system as data broker.
 
 ### 3.1 Initial setup
 
@@ -182,8 +184,8 @@ Start the MARTAS/MARCOS initialization routine
 
 This routine will ask you a series of questions to configure the acquisition (MARTAS) or collector (MARCOS) to your 
 needs. In case you want to use e-mail, messenger notifications or database support, make sure that you setup these
-tool ideally before running martas_init, and provide credential information using addcred. You might want to checkout
-section 3.4 for details on notifications and section x.x for database support. 
+tool ideally before running martas_init, and provide credential information using [addcred](linktomagpy). 
+You might want to checkout [section 6.1](#6-1) for details on notifications and [section 5.3.2](#5-3-2) for database support. 
 Please also make sure that you have write permissions on the directories to be used.
 
 ### 3.2 Inputs during setup
@@ -247,11 +249,6 @@ Further details and descriptions are found in the commentary section of the sens
         $ sudo /etc/init.d/martas stop
 
 #### 4.2.2 Command line
-
-        $ python acquisition.py
-
-    acquisition.py automatically chooses cfg files from the same directory. You can use other parameter
-    files using:
 
         $ python acquisition.py -m /home/user/martas.cfg
 
@@ -432,107 +429,74 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
         $ python3 acquisition_mqtt.py -m /path/to/martas.cfg -u mosquittouser -P mosquittopasswd
 
 
-### 5. Setup of a Broker
+### 4.8 Setup of a Broker
 
 
-A broker defines a system which is permanently receiving data from a MARTAS system via MQTT, i.e. MARTAS publishes data to the broker. The broker can be the same system as the one running MARTAS (when following the installation instructions, your system will be ready to act as a broker), but it can also be an external machine. MARTAS makes use of a mosquitto brokers. Everything what you need to do to establish a broker is to install mosquitto as outlined in 1.1. If you want to use authentication on the broker follow the steps outlined in section 1.3. In order to use this broker, make sure that MARTAS can reach this broker system via its address (IP/HTTP) on port 1883.
+A broker defines a system which is permanently receiving data from a MARTAS system via MQTT, i.e. MARTAS publishes data
+to the broker. The broker can be the same system as the one running MARTAS (when following the installation
+instructions, your system will be ready to act as a broker), but it can also be an external machine. MARTAS makes 
+use of a mosquitto brokers. Everything what you need to do to establish a broker is to install mosquitto as outlined
+in 1.1. If you want to use authentication on the broker follow the steps outlined in section 1.3. In order to use this 
+broker, make sure that MARTAS can reach this broker system via its address (IP/HTTP) on port 1883.
 
 
-### 6. Setting up MARCOS
+## 5. Setting up MARCOS
 
-In the following we are setting up MARCOS to collect measurement data from a broker. MARCOS subscribes to the broker and receives any new data published there. All three systems, MARTAS, BROKER, and MARCOS can run on the same machine as different processes, but also run on multiple machines. You can also have several MARCOS collectors accessing the same broker independently.
+In the following we are setting up MARCOS to collect measurement data from a broker. MARCOS subscribes to the broker 
+and receives any new data published there. All three systems, MARTAS, BROKER, and MARCOS can run on the same machine 
+as different processes. You can also have several MARCOS collectors accessing the 
+same broker independently.
 
-MARCOS subscribes to the data broker and obtains publish data of a defined subject. You can select whether this data is then stored into archive files, into a data base (mariadb, mysql) and/or published on a webserver.
+### 5.1 MARCOS specific configurations
 
-### 6.1 Basic setup:
+MARCOS subscribes to the data broker and obtains published data depending on the selected "topic". You can select 
+whether this data is then stored into files (binary buffer files, supported by MagPy), into a data base (mariadb, mysql)
+and/or published on a webserver. You can also select multiple destinations. These selections are done during
+initialization. As outlines above it is important to know these destinations already before initializing MARCOS 
+and provide credentials using MagPys addcred method. No further configurations are necessary.
 
-a) Use the MARTAS installation script
+### 5.2 Running a collection job
 
-        $ cd /path/to/MARTAS/install
-        $ sudo sh marcos.install.sh
-      -> follow the instructions
+After initialization you will find a bash job with the selected name (i.e. myjon) within your .martas directory.  You 
+can start this job manually as follows.:
 
-b) Check /etc/martas/broker.cfg   ("broker" might be replaced if you use have chosen a different name)
-
-        $ nano /etc/martas/broker.cfg
-
-c) Adding a start option to crontab
-
-   In case that the MARCOS collector process hangs up or gets terminated by an unkown reason
-   it is advisable to add a start option to crontab, which starts the collector in case it is not
-   running any more
-
-   Add the following line to /etc/crontab
-
-      12  0  *  *  *  root    /etc/init.d/collect-broker start
-
-
-### 6.2 Running the collection sytem
-
-a) When installation is finished you can start the system as follows:
-
-        $ sudo /etc/init.d/collect-broker start
+        $ bash collect-myjob.sh start 
 
     - The following options are now available:
-        $ sudo /etc/init.d/collect-broker status
-        $ sudo /etc/init.d/collect-broker start
-        $ sudo /etc/init.d/collect-broker restart
-        $ sudo /etc/init.d/collect-broker stop
+        $ bash collect-myjob.sh start 
+        $ bash collect-myjob.sh stop 
+        $ bash collect-myjob.sh restart 
+        $ bash collect-myjob.sh status
+        $ bash collect-myjob.sh update #(important for first time usage with database - see below)
 
-   Please note: if database outputis selected: on default on the data table will be written. If you want to create/update DATAINFO and SENSOR information, then run the collector with the -v option at least once.
-        e.g. python3 collector.py -m /etc/martas/broker.cfg -v
+Please note: if database output is selected then by default only the data table will be written. If you want to 
+create/update DATAINFO and SENSOR information, which usually is the case when running the sensor collection job for the
+first time then run the collector with the "update" option, at least for a few seconds/minutes.
 
+        $ bash collect-myjob.sh update 
 
-b) Running the collector from the commandline:
+### 5.3 Data destinations
 
-        python collector.py -b brokeradress -u myuser -P mypassword
+#### 5.3.1 Saving incoming data as files
 
+Select destination "file" during initialization. You will also have to provide a file path then. Within this file path
+a directory named with the SensorID will be created and within this directory daily binary files will be created 
+again with SensorId and date as file name. The binary files have a single, ASCII readable header line describing its 
+packing formats. These binary files can be read with MagPy and transformed into any MagPy supported format.
 
-### 6.3 Data destinations
+#### 5.3.2 Streaming to a database
 
+Checkout the MagPy instructions to setup and initialize a MagPy data base. This is usually done within minutes and then 
+can be readily used for MARCOS data collections or MARTAS dissemination. Instruction can be found here (magpy link).
+When initializing MARCOS and selecting destination "db" you will need to provide a credential shortcut for the 
+database. You can create such credentials using addcred. Use addcred -h for all options.
 
-#### 6.3.1 Saving incoming data as files
+      $ addcred -d db -c mydb -u user -p secret -h localhost
 
+Please use the "update" option when running a job with a new sensor for the first time to create default inputs into the
+database (and not only the data table).
 
-Select destination "file"
-
-
-#### 6.3.2 Streaming to a database
-
-
-Select destination "db"
-
-Stream data to a database requires a preconfigured MagPy conform database structure. That can be done a few steps:
-
-1) Install MariaDB or MySQL (please follow instructions as given here for a proper setup)
-
-        sudo apt-get install mariadb
-
-2) Create an empty database
-
-        $(sudo) mysql -u root -p mysql
-        sql> CREATE DATABASE mydb;  # please replace mydb with a name of your choice
-
-3) Grant access to this database for a specific user
-
-        sql> GRANT ALL PRIVILEGES to user ...
-        sql> exit;
-
-4) Initialize the database
-
-       $ python3
-       >>> import magpy.database
-       >>> db = mysql.connect()
-       >>> dbinit(db)
-
-5) Eventually add the database credentials with addcred
-
-      $ addcred -d db -c mydb -u user ...
-
-
-On default, meta information is not considered
-
-#### 6.3.3 Starting a WEB interface with MARCOS
+#### 5.3.3 Streaming to a web interface
 
 Select destination "websocket"
 
@@ -567,11 +531,22 @@ c) Customizing the WEB interface/ports of MARCOS
         $ nano ~/MARTAS/web/smoothiesettings.js
 
 
+#### 5.3.4 Writing to stdout
+
+When selecting destination "stdout" the ASCII output will be written to the destination defined by logging. This can 
+either be sys.stdout or the given log file. 
+
+
+#### 5.3.5 Selecting diff as destination
+
+
+
 ## 7. Logging and notifications
 
-Please note: if you want to use threshold testing or monitoring, then you can use the installer "install.addapps.sh" in the install directory to set up/initialize these programs.
+Please note: if you want to use threshold testing or monitoring, then you can use the installer "install.addapps.sh" in
+the install directory to set up/initialize these programs.
 
-### 7.1 The threshold notifyer threshold.py
+### 7.1 The threshold notifier threshold.py
 
 MARTAS comes along with a threshold application. This application can be used to check your data in realtime and trigger certain action in case a defined threshold is met. Among the possible actions are notifications by mail or messenger, switching command to a connected microcontroller, or execution of bash scripts. This app reads data from a defined source: a MARTAS buffer files, MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can be monitored independently by mail, nagios, icinga, telegram.
 Threshold.py can be scheduled in crontab. You can configure Threshold.py to se
@@ -1160,36 +1135,37 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 ## 12. Appendix
 
-### 12.1 Acquisition libraries
+### 12.1 Libraries
 
-Instrument |  versions    |  Inst-type   |  Library           |     mode     |     init       |  py2/py3
----------- | ------------ | ------------ | ------------------ | ------------ | -------------- | ------------
-LEMI025    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,py3
-LEMI036    |              | mag-vario    | lemiprotocol.py    |   passive    |                |   py2,py3
-GSM90      |              | mag-scalar   | gsm90protocol.py   |   passive    | gsm90v?init.sh |   py2,py3
-GSM19      |              | mag-scalar   | gsm19protocol.py   |              |                |   py2,py3
-GP20S3     |              | mag-scalar   | gp20s3protocol.py  |   passive    |                |   py2,(py3)
-G823       |              | mag-scalar   | csprotocol.py      |   passive    |                |   py2,(py3)
-POS1       |              | mag-scalar   | pos1protocol.py    |   passive    | pos1init.sh    |   py2,py3 (since 1.0.7)
-ENV05      |              | temp-humid   | envprotocol.py     |   passive    |                |   py2,py3 (since 1.0.7)
-OneWire    |              | multiple     | owprotocol.py      |   passive    |                |   (py2)/py3
-BM35-pressure |           | pressure     | bm35protocol.py    |   passive    | bm35init.sh    |   py2/py3
-Thies LNM  |              | laserdisdro  | disdroprotocol.py  |   active     |                |   (py2)/py3
-DSP Ultrasonic wind |     | 2D wind      | dspprotocol.py     |   active     |                |   (py2)/py3
-Lippmann   |              | tilt         | lmprotocol.py      |   active     |                |   under const.
-LORAWAN    |              | multiple     | lorawanprotocol.py |              |                |
-MySQL      |              | multiple     | mysqlprotocol.py   |   active     |                |
-Arduino    |              | multiple     | arduinoprotocol.py |   passive    |                |   (py2)/py3
-Arduino    |              | multiple     | activearduinoprotocol.py | active |                |   py2/py3
-AD7714     |              | multiple     | ad7714protocol.py  |   active     |                |
-ObsDaq     |              | multiple     | obsdaqprotocol.py  |   active     | obsdaqinit.sh  |   py2,py3
-CR1000/800 |              | multiple     | cr1000jcprotocol.py      | active |                |
-GIC        |              | special      | gicprotocol.py     |   active     |                |   py3
-DataFiles  |              | multiple     | imfileprotocol.py  |   active     |                |   py3
-Test       |              | special      | testprotocol.py    |              |                |
- - remove- |              | laserdisdro  | lnmprotocol.py     |   inactive   |                |
+| Instrument          | versions | Inst-type   | Library                  | mode     | init           | requires         |
+|---------------------|----------|-------------|--------------------------|----------|----------------|------------------|
+| Arduino             |          | multiple    | activearduinoprotocol.py | active   |                |                  |
+| AD7714              |          | multiple    | ad7714protocol.py        | active   |                |                  |
+| Arduino             |          | multiple    | arduinoprotocol.py       | passive  |                |                  |
+| BM35-pressure       |          | pressure    | bm35protocol.py          | passive  | bm35init.sh    |                  |
+| BME280              |          | pressure    | bme280i2cprotocol.py     | passive  |                | adafruit_bme280  |
+| CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active   |                | pycampbellcr1000 |
+| Cesium G823         |          | mag-scalar  | csprotocol.py            | passive  |                |                  |
+| Thies LNM           |          | laserdisdro | disdroprotocol.py        | active   |                |                  |
+| DSP Ultrasonic wind |          | 2D wind     | dspprotocol.py           | active   |                |                  |
+| ENV05               |          | temp-humid  | envprotocol.py           | passive  |                |                  |
+| 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active   |                |                  |
+| GIC                 |          | special     | gicprotocol.py           | active   |                |                  |
+| GP20S3              |          | mag-scalar  | gp20s3protocol.py        | passive  |                |                  |
+| GSM19               |          | mag-scalar  | gsm19protocol.py         |          |                |                  |
+| GSM90               |          | mag-scalar  | gsm90protocol.py         | passive  | gsm90v?init.sh |                  |
+| DataFiles           |          | multiple    | imfileprotocol.py        | active   |                |                  |
+| LEMI025             |          | mag-vario   | lemiprotocol.py          | passive  |                |                  |
+| LEMI036             |          | mag-vario   | lemiprotocol.py          | passive  |                |                  |
+| Tilt Lippmann       | develop  | tilt        | lmprotocol.py            | active   |                |                  |
+| LORAWAN             | develop  | multiple    | lorawanprotocol.py       |          |                |                  |
+| MySQL               |          | multiple    | mysqlprotocol.py         | active   |                |                  |
+| ObsDaq              |          | multiple    | obsdaqprotocol.py        | active   | obsdaqinit.sh  |                  |
+| OneWire             |          | multiple    | owprotocol.py            | passive  |                |                  |
+| POS1                |          | mag-scalar  | pos1protocol.py          | passive  | pos1init.sh    |                  |
+| Test                | 2.0.0    | special     | testprotocol.py          |          |                |                  |
 
-(py2) indactes that code has been developed and used in python2 but is not tested anymore
+The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
 ### 12.2 Initialization files
 

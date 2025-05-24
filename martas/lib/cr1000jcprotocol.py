@@ -5,15 +5,13 @@ Makes sense only when using a CR1000 data logger with specific set-up
 in combination with a Judd JC depth sensor 
 to measure snow depth
 """
-from __future__ import print_function
-from __future__ import absolute_import
 
 # ###################################################################
 # Import packages
 # ###################################################################
 
 import struct # for binary representation
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from twisted.python import log
 from martas.core import methods as mm
 import threading

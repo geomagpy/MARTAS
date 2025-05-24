@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 from matplotlib.dates import date2num, num2date
+from datetime import datetime, timezone
 import numpy as np
 import time
 

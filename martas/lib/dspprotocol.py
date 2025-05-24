@@ -1,5 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
 
 # ###################################################################
 # Import packages
@@ -8,7 +6,7 @@ from __future__ import absolute_import
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
-from datetime import datetime
+from datetime import datetime, timezone
 from twisted.python import log
 from martas.core import methods as mm
 import serial

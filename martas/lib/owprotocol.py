@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-
 # ###################################################################
 # Import packages
 # ###################################################################
@@ -9,8 +6,7 @@ import sys    # for version identification
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
-from datetime import datetime
-#from twisted.protocols.basic import LineReceiver
+from datetime import datetime, timezone
 from twisted.python import log
 from martas.core import methods as mm
 
@@ -78,7 +74,9 @@ if onewire:
             log.msg("  -> setting QOS:", self.qos)
 
 
-        def GetOneWireSensorList(self, existinglist=[]):
+        def GetOneWireSensorList(self, existinglist=None):
+            if not existinglist:
+                existinglist = []
             try:
                 self.owproxy = pyownet.protocol.proxy(host=self.owhost, port=self.owport)
                 sensorlst = self.owproxy.dir()
@@ -229,6 +227,7 @@ if onewire:
 
         def processOwData(self, sensorid, datadict):
             """Process OW data """
+            key, ele, unit = '','',''
             currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
             outdate = datetime.strftime(currenttime, "%Y-%m-%d")
             filename = outdate

@@ -24,16 +24,17 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv,"hd:rD",["path=","redo=","debug=",])
     except getopt.GetoptError:
-        print ('martas_init.py')
+        print ('martas_init')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print ('-------------------------------------')
             print ('Description:')
-            print ('-- martas_init.py will initialize imbot configuration --')
+            print ('-- martas_init will initialize imbot configuration --')
             print ('-----------------------------------------------------------------')
-            print ('martas_init.py will perform the following tasks:')
-            print ('- default directory is .martas, change using -d option, i.e. MARTAS')
+            print ('martas_init will perform the following tasks:')
+            print ('- program files will always be stored within your home directory')
+            print ('- default directory is .martas, change that using -d option')
             print ('- will create a ~/.martas directory')
             print ('- copy skeleton configuration files to .martas/conf/')
             print ('- copy bash scripts to .martas/scripts/')
@@ -41,6 +42,7 @@ def main(argv):
             print ('')
             print ('Options:')
             print ('-d, --directory : define the main configuration directory')
+            print ('                : i.e. -d MARTAS will store everything within /hone/user/MARTAS')
             print ('-r, --redo : replace already existing configuration files')
             print ('           : ATTENTION: redo will delete all previous configurations')
             print ('-------------------------------------')
@@ -550,6 +552,7 @@ def main(argv):
                     "outputdestination" : destination,
                     "filepath  :  /tmp" : "filepath  :  {}".format(filepath),
                     "mydb" : databasecredentials,
+                    "./web" : "{}".format(os.path.join(homedir, dir,"web")),
                     "brokeraddress" : mqttbroker,
                     "1883"  :  mqttport,
                     "mqttqos  :  0": "mqttqos  :  {}".format(mqttqos),

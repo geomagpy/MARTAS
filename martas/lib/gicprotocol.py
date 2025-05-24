@@ -1,5 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
 
 # ###################################################################
 # Import packages
@@ -7,7 +5,7 @@ from __future__ import absolute_import
 
 import struct # for binary representation
 import socket # for hostname identification
-from datetime import datetime
+from datetime import datetime, timezone
 from martas.core import methods as mm
 from magpy.opt import cred as mpcred
 from twisted.python import log
@@ -161,7 +159,7 @@ class GICProtocol():
                     if self.count >= self.metacnt:
                         self.count = 0
             except:
-                log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
+                log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), data))
 
         self.count += 1
 

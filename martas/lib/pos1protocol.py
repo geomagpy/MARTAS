@@ -9,7 +9,7 @@ import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from martas.core import methods as mm
@@ -93,6 +93,8 @@ class POS1Protocol(LineReceiver):
         filename = outdate
         sensorid = self.sensor
         data_bin = None
+        gps_time = ""
+        datearray = []
 
         packcode = '6hLLLh6hL'
         header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,df,var1,sectime]', '[f,df,var1,GPStime]', '[nT,nT,none,none]', '[1000,1000,1,1]', packcode, struct.calcsize('<'+packcode))
@@ -168,7 +170,8 @@ class POS1Protocol(LineReceiver):
         return ','.join(list(map(str,datearray))), header
 
     def dataReceived(self, data):
-
+        dataarray = ""
+        head = ""
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
         # extract only ascii characters
         if sys.version_info >= (3,0):

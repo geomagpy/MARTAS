@@ -8,7 +8,7 @@ from __future__ import absolute_import
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from martas.core import methods as mm

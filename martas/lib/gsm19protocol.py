@@ -1,6 +1,3 @@
-from __future__ import print_function
-from __future__ import absolute_import
-
 # ###################################################################
 # Import packages
 # ###################################################################
@@ -10,7 +7,7 @@ import socket # for hostname identification
 import string # for ascii selection
 import sys
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from martas.core import methods as mm
@@ -161,7 +158,7 @@ class GSM19Protocol(LineReceiver):
             if delta > self.timethreshold:
                 self.errorcnt['time'] +=1
                 if self.errorcnt.get('time') < 2:
-                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, secdiff))
+                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), self.sensor, delta))
             else:
                 self.errorcnt['time'] = 0
         except:
