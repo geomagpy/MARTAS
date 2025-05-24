@@ -54,17 +54,11 @@ import threading
 from multiprocessing import Process
 import struct
 from datetime import datetime
-from matplotlib.dates import date2num, num2date
+from matplotlib.dates import num2date
 import numpy as np
 import json
 import socket
-
-# For file export
-## -----------------------------------------------------------
-try: # Python2.7
-    from StringIO import StringIO
-except ImportError: # Python 3.x
-    from io import StringIO
+from io import StringIO
 
 ## Import specific MARTAS packages
 ## -----------------------------------------------------------
@@ -75,6 +69,7 @@ from martas.core.websocket_server import WebsocketServer
 
 ## Import MQTT
 ## -----------------------------------------------------------
+import paho.mqtt
 import paho.mqtt.client as mqtt
 import sys, getopt, os
 
@@ -89,10 +84,7 @@ ws_available = True
 
 # Some variable initialization
 ## -----------------------------------------------------------
-global identifier # Thats probably wrong ... global should be used in functions
-identifier = {} # used to store lists from header lines
-global counter  # use for diffcalc
-counter = 0
+#global counter  # use for diffcalc
 
 qos = 0
 streamdict = {}
@@ -111,11 +103,12 @@ webpath = './web'
 webport = 8080
 socketport = 5000
 blacklist = []
-
+counter = 0
 
 class protocolparameter(object):
     def __init__(self):
         self.identifier = {}
+        #self.counter = 0
 
 po = protocolparameter()
 
@@ -153,7 +146,7 @@ def webProcess(webpath,webport):
     reactor.listenTCP(webport,factory)
     reactor.run()
 
-def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, destinationid='',debug=False):
+def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, mqttversion=2, destinationid='',debug=False):
         """
     connectclient method
     used to connect to a specific client as defined by the input variables
@@ -162,9 +155,23 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
                 altbro = json.loads(altbrocker)
         """
         ## create a unique clientid consisting of broker, client and destination
+        client = None
         hostname = socket.gethostname()
         clientid = "{}{}{}".format(broker,hostname,destinationid)
-        client = mqtt.Client(clientid,False)
+
+        ## create MQTT client
+        ##  ----------------------------
+        pahovers = paho.mqtt.__version__
+        pahomajor = int(pahovers[0])
+        print(" paho-mqtt version ", pahovers)
+        try:
+            client = mqtt.Client(clientid, False)
+        except:
+            try:
+                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientid)
+            except:
+                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=clientid)
+
         # Authentication part
         if not credentials in ['','-']:
             # use user and pwd from credential data if not yet set
@@ -279,7 +286,7 @@ def create_head_dict(header,sensorid):
     head_dict['ColumnUnits'] = ','.join(l2[1:])
     return head_dict
 
-def interprete_data(payload, stream, sensorid):
+def interprete_data(payload, sensorid):
     """
     source:mqtt:
     """
@@ -295,7 +302,7 @@ def interprete_data(payload, stream, sensorid):
         timear = list(map(int,data[:7]))
         #log.msg(timear)
         time = datetime(timear[0],timear[1],timear[2],timear[3],timear[4],timear[5],timear[6])
-        array[0].append(date2num(time))
+        array[0].append(time)
         for idx, elem in enumerate(keylist):
             try:
                 index = KEYLIST.index(elem)
@@ -310,17 +317,12 @@ def interprete_data(payload, stream, sensorid):
 
     return np.asarray([np.asarray(elem) for elem in array],dtype=object)
 
-def datetime2array(t):
-        return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
-
-
 def merge_two_dicts(x, y):
         z = x.copy()   # start with x's keys and values
         z.update(y)    # modifies z with y's keys and values & returns None
         return z
 
-
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc, properties):
     global concount
     global debug
     if debug or not concount:
@@ -353,6 +355,7 @@ def on_message(client, userdata, msg):
     global qos
     global verifiedlocation
     global debug
+    digit = 0
     arrayinterpreted = False
     wsarrayinterpreted = False
     diarrayinterpreted = False
@@ -386,7 +389,7 @@ def on_message(client, userdata, msg):
     identdic = {}
 
     if addlib and len(addlib) > 0:
-            # Currently only one additioal library is supported
+            # Currently only one additional library is supported
             lib = addlib[0]
             #for lib in addlib:
             elemlist = []
@@ -499,7 +502,7 @@ def on_message(client, userdata, msg):
                             mm.data_to_file(location, sensorid, filename, data_bin, header)
             if 'websocket' in destination:
                 if not wsarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     wsarrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
@@ -516,7 +519,7 @@ def on_message(client, userdata, msg):
                 amount = int(number)
                 cover = 5
                 if not diarrayinterpreted:
-                    ar = interprete_data(msg.payload, stream, sensorid)
+                    ar = interprete_data(msg.payload, sensorid)
                     if not sensorid in senslst:
                         senslst.append(sensorid)
                         st.append(DataStream([],{},ar))
@@ -569,7 +572,7 @@ def on_message(client, userdata, msg):
                     print ("Found error in subtraction")
             if 'stdout' in destination:
                 if not soarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     soarrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
@@ -578,7 +581,7 @@ def on_message(client, userdata, msg):
                     log.msg("{}: {},{}".format(sensorid,time,datastring))
             elif 'db' in destination:
                 if not dbarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     dbarrayinterpreted = True
                 # create a stream.header
@@ -593,7 +596,7 @@ def on_message(client, userdata, msg):
                     db.write(stream)
             elif 'stringio' in destination:
                 if not siarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     siarrayinterpreted = True
                 for idx,el in enumerate(stream.ndarray[0]):
@@ -606,7 +609,7 @@ def on_message(client, userdata, msg):
                     output.write(line+eol)
             elif 'serial' in destination:
                 if not arrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, stream, sensorid)
+                    stream.ndarray = interprete_data(msg.payload, sensorid)
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     arrayinterpreted = True
                 """
@@ -828,7 +831,7 @@ def main(argv):
             if not conf.get('mqttport','') in ['','-']:
                 port = int(conf.get('mqttport'))
             if not conf.get('mqttdelay','') in ['','-']:
-                timeout = int(conf.get('mqttdelay').strip())
+                timeout = int(conf.get('mqttdelay'))
             if not conf.get('mqttuser','') in ['','-']:
                 user = conf.get('mqttuser').strip()
             if not conf.get('mqttqos','') in ['','-']:
@@ -842,7 +845,7 @@ def main(argv):
                 blacklist=conf.get('blacklist').split(',')
                 blacklist = [el.strip() for el in blacklist]
             if not conf.get('station','') in ['','-']:
-                stationid = conf.get('station').strip()
+                stationid = conf.get('station').strip().lower()
                 stid = stationid
             if not conf.get('destination','') in ['','-']:
                 destination=conf.get('destination').strip()
@@ -1011,8 +1014,8 @@ def main(argv):
                 if debug:
                     log.msg("Connecting database {} at host {} with user {}".format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
                 #db = mysql.connect(host=mpcred.lc(dbcred,'host'),user=mpcred.lc(dbcred,'user'),passwd=mpcred.lc(dbcred,'passwd'),db=mpcred.lc(dbcred,'db'))
-                dbcon = database.DataBank(mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user'),mpcred.lc(dbcred,'passwd'),mpcred.lc(dbcred,'db'))
-                db = dbcon.db
+                db = database.DataBank(mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user'),mpcred.lc(dbcred,'passwd'),mpcred.lc(dbcred,'db'))
+                #db = dbcon.db
             except:
                 log.msg('database {} at host {} with user {} could not be connected'.format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
                 log.msg(' ... aborting ...')
@@ -1024,7 +1027,8 @@ def main(argv):
         log.msg("Destination: {} {}".format(destination, location))
 
     if source == 'mqtt':
-        client = connectclient(broker, port, timeout, credentials, user, password, qos, destinationid=dbcred, debug=debug) # dbcred is used for clientid
+        mqttversion = int(conf.get("mqttversion", 2))
+        client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttversion=mqttversion, destinationid=dbcred, debug=debug) # dbcred is used for clientid
         client.loop_forever()
 
     elif source == 'wamp':

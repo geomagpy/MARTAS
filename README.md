@@ -19,6 +19,7 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey (GeoSphere Austria)
 
 
 
+
 ## 1. About
 
 MARTAS has originally been developed to support realtime geomagnetic data acquisition. The principle idea was providing
@@ -67,11 +68,13 @@ system is the only prerequisite to run MARTAS.
 ### 2.1 Installation requirements
 
 All installation instructions assume a linux (debian-like) system. Although the core methods of MARTAS are platform 
-independent, it is currently only tested and used on debian like LINUX systems.
+independent, it is currently only tested and supported on debian-like LINUX systems.
 
     SYSTEM:
     - mosquitto (MQTT client - broker)
         sudo apt-get install mosquitto mosquitto-clients
+    - virtualenvironment (python environment)
+        sudo apt-get install virtualenv
     - MAROCS only (if MariaDB is used)
         sudo apt-get install mariadb
         sudo apt-get install percona-toolkit
@@ -86,28 +89,33 @@ independent, it is currently only tested and used on debian like LINUX systems.
         sudo apt-get install owserver
 
 
-### 2.2 Getting MARTAS
+### 2.2 Installing MARTAS/MARCOS
 
-Get all neccessary MARTAS files by one of the following techniques:
-a) clone the MARTAS repository to your home folder (requires git)
+Create a python environment:
 
-        $ git clone https://github.com/geomagpy/MARTAS.git
+        $ virtualenv 
 
-b) or go to the GITHUB directory and download the MARTAS archive
+Activate the environement:
 
-        https://github.com/geomagpy/MARTAS
+        $ source ~/env/martas/bin/activate
 
-### 2.3 INSTALL MQTT
+Get the MARTAS package:
 
-MARTAS makes use of certain IOT protocols for real-time data transfer.
-Currently fully supported is MQTT. In the following you will find some instructions
-on how to get MQTT running on your acquisition machine.
+         download martas-2.x.x.tar.gz
 
-If you dont need authentication you are fine already (continue with section 3). You only need to install the required packages as listed above. Thats it.
+Install the package using pip:
 
-### 2.4 NEW: enable listener
+        (martas)$ pip install martas-2.x.x.tar.gz
 
-Starting with Mosquitto version 2.0.0 only localhost can listen to mqtt publications. To enable other listener you can create a config file as follows:
+### 2.3 Configure MQTT
+
+In the following you will find some instructions on
+how to get MQTT running on your MARTAS/MAROCS machine.
+
+#### 2.3.1 Enable listener
+
+Starting with Mosquitto version 2.0.0 only localhost can listen to mqtt publications. To enable other listener you can
+create a config file as follows:
 
          sudo nano /etc/mosquitto/conf.d/listener.conf
 
@@ -116,13 +124,14 @@ Create this file if not existing and add the following lines:
          listener 1883
          allow_anonymous true
 
-### 2.5 Enabling authentication
+#### 2.3.2 Enabling authentication
 
 Authentication and secure data communication are supported by MARTAS. In order to enable
-authentication and SSL encryption for accessing data streams from your acquisition machine please check mosqitto instructions like the following web page:
+authentication and SSL encryption for accessing data streams from your acquisition machine please check mosquitto 
+instructions like the following web page:
 https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
 
-For quickly enabling authentication you can also use the following instructions (without ssl encrytion of data transfer):
+For quickly enabling authentication you can also use the following instructions (without ssl encryption of data transfer):
 
     Adding user/password:
     ---------------------
@@ -142,70 +151,92 @@ For quickly enabling authentication you can also use the following instructions 
         password_file /etc/mosquitto/passwd
 
     Restart mosquitto
-Thats it. How to use credentials in MARTAS is described in section 3.1.
+
+Thats it. How to use credentials in MARTAS is described in section 7.x.
 
 
-## 3. Setting up MARTAS
+#### 2.3.3 Understanding Quality-of-Service (QOS)
+
+The Quality-of-Service (qos) level is an agreement between the sender of a message and the receiver of a message that 
+defines the guarantee of delivery for a specific message. There are three qos levels in MQTT: (0) At most once, (1) At 
+least once and (2) Exactly once. (0) sends out data without testing whether it is received or not. (1) sends out data 
+and requires an acknowledgement that the data was received. Multiple sendings are possible. (2) makes sure that every 
+data is send exactly once. Please refer to MQTT information pages for more details. The amount of messages stored is 
+limited, with an upper limit defined by the brokers memory. When using a mosquitto broker the default limit of stored 
+messages is 100. In order to change that modify the **max\_queued\_messages** count in mosquitto config.
+
+
+## 3. Initialization of MARTAS/MARCOS
 
 In the following we are setting up MARTAS to acquire measurement data from any connected system, to store it locally within a buffer directory and to permanenty stream it to a data broker. In the examples, we will use the same MARTAS system as data broker.
 
-### 3.1 Basic setup:
+### 3.1 Initial setup
 
-#### 3.1.1 Use the MARTAS installation script
+Activate the environment if not yet done:
 
-        $ cd /path/to/MARTAS/install
-        $ sudo sh martas.install.sh
-        -> follow the instructions
+        $ source ~/env/martas/bin/activate
 
-#### 3.1.2 Modify /etc/martas/sensors.cfg
+Start the MARTAS/MARCOS initialization routine
 
-        $ nano /etc/martas/sensors.cfg
+        (martas)$ martas_init
 
-sensors.cfg is the basic configuration file for all sensors connected to the MARTAS system. It contains a line with a comma separted list for each sensor which looks like:
+This routine will ask you a series of questions to configure the acquisition (MARTAS) or collector (MARCOS) to your 
+needs. In case you want to use e-mail, messenger notifications or database support, make sure that you setup these
+tool ideally before running martas_init, and provide credential information using addcred. You might want to checkout
+section 3.4 for details on notifications and section x.x for database support. 
+Please also make sure that you have write permissions on the directories to be used.
+
+### 3.2 Inputs during setup
+
+## 4. MARTAS
+
+### 4.1 Configuring sensors
+
+When initialization is finished there is only one further step to do in case of a MARTAS acquisition machine. You need 
+to specify the sensors. For this you will have to edit the sensors configuration file.
+
+        $ nano ~/.martas/conf/sensors.cfg
+
+sensors.cfg is the basic configuration file for all sensors connected to the MARTAS system. It contains a line with a 
+comma separated list for each sensor which looks like:
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
-The following elements are contained in this order:
+You will find a number of examples for supported sensors in section 4.6. The following elements are contained in this 
+order:
 
-element  | description | example
--------- | -------- | ----------
-sensorid | Unique identification string for sensor. Ideally consisting of  fields "name\_serialnumber\_revision" | GSM90\_6107631\_0001
-port | serial communication port (e.g. tty**S1** or tty**USB0**)  |  S1
-baudrate | Serial communication baudrate | 115200
-bytesize | Serial communication bytesize | 8
-stopbits | Serial communication stopbits | 1
-parity | Parity can be set to none (N), odd (O), even (E), mark (M), or space (S) | N
-mode | Can be active (data requests are send) and passive (sensor sends data regularly)  | passive
-init | Sensor initialization (see 3.4 and appendix 10.1)  | gsm90v7init.sh
-rate | Defines the sampling rate for active threads in seconds (integer). Data will be request with this rate. Active threads with more than 1 Hz are not possible. Not used for passive modes. | -
-stack | Amount of data lines to be collected before broadcasting. Default **1**. **1** will broadcast any line as soon it is read. | 1
-protocol | MARTAS protocol to be used with this sensor |  GSM90
-name | Name of the sensors   | GSM90
-serialnumber | Serialnumber of the sensor  | 6107632
-revision | Sensors revision number, i.e. can change after maintainance  | 0002
-path | Specific identification path for automatically determined sensors. Used only by the OW protocol. | -
-pierid | An identification code of the pier/instrument location  | AS-W-36
-ptime | Primary time originates from NTP (MARTAS clock), GNSS, GPS. If the sensors delivers a timestamp e.g. GPS time, then a generated header input **DataTimesDiff** always contains the average difference to the MARTAS clock, in this case GPS-NTP  | GPS
-sensorgroup |  Diszipline or group  | magnetism
-sensordesc |  Description of sensor details | GEM Overhauzer v7.0
+| element      | description | example |
+|--------------| -------- | ---------- |
+| sensorid     | Unique identification string for sensor. Ideally consisting of  fields "name\_serialnumber\_revision" | GSM90\_6107631\_0001 |
+| port         | serial communication port (e.g. tty**S1** or tty**USB0**)  |  S1 |
+| baudrate     | Serial communication baudrate | 115200 |
+| bytesize     | Serial communication bytesize | 8 |
+| stopbits     | Serial communication stopbits | 1 |
+| parity       | Parity can be set to none (N), odd (O), even (E), mark (M), or space (S) | N |
+| mode         | Can be active (data requests are send) and passive (sensor sends data regularly)  | passive |
+| init         | Sensor initialization (see 3.4 and appendix 10.1)  | gsm90v7init.sh |
+| rate         | Defines the sampling rate for active threads in seconds (integer). Data will be request with this rate. Active threads with more than 1 Hz are not possible. Not used for passive modes. | - |
+| stack        | Amount of data lines to be collected before broadcasting. Default **1**. **1** will broadcast any line as soon it is read. | 1 |
+| protocol     | MARTAS protocol to be used with this sensor |  GSM90 |
+| name         | Name of the sensors   | GSM90 |
+| serialnumber | Serialnumber of the sensor  | 6107632 |
+| revision     | Sensors revision number, i.e. can change after maintainance  | 0002 |
+| path         | Specific identification path for automatically determined sensors. Used only by the OW protocol. | - |
+| pierid       | An identification code of the pier/instrument location  | AS-W-36 |
+| ptime        | Primary time originates from NTP (MARTAS clock), GNSS, GPS. If the sensors delivers a timestamp e.g. GPS time, then a generated header input **DataTimesDiff** always contains the average difference to the MARTAS clock, in this case GPS-NTP  | GPS |
+| sensorgroup  |  Diszipline or group  | magnetism |
+| sensordesc   |  Description of sensor details | GEM Overhauzer v7.0 |
 
 
 IMPORTANT:
 - sensorids should only contain basic characters like 0,1,2,..9,a,b,...,z,A,B,...,Z (no special characters, no underscors, no minus etc)
 - sensorids should not contain the phrases "data", "meta" or "dict"
 
-Further details and descriptions are found within the created sensors.cfg configuration file.
+Further details and descriptions are found in the commentary section of the sensors.cfg configuration file.
 
-#### 3.1.3 Check /etc/martas/martas.cfg
+### 4.2 Running the acquisition system
 
-        $ nano /etc/martas/martas.cfg
-
-martas.cfg contains the basic MARTAS configuration data, definitions for broadcasting and paths. Details and descriptions are found within this file. The file is preconfigured during the installation process and does not need to be changed.
-
-
-### 3.2 Running the acquisition system
-
-#### 3.2.1 When installation is finished you can start the system as follows:
+#### 4.2.1 When installation is finished you can start the system as follows:
 
         $ sudo /etc/init.d/martas start
 
@@ -215,7 +246,7 @@ martas.cfg contains the basic MARTAS configuration data, definitions for broadca
         $ sudo /etc/init.d/martas restart
         $ sudo /etc/init.d/martas stop
 
-#### 3.2.2 Command line
+#### 4.2.2 Command line
 
         $ python acquisition.py
 
@@ -224,7 +255,7 @@ martas.cfg contains the basic MARTAS configuration data, definitions for broadca
 
         $ python acquisition.py -m /home/user/martas.cfg
 
-#### 3.2.3 Adding a cleanup for the bufferdirectory
+#### 4.2.3 Adding a cleanup for the bufferdirectory
 
    Principally, all data is buffered in binary files, by default within the /srv/mqtt directory.
    You can mount a SD card or external memory as such a bufferdirectory.
@@ -239,7 +270,7 @@ martas.cfg contains the basic MARTAS configuration data, definitions for broadca
 
 	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
 
-#### 3.2.4 Adding a start option to crontab
+#### 4.2.4 Adding a start option to crontab
 
    In case that the MARTAS acquisition process hangs up or gets terminated by an unkown reason
    it is advisable to add a start option to crontab, which starts MARTAS in case it is not
@@ -249,11 +280,7 @@ martas.cfg contains the basic MARTAS configuration data, definitions for broadca
 
        10  0  *  *  *  root    /etc/init.d/martas start
 
-### 3.3 Understanding Quality-of-Service (QOS)
-
-The Quality-of-Service (qos) level is an agreement between the sender of a message and the receiver of a message that defines the guarantee of delivery for a specific message. There are three qos levels in MQTT: (0) At most once, (1) At least once and (2) Exactly once. (0) sends out data without testing whether it is received or not. (1) sends out data and requires an aknowledgment that the data was received. Multiple sendings are possible. (2) makes sure that every data is send exactly once. Please refer to MQTT information pages for more details. The amount of messages stored is limited, with an upper limit defined by the brokers memory. When using a mosquitto broker the default limit of stored messages is 100. In order to change that modify the **max\_queued\_messages** count in mosquitto config.
-
-### 3.4 Sensors requiring initialization
+### 4.4 Sensors requiring initialization
 
 Several sensors currently supported by MARTAS require an initialization. The initialization process defines e.g. sampling rates, filters, etc. in a way that the sensor systems is automatically sending data to the serial port afterwards. MARTAS supports such initialization routines by sending the respective and necessary command sequence to the system. Initialization commands are stored within the MARTAS configuration directory (Default: /etc/martas/init). The contents of the initialization files for supported instruments is outlined in Appendix 10.1. In order to use such initialization, you need to provide the path within the sensors configuration line in sensors.cfg:
 
@@ -261,7 +288,8 @@ sensors.cfg: line for a GSM90 Overhauzr, the initialzation configuration is take
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
-### 3.5 Regular backups of all MARTAS configurations
+
+### 4.5 Regular backups of all MARTAS configurations
 
 MARTAS comes with a small backup application to be scheduled using cron, which saves basically all MARTAS configuration files within a zipped archive. The aim of this application is to save all essential information within one single data file so that in case of a system crash (hardware problem, SD card defect, etc) you can easily and quickly setup an identical "new" system. You might also use the backups to setup similar copies of a specific system.
 
@@ -302,7 +330,7 @@ In order to recover a system from an existing backup, MARTAS/install contains a 
         sudo bash /home/USER/MARTAS/install/recover.martas.sh
 
 
-### 3.6. Typical Sensor definitions in sensors.cfg
+### 4.6. Typical Sensor definitions in sensors.cfg
 
 #### Geomagetic GSM90 Overhauzer Sensors (GEM Systems)
 

@@ -172,10 +172,10 @@ def main(argv):
         shutil.copytree(os.path.join(homedir, dir, "log"), logpath)
     else:
         logpath = os.path.join(homedir,dir,"log")
-    logpath = os.path.join(logpath,"martas.log")
 
     print (" ------------------------------------------- ")
     print (" Please insert a station ID (i.e. the three letter observatory code, like WIC)")
+    print (" (please note: station code is converted to lower case for martas mqtt topics)")
     print (" (press return for accepting default: {})".format(stationname))
     newstationname = input()
     if newstationname:
@@ -296,6 +296,8 @@ def main(argv):
         newpayloadformat = input()
         if newpayloadformat == 'intermagnet':
             payloadformat = 'intermagnet'
+
+        logpath = os.path.join(logpath, "martas.log")
 
         print(" ------------------------------------------- ")
         print(" Creating the MARTAS run time script")
@@ -427,6 +429,8 @@ def main(argv):
                     print (" ! Database credentials do not exist")
                 databasecredentials = newdatabasecredentials
 
+        logpath = os.path.join(logpath, "{}.log".format(marcosjob))
+
         print(" ------------------------------------------- ")
         print(" Creating the MARCOS run time script for {}".format(jobname))
         runscript = []
@@ -545,7 +549,7 @@ def main(argv):
                     "myhome" : stationname,
                     "outputdestination" : destination,
                     "filepath  :  /tmp" : "filepath  :  {}".format(filepath),
-                    "databasecredentials" : databasecredentials,
+                    "mydb" : databasecredentials,
                     "brokeraddress" : mqttbroker,
                     "1883"  :  mqttport,
                     "mqttqos  :  0": "mqttqos  :  {}".format(mqttqos),

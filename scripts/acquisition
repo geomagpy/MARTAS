@@ -369,9 +369,11 @@ def main(argv):
     ##  ----------------------------
     conf = mm.get_conf(martasfile)
 
+    conf["station"] = conf.get("station").lower()
+
     if test:
         # When running test then conf will be predefined
-        conf["station"] = "TST"
+        conf["station"] = "TST".lower()
         conf["broker"] = "localhost"
         conf["bufferdirectory"] = "/tmp"
         conf["logging"] = "sys.stdout"
