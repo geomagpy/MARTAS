@@ -184,7 +184,7 @@ Start the MARTAS/MARCOS initialization routine
 
 This routine will ask you a series of questions to configure the acquisition (MARTAS) or collector (MARCOS) to your 
 needs. In case you want to use e-mail, messenger notifications or database support, make sure that you setup these
-tool ideally before running martas_init, and provide credential information using [addcred](linktomagpy). 
+tool ideally before running martas_init, and provide credential information using [addcred](https://github.com), section 10.6. 
 You might want to checkout [section 6.1](#6-1) for details on notifications and [section 5.3.2](#5-3-2) for database support. 
 Please also make sure that you have write permissions on the directories to be used.
 
@@ -395,7 +395,7 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
 
 ### 4.1 Enabling Authentication
 
-    If you want to use authentication you should use addcred.py (UtilityScripts) to obsfuscate user and passwords, which helps you to avoid plain text passwords directly in scripts. Please note, that these methods do not encrypt passwords. They just store it in a different, independent file. To add such information into the credentials list use:
+    If you want to use authentication you should use addcred (MagPy, section 10.6) to obsfuscate user and passwords, which helps you to avoid plain text passwords directly in scripts. Please note, that these methods do not encrypt passwords. They just store it in a different, independent file. To add such information into the credentials list use:
 
         $ python addcred.py -t transfer -c mqtt -u user -p mypasswd -a localhost
 
@@ -486,8 +486,9 @@ packing formats. These binary files can be read with MagPy and transformed into 
 
 #### 5.3.2 Streaming to a database
 
-Checkout the MagPy instructions to setup and initialize a MagPy data base. This is usually done within minutes and then 
-can be readily used for MARCOS data collections or MARTAS dissemination. Instruction can be found here (magpy link).
+Checkout the MagPy instructions to setup and initialize a MagPy data base
+(see [section 9](https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#9-sql-databases)). 
+This is usually done within minutes and then can be readily used for MARCOS data collections or MARTAS dissemination. 
 When initializing MARCOS and selecting destination "db" you will need to provide a credential shortcut for the 
 database. You can create such credentials using addcred. Use addcred -h for all options.
 
@@ -610,7 +611,7 @@ In order to setup e-mail notifications the following steps need to be performed.
 This command will create a number of configuration files for notifications within the default folder /etc/martas.
 Secondly, it is necessary to locally save obsfuscated smtp server information on the MARTAS/MARCOS machine:
 
-        python3 addcred.py -t mail -c mymailservice -u info@mailservice.at -p secret -s smtp.mailservice.at -l 25
+        addcred -t mail -c mymailservice -u info@mailservice.at -p secret -s smtp.mailservice.at -l 25
 
 Now we will need to update the configuration files accordingly.
 
@@ -745,65 +746,38 @@ Go to your channel overview and add (i.e. MyFirstBot) as administrator to your c
 
 MARTAS comes along with a number of application scripts to support data acquisition, collection of data, access of remote data sources and organizations tools for databases. All these scripts can be found within the directory MARTAS/apps. Below you will find a comprehensive list of these scripts and their purpose. In the following you will find subsections with detailed instructions and example applications for all of these programs.
 
-| Script |   Purpose                                      | Configuration | Version               |  Section |
-|--------| ---------------------------------------------- | ------------ |-----------------------| -------- |
-| addcred.py | Create credential information for scripts         |                | REMOVE                | 8.2 |
-| archive.py | Read database tables and create archive files  | archive.cfg  | py3                   | 8.3 |
-| ardcomm.py | Communicating with arduino microcontroller     |              | py2/py3               | 8.4 |
-| checkdatainfo.py | | |                       | |
-| collectfile.py | | | REMOVE                | |
-| db_truncate.py | Check database tables (not DATAINFO) and delete data exceeding a certain age |  truncate.cfg | py3                   | 8.10 |
-| deleteold.py | | |                       | |
-| di.py | | |                       | |
-| file_download.py | Used to download files, store them in a raw directory amd construct archives/database inputs |  collect.cfg  | py3                   |  8.5 |
-| file_upload.py | Used to upload files to any specified remote system using a protocol of your choise     |  upload.json   | py3                   | 8.6 |
-| gamma.py | Dealing with DIGIBASE gamma radiation acquisition and analysis | gamma.cfg | py3                   | 8.7 |
-| monitor.py | | |                       | |
-| monitor_martas.py | | | REMOVE                | |
-| mpconvert.py | | | REMOVE                | |
-| obsdaq.py | communicate with ObsDAQ ADC | obsdaq.cfg | py2/py3               | 10.1.5 |
-| optimzetables.py | | |                       | |
-| palmacq.py | communicate with PalmAcq datalogger | obsdaq.cfg | py2/py3               | 10.1.5 |
-| replacenumdates.py | | |                       | |
-| senddata.py | | |                       | |
-| sendip.py | | |                       | |
-| serialinit.py | | |                       | |
-| speedtest.py | Test the bandwdith of the internet connection. Can be run periodically to write MagPy readable files |     |                       | 8.8 |
-| statemachine.py | | |                       | |
-| telegramnote.py | | | REMOVE - sendtelegram | |
-| testnote.py | | | REMOVE - unittest     | |
-| testserial.py | | |                       | |
-| threshold.py | | |                       | |
+| Script             | Purpose                                           | Config       | Version               |  Section |
+|--------------------|---------------------------------------------------|--------------|-----------------------| -------- |
+| addcred.py         | Create credential information for scripts         |              | REMOVE                | 8.2 |
+| archive.py         | Read database tables and create archive files     | archive.cfg  | 2.0.0                 | 8.3 |
+| ardcomm.py         | Communicating with arduino microcontroller        |              |                       | 8.4 |
+| checkdatainfo.py   |                                                   |              |                       | |
+| collectfile.py     |                                                   |              | REMOVE                | |
+| db_truncate.py     | Delete data from tables                           | truncate.cfg |                       | 8.10 |
+| deleteold.py       |                                                   |              |                       | |
+| di.py              |                                                   |              |                       | |
+| file_download.py   | Download files, store them and add to archives    | collect.cfg  |                       |  8.5 |
+| file_upload.py     | Upload files                                      | upload.json  |                       | 8.6 |
+| gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg    |                       | 8.7 |
+| monitor.py         |                                                   |              |                       | |
+| monitor_martas.py  |                                                   |              | REMOVE                | |
+| mpconvert.py       |                                                   |              | REMOVE                | |
+| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg   |                       | 10.1.5 |
+| optimzetables.py   |                                                   |              |                       | |
+| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg   |                       | 10.1.5 |
+| replacenumdates.py |                                                   |              |                       | |
+| senddata.py        |                                                   |              |                       | |
+| sendip.py          |                                                   |              |                       | |
+| serialinit.py      |                                                   |              |                       | |
+| speedtest.py       | Test bandwdith of the internet connection         |              |                       | 8.8 |
+| statemachine.py    |                                                   |              |                       | |
+| telegramnote.py    |                                                   |              | REMOVE - sendtelegram | |
+| testnote.py        |                                                   |              | REMOVE - unittest     | |
+| testserial.py      |                                                   |              |                       | |
+| threshold.py       |                                                   |              |                       | |
 
 
 
-### 8.2 addcred.py
-
-#### DESCRIPTION:
-
-Addcred can be used to keep sensitive credential information out of scripts.
-
-Usage:
-addcred.py -v <listexisting> -t <type> -c <credentialshortcut>
- -d <database> -u <user> -p <password> -s <smtp> -a <address> -o <host>
- -l <port>
-
-Options:
--v       : view all existing credentials
--t       : define type of data: db, transfer or mail
--c       : shortcut to access stored information
--d       : name of a database for db type
--u       : user name
--p       : password (will be encrypted)
--s       : smtp address for mail types
--a       : address for transfer type
--o       : host of database
--l       : port of transfer protocol
-
-#### APPLICATION:
-
-           python addcred.py -t transfer -c zamg -u max -p geheim -a "ftp://ftp.remote.ac.at" -l 21
-           !!!!  please note: put path in quotes !!!!!!
 
 
 ### 8.3 archive.py

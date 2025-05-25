@@ -36,8 +36,9 @@ Methods:
 |  martaslog      |  updatelog |  2.0.0 |          |                                  | -     | |
 |  **basic**      |            |  2.0.0 |          |                                  |      | |
 |                 |  add_sensor  |  2.0.0 |  - |                            | -       | mysql,ow,arduino libs |
-|                 |  datetime_to_array  |  2.0.0 |  yes |                            | -       | libs |
-|                 |  data_to_file  |  2.0.0 |  yes |                            | -       | libs |
+|                 |  connect_db  |  2.0.0 |    yes |                                  | -       | archive |
+|                 |  datetime_to_array  |  2.0.0 |  yes |                             | -       | libs |
+|                 |  data_to_file  |  2.0.0 |  yes |                                  | -       | libs |
 |                 |  get_conf  |  2.0.0 |      yes |                                  | -       | marcosscripts |
 |                 |  get_sensors  |  2.0.0 |   yes |                                  | -       | marcosscripts |
 |                 |  sendmail  |  2.0.0 |       -  |  identical method in imbot       | -       | imbot |
@@ -125,6 +126,25 @@ def add_sensors(path, dictionary, block=None):
         f.write(''.join(sensordata))
 
     return True
+
+
+def connect_db(mcred, exitonfailure=True, report=True):
+
+    db = None
+    if report:
+        print ("  Accessing data bank... ")
+    try:
+        db = database.DataBank(host=cred.lc(mcred, 'host'), user=cred.lc(mcred, 'user'),
+                               password=cred.lc(mcred, 'passwd'),
+                               database=cred.lc(mcred, 'db'))
+        if report:
+            print ("   -> success. Connected to {}".format(cred.lc(mcred,'db')))
+    except:
+        if report:
+            print ("   -> failure - check your credentials / databank")
+        if exitonfailure:
+            sys.exit()
+    return db
 
 
 def datetime_to_array(t):
@@ -574,6 +594,10 @@ class TestMethods(unittest.TestCase):
     """
     Test environment for all methods
     """
+
+    def test_connect_db(self):
+        db = connect_db('cobsdb',False,True)
+        self.assertTrue(db)
 
     def test_datetime_to_array(self):
         dt = datetime(2021,11,22)

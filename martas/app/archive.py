@@ -5,18 +5,18 @@ use crontab or scheduler to apply archive methods
 """
 
 from magpy.stream import *
-from magpy.database import *
+from magpy.core import database
+from magpy.core import methods as magpymeth
+
 from magpy.opt import cred as mpcred
 
 
 # Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-from martas import martaslog as ml
-from acquisitionsupport import GetConf2 as GetConf2
+from martas.core.methods import martaslog as ml
+from martas.core import methods as mm
 
 import getopt
+from datetime import datetime, timezone
 import pwd
 import socket
 
@@ -81,24 +81,8 @@ APPLICATION:
 
 """
 
-def connectDB(cred, exitonfailure=True, report=True):
 
-    if report:
-        print ("  Accessing data bank... ")
-    try:
-        db = mysql.connect (host=mpcred.lc(cred,'host'),user=mpcred.lc(cred,'user'),passwd=mpcred.lc(cred,'passwd'),db =mpcred.lc(cred,'db'))
-        if report:
-            print ("   -> success. Connected to {}".format(mpcred.lc(cred,'db')))
-    except:
-        if report:
-            print ("   -> failure - check your credentials / databank")
-        if exitonfailure:
-            sys.exit()
-
-    return db
-
-
-def createDatelist(startdate='', depth=2, debug=False):
+def create_datelist(startdate='', depth=2, debug=False):
 
     if debug:
          print ("   Creating datelist...")
@@ -106,14 +90,15 @@ def createDatelist(startdate='', depth=2, debug=False):
     datelist = []
     newdatetuple = []
     if startdate == '':
-        current = datetime.utcnow()
+        current = datetime.now(timezone.utc).replace(tzinfo=None)
     else:
-        current = DataStream()._testtime(startdate)
+        current = magpymeth.testtime(startdate)
 
     newcurrent = current
     for elem in range(depth):
-        datelist.append(datetime.strftime(newcurrent,"%Y-%m-%d"))
-        datetuple = (datetime.strftime((current-timedelta(days=elem+1)),"%Y-%m-%d"), datetime.strftime(newcurrent,"%Y-%m-%d"))
+        datelist.append(newcurrent.strftime("%Y-%m-%d"))
+        td = current-timedelta(days=elem+1)
+        datetuple = (td.strftime("%Y-%m-%d"), newcurrent.strftime("%Y-%m-%d"))
         newcurrent = current-timedelta(days=elem+1)
         newdatetuple.append(datetuple)
     if debug:
@@ -122,8 +107,10 @@ def createDatelist(startdate='', depth=2, debug=False):
     return newdatetuple
 
 
-def createDataSelectionList(blacklist=[], debug=False):
-
+def create_data_selectionlist(blacklist=None, debug=False):
+    if not blacklist:
+        blacklist = []
+    addstr = ""
     if debug:
          print ("   Creating sql query...")
     # get a list with all datainfoids covering the selected time range
@@ -131,7 +118,6 @@ def createDataSelectionList(blacklist=[], debug=False):
 
     if len(blacklist) > 0:
         sql = "{} WHERE".format(sql)
-        addstr = ''
         for el in blacklist:
             addstr += " AND DataID NOT LIKE '{}%'".format(el)
         addstr = addstr.replace(" AND","",1)
@@ -142,7 +128,7 @@ def createDataSelectionList(blacklist=[], debug=False):
     return sql
 
 
-def gettingDataDictionary(db,sql,debug=False):
+def get_data_dictionary(db,sql,debug=False):
 
     if debug:
          print ("   Obtaining DataID dict with times...")
@@ -150,7 +136,7 @@ def gettingDataDictionary(db,sql,debug=False):
     resultdict = {}
     # looks like {'data_1_0001_0001' : {'mintime':xxx, 'maxtime' : xxx }, ...}
 
-    cursor = db.cursor()
+    cursor = db.db.cursor()
     try:
         cursor.execute(sql)
     except:
@@ -169,7 +155,7 @@ def gettingDataDictionary(db,sql,debug=False):
 
     return resultdict
 
-def getparameter(plist, debug=False):
+def get_parameter(plist, debug=False):
     if debug:
         print ("Found the following parameters: {}".format(plist))
     try:
@@ -288,7 +274,7 @@ def main(argv):
     else:
         if os.path.isfile(conf):
             print ("  Read file with GetConf")
-            config = GetConf2(conf)
+            config = mm.get_conf(conf)
             print ("   -> configuration data extracted")
         else:
             print ('Specify a valid path to a configuration file using the  -c option:')
@@ -301,11 +287,11 @@ def main(argv):
     receiverconf = config.get('notificationconf')
 
 
-    db = connectDB(config.get('credentials'))
+    db = mm.connect_db(config.get('credentials'))
 
-    sql = createDataSelectionList(blacklist=config.get('blacklist',[]), debug=debug)
+    sql = create_data_selectionlist(blacklist=config.get('blacklist',[]), debug=debug)
 
-    datainfoiddict = gettingDataDictionary(db,sql,debug=False)
+    datainfoiddict = get_data_dictionary(db,sql,debug=False)
 
     for data in datainfoiddict:
         sr = 1
@@ -324,11 +310,11 @@ def main(argv):
 
         if not db: # check whether db is still connected
             print ("    Lost DB - reconnecting ...")
-            db = connectDB(config.get('credentials'), exitonfailure=False, report=False)
+            db = mm.connect_db(config.get('credentials'), exitonfailure=False, report=False)
 
         para = [config.get('defaultdepth'), config.get('archiveformat'),config.get('writearchive'),config.get('applyflags'), config.get('cleandb'),config.get('cleanratio')]
         # Get default parameter from config
-        depth,fo,wa,af,cdb,ratio = getparameter(para)
+        depth,fo,wa,af,cdb,ratio = get_parameter(para)
         writemode = config.get('writemode','replace')
 
         # Modify parameters if DataID specifications are give
@@ -336,7 +322,7 @@ def main(argv):
             if data.find(sensd) >= 0:
                 print ("  Found data specific parameters for sensorgroup {}:".format(sensd)) 
                 para = config.get('sensordict').get(sensd)
-                depth,fo,wa,af,cdb,ratio = getparameter(para)
+                depth,fo,wa,af,cdb,ratio = get_parameter(para)
                 print ("   -> {}".format(para))
 
         # Manual specifications
@@ -345,7 +331,7 @@ def main(argv):
             depth = obsdepth
 
         # Create datelist (needs to be sorted)
-        dateslist = createDatelist(startdate=startdate, depth=depth, debug=debug)
+        dateslist = create_datelist(startdate=startdate, depth=depth, debug=debug)
 
         # check time range
         try:
@@ -367,16 +353,16 @@ def main(argv):
             #tup = (day,nextday)
             if debug:
                 print ("  Reading data from DB ...")
-            stream = readDB(db,data,starttime=tup[0],endtime=tup[1])
+            stream = db.read(data,starttime=tup[0],endtime=tup[1])
             if debug:
                 print ("    -> Done ({} data points)".format(stream.length()[0]))
 
             # Data found
             if stream.length()[0] > 0:
                 dataidnum = stream.header.get('DataID')
-                if not num2date(max(stream.ndarray[0])).replace(tzinfo=None) < datetime.utcnow().replace(tzinfo=None):
-                    print ("  Found in-appropriate date in stream - maxdate = {} - cutting off".format(num2date(max(stream.ndarray[0]))))
-                    stream = stream.trim(endtime=datetime.utcnow())
+                if not max(stream.ndarray[0]).replace(tzinfo=None) < datetime.now(timezone.utc).replace(tzinfo=None):
+                    print ("  Found in-appropriate date in stream - maxdate = {} - cutting off".format(max(stream.ndarray[0])))
+                    stream = stream.trim(endtime=datetime.now(timezone.utc).replace(tzinfo=None))
                 print ("  Archiving {} data from {} to {}".format(data,tup[0],tup[1]))
                 sr = stream.samplingrate()
                 print ("   with sampling period {} sec".format(sr))
@@ -385,6 +371,7 @@ def main(argv):
                     sr = 60
 
                 path = config.get('path')
+                archivepath = None
 
                 if path:
                     #construct archive path
@@ -400,7 +387,7 @@ def main(argv):
 
                 if af and sr > 0.9:
                     print ("You selected to apply flags and save them along with the cdf archive.")
-                    flaglist = db2flaglist(db,sensorid=stream.header['SensorID'],begin=tup[0],end=tup[1])
+                    flaglist = db.flaglist_from_db(sensorid=stream.header['SensorID'],begin=tup[0],end=tup[1])
                     if len(flaglist) > 0:
                         print ("  Found {} flags in database for the selected time range - adding them to the archive file".format(len(flaglist)))
                         stream = stream.flag(flaglist)
@@ -410,8 +397,6 @@ def main(argv):
                 else:
                     print ("   Debug: skip writing")
                     print ("    -> without debug a file with {} inputs would be written to {}".format(stream.length()[0],archivepath))
-
-                #msg = "successfully finished"
             else:
                 print ("No data between {} and {}".format(tup[0],tup[1]))
             msg = "successfully finished"
@@ -419,7 +404,7 @@ def main(argv):
         if not debug and cdb and not datainfoid == '':
                     print ("Now deleting old entries in database older than {} days".format(sr*ratio))
                     # TODO get coverage before
-                    dbdelete(db,datainfoid,samplingrateratio=ratio)
+                    db.delete(datainfoid,samplingrateratio=ratio)
                     # TODO get coverage after
         else:
                     print ("   Debug: skip deleting DB")

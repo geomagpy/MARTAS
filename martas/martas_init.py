@@ -110,10 +110,14 @@ def main(argv):
     mqttqos = "1"
     mqttcred = ""
     bufferpath = "/srv/mqtt"
+    archivepath = "/srv/archive"
+    archivelog = "/tmp/archivestatus.log"
+    monitorlog = "/tmp/monitor.log"
     destination = "stdout"
     filepath = "/tmp"
     databasecredentials = "mydb"
     payloadformat = "martas"
+    noti = "telegram"
 
     cronlist = []
     print (" ------------------------------------------- ")
@@ -232,8 +236,21 @@ def main(argv):
 
 
     print (" ------------------------------------------- ")
+    print (" Notifications preference:")
+    print ("  Select one of the following notification techniques: log, email, telegram.")
+    print ("  Default is telegram.")
+    print ("  For telegram notification please update telegram.cfg in your configuration directory.")
+    newnot = input()
+    if newnot and newnot in ["log","email","telegram"]:
+        # check whether existing
+        noti = newnot
+        print (" -> notification by: {}".format(noti))
+
+
+    print (" ------------------------------------------- ")
     print (" E-mail notifications:")
-    print (" (provide the credential shortcut of MagPy's cred module)")
+    print ("  Provide the credential shortcut of MagPy's cred module.")
+    print ("  Otherwise press return.")
     newmailcred = input()
     if newmailcred:
         # check whether existing
@@ -253,6 +270,8 @@ def main(argv):
         print("  -> selected MARCOS")
     else:
         print("  -> selected MARTAS")
+
+    monitorlog = os.path.join(os.path.join(homedir, dir, "log", "monitor.log"))
 
     if initjob == "MARTAS":
         print (" ------------------------------------------- ")
@@ -431,7 +450,26 @@ def main(argv):
                     print (" ! Database credentials do not exist")
                 databasecredentials = newdatabasecredentials
 
+        print (" ------------------------------------------- ")
+        print (" MARCOS will archive database contents in CDF files by default.")
+        print(" Please provide a path for the data archive (default: /srv/archive):")
+        newarchivepath = input()
+        if newarchivepath:
+            if not os.path.isdir(newarchivepath):
+                print("  the selected directory is not yet existing - trying to create it...")
+                try:
+                    Path(newarchivepath).mkdir(parents=True, exist_ok=True)
+                    print("  done")
+                except:
+                    print("  ! failed, check permissions - aborting")
+                    sys.exit()
+            if not os.access(newarchivepath, os.W_OK):
+                print (" ! you don't have write access - aborting")
+                sys.exit()
+            archivepath = newarchivepath
+
         logpath = os.path.join(logpath, "{}.log".format(marcosjob))
+        archivelog = os.path.join(homedir, dir, "log", "archivestatus.log")
 
         print(" ------------------------------------------- ")
         print(" Creating the MARCOS run time script for {}".format(jobname))
@@ -525,7 +563,7 @@ def main(argv):
                 fout.write(line+"\n")
 
         cronlist.append("# Archiving ")
-        cronlist.append("20  0  * * *    $PYTHON {} > {} 2>&1".format(os.path.join(homedir, dir,"app","archive.py"),os.path.join(homedir, dir, "log","archive.log")))
+        cronlist.append("20  0  * * *    $PYTHON {} -c {} > {} 2>&1".format(os.path.join(homedir, dir,"app","archive.py"),os.path.join(homedir, dir,"conf","archive.cfg"), os.path.join(homedir, dir, "log","archive.log")))
         cronlist.append("# Running MARCOS process {} ".format(jobname))
         cronlist.append("17  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(homedir, dir, "log",marcosjob+".log")))
         # optimizetable
@@ -547,10 +585,16 @@ def main(argv):
     replacedict = { "/logpath" : logpath,
                     "/sensorpath" : os.path.join(confpath, "sensors.cfg"),
                     "/initdir" : initpath,
+                    "/srv/mqtt" : bufferpath,
                     "/obsdaqpath" : os.path.join(confpath, "obsdaq.cfg"),
                     "myhome" : stationname,
                     "outputdestination" : destination,
                     "filepath  :  /tmp" : "filepath  :  {}".format(filepath),
+                    "archivepath" : archivepath,
+                    "archivelog" : archivelog,
+                    "monitorlog" : monitorlog,
+                    "mynotificationtype" : noti,
+                    "notificationcfg" : os.path.join(confpath, "telegram.cfg"),
                     "mydb" : databasecredentials,
                     "./web" : "{}".format(os.path.join(homedir, dir,"web")),
                     "brokeraddress" : mqttbroker,
@@ -562,15 +606,27 @@ def main(argv):
     if mqttcred:
         replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)
 
-    # file for which replacements will happen and new names
-    files_to_change = { "martasconf" : {"source" : os.path.join(homedir, dir, "conf", "martas.bak") ,
-                                        "dest" : os.path.join(homedir, dir, "conf", "martas.cfg") },
-                        "skeletonlogrotate": {"source" : os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
-                                              "dest" : os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname)) }
-                        }
+    files_to_change = {}
+    if initjob == "MARTAS":
+        replacedict["/mybasedir"] = bufferpath
+        replacedict["space,martas,marcos,logfile"] = "space,martas,logpfile"
+        files_to_change["martasconf"] = {"source" : os.path.join(homedir, dir, "conf", "martas.bak") ,
+                                        "dest" : os.path.join(homedir, dir, "conf", "martas.cfg") }
+
     if initjob == "MARCOS":
+        replacedict["/mybasedir"] = archivepath
+        replacedict["space,martas,marcos,logfile"] = "space,marcos"
         files_to_change["marcosconf"] = {"source" : os.path.join(homedir, dir, "conf", "marcos.bak") ,
                                         "dest" : os.path.join(homedir, dir, "conf", "{}.cfg".format(marcosjob)) }
+        files_to_change["archiveconf"] = {"source": os.path.join(homedir, dir, "conf", "archive.bak"),
+                                     "dest": os.path.join(homedir, dir, "conf", "archive.cfg")}
+
+        # file for which replacements will happen and new names
+    files_to_change["skeletonlogrotate"] = {"source": os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
+                              "dest": os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))}
+    files_to_change["monitorconf"] = {"source": os.path.join(homedir, dir, "conf", "monitor.bak"),
+                        "dest": os.path.join(homedir, dir, "conf", "monitor.cfg")}
+
     for f in files_to_change:
         d = files_to_change.get(f)
         with open(d.get("source"), "rt") as fin:
