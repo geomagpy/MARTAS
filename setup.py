@@ -15,6 +15,7 @@ install_requires=[
             "numpy >= 1.21.0",
             "scipy >= 1.7.3",
             "paramiko",
+            "pexpect",
             "pyserial",
             "twisted",
             "setuptools"

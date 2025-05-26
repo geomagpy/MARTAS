@@ -755,31 +755,25 @@ find subsections with detailed instructions and example applications for all of 
 | archive.py         | Read database tables and create archive files     | archive.cfg  | 2.0.0                 | 8.2     |
 | ardcomm.py         | Communicating with arduino microcontroller        |              | 1.0.0                 | 8.3     |
 | checkdatainfo.py   | List/ad data tables not existing in DATAINFO/SENS |              | 2.0.0                 | 8.4     |
-| collectfile.py     |                                                   |              | REMOVE                |         |
 | db_truncate.py     | Delete data from all data tables                  | truncate.cfg | 2.0.0                 | 8.5     |
 | di.py              |                                                   |              |                       | 8.6     |
-| file_download.py   | Download files, store them and add to archives    | collect.cfg  |                       | 8.7     |
-| file_upload.py     | Upload files                                      | upload.json  |                       | 8.8     |
+| file_download.py   | Download files, store them and add to archives    | collect.cfg  | 2.0.0*                | 8.7     |
+| file_upload.py     | Upload files                                      | upload.json  | 2.0.0*                | 8.8     |
 | filter.py          | filter data                                       | filter.cfg   | ADD                   | -       |
 | gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg    |                       | 8.10    |
 | monitor.py         | Monitoring space, data and logfiles               | monitor.cfg  | 2.0.0                 | 8.11    |
-| monitor_martas.py  |                                                   |              | REMOVE                |         |
-| mpconvert.py       |                                                   |              | REMOVE                |         |
-| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg   |                       | 10.1.5  |
-| optimzetables.py   |                                                   |              | ADD                   |         |
-| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg   |                       | 10.1.5  |
-| replacenumdates.py |                                                   |              |                       |         |
-| senddata.py        |                                                   |              |                       |         |
-| sendip.py          |                                                   |              |                       |         |
-| serialinit.py      |                                                   |              |                       |         |
-| speedtest.py       | Test bandwidth of the internet connection         |              |                       | 8.8     |
+| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg   | 2.0.0*                | 8.12    |
+| optimzetables.py   | Optimize table disk usages (requires ROOT)        |              | 2.0.0*                | 8,13    |
+| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg   | 2.0.0*                | 8.12    |
+| serialinit.py      | Sensor initialization uses this method            |              | 2.0.0*                | 8.14    |
+| speedtest.py       | Test bandwidth of the internet connection         |              |                       | 8.15    |
 | statemachine.py    |                                                   |              |                       |         |
 | telegramnote.py    |                                                   |              | REMOVE - sendtelegram |         |
 | testnote.py        |                                                   |              | REMOVE - unittest     |         |
 | testserial.py      |                                                   |              |                       |         |
 | threshold.py       |                                                   |              |                       |         |
 
-
+Version 2.0.0* means it still needs to be tested
 
 ### 8.2 archive
 
@@ -826,7 +820,7 @@ Example:
         python checkdatainfo.py -c cobsdb -d -s
 
 
-### 8.5 db_truncate.py (replaces deleteold.py)
+### 8.5 db_truncate
 
 db_truncate.py truncates contents of timesseries in a MagPy database. Whereas "archive" also allows for truncating 
 the database (based on DATAINO) "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
@@ -840,15 +834,18 @@ Application:
         python3 db_truncate.py -c truncate.cfg
 
 
+### 8.7 di
 
-### 8.8 file_download.py
+at the moment still part of MARCOSscripts
+
+
+
+### 8.7 file_download
 
 Downloads data by default in to an archive "raw" structure like /srv/archive/STATIONID/SENSORID/raw
 Adds data into a MagPy database (if writedatabase is True)
 Adds data into a basic archive structure (if writearchive is True)
 The application requires credentials of remote source and local database created by addcred
-
-file_donwload replaces the old collectfile.py routine which is still contained in the package
 
    1) Getting binary data from a FTP Source every, scheduled day
     python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
@@ -856,7 +853,7 @@ file_donwload replaces the old collectfile.py routine which is still contained i
              sourcedatapath        :      /remote/data
              filenamestructure     :      *%s.bin
 
-   2) Getting binary data from a FTP Source every, scheduled day, using seconday time column and an offset of 2.3 seconds
+   2) Getting binary data from a FTP Source every, scheduled day, using secondary time column and an offset of 2.3 seconds
     python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
     in config "collect-ftpsource.cfg":
              sourcedatapath        :      /remote/data
@@ -885,12 +882,33 @@ file_donwload replaces the old collectfile.py routine which is still contained i
              writearchive      :      True
              forcerevision     :      0001
 
+      
+### 8.9 file_upload
 
+Upload data to a destination using various different protocols supported are FTP, SFTP, RSYNC, SCP. Jobs are listed in 
+a json structure and read by the upload process. You can have multiple jobs. Each job refers to a local path. Each job
+can also have multiple destinations.
 
-### 8.9 file_upload.py
+Examples:
+1. FTP Upload from a directory using files not older than 2 days
+{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
+2. FTP Upload a single file
+{"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
+3. FTP Upload all files with extensions
+{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
+4. Test environment
+{"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
+5. RSYNC upload
+{"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
+6. JOB on BROKER
+{"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
+
+Application:
+
+   python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
 
 Problem:
- - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finshed", "SUCCESS"
+ - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finished", "SUCCESS"
 Solution:
  - this error is typically related to an empty memory file
  
@@ -925,7 +943,7 @@ Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
         30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
 
 
-### 8.11 monitor.py
+### 8.11 monitor
 
 It is possible to monitor most essential aspects of data acquisition and storage. Monitor allows for testing data 
 actuality, get changes in log files, and/or get warnings if disk space is getting small. Besides, monitor.py can
@@ -945,8 +963,28 @@ Application:
 
         python3 monitor.py -c ~/.martas/conf/monitor.cfg
 
+### 8.12 obsdaq and palmacq
 
-### 8.x speedtest.py
+Richard, please...
+
+
+### 8.13 optimizetables
+
+OPTIMIZING tables and free space, the unblocking version.
+
+Please note, executing this job requires root privileges
+
+REQUIREMENTS:
+ - magpy
+ - sudo apt install percona-toolkit
+ - main user (cobs) needs to be able to use sudo without passwd (add to /etc/sudoers)
+
+### 8.14 serialinit
+
+important to initialize sensors using init configurations.  
+
+
+### 8.15 speedtest.py
 
 Perform a speedtest based on speedtest-cli
 (https://www.speedtest.net/de/apps/cli)

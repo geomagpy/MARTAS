@@ -44,6 +44,7 @@ import subprocess
 
 from martas.core.methods import martaslog as ml
 from martas.core import methods as mm
+from martas.version import __version__
 
 """
 monitorconf = {'logpath' : '/var/log/magpy/mm-monitor.log',		# path to log file
@@ -450,7 +451,7 @@ def execute_script(call,statusdict=None,jobname='JOB',debug=True):
     return statusdict
 
 def main(argv):
-    version = '2.0.0'
+    version = __version__
     statusmsg = {}
     jobs = ''
     joblist = []

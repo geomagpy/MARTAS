@@ -20,11 +20,8 @@ from matplotlib.dates import date2num, num2date
 import numpy as np
 import time
 
-# Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-from acquisitionsupport import GetConf2 as GetConf2
+from martas.core import methods as mm
+
 
 
 # settings for PalmAcq
@@ -153,7 +150,7 @@ def main(argv):
             sys.exit()
         if opt in ("-m"):
             configfile = os.path.abspath(arg)
-            conf = GetConf2(configfile)
+            conf = mm.get_conf(configfile)
             port = conf.get('port')
             if 'LEAPSECOND' in conf:
                 try:

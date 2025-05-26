@@ -44,20 +44,21 @@ APPLICTAION:
 """
 
 
-from magpy.stream import *
-from magpy.database import *
-from magpy.transfer import *
-import magpy.mpplot as mp
-import magpy.opt.emd as emd
+#from magpy.stream import *
 import magpy.opt.cred as mpcred
-import io, pickle
 
-import itertools
+from martas.core.methods import martaslog as ml
+from martas.core import methods as mm
+
+import ftplib
 from threading import Thread
-from subprocess import check_output   # used for checking whether send process already finished
 
 import getopt
-import pwd
+import json
+import subprocess
+from subprocess import check_output   # used for checking whether send process already finished
+from datetime import datetime, timedelta, timezone
+import paramiko
 import sys, os
 
 
@@ -69,29 +70,30 @@ def getcurrentdata(path):
     """
     usage: getcurrentdata(currentvaluepath)
     example: update kvalue
-    >>> fulldict = getcurrentdata(currentvaluepath)
-    >>> valdict = fulldict.get('magnetism',{})
-    >>> valdict['k'] = [kval,'']
-    >>> valdict['k-time'] = [kvaltime,'']
-    >>> fulldict[u'magnetism'] = valdict
-    >>> writecurrentdata(path, fulldict)
+    fulldict = getcurrentdata(currentvaluepath)
+    valdict = fulldict.get('magnetism',{})
+    valdict['k'] = [kval,'']
+    valdict['k-time'] = [kvaltime,'']
+    fulldict[u'magnetism'] = valdict
+    writecurrentdata(path, fulldict)
     """
+    fulldict = {}
     if os.path.isfile(path):
         with open(path, 'r') as file:
             fulldict = json.load(file)
-        return fulldict
     else:
         print ("path not found")
+    return fulldict
 
 def writecurrentdata(path,dic):
     """
     usage: writecurrentdata(currentvaluepath,fulldict)
     example: update kvalue
-    >>> see getcurrentdata
-    >>>
+    see getcurrentdata
     """
-    with open(path, 'w',encoding="utf-8") as file:
-        file.write(unicode(json.dumps(dic)))
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(dic, f, ensure_ascii=False, indent=4)
+    return True
 
 
 def active_pid(name):
@@ -125,7 +127,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
     elif typus == 'scp':
            timeout = 60
            destina = "{}@{}:{}".format(user,address,destinationpath)
-           scptransfer(localpath,destina,pwd,timeout=timeout)
+           mm.scptransfer(localpath,destina,pwd,timeout=timeout)
     elif typus == 'rsync':
            # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
            rsyncstring = "rsync -avz -e ssh {} {}".format(localpath, user+'@'+address+':'+destinationpath)
@@ -154,7 +156,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
     return success
 
 
-def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=datetime.utcnow(), extensions=[], namefractions=[], add="newer"):
+def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, extensions=None, namefractions=None, add="newer"):
     """
     DESCRIPTION
         Will compare contents of basepath and memory and create a list of paths with changed information
@@ -169,6 +171,12 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=dateti
     RETURNS
         dict1, dict2   : dict1 contains all new data sets to be uploaded, dict2 all analyzed data files for storage
     """
+    if not enddate:
+        enddate = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not extensions:
+        extensions = []
+    if not namefractions:
+        namefractions = []
 
     filelist=[]
     try:
@@ -240,16 +248,9 @@ def sftptransfer(source, destination, host="yourserverdomainorip.com", user="roo
         - success (BOOL) True if succesful.
 
     EXAMPLE:
-        >>> sftptransfer(source='/home/me/file.txt', destination='/data/magnetism/file.txt', host='www.example.com', user='mylogin', password='mypassword', logfile='/home/me/Logs/magpy-transfer.log'
+        sftptransfer(source='/home/me/file.txt', destination='/data/magnetism/file.txt', host='www.example.com', user='mylogin', password='mypassword', logfile='/home/me/Logs/magpy-transfer.log'
                             )
     """
-
-    import os
-    try:
-        import paramiko
-    except:
-        print ("paramiko or pysocks not installed ... aborting")
-        return False
 
     if not os.path.isfile(source):
         print ("source does not exist ... aborting")
@@ -301,7 +302,7 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
         - True/False.
 
     EXAMPLE:
-        >>> ftpdatatransfer(
+        ftpdatatransfer(
                 localfile='/home/me/file.txt',
                 ftppath='/data/magnetism/this',
                 myproxy='www.example.com',
@@ -311,7 +312,6 @@ def ftptransfer (source, destination, host="yourserverdomainorip.com", user="roo
                             )
 
     APPLICATION:
-        >>>
     """
 
     if not source:
@@ -384,7 +384,6 @@ def ginupload(filename, user, password, url, authentication=' --digest ', stdout
         Method to upload data to the Intermagnet GINs using curl
         tries to upload data to the gin - if not succesful ...
     PARAMETERS:
-      required:
         filename        (string) filename including path
         user            (string) GIN user
         password        (string) GIN passwd
@@ -448,15 +447,15 @@ def main(argv):
             print ('-----------------------------------------------------------------')
             print ('file_uploads is a python wrapper allowing to send either by')
             print ('ftp, scp, sftp using a similar inputs.')
-            print ('It can hanlde several different uploads at once.')
+            print ('It can handle several different uploads at once.')
             print ('Upload parameters have to be provided in a json structure.')
-            print ('file_uploads requires magpy >= 0.9.5.')
+            print ('file_uploads requires magpy >= 2.0.0.')
             print ('-------------------------------------')
             print ('Usage:')
             print ('file_uploads.py -j <jobs> -m <memory> -t <telegram>')
             print ('-------------------------------------')
             print ('Options:')
-            print ('-j (required) : a json structure defining the uplaods')
+            print ('-j (required) : a json structure defining the uploads')
             print ('-m (required) : a path for "memory"')
             print ('-------------------------------------')
             print ('Example of jobs structure:')
@@ -479,12 +478,8 @@ def main(argv):
         # ################################################
         #          Telegram Logging
         # ################################################
-
-        ## New Logging features
-        coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-        sys.path.insert(0, coredir)
-        from martas import martaslog as ml
-        # tele needs to provide logpath, and config path ('/home/cobs/SCRIPTS/telegram_notify.conf')
+        # tele needs a logpath, and a configuration path ('/home/cobs/SCRIPTS/telegram_notify.conf')
+        # TODO get this path
         logpath = '/var/log/magpy/mm-fu-uploads.log'
 
 
@@ -517,7 +512,7 @@ def main(argv):
         fulldict = {}
         if os.path.isfile(sendlogpath):
             if os.stat(sendlogpath).st_size == 0:
-                lastfiles == {}
+                lastfiles = {}
             else:
                 with open(sendlogpath, 'r') as file:
                     fulldict = json.load(file)
@@ -533,11 +528,12 @@ def main(argv):
         namefractions = workdictionary.get(key).get('namefractions',[])
         # Test if sourcepath is file
         starttime = workdictionary.get(key).get('starttime',datetime(1777,4,30))
-        endtime = workdictionary.get(key).get('endtime',datetime.utcnow())
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        endtime = workdictionary.get(key).get('endtime',now)
         if endtime in ["utc","now","utcnow"]:
-            endtime = datetime.utcnow()
+            endtime = now
         if isinstance(starttime, int):
-            starttime = datetime.utcnow()-timedelta(days=starttime)
+            starttime = now-timedelta(days=starttime)
         newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime, extensions,namefractions)
 
         print ("Found new: {} and all {}".format(newfiledict, alldic))
@@ -564,7 +560,7 @@ def main(argv):
 
         fulldict[key] = alldic
         writecurrentdata(sendlogpath, fulldict)
-      statusmsg[name] = "uploading data succesful"
+      statusmsg[name] = "uploading data successful"
     except:
       statusmsg[name] = "error when uploading files - please check"
 

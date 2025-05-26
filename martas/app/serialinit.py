@@ -3,10 +3,9 @@
 """
 Simple method to initialize GSM sensors (GSM19, GSM90)
 """
-from __future__ import print_function
 
 import serial
-from datetime import datetime
+from datetime import datetime, timezone
 import binascii
 import sys, getopt
 
@@ -236,7 +235,7 @@ def main(argv):
 
         else:
             try:
-                currenttime = datetime.utcnow()
+                currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
                 timestamp = str(datetime.strftime(currenttime,timeformat))
                 command = command.replace('datetime',timestamp)
             except:

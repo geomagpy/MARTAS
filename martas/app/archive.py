@@ -14,6 +14,8 @@ from magpy.opt import cred as mpcred
 # Relative import of core methods as long as martas is not configured as package
 from martas.core.methods import martaslog as ml
 from martas.core import methods as mm
+from martas.version import __version__
+
 
 import getopt
 from datetime import datetime, timezone
@@ -184,10 +186,10 @@ def testbool(string):
 
 def validtimerange(timetuple, mintime, maxtime, debug=False):
     #timetuple to 1d list unique list
-    mintuptime = DataStream()._testtime(min(min(timetuple)))
-    maxtuptime = DataStream()._testtime(max(max(timetuple)))
-    mintime = DataStream()._testtime(mintime)
-    maxtime = DataStream()._testtime(maxtime)
+    mintuptime = magpymeth.testtime(min(min(timetuple)))
+    maxtuptime = magpymeth.testtime(max(max(timetuple)))
+    mintime = magpymeth.testtime(mintime)
+    maxtime = magpymeth.testtime(maxtime)
     if mintuptime < maxtime and maxtuptime > mintime:
         if debug:
             print ("  Found valid time range")
@@ -197,7 +199,7 @@ def validtimerange(timetuple, mintime, maxtime, debug=False):
     return False
 
 def main(argv):
-    version = "1.0.0"
+    version = __version__
     conf = ''
     path = ''
     obsdepth = 0

@@ -21,6 +21,7 @@ from email.mime.base import MIMEBase
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from email import encoders
+import pexpect
 
 
 """
@@ -41,6 +42,7 @@ Methods:
 |                 |  data_to_file  |  2.0.0 |  yes |                                  | -       | libs |
 |                 |  get_conf  |  2.0.0 |      yes |                                  | -       | marcosscripts |
 |                 |  get_sensors  |  2.0.0 |   yes |                                  | -       | marcosscripts |
+|                 |  scptransfer  |  2.0.0 |       -  |  identical method in imbot       | -       | up/download |
 |                 |  sendmail  |  2.0.0 |       -  |  identical method in imbot       | -       | imbot |
 |                 |  sendtelegram |  2.0.0  |   -  |  identical method in imbot       | 5.1     | marcosscripts, imbot |
 |                 |  time_to_array  |  2.0.0 | yes |                                  | -       | libs |
@@ -348,6 +350,38 @@ def get_sensors(path, identifier=None, secondidentifier=None):
                     sensorlist.append(sensordict)
 
     return sensorlist
+
+
+def scptransfer(src,dest,passwd,**kwargs):
+    """
+    DEFINITION:
+        copy file by scp
+
+    PARAMETERS:
+    Variables:
+        - src:        (string) e.g. /path/to/local/file or user@remotehost:/path/to/remote/file
+        - dest:       (string) e.g. /path/to/local/file or user@remotehost:/path/to/remote/file
+        - passwd:     (string) users password
+    Kwargs:
+        - timeout:    (int)  define timeout - default is 30
+
+    REQUIRES:
+        Requires package pexpect
+
+    USED BY:
+       cleanup
+    """
+    timeout = kwargs.get('timeout')
+
+    COMMAND="scp -oPubKeyAuthentication=no %s %s" % (src, dest)
+
+    child = pexpect.spawn(COMMAND)
+    if timeout:
+        child.timeout=timeout
+    child.expect('assword:')   # please not "assword" is correct as it supports both "password" and "Password"
+    child.sendline(passwd)
+    child.expect(pexpect.EOF)
+    print(child.before)
 
 
 def sendmail(dic, credentials="webmail", debug=False):

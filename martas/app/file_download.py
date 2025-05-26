@@ -4,30 +4,28 @@ Get files from a remote server (to be reached by nfs, samba, ftp, html or local 
 
 file content is directly added to a data bank (or local file if preferred).
 """
-from __future__ import print_function
 
 from magpy.stream import *
-from magpy.database import *
+from magpy.core import database
+from magpy.core.methods import testtime
 from magpy.opt import cred as mpcred
 
 import getopt
 import fnmatch
+import pexpect
+import ftplib
 import pwd
 import zipfile
 import tempfile
 from dateutil import parser
+from datetime import datetime, timezone
 from shutil import copyfile
 import filecmp
 import subprocess
 import socket
 
-
-# Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-from martas import martaslog as ml
-from acquisitionsupport import GetConf2 as GetConf2
+from martas.core.methods import martaslog as ml
+from martas.core import methods as mm
 
 """
 DESCRIPTION
@@ -40,33 +38,33 @@ DESCRIPTION
 APPLICATION
 
    1) Getting binary data from a FTP Source every, scheduled day
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    python3 file_download.py -c ../conf/collect-ftpsource.cfg
     in config "collect-ftpsource.cfg":
              sourcedatapath        :      /remote/data
              filenamestructure     :      *%s.bin
 
    2) Getting binary data from a FTP Source every, scheduled day, using seconday time column and an offset of 2.3 seconds
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    python3 file_download -c ../conf/collect-ftpsource.cfg
     in config "collect-ftpsource.cfg":
              sourcedatapath        :      /remote/data
              filenamestructure     :      *%s.bin
              LEMI025_28_0002       :      defaulttimecolumn:sectime;time:-2.3
 
    3) Just download raw data to archive
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    python3 file_download -c ../conf/collect-ftpsource.cfg
     in config "collect-ftpsource.cfg":
              writedatabase     :      False
              writearchive      :      False
 
    4) Rsync from a ssh server (passwordless access to remote machine is necessary, cred file does not need to contain a pwd) 
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    python3 file_download.py -c ../conf/collect-ftpsource.cfg
     in config "collect-ftpsource.cfg":
              protocol          :      rsync
              writedatabase     :      False
              writearchive      :      False
 
    5) Uploading raw data from local raw archive
-    python3 collectfile-new.py -c ../conf/collect-localsource.cfg
+    python3 file_download.py -c ../conf/collect-localsource.cfg
     in config "collect-localsource.cfg":
              protocol          :      
              sourcedatapath    :      /srv/archive/DATA/SENSOR/raw
@@ -75,31 +73,12 @@ APPLICATION
              forcerevision     :      0001
 
 
-    python3 collectfile-new.py -c ../conf/collect-source.cfg -d 10 -e 2020-10-20
+    python3 file_download.py -c ../conf/collect-source.cfg -d 10 -e 2020-10-20
 
     Debugging option:
-    python3 collectfile-new.py -c ../conf/collect-source.cfg -D
+    python3 file_download.py -c ../conf/collect-source.cfg -D
 
 
-    python collectfile.py -r "/data/magnetism/gam" -c cobsdb -e zamg -p ftp -t GAM ') 
-            print('      -d 2 -f *%s.zip -a "%Y-%m-%d"'
-
-            print('1. get data from ftp server and add to database')
-            print(' python collectfile.py -r "/data/magnetism/gam" -c cobsdb -e zamg -p ftp -t GAM ') 
-            print('      -d 2 -f *%s.zip -a "%Y-%m-%d"')
-            print('---------')
-            print('2. get data from local directory and add to database')
-            print('python collectfile.py -c cobsdb -r "/srv/data/"') 
-            print('      -s LEMI036_1_0001 -t WIC -a "%Y-%m-%d" -f "LEMI036_1_0001_%s.bin" ')
-            print('---------')
-            print('3. get data from local directory and add to database, add raw data to archive')
-            print('python collectfile.py -c cobsdb -r "/Observatory/archive/WIK/DIDD_3121331_0002/DIDD_3121331_0002_0001/" -s DIDD_3121331_0002 -t WIK -b "2012-06-01" -d 100 -a "%Y-%m-%d" -f "DIDD_3121331_0002_0001_%s.cdf" -l "/srv/archive"')
-            print('---------')
-            print('4. get data from remote by ssh and store in local archive')
-            print('python collectfile.py -e phobostilt -r "/srv/gwr/" -p scp -s GWRSG_12345_0002 -t SGO -b "2012-06-01" -d 30 -a "%y%m%d" -f "G1%s.025" -l "/srv/archive"')
-            print('---------')
-            print('5. get recently created files from remote by ssh and store in local archive')
-            print('python collectfile.py -e themisto -r "/srv/" -p scp -t SGO -d 2 -a ctime -l "/srv/archive"')
 
 
 CONFIGURATION FILE
@@ -183,7 +162,7 @@ deleteremote       :      False
 # Force data to the given revision number
 #forcerevision      :      0001
 
-# Database (Credentials makes use of addcred.py)
+# Database (Credentials makes use of addcred)
 dbcredentials     :      cobsdb
 
 # Disable proxy settings of the system (seems to be unused - check)
@@ -228,7 +207,7 @@ Changelog:
 
 """
 
-def GetBool(string):
+def get_bool(string):
     if string in ['true','True','Yes','yes','y','TRUE',True]:
         return True
     else:
@@ -241,6 +220,7 @@ def walk_dir(directory_path, filename, date, dateformat, debug=False):
     """
     # Walk through files in directory_path, including subdirectories
     pathlist = []
+    tcheck = datetime.now()
     if filename == '':
         filename = '*'
     if dateformat in ['','ctime','mtime']:
@@ -317,10 +297,13 @@ def die(child, errstr):
     child.terminate()
     exit(1)
 
-def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_required=True, timeout=60, debug=False):
+
+def ssh_getlist(source, filename, date, dateformat, maxdate, cred=None, pwd_required=True, timeout=60, debug=False):
     """
     Method to extract filename with wildcards or date patterns from a directory listing
     """
+    if not cred:
+        cred = []
     pathlist = []
     #filename = filename.replace('*','')
     print (filename, date)
@@ -357,12 +340,13 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_requir
     opt, grep = _obtain_search_criteria(filepat)
     #searchstr = 'find %s -type f{}{}'.format(opt, grep)
     #grep += ' | grep -v "#"' #eventually add this exclude
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     if not dateformat in ['','ctime','mtime']:
         searchstr = 'find {} -type f{}{}'.format(source,opt,grep)
     elif dateformat in ['ctime','mtime']:
-        mindate = (datetime.utcnow() - date).days
-        maxdate = (datetime.utcnow() - maxdate).days
+        mindate = (now - date).days
+        maxdate = (now - maxdate).days
         if maxdate == 0:
             searchstr = 'find {} -type f -{} -{}{}{}'.format(source,dateformat, mindate,opt,grep)
         else:
@@ -375,6 +359,7 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_requir
 
     COMMAND= "ssh %s@%s '%s';" % (cred[0],cred[2],searchstr)
     child = pexpect.spawn(COMMAND)
+    result = ""
     if timeout:
         child.timeout=timeout
     if pwd_required:
@@ -394,11 +379,13 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=[], pwd_requir
     return pathlist
 
 
-def CheckConfiguration(config={},debug=False):
+def check_configuration(config=None,debug=False):
     """
     DESCRIPTION
         configuration data will be checked
     """
+    if not config:
+        config = {}
 
     user = ''
     password = ''
@@ -406,14 +393,17 @@ def CheckConfiguration(config={},debug=False):
     destination = ''
     source = ''
     port = 21
+    db = None
     success = True
 
     if debug:
         print ("  Checking configuration data")
 
+    creddb =  config.get('dbcredentials','')
+
     if config.get('rawpath') == '' and creddb == '':
         print('Specify either a shortcut to the credential information of the database or a local path:')
-        print('-- check collectfile.py -h for more options and requirements')
+        print('-- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
     if config.get('rawpath') == '':
@@ -454,6 +444,7 @@ def CheckConfiguration(config={},debug=False):
 
     remotepath = config.get('sourcedatapath')
     if not remotepath == '':
+        s = ""
         # if a colon is contained in path (i.e. ftp access on windows)
         if isinstance(remotepath,dict):
             for i in remotepath:
@@ -464,34 +455,26 @@ def CheckConfiguration(config={},debug=False):
 
     if not protocol in ['','scp','ftp','SCP','FTP','html','rsync']:
         print('Specify a valid protocol:')
-        print('-- check collectfile.py -h for more options and requirements')
+        print('-- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
 
     walk = config.get('walksubdirs')
     if debug:
         print ("   Walk through subdirs: {}".format(walk))
-    if GetBool(walk):
+    if get_bool(walk):
         if not protocol in ['','scp','rsync']: 
             print('   -> Walk mode only works for local directories and scp access.')
             print('   -> Switching walk mode off.')
             config['walksubdirs'] = False
 
-    creddb =  config.get('dbcredentials')
     if not creddb == '':
         print("   Accessing local data bank ...")
         # required for either writeing to DB or getting meta in case of writing archive
-        try:
-            db = mysql.connect(host=mpcred.lc(creddb,'host'),user=mpcred.lc(creddb,'user'),passwd=mpcred.lc(creddb,'passwd'),db=mpcred.lc(creddb,'db'))
-            print("   -> success")
-        except:
-            print("   -> failure - check your credentials")
-            db = None
-            #success = False
-            #sys.exit()
+        db = mm.connect_db(creddb)
     config['db'] = db
 
-    # loaded all credential (if started from root rootpermissions are relquired for that)
+    # loaded all credential (if started from root permissions are required for that)
     # now switch user for scp
     # TODO check whether this is working in a function
     if config.get('defaultuser'):
@@ -510,31 +493,31 @@ def CheckConfiguration(config={},debug=False):
 
     if dateformat == "" and filename == "":
         print('   Specify either a fileformat: -f myformat.dat or a dateformat -d "%Y",ctime !')
-        print('   -- check collectfile.py -h for more options and requirements')
+        print('   -- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
     if not dateformat in ['','ctime','mtime']:
-        current = datetime.utcnow()
+        current = datetime.now(timezone.utc).replace(tzinfo=None)
         try:
-            newdate = datetime.strftime(current,dateformat)
+            newdate = current.strftime(dateformat)
         except:
             print('   Specify a vaild datetime dateformat like "%Y-%m-%d"')
-            print('   -- check collectfile.py -h for more options and requirements')
+            print('   -- check file_download.py -h for more options and requirements')
             success = False
             #sys.exit()
     if "%s" in filename and dateformat in ['','ctime','mtime']:
         print('   Specify a datetime dateformat for given placeholder in fileformat!')
-        print('   -- check collectfile.py -h for more options and requirements')
+        print('   -- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
     elif not "%s" in filename and "*" in filename and not dateformat in ['ctime','mtime']:
         print('   Specify either ctime or mtime for dateformat to be used with your give fileformat!')
-        print('   -- check collectfile.py -h for more options and requirements')
+        print('   -- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
     elif not "%s" in filename and not "*" in filename and not dateformat in [""]:
         print('   Give dateformat will be ignored!')
-        print('   -- check collectfile.py -h for more options and requirements')
+        print('   -- check file_download.py -h for more options and requirements')
         print('   -- continuing ...')
 
     if debug:
@@ -543,7 +526,11 @@ def CheckConfiguration(config={},debug=False):
     return config, success
 
 
-def GetDatelist(config={},current=datetime.utcnow(),debug=False):
+def get_datelist(config=None,current=None,debug=False):
+    if not current:
+        current = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not config:
+        config = {}
     if debug:
         print("   -> Obtaining timerange ...")
     datelist = []
@@ -553,10 +540,10 @@ def GetDatelist(config={},current=datetime.utcnow(),debug=False):
     if not dateformat in ['','ctime','mtime']:
         for elem in range(depth):
             if dateformat == '%b%d%y': #exception for MAGREC
-                newdate = datetime.strftime(newcurrent,dateformat)
+                newdate = newcurrent.strftime(dateformat)
                 datelist.append(newdate.upper())
             else:
-                datelist.append(datetime.strftime(newcurrent,dateformat))
+                datelist.append(newcurrent.strftime(dateformat))
             newcurrent = current-timedelta(days=elem+1)
     elif dateformat in ['ctime','mtime']:
         for elem in range(depth):
@@ -571,7 +558,7 @@ def GetDatelist(config={},current=datetime.utcnow(),debug=False):
     return datelist
 
 
-def CreateTransferList(config={},datelist=[],debug=False):
+def create_transfer_list(config=None,datelist=None,debug=False):
     """
     DESCRIPTION
         Create a list of files to be transfered
@@ -585,6 +572,10 @@ def CreateTransferList(config={},datelist=[],debug=False):
     """
 
     #filelist = getfilelist(protocol, source, sensorid, filename, datelist, walk=True, option=None)
+    if not config:
+        config = {}
+    if not datelist:
+        datelist = []
 
     if debug:
         print(" Getting filelists")
@@ -597,10 +588,11 @@ def CreateTransferList(config={},datelist=[],debug=False):
     user = config.get('rmuser')
     password = config.get('rmpassword')
     address = config.get('rmaddress')
-    port = config.get('rmport')
+    port = config.get('rmport', 21)
 
     dateformat = config.get('dateformat')
 
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     filelist = []
     if protocol in ['ftp','FTP']:
         print ("  Connecting to FTP")
@@ -635,7 +627,7 @@ def CreateTransferList(config={},datelist=[],debug=False):
         import pexpect
         if not dateformat in ['','ctime','mtime']:
             for date in datelist:
-                path = ssh_getlist(remotepath, filename, date, dateformat, datetime.utcnow(), cred=[user,password,address],pwd_required=pwd_required,debug=debug)
+                path = ssh_getlist(remotepath, filename, date, dateformat, now, cred=[user,password,address],pwd_required=pwd_required,debug=debug)
                 if len(path) > 0:
                     filelist.extend(path)
         else:
@@ -661,7 +653,7 @@ def CreateTransferList(config={},datelist=[],debug=False):
     return filelist
 
 
-def ObtainDatafiles(config={},filelist=[],debug=False):
+def obtain_data_files(config=None,filelist=None,debug=False):
     """
     DESCRIPTION
         Download data files ane write either to raw directory ot tmp (or to specified folder)
@@ -677,6 +669,10 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
         localfilelist (a list with full paths to all files copied to the localfilesystem)
     """
 
+    if not config:
+        config = {}
+    if not filelist:
+        filelist = []
 
     # Requires
     stationid = config.get('stationid')
@@ -691,15 +687,17 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
     user = config.get('rmuser')
     password = config.get('rmpassword')
     address = config.get('rmaddress')
-    port = config.get('rmport')
-    zipping = GetBool(config.get('zipdata'))
-    forcelocal = GetBool(config.get('forcedirectory',False))
+    port = config.get('rmport',21)
+    zipping = get_bool(config.get('zipdata'))
+    forcelocal = get_bool(config.get('forcedirectory',False))
     deleteopt = " "
+    sensid = ""
+    ftp = None
 
     #filename = config.get('filenamestructure')
     #dateformat = config.get('dateformat')
 
-    def createdestinationpath(localpath,stationid,sensorid, datedir='', forcelocal=False):
+    def createdestinationpath(localpath='', stationid='', sensorid='', datedir='', forcelocal=False):
             subdir = 'raw'
             if not stationid and not sensorid or forcelocal:
                 destpath = os.path.join(localpath)
@@ -710,7 +708,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             else:
                 destpath = os.path.join(localpath,stationid.upper(),sensorid,'raw')
             if not datedir == '':
-                destpath = os.path.join(destpath,str(datedir))
+                destpath = os.path.join(destpath, str(datedir))
             return destpath
 
 
@@ -764,7 +762,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
             else:
                 sensid = sensorid
 
-            destpath = createdestinationpath(destination,stationid,sensid,datedir=datedir,forcelocal=forcelocal)
+            destpath = createdestinationpath(destination, stationid, sensid, datedir=datedir, forcelocal=forcelocal)
             if debug:
                 print ("Destinationpath:", destpath)
 
@@ -782,7 +780,7 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
                 if deleteremote in [True,'True']:
                     ftp.delete(f)
             elif protocol in ['scp','SCP']:
-                scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
+                mm.scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
             elif protocol in ['rsync']:
                 # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
                 if deleteremote in [True,'True']:
@@ -830,14 +828,17 @@ def ObtainDatafiles(config={},filelist=[],debug=False):
 
 
 
-def WriteData(config={},localpathlist=[],debug=False):
+def write_data(config=None,localpathlist=None,debug=False):
     """
     DESCRIPTION
         Read local data and write to database  
 
     RETURNS
     """
-
+    if not config:
+        config={}
+    if not localpathlist:
+        localpathlist=[]
     print("  Writing data to database and/or archive")
 
     db = config.get('db')
@@ -968,11 +969,11 @@ def WriteData(config={},localpathlist=[],debug=False):
 
             # Get existing header information from database and combine with new info
             if datainfoid:
-                existheader = dbfields2dict(db,datainfoid)
+                existheader = db.fields_to_dict(datainfoid)
                 data.header = merge_two_dicts(existheader,data.header)
 
             # Writing data
-            if not debug and GetBool(config.get('writedatabase')):
+            if not debug and get_bool(config.get('writedatabase')):
                 print("  {}: Adding {} data points to DB now".format(data.header.get('SensorID'), data.length()[0]))
 
                 if not len(data.ndarray[0]) > 0:
@@ -982,14 +983,14 @@ def WriteData(config={},localpathlist=[],debug=False):
                         tabname = "{}_{}".format(fixsensorid,str(force).zfill(4))
                         print (" - Force option chosen: forcing data to table {}".format(tabname))
                         print ("   IMPORTANT: general database meta information will not be updated") 
-                        writeDB(db,data, tablename=tabname)
+                        db.write(data, tablename=tabname)
                     else:
-                        writeDB(db,data)
+                        db.write(data)
             elif debug:
                 print ("  DEBUG selected - no database written")
 
             # Writing data
-            if not debug and GetBool(config.get('writearchive')):
+            if not debug and get_bool(config.get('writearchive')):
                 if force:
                     archivepath = os.path.join(config.get('rawpath'),stationid.upper(),fixsensorid,datainfoid)
 
@@ -1006,7 +1007,7 @@ def WriteData(config={},localpathlist=[],debug=False):
                 print ("  DEBUG selected - no archive written")
 
 def main(argv):
-    version = "1.0.0"
+    version = "2.0.0"
     conf = ''
     etime = ''
     deptharg = ''
@@ -1035,7 +1036,7 @@ def main(argv):
             print('file_download.py -c <configuration> -e <endtime> -d <depth>')
             print('-------------------------------------')
             print('Options:')
-            print('-c            : configurationfile')
+            print('-c            : configuration file')
             print('-e            : endtime')
             print('-d            : depth: 1 means today, 2 today and yesterday, 3 last three days, etc')
             print('-w            : write to database')
@@ -1053,7 +1054,7 @@ def main(argv):
             try:
                 deptharg = int(arg)
                 if not deptharg >= 1:
-                    print("provided depth needs to be positve") 
+                    print("provided depth needs to be positive")
                     sys.exit()
             except:
                 print("depth needs to be an integer") 
@@ -1067,7 +1068,7 @@ def main(argv):
 
     # Read configuration file
     # -----------------------
-    print ("Running collectfile.py - version {}".format(version))
+    print ("Running file_download - version {}".format(version))
     print ("-------------------------------")
 
     name = "{}-collectfile-{}".format(hostname, os.path.split(conf)[1].split('.')[0])
@@ -1080,7 +1081,7 @@ def main(argv):
     else:
         if os.path.isfile(conf):
             print ("  Read file with GetConf")
-            config = GetConf2(conf)
+            config = mm.get_conf(conf)
             print ("   -> configuration data extracted")
         else:
             print ('Specify a valid path to a configuration file using the  -c option:')
@@ -1088,13 +1089,13 @@ def main(argv):
             sys.exit()
 
     if etime == '':
-        current = datetime.utcnow() # make that a variable
+        current = datetime.now(timezone.utc).replace(tzinfo=None) # make that a variable
     else:
-        current = DataStream()._testtime(etime)
+        current = testtime(etime)
 
     # check configuration information
     # -----------------------
-    config, success = CheckConfiguration(config=config, debug=debug)
+    config, success = check_configuration(config=config, debug=debug)
 
     if not success:
         statusmsg[name] = 'invalid cofiguration data - aborting'
@@ -1102,20 +1103,20 @@ def main(argv):
         # Override config data with given inputs
         # -----------------------
         if writearchivearg:
-            config['writearchive'] = GetBool(writearchivearg)
+            config['writearchive'] = get_bool(writearchivearg)
         if writedbarg:
-            config['writedatabase'] = GetBool(writedbarg)
+            config['writedatabase'] = get_bool(writedbarg)
         if deptharg:
             config['defaultdepth'] = deptharg
 
         # Create datelist
         # -----------------------
-        datelist = GetDatelist(config=config,current=current,debug=debug)
+        datelist = get_datelist(config=config,current=current,debug=debug)
 
         # Obtain list of files to be transferred
         # -----------------------
         #try:
-        filelist = CreateTransferList(config=config,datelist=datelist,debug=debug)
+        filelist = create_transfer_list(config=config,datelist=datelist,debug=debug)
         moveon = True
         #except:
         #    statusmsg[name] = 'could not obtain remote file list - aborting'
@@ -1125,7 +1126,7 @@ def main(argv):
             # Obtain list of files to be transferred
             # -----------------------
             try:
-                localpathlist = ObtainDatafiles(config=config,filelist=filelist,debug=debug)
+                localpathlist = obtain_data_files(config=config,filelist=filelist,debug=debug)
             except:
                 statusmsg[name] = 'getting local file list failed - check permission'
                 localpathlist = []
@@ -1133,8 +1134,8 @@ def main(argv):
             # Write data to specified destinations
             # -----------------------
             #try:
-            if config.get('db') and len(localpathlist) > 0 and (GetBool(config.get('writedatabase')) or GetBool(config.get('writearchive'))):
-                    succ = WriteData(config=config,localpathlist=localpathlist,debug=debug)
+            if config.get('db') and len(localpathlist) > 0 and (get_bool(config.get('writedatabase')) or get_bool(config.get('writearchive'))):
+                    succ = write_data(config=config,localpathlist=localpathlist,debug=debug)
             #except:
             #    statusmsg[name] = 'problem when writing data'
 
@@ -1152,9 +1153,9 @@ def main(argv):
         martaslog.msg(statusmsg)
 
     print ("----------------------------------------------------------------")
-    print ("collector app finished")
+    print ("file_download finished")
     print ("----------------------------------------------------------------")
-    if statusmsg[name] == 'collectfile successfully finished':
+    if statusmsg[name] == 'file_download successfully finished':
         print ("SUCCESS")
     else:
         print ("FAILURE")

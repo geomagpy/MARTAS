@@ -17,10 +17,7 @@ sudo crontab -e
 */5  *  *  *  *  /usr/bin/python3 /path/to/speedtest.py -c /path/to/conf.cfg -n speed_starlink01_0001  > /dev/NULL 2&>1
 """
 
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# Define packges to be used (local refers to test environment) 
+# Define packages to be used (local refers to test environment)
 # ------------------------------------------------------------
 import os, sys, getopt
 from datetime import datetime

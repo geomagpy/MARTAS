@@ -5,7 +5,6 @@ a script to communicate with ObsDAQ assuming:
     PalmAcq is in Transparent mode (see manual)
     supported only baud rate 57600
 """
-from __future__ import print_function
 import sys, os, socket, getopt
 import serial
 import struct, binascii, re, csv
@@ -14,11 +13,7 @@ from matplotlib.dates import date2num, num2date
 import numpy as np
 import time
 
-# Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-from acquisitionsupport import GetConf2 as GetConf2
+from martas.core import methods as mm
 
 
 # settings for PalmDaq
@@ -205,7 +200,7 @@ def main(argv):
             sys.exit()
         if opt in ("-m"):
             configfile = os.path.abspath(arg)
-            conf = GetConf2(configfile)
+            conf = mm.get_conf(configfile)
             port = conf.get('port')
             baudrate = conf.get('baudrate')
             cc = str(conf.get('CC')).zfill(2)
