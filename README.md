@@ -754,26 +754,25 @@ find subsections with detailed instructions and example applications for all of 
 |--------------------|---------------------------------------------------|--------------|-----------------------|---------|
 | archive.py         | Read database tables and create archive files     | archive.cfg  | 2.0.0                 | 8.2     |
 | ardcomm.py         | Communicating with arduino microcontroller        |              | 1.0.0                 | 8.3     |
-| checkdatainfo.py   |                                                   |              | 2.0.0                 | 8.4     |
+| checkdatainfo.py   | List/ad data tables not existing in DATAINFO/SENS |              | 2.0.0                 | 8.4     |
 | collectfile.py     |                                                   |              | REMOVE                |         |
-| db_truncate.py     | Delete data from all data tables                  | truncate.cfg |                       | 8.5     |
-| deleteold.py       |                                                   |              |                       | 8.6     |
-| di.py              |                                                   |              |                       | 8.7     |
-| file_download.py   | Download files, store them and add to archives    | collect.cfg  |                       | 8.8     |
-| file_upload.py     | Upload files                                      | upload.json  |                       | 8.9     |
-| filter.py          | filter data                                       | filter.cfg   |                       | -       |
+| db_truncate.py     | Delete data from all data tables                  | truncate.cfg | 2.0.0                 | 8.5     |
+| di.py              |                                                   |              |                       | 8.6     |
+| file_download.py   | Download files, store them and add to archives    | collect.cfg  |                       | 8.7     |
+| file_upload.py     | Upload files                                      | upload.json  |                       | 8.8     |
+| filter.py          | filter data                                       | filter.cfg   | ADD                   | -       |
 | gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg    |                       | 8.10    |
 | monitor.py         | Monitoring space, data and logfiles               | monitor.cfg  | 2.0.0                 | 8.11    |
 | monitor_martas.py  |                                                   |              | REMOVE                |         |
 | mpconvert.py       |                                                   |              | REMOVE                |         |
 | obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg   |                       | 10.1.5  |
-| optimzetables.py   |                                                   |              |                       |         |
+| optimzetables.py   |                                                   |              | ADD                   |         |
 | palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg   |                       | 10.1.5  |
 | replacenumdates.py |                                                   |              |                       |         |
 | senddata.py        |                                                   |              |                       |         |
 | sendip.py          |                                                   |              |                       |         |
 | serialinit.py      |                                                   |              |                       |         |
-| speedtest.py       | Test bandwdith of the internet connection         |              |                       | 8.8     |
+| speedtest.py       | Test bandwidth of the internet connection         |              |                       | 8.8     |
 | statemachine.py    |                                                   |              |                       |         |
 | telegramnote.py    |                                                   |              | REMOVE - sendtelegram |         |
 | testnote.py        |                                                   |              | REMOVE - unittest     |         |

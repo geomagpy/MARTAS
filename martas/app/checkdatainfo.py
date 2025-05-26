@@ -2,7 +2,7 @@
 """
 DESCRIPTION
     Checking a MagPy database structure for tables which are not contained in DATAINFO and SENSORS.
-    The background/necessity of this method is related to archive.py and deleteold.py, which make
+    The background/necessity of this method is related to archive.py and db_truncate.py, which make
     use of the DATAINFO table for selecting data tables to be archived AND cleaned. Therefore, tables
     not listed in DATAINFO are growing endless until the memory is full.
     

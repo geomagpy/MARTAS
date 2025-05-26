@@ -562,6 +562,7 @@ def main(argv):
             for line in runscript:
                 fout.write(line+"\n")
 
+        # TODO: add archiving only once for MARCOS
         cronlist.append("# Archiving ")
         cronlist.append("20  0  * * *    $PYTHON {} -c {} > {} 2>&1".format(os.path.join(homedir, dir,"app","archive.py"),os.path.join(homedir, dir,"conf","archive.cfg"), os.path.join(homedir, dir, "log","archive.log")))
         cronlist.append("# Running MARCOS process {} ".format(jobname))
@@ -574,12 +575,16 @@ def main(argv):
     cronlist.append("9  0  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "cleanup.sh"),
                                                                   os.path.join(homedir, dir, "log",
                                                                                "cleanup.log")))
+    # TODO MARCOS: add the follwoing inputs only if not yet existing
+    cronlist.append("# Monitoring hourly {}".format(jobname)) # jobname only for MARTAS
+    cronlist.append("1  *     * * *    $PYTHON {} -c {} > {} 2>&1".format(os.path.join(homedir, dir,"app","monitor.py"),os.path.join(homedir, dir,"conf","monitor.cfg"), os.path.join(homedir, dir, "log","monitor.log")))
     cronlist.append("# Running backup")
     cronlist.append("7  0  * * 1    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "backup.sh"),
                                                                   os.path.join(homedir, dir, "log",
                                                                                "backup.log")))
     # threshold
-    # monitor
+    # optimizetables
+
 
 
     replacedict = { "/logpath" : logpath,

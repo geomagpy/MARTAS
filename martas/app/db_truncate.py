@@ -6,17 +6,13 @@ whereas "archive" also allows for truncating the database (based on DATAINO)
 (independent of DATAINFO contents)
 """
 from magpy.stream import *
-from magpy.database import *
+from magpy.core import database
 from magpy.opt import cred as mpcred
 
+from martas.core.methods import martaslog as ml
+from martas.core import methods as mm
 
-# Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-from martas import martaslog as ml
-from acquisitionsupport import GetConf2 as GetConf2
-
+from datetime import datetime, timezone
 import getopt
 import pwd
 import socket
@@ -38,7 +34,7 @@ cleanratio      :      12
 # Sensors present in path to be skipped (Begging of Sensorname is enough
 blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
 
-# If sensorlist is provided only these sensors are used
+# If sensorlist is provided only these sensors are considered
 #sensorlist      :    Sensor1,Sensor4,
 
 
@@ -63,36 +59,25 @@ APPLICATION:
     python3 db_truncate.py -c config.cfg -s Sensor1,Sensor2 -i 12
 
 """
-def connect_db(cred, exitonfailure=True, debug=False):
-
-    if debug:
-        print ("  Accessing data bank... ")
-    try:
-        db = mysql.connect (host=mpcred.lc(cred,'host'),user=mpcred.lc(cred,'user'),passwd=mpcred.lc(cred,'passwd'),db =mpcred.lc(cred,'db'))
-        if debug:
-            print ("   -> success. Connected to {}".format(mpcred.lc(cred,'db')))
-    except:
-        if debug:
-            print ("   -> failure - check your credentials / databank")
-        if exitonfailure:
-            sys.exit()
-
-    return db
 
 def query_db(db, sql, debug=False):
     if not db:
         return []
     if debug:
          print ("   Sending sql query: {}".format(sql))
-    cursor = db.cursor()
-    try:
-        cursor.execute(sql)
-    except:
-        print ("failure")
+    cursor = db.db.cursor()
+    message = db._executesql(cursor, sql)
+    if message:
+        print(message)
         return []
     return cursor.fetchall()
 
-def get_table_tist(db, sensorlist=[], blacklist=[], debug=False):
+def get_table_tist(db, sensorlist=None, blacklist=None, debug=False):
+
+    if not sensorlist:
+        sensorlist=[]
+    if not blacklist:
+        blacklist=[]
     if debug:
          print ("   Creating sql query for selecting tables...")
     # get a list with all datainfoids covering the selected time range
@@ -164,7 +149,7 @@ def main(argv):
             print ('-------------------------------------')
             print ('Description:')
             print ('-- db_truncate.py removes old data from a databank  --')
-            print ('db_truncate.py truncates contents of timesseries in a MagPy database. ')
+            print ('db_truncate.py truncates contents of time series in a MagPy database. ')
             print ('Whereas "archive" also allows for truncating the database (based on DATAINO) ')
             print ('"db_truncate" removes contents from all tables of xxx_xxx_xxxx_xxxx structure. ')
             print ('(independent of DATAINFO contents). ')
@@ -177,7 +162,7 @@ def main(argv):
             print ('db_truncate.py -c <config> -i <ratio> -s <sensorlist> -b <blacklist>')
             print ('-------------------------------------')
             print ('Options:')
-            print ('-c (required) : provide a path to a configuartion file')
+            print ('-c (required) : provide a path to a configuration file')
             print ('-i            : ratio')
             print ('-b            : blacklist (tables to skip)')
             print ('-s            : sensorlist (use only these tables)')
@@ -185,7 +170,6 @@ def main(argv):
             print ('-------------------------------------')
             print ('Example:')
             print ('python db_truncate.py -c config')
-            print ('creating archive of old db entries: python archive.py -c cobsdb -p /media/Samsung/Observatory/data/ -d 30 -b "2012-06-01" -g -i 100 -a 3')
             sys.exit()
         elif opt in ("-c", "--config"):
             conf = os.path.abspath(arg)
@@ -206,7 +190,7 @@ def main(argv):
 
     if os.path.isfile(conf):
         print ("  Read configuration data:")
-        config = GetConf2(conf)
+        config = mm.get_conf(conf)
         print ("   -> configuration data extracted")
 
     ## Logger configuration data
@@ -230,22 +214,24 @@ def main(argv):
         print ("Sensorlist:", sensorlist)
         print ("Blacklist:", blacklist)
 
-    db = connect_db(config.get('credentials','cobsdb'),debug=debug)
+    db = mm.connect_db(config.get('credentials','cobsdb'))
 
     tables = get_table_tist(db, sensorlist=sensorlist, blacklist=blacklist, debug=debug)
 
     if debug:
-        print ("Cleaning database contens of:", tables)
+        print ("Cleaning database contents of:", tables)
 
     for data in tables:
         sr = np.nan
-        st = datetime.utcnow()
+        st = datetime.now(timezone.utc).replace(tzinfo=None)
+        amount = DataStream()
+        delete = False
         print (" ---------------------------- ")
         print ("Cleaning contents:", data)
         # Test of dataid table exists
         try:
             getline = True
-            amount = dbgetlines(db,data,10000)
+            amount = db.get_lines(data,10000)
         except:
             print ("Could not get lines from data file")
             getline = False
@@ -263,8 +249,8 @@ def main(argv):
             print ("  - Deleting entries in database older than {} days".format(int(sr*ratio)))
             if not debug:
                 try:
-                    dbdelete(db,data,samplingrateratio=ratio)
-                    et = datetime.utcnow()
+                    db.delete(data,samplingrateratio=ratio)
+                    et = datetime.now(timezone.utc).replace(tzinfo=None)
                     print (" -> ... success: needed {} minutes".format((et-st).total_seconds()/60.))
                 except:
                     print (" -> ... failure")
