@@ -17,23 +17,23 @@ REQUIREMENTS:
    MagPy >= 1.0.0
    Database credentials stored with addcred
 """
-from __future__ import print_function
-
-# Define packges to be used (local refers to test environment) 
+# Define packages to be used (local refers to test environment)
 # ------------------------------------------------------------
 
-from magpy.stream import *
-from magpy.database import *
-import magpy.opt.cred as mpcred
+from magpy.core import database
+from martas.core import methods as mm
 
 import getopt
-import pwd
 import sys
 import socket
 
 
-def add_datainfo(db, tableonly=[], verbose=False, debug=False):
-
+def add_datainfo(db, tableonly=None, verbose=False, debug=False):
+    """
+    DESCRIPTION
+    """
+    if not tableonly:
+        tableonly = []
     if debug:
         print (" Adding tableonly to DATAINFO...")
     
@@ -55,8 +55,10 @@ def add_datainfo(db, tableonly=[], verbose=False, debug=False):
     return True
 
 
-def obtain_datainfo(db, blacklist=[], verbose=False, debug=False):
+def obtain_datainfo(db, blacklist=None, verbose=False, debug=False):
 
+    if not blacklist:
+        blacklist = []
     resultdict = {}
     addstr = ''
     # looks like {'data_1_0001_0001' : {'mintime':xxx, 'maxtime' : xxx }, ...}
@@ -76,11 +78,10 @@ def obtain_datainfo(db, blacklist=[], verbose=False, debug=False):
     if debug:
          print ("   -> query looks like: {}".format(sql))
 
-    cursor = db.cursor()
-    try:
-        cursor.execute(sql)
-    except:
-        print ("   Error when sending sql query")
+    cursor = db.db.cursor()
+    message = db._executesql(cursor, sql)
+    if message:
+        print(message)
     datainfolist =  cursor.fetchall()
     for el in datainfolist:
         # check whether a data table with this name is existing
@@ -121,7 +122,7 @@ def match(first, second):
     # of both strings match
     if (len(first) >= 1 and first[0] == '?') or (len(first) != 0
         and len(second) !=0 and first[0] == second[0]):
-        return match(first[1:],second[1:]);
+        return match(first[1:],second[1:])
  
     # If there is *, then there are two possibilities
     # a) We consider current character of second string
@@ -142,25 +143,16 @@ def get_tables(db,identifier="*_00??",verbose=False,debug=False):
     """
     if verbose or debug:
         print (" Getting all tables ...")
-    cursor = db.cursor()
+    cursor = db.db.cursor()
 
     if debug:
         print (" - Current database information:")
-        dbinfo(db,destination='stdout',level='full')
+        db.info(destination='stdout',level='full')
 
     tablessql = 'SHOW TABLES'
-    try:
-        cursor.execute(tablessql)
-    except mysql.IntegrityError as message:
-        if debug:
-            print (message)
-    except mysql.Error as message:
-        if debug:
-            print (message)
-    except:
-        if debug:
-            print (' checkdatainfo - get_tables: unkown error')
-
+    message = db._executesql(cursor, tablessql)
+    if message:
+        print(message)
     tables = cursor.fetchall()
     cursor.close()
     tables = [el[0] for el in tables]
@@ -194,30 +186,8 @@ def matchtest(identifier,string):
 #matchtest('*_02??','WIC_adjusted_0001_0001')
 
 
-def connectDB(cred, exitonfailure=True, verbose=True):
-    """
-    DESCRIPTION
-        connecting to a database using stored credential information
-        same method is part of archive.py
-    """
-
-    if verbose:
-        print ("  Accessing data bank... ")
-    try:
-        db = mysql.connect (host=mpcred.lc(cred,'host'),user=mpcred.lc(cred,'user'),passwd=mpcred.lc(cred,'passwd'),db =mpcred.lc(cred,'db'))
-        if verbose:
-            print ("   -> success. Connected to {}".format(mpcred.lc(cred,'db')))
-    except:
-        if verbose:
-            print ("   -> failure - check your credentials / databank")
-        if exitonfailure:
-            sys.exit()
-
-    return db
-
-
 def main(argv):
-    version = "1.0.0"
+    version = "2.0.0"
     cred = ''
     identifier = ''
     blacklist = []
@@ -279,13 +249,13 @@ def main(argv):
 
     if cred == '':
         print ('Specify database credentials using the  -c option:')
-        print ('-- Database credentials are created by addcred.py')
+        print ('-- Database credentials are created by addcred')
         print ('-- Check checkdatainfo.py -h for more options and requirements')
         sys.exit()
 
 
     # 1. Connect to database
-    db = connectDB(cred)
+    db = mm.connect_db(cred)
 
     # 2. Check tables
     tables = get_tables(db,identifier=identifier,verbose=verbose,debug=debug)

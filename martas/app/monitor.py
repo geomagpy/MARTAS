@@ -26,30 +26,24 @@ add crontag to regularly run monitor (root)
 sudo crontab -e
 5  *  *  *  *  /usr/bin/python3 /path/to/monitor.py -c /path/to/conf.cfg -n MARCOS -j marcos  > /dev/NULL 2&>1
 """
-
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# Define packges to be used (local refers to test environment) 
+# Define packges to be used (local refers to test environment)
 # ------------------------------------------------------------
 import os, sys, getopt
 import glob
-from datetime import datetime
+from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 import json
 import socket
 from magpy.stream import DataStream
-import magpy.database as mpdb
+from magpy.core import database
+from magpy.core import methods as mpmeth
 import magpy.opt.cred as mpcred
 import numpy as np
 import filecmp, shutil
+import subprocess
 
-# Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-from martas import martaslog as ml
-from acquisitionsupport import GetConf2 as GetConf2
+from martas.core.methods import martaslog as ml
+from martas.core import methods as mm
 
 """
 monitorconf = {'logpath' : '/var/log/magpy/mm-monitor.log',		# path to log file
@@ -90,81 +84,6 @@ def _latestfile(path, date=False, latest=True):
     else:
         return ""
 
-
-def GetConf2(path, confdict={}):
-    """
-    Version 2020-10-28
-    DESCRIPTION:
-       can read a text configuration file and extract lists and dictionaries
-    VARIBALES:
-       path             Obvious
-       confdict         provide default values
-    SUPPORTED:
-       key   :    stringvalue                                 # extracted as { key: str(value) }
-       key   :    intvalue                                    # extracted as { key: int(value) }
-       key   :    item1,item2,item3                           # extracted as { key: [item1,item2,item3] }
-       key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
-       key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
-    """
-    exceptionlist = ['bot_id']
-
-    def is_number(s):
-        try:
-            float(s)
-            return True
-        except ValueError:
-            return False
-
-    try:
-        config = open(path,'r')
-        confs = config.readlines()
-        for conf in confs:
-            conflst = conf.split(':')
-            if conflst[0].strip() in exceptionlist or is_number(conflst[0].strip()):
-                # define a list where : occurs in the value and is not a dictionary indicator
-                conflst = conf.split(':',1)
-            if conf.startswith('#'):
-                continue
-            elif conf.isspace():
-                continue
-            elif len(conflst) == 2:
-                conflst = conf.split(':',1)
-                key = conflst[0].strip()
-                value = conflst[1].strip()
-                # Lists
-                if value.find(',') > -1:
-                    value = value.split(',')
-                    value = [el.strip() for el  in value]
-                try:
-                    confdict[key] = int(value)
-                except:
-                    confdict[key] = value
-            elif len(conflst) > 2:
-                # Dictionaries
-                if conf.find(';') > -1 or len(conflst) == 3:
-                    ele = conf.split(';')
-                    main = ele[0].split(':')[0].strip()
-                    cont = {}
-                    for el in ele:
-                        pair = el.split(':')
-                        # Lists
-                        subvalue = pair[-1].strip()
-                        if subvalue.find(',') > -1:
-                            subvalue = subvalue.split(',')
-                            subvalue = [el.strip() for el  in subvalue]
-                        try:
-                            cont[pair[-2].strip()] = int(subvalue)
-                        except:
-                            cont[pair[-2].strip()] = subvalue
-                    confdict[main] = cont
-                else:
-                    print ("Subdictionary expected - but no ; as element divider found")
-    except:
-        print ("Problems when loading conf data from file. Using defaults")
-
-    return confdict
-
-
 def getspace(path,warning=80,critical=90): # path = '/srv'
     """
     DESCRIPTION
@@ -192,7 +111,7 @@ def _testJobs(joblist, allowedjobs):
     return joblist
 
 
-def CheckMARTAS(testpath='/srv', threshold=600, jobname='JOB', statusdict={}, ignorelist=[], thresholddict={}, debug=False):
+def check_martas(testpath='/srv', threshold=600, jobname='JOB', statusdict=None, ignorelist=None, thresholddict=None, debug=False):
     """
     DESCRIPTION:
         Walk through all subdirs of /srv and check for latest files in all subdirs
@@ -200,6 +119,12 @@ def CheckMARTAS(testpath='/srv', threshold=600, jobname='JOB', statusdict={}, ig
         if log file not exists: just add data
         if existis: check for changes and create message with all changes
     """
+    if not statusdict:
+        statusdict = {}
+    if not ignorelist:
+        ignorelist = []
+    if not thresholddict:
+        thresholddict = {}
     defaultthreshold = threshold
     # neglect archive, products and projects directories of MARCOS
     dirs=[x[0] for x in os.walk(testpath) if not x[0].find("archive")>-1 and not x[0].find("products")>-1 and not x[0].find("projects")>-1]
@@ -214,7 +139,8 @@ def CheckMARTAS(testpath='/srv', threshold=600, jobname='JOB', statusdict={}, ig
             if not any([lf.find(ig) > -1 for ig in ignorelist]):
                 if debug:
                    print ("  not in ignorelist")
-                diff = (datetime.utcnow()-ld).total_seconds()
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                diff = (now-ld).total_seconds()
                 dname = d.split('/')[-1]
                 state = "active"
                 if any([lf.find(th) > -1 for th in thresholddict]):
@@ -236,7 +162,7 @@ def CheckMARTAS(testpath='/srv', threshold=600, jobname='JOB', statusdict={}, ig
     return statusdict
 
 
-def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', statusdict={}, ignorelist=[], thresholddict={}, debug=False):
+def check_datafile(testpath='/srv/products/raw', threshold=600, jobname='JOB', statusdict=None, ignorelist=None, thresholddict=None, debug=False):
     """
     DESCRIPTION:
         Git to the directory testpath and check for latest files
@@ -244,6 +170,12 @@ def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', st
         if log file not exists: just add data
         if exists: check for changes and create message with all changes
     """
+    if not statusdict:
+        statusdict = {}
+    if not ignorelist:
+        ignorelist = []
+    if not thresholddict:
+        thresholddict = {}
 
     ld = _latestfile(testpath,date=True)
     lf = _latestfile(testpath)
@@ -256,7 +188,8 @@ def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', st
         if not any([lf.find(ig) > -1 for ig in ignorelist]):
             if debug:
                 print ("   -> not containd in ignorelist - continuing")
-            diff = (datetime.utcnow()-ld).total_seconds()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            diff = (now-ld).total_seconds()
             dname = testpath.split('/')[-1]
             state = "recent file found"
             if diff > threshold:
@@ -271,48 +204,34 @@ def CheckDATAFILE(testpath='/srv/products/raw', threshold=600, jobname='JOB', st
     return statusdict
 
 
-def ConnectDB(dbcred):
-    # Connect to test database
-    # ------------------------------------------------------------
-    dbname = mpcred.lc(dbcred,'db')
-    dbhost = mpcred.lc(dbcred,'host')
-    dbpasswd = mpcred.lc(dbcred,'passwd')
-    dbuser = mpcred.lc(dbcred,'user')
-    print (dbname,dbhost,dbuser)
-    try:
-        print("Connecting to DATABASE...")
-        db = mpdb.mysql.connect(host=dbhost,user=dbuser,passwd=dbpasswd,db=dbname)
-        print("... success")
-    except:
-        print("... failed")
-        db = None
-    return db
-
-
-def CheckMARCOS(db,threshold=600, statusdict={},jobname='JOB',excludelist=[],acceptedoffsets={},debug=False):
+def check_marcos(db,threshold=600, statusdict=None,jobname='JOB',excludelist=None,acceptedoffsets=None,debug=False):
+    """
+    DESCRIPTION
+        add text
+    """
+    if not statusdict:
+        statusdict = {}
+    if not excludelist:
+        excludelist = []
+    if not acceptedoffsets:
+        acceptedoffsets = {}
 
     testst = DataStream()
     offset = {}
     testname = '{}-DBactuality'.format(jobname)
-    cursor = db.cursor()
+    tables = []
+    lasttime = None
+    cursor = db.db.cursor()
     ok = True
 
     if debug:
         print ("1. Get all tables")
         print ("-----------------------------------")
     tablessql = 'SHOW TABLES'
-    try:
-        cursor.execute(tablessql)
-    except mpdb.mysql.IntegrityError as message:
+    message = db._executesql(cursor,tablessql)
+    if message:
+        ok = False
         print (message)
-        ok = False
-    except mpdb.mysql.Error as message:
-        print (message)
-        ok = False
-    except:
-        print ('check table: unkown error')
-        ok = False
-
     if ok:
         tables = cursor.fetchall()
         tables = [el[0] for el in tables]
@@ -349,14 +268,9 @@ def CheckMARCOS(db,threshold=600, statusdict={},jobname='JOB',excludelist=[],acc
             print ("-----------------------------------")
         delsql = "DELETE FROM IWT_TILT01_0001_0001 WHERE time > NOW()"
         if ok:
-            try:
-                cursor.execute(delsql)
-            except mpdb.mysql.IntegrityError as message:
-                print (' -- check: {}'.format(message))
-            except mpdb.mysql.Error as message:
-                print (' -- check: {}'.format(message))
-            except:
-                print (' -- check: unkown error')
+            message = db._executesql(cursor, delsql)
+            if message:
+                print(message)
         # eventually an execute is necessary here
 
     if ok:
@@ -367,14 +281,9 @@ def CheckMARCOS(db,threshold=600, statusdict={},jobname='JOB',excludelist=[],acc
             if debug:
                 print (' -> running for {}'.format(table))
             lastsql = 'SELECT time FROM {} ORDER BY time DESC LIMIT 1'.format(table)
-            try:
-                cursor.execute(lastsql)
-            except mpdb.mysql.IntegrityError as message:
-                print (' -- check table: {}'.format(message))
-            except mpdb.mysql.Error as message:
-                print (' -- check table: {}'.format(message))
-            except:
-                print (' -- check table: unkown error')
+            message = db._executesql(cursor, lastsql)
+            if message:
+                print(message)
             value = cursor.fetchall()
             try:
                 lasttime = value[0][0]
@@ -383,10 +292,10 @@ def CheckMARCOS(db,threshold=600, statusdict={},jobname='JOB',excludelist=[],acc
                 timetest = False
                 pass
             if timetest:
-                lastt = testst._testtime(lasttime)
+                lastt = mpmeth.testtime(lasttime)
                 # Get difference to current time
-                current = datetime.utcnow()
-                tdiff = np.abs((current-lastt).total_seconds())
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                tdiff = np.abs((now-lastt).total_seconds())
                 offset[table] = tdiff
                 if debug:
                     print ("Difference: {}".format(tdiff))
@@ -424,7 +333,7 @@ def dbsize():
     pass
 
 
-def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testtype='new', logsearchmessage='Error', tolerance=20, debug=False):
+def check_logfile(logfilepath, tmpdir='/tmp', statusdict=None, jobname='JOB', testtype='new', logsearchmessage='Error', tolerance=20, debug=False):
     """
     DESCRIPTION:
         read a log file and compare it with a copy in tmp (created in the last call)
@@ -433,8 +342,10 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
     # 2 Read copy in tmp
     # 3 Compare both files
     # or
-    # 4 check for specific messages and occurences (if not present in last 4 lines -> ignore)
+    # 4 check for specific messages and occurrences (if not present in last 4 lines -> ignore)
     # 5 Save log to tmp
+    if not statusdict:
+        statusdict = {}
 
     def compare(f1,f2):
         diff = []
@@ -483,7 +394,7 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
             diff = compare(logfilepath, tmplogfile)
             if testtype == 'new' and len(diff) > 0:
                 statusdict[checkname] = "new content: {}".format(diff[-3:])
-            elif testtype == 'repeat' and len(diff) > 0:
+            if testtype == 'repeat' and len(diff) > 0:
                 # change of file is not important, only content in diff
                 # analyse diff
                 if len(diff) >= tolerance:
@@ -521,22 +432,25 @@ def CheckLogfile(logfilepath, tmpdir='/tmp', statusdict={}, jobname='JOB', testt
     return statusdict
 
 
-def ExecuteScript(call,statusdict={},jobname='JOB',debug=True):
+def execute_script(call,statusdict=None,jobname='JOB',debug=True):
     """
     DESCRIPTION:
         find execute command in statusdict and execute the corresponding script
     """
-    import subprocess
+    if not statusdict:
+        statusdict = {}
+
     testname = "{}-execute".format(jobname)
     if debug:
         print ("Executing script ...")
     subprocess.call(call, shell=True)
-    statusdict[testname] = datetime.strftime(datetime.utcnow(),'%Y-%m-%d %H:%M')
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    statusdict[testname] = now.strftime('%Y-%m-%d %H:%M')
 
     return statusdict
 
 def main(argv):
-    version = '1.0.1'
+    version = '2.0.0'
     statusmsg = {}
     jobs = ''
     joblist = []
@@ -578,13 +492,24 @@ def main(argv):
             print ('-- monitor.py to monitor MARTAS/MARCOS machines and logs  --')
             print ('------------------------------------------------------------')
             print ('monitor.py is a python program for testing data actuality,')
-            print ('get changes in log files, and get warings if disk space is')
+            print ('get changes in log files, and get warnings if disk space is')
             print ('getting small.')
             print ('Therefore is is possible to monitor most essential aspects')
             print ('of data acquisition and storage. Besides, monitor.py can ')
             print ('be used to trigger external scripts in case of an observed')
             print ('"CRITICAL: execute script." state.')
-            print ('monitor requires magpy >= 0.9.5.')
+            print ('monitor requires magpy >= 2.0.0.')
+            print ('Jobs:')
+            print ('space    : testing for disk size of basedirectory (i.e. /srv/mqtt or srv/archive)')
+            print ('martas   : check for latest file updates in basedirectory and subdirs')
+            print ('datafile : check for latest file updates only in basedirectory, not in subdirs')
+            print ('marcos   : check for latest timestamp in data tables')
+            print ('logfile  : log-test-types are: new or repeat, last, contains;')
+            print ('         : new -> logfile has been changed since last run')
+            print ('         : repeat -> checks for repeated logsearchmessage in changed logs')
+            print ('         :           if more than tolerance then through execute script msg')
+            print ('         : last -> checks for logsearchmessage in last two lines')
+            print ('         : contains -> checks for logsearchmessage in full logfile')
             print ('-------------------------------------')
             print ('Usage:')
             print ('monitor.py -c <config> -n <jobname> -j <joblist>')
@@ -627,7 +552,7 @@ def main(argv):
     else:
         if os.path.isfile(configpath):
             print ("read file with GetConf")
-            monitorconf = GetConf2(configpath)
+            monitorconf = mm.get_conf(configpath)
             # directly get the joblist
             joblist = monitorconf.get('joblist')
             if not isinstance(joblist,list):
@@ -676,6 +601,9 @@ def main(argv):
     logsearchmessage = monitorconf.get('logsearchmessage')
     execute = monitorconf.get('execute',None)
 
+    if execute == "/path/execute.sh":
+        execute = None
+
     if not isinstance(ignorelist, list):
         ignorelist = []
     if debug:
@@ -698,29 +626,29 @@ def main(argv):
         if 'martas' in joblist:
             if debug:
                 print ("Running martas job")
-            statusmsg = CheckMARTAS(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            statusmsg = check_martas(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
         elif 'datafile' in joblist:
             if debug:
                 print ("Running datafile job on {}".format(basedirectory))
-            statusmsg = CheckDATAFILE(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            statusmsg = check_datafile(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
         if 'marcos' in joblist:
             if debug:
                 print ("Running marcos job")
-            db = ConnectDB(dbcred)
-            statusmsg = CheckMARCOS(db, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, excludelist=ignorelist,acceptedoffsets=thresholddict, debug=debug)
+            db = mm.connect_db(dbcred)
+            statusmsg = check_marcos(db, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, excludelist=ignorelist,acceptedoffsets=thresholddict, debug=debug)
         if 'logfile' in joblist:
             if debug:
                 print ("Running logfile job on {}".format(logfile))
-            statusmsg = CheckLogfile(logfile, tmpdir=tmpdir, jobname=jobname, statusdict=statusmsg, testtype=logtesttype, logsearchmessage=logsearchmessage, tolerance=testamount, debug=debug)
+            statusmsg = check_logfile(logfile, tmpdir=tmpdir, jobname=jobname, statusdict=statusmsg, testtype=logtesttype, logsearchmessage=logsearchmessage, tolerance=testamount, debug=debug)
         if execute:
             # scan statusmessages for execute call
             if any([statusmsg.get(stat).find('CRITICAL: execute script')>-1 for stat in statusmsg]):
                 # Found a critical execution message
                 if debug:
                     print ("Running execute job")
-                statusmsg = ExecuteScript(execute,jobname=jobname, statusdict=statusmsg)
+                statusmsg = execute_script(execute,jobname=jobname, statusdict=statusmsg)
 
-        statusmsg[testname] = "monitoring application running succesful"
+        statusmsg[testname] = "monitoring application running successful"
     except:
         statusmsg[testname] = "error when running monitoring application - please check"
 

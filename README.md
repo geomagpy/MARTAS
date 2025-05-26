@@ -744,60 +744,59 @@ Go to your channel overview and add (i.e. MyFirstBot) as administrator to your c
 
 ### 8.1 Overview of applications
 
-MARTAS comes along with a number of application scripts to support data acquisition, collection of data, access of remote data sources and organizations tools for databases. All these scripts can be found within the directory MARTAS/apps. Below you will find a comprehensive list of these scripts and their purpose. In the following you will find subsections with detailed instructions and example applications for all of these programs.
-
-| Script             | Purpose                                           | Config       | Version               |  Section |
-|--------------------|---------------------------------------------------|--------------|-----------------------| -------- |
-| addcred.py         | Create credential information for scripts         |              | REMOVE                | 8.2 |
-| archive.py         | Read database tables and create archive files     | archive.cfg  | 2.0.0                 | 8.3 |
-| ardcomm.py         | Communicating with arduino microcontroller        |              |                       | 8.4 |
-| checkdatainfo.py   |                                                   |              |                       | |
-| collectfile.py     |                                                   |              | REMOVE                | |
-| db_truncate.py     | Delete data from tables                           | truncate.cfg |                       | 8.10 |
-| deleteold.py       |                                                   |              |                       | |
-| di.py              |                                                   |              |                       | |
-| file_download.py   | Download files, store them and add to archives    | collect.cfg  |                       |  8.5 |
-| file_upload.py     | Upload files                                      | upload.json  |                       | 8.6 |
-| gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg    |                       | 8.7 |
-| monitor.py         |                                                   |              |                       | |
-| monitor_martas.py  |                                                   |              | REMOVE                | |
-| mpconvert.py       |                                                   |              | REMOVE                | |
-| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg   |                       | 10.1.5 |
-| optimzetables.py   |                                                   |              |                       | |
-| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg   |                       | 10.1.5 |
-| replacenumdates.py |                                                   |              |                       | |
-| senddata.py        |                                                   |              |                       | |
-| sendip.py          |                                                   |              |                       | |
-| serialinit.py      |                                                   |              |                       | |
-| speedtest.py       | Test bandwdith of the internet connection         |              |                       | 8.8 |
-| statemachine.py    |                                                   |              |                       | |
-| telegramnote.py    |                                                   |              | REMOVE - sendtelegram | |
-| testnote.py        |                                                   |              | REMOVE - unittest     | |
-| testserial.py      |                                                   |              |                       | |
-| threshold.py       |                                                   |              |                       | |
+MARTAS comes along with a number of application scripts to support data acquisition, collection of data, access of 
+remote data sources and organizations tools for databases. All these scripts can be found within the directory 
+MARTAS/apps. Below you will find a comprehensive list of these scripts and their purpose. In the following you will 
+find subsections with detailed instructions and example applications for all of these programs.
 
 
+| Script             | Purpose                                           | Config       | Version               | Section |
+|--------------------|---------------------------------------------------|--------------|-----------------------|---------|
+| archive.py         | Read database tables and create archive files     | archive.cfg  | 2.0.0                 | 8.2     |
+| ardcomm.py         | Communicating with arduino microcontroller        |              | 1.0.0                 | 8.3     |
+| checkdatainfo.py   |                                                   |              | 2.0.0                 | 8.4     |
+| collectfile.py     |                                                   |              | REMOVE                |         |
+| db_truncate.py     | Delete data from all data tables                  | truncate.cfg |                       | 8.5     |
+| deleteold.py       |                                                   |              |                       | 8.6     |
+| di.py              |                                                   |              |                       | 8.7     |
+| file_download.py   | Download files, store them and add to archives    | collect.cfg  |                       | 8.8     |
+| file_upload.py     | Upload files                                      | upload.json  |                       | 8.9     |
+| filter.py          | filter data                                       | filter.cfg   |                       | -       |
+| gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg    |                       | 8.10    |
+| monitor.py         | Monitoring space, data and logfiles               | monitor.cfg  | 2.0.0                 | 8.11    |
+| monitor_martas.py  |                                                   |              | REMOVE                |         |
+| mpconvert.py       |                                                   |              | REMOVE                |         |
+| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg   |                       | 10.1.5  |
+| optimzetables.py   |                                                   |              |                       |         |
+| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg   |                       | 10.1.5  |
+| replacenumdates.py |                                                   |              |                       |         |
+| senddata.py        |                                                   |              |                       |         |
+| sendip.py          |                                                   |              |                       |         |
+| serialinit.py      |                                                   |              |                       |         |
+| speedtest.py       | Test bandwdith of the internet connection         |              |                       | 8.8     |
+| statemachine.py    |                                                   |              |                       |         |
+| telegramnote.py    |                                                   |              | REMOVE - sendtelegram |         |
+| testnote.py        |                                                   |              | REMOVE - unittest     |         |
+| testserial.py      |                                                   |              |                       |         |
+| threshold.py       |                                                   |              |                       |         |
 
 
 
-### 8.3 archive.py
+### 8.2 archive
 
-#### DESCRIPTION:
 Archive.py gets data from a databank and stores it to any accessible repository (e.g. disk). Old database entries exceeding a defined age can be deleted in dependency of data resolution. Archive files can be stored in a user defined format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly data are kept. Settings are given in a configuration file.
 IMPORTANT: data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained there.
 IMPORTANT: take care about depth - needs to be large enough to find data
 
-#### APPLICATION:
-        # Auomatic
-        python3 archive.py -c config.cfg
+        # Automatic application
+        python3 archive.py -c ~/.martas/conf/archive.cfg
 
         # Manual for specific sensors and time range
-        python3 archive.py -c /config.cfg -b 2020-11-22 -s Sensor1,Sensor2 -d 30
+        python3 archive.py -c ~/.martas/conf/archive.cfg -b 2020-11-22 -s Sensor1,Sensor2 -d 30
 
+The configuration file will be initialized using martas_init. Additional changes and options are available.
 
-#### CONFIGURATION:
-
-        MARTAS/conf/archive.cfg
+        nano ~/.martas/conf/archive.cfg
 
 provides credentials, path, defaultdepth, archiveformat, writearchive, applyflags, cleandb, cleanratio
 and lists and dictionaries to modify criteria for specific sensors:
@@ -805,22 +804,52 @@ sensordict      :    Sensor1:depth,format,writeDB,writeArchive,applyFlags,cleanr
 blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
 
 
-### 8.4 ardcomm
+### 8.3 ardcomm
 
-#### DESCRIPTION:
-Communication program for microcontrollers (here ARDUINO) e.g. used for reomte switching commands
+Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands
 
-### 8.5 file_download.py
 
-#### DESCRIPTION:
+### 8.4 checkdatainfo
+
+checkdatainfo.py checks for all data tables which are missing in DATAINFO  and SENOSRS. This method helps to 
+identify any data tables which are continuously filled, but not available in XMagPy and which are not treated by
+archive. This also means that these tables are not frequently trimmed in size. Use db_truncate to trim those tables.
+
+Options:
+-c (required) : credentials for a database
+-i            : data table identifiers - end of table name i.e "00??" (? can be numbers from 0-9)
+-d            : check datainfo
+-s            : check sensors
+-a            : add missing data to DATAINFO ( if "-d") and SENSORS (if "-s")
+
+Example:
+
+        python checkdatainfo.py -c cobsdb -d -s
+
+
+### 8.5 db_truncate.py (replaces deleteold.py)
+
+db_truncate.py truncates contents of timesseries in a MagPy database. Whereas "archive" also allows for truncating 
+the database (based on DATAINO) "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
+(independent of DATAINFO contents).
+The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12
+will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly 
+data are kept. Settings are given in a configuration file.
+
+Application:
+
+        python3 db_truncate.py -c truncate.cfg
+
+
+
+### 8.8 file_download.py
+
 Downloads data by default in to an archive "raw" structure like /srv/archive/STATIONID/SENSORID/raw
 Adds data into a MagPy database (if writedatabase is True)
 Adds data into a basic archive structure (if writearchive is True)
 The application requires credentials of remote source and local database created by addcred
 
 file_donwload replaces the old collectfile.py routine which is still contained in the package
-
-#### APPLICATION:
 
    1) Getting binary data from a FTP Source every, scheduled day
     python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
@@ -858,19 +887,19 @@ file_donwload replaces the old collectfile.py routine which is still contained i
              forcerevision     :      0001
 
 
-### 8.6 file_upload.py
+
+### 8.9 file_upload.py
 
 Problem:
  - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finshed", "SUCCESS"
 Solution:
  - this error is typically related to an empty memory file
  
-### 8.7 gamma.py
+### 8.10 gamma.py
 
-#### DESCRIPTION:
-Working with Spectral radiometric data: The gamma script can be used to extract spectral measurements, reorganize the data and to analyze such spectral data as obtained by a DIGIBASE RH.
+Working with Spectral radiometric data: The gamma script can be used to extract spectral measurements, reorganize the 
+data and to analyze such spectral data as obtained by a DIGIBASE RH.
 
-#### APPLICATION:
 Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
 1) Please install linux drivers as provided and described here:
    https://github.com/kjbilton/libdbaserh
@@ -896,18 +925,37 @@ Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
 
         30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
 
-### 8.8 speedtest.py
 
-#### DESCRIPTION:
+### 8.11 monitor.py
+
+It is possible to monitor most essential aspects of data acquisition and storage. Monitor allows for testing data 
+actuality, get changes in log files, and/or get warnings if disk space is getting small. Besides, monitor.py can
+be used to trigger external scripts in case of an observed "CRITICAL: execute script." state. This, however, is only
+supported for logfile monitoring in case of repeated messages. 
+The following jobs are supported, provided usually as joblist within the monitor.cfg configuration file:
+
+1. **space** - testing for disk size of basedirectory (i.e. /srv/mqtt or srv/archive)
+2. **martas** - check for latest file updates in basedirectory and subdirs
+3. **datafile** - check for latest file updates only in basedirectory, not in subdirs
+4. **marcos** - check for latest timestamp in data tables
+5. **logfile** - log-test-types are: new or repeat, last, contains; new -> logfile has been changed since last run; repeat -> checks for repeated logsearchmessage in changed logs if more than tolerance then through execute script msg; last -> checks for logsearchmessage in last two lines; contains -> checks for logsearchmessage in full logfile
+
+The monitor configuration file will be initialized by martas_init.
+
+Application:
+
+        python3 monitor.py -c ~/.martas/conf/monitor.cfg
+
+
+### 8.x speedtest.py
+
 Perform a speedtest based on speedtest-cli
 (https://www.speedtest.net/de/apps/cli)
 
-#### PREREQUISITES:
 
         sudo apt install speedtest-cli
 
 
-#### APPLICATION:
 1) Run
         python3 speedtest.py -n speed_starlink01_0001
 2) Run periodically
@@ -916,9 +964,8 @@ Perform a speedtest based on speedtest-cli
         */5  *  *  *  *  /usr/bin/python3 /path/to/speedtest.py -c /path/to/conf.cfg -n speed_starlink01_0001  > /dev/NULL 2&>1
 
 
-### 8.9 testnote.py
+### 8.x testnote.py
 
-#### DESCRIPTION:
 Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, please install addapps.
 
 #### OPTIONS:
@@ -936,22 +983,6 @@ Send notifications via email and telegram. testnote.py will create a log file wi
         python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
 
 
-### 8.10 db_truncate.py (replaces deleteold.py)
-
-#### DESCRIPTION:
-    db_truncate.py truncates contents of timesseries in a MagPy database.
-    Whereas "archive" also allows for truncating the database (based on DATAINO)
-    "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
-    (independent of DATAINFO contents).
-    The databank size is automatically restricted
-    in dependency of the sampling rate of the input data. A cleanratio of 12
-    will only keep the last
-    12 days of second data, the last 720 days of minute data and
-    approximately 118 years of hourly data are kept.
-    Settings are given in a configuration file.
-
-#### APPLICATION:
-         python3 db_truncate.py -c truncate.cfg
 
 
 ## 9. Frequently asked questions
