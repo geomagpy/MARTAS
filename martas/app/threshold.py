@@ -490,15 +490,16 @@ def main(argv):
         sys.exit()
 
     if debug:
-        print ("New notifications will be send to: {} (Config: {})".format(receiver,cfg))
-
-    martaslog = ml(logfile=logfile,receiver=receiver)
-    if receiver == 'telegram':
-        martaslog.telegram['config'] = cfg
-    elif receiver == 'email':
-        martaslog.email = cfg
-
-    changes = martaslog.msg(statusdict)
+        print ("New notifications would be send to: {} (Config: {})".format(receiver,cfg))
+    else:
+        martaslog = ml(logfile=logfile,receiver=receiver)
+        if receiver == 'telegram':
+            martaslog.telegram['config'] = cfg
+        elif receiver == 'email':
+            martaslog.email['config'] = cfg
+        elif receiver == 'mqtt':
+            martaslog.mqtt['config'] = cfg
+        changes = martaslog.msg(statusdict)
 
     if not len(changes) > 0:
         print ("Nothing to report - threshold check successfully finished")

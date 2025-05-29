@@ -658,9 +658,10 @@ def main(argv):
     else:
         martaslog = ml(logfile=logpath,receiver=receiver)
         if receiver == 'email':
+            martaslog.email['config'] = receiverconf
+        elif receiver == 'telegram':
             martaslog.telegram['config'] = receiverconf
-        martaslog.telegram['config'] = receiverconf
-        martaslog.msg(statusmsg)
+        changes = martaslog.msg(statusmsg)
 
     print ("----------------------------------------------------------------")
     print ("monitoring app finished")

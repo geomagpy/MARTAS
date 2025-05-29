@@ -29,23 +29,22 @@ Methods:
 
 | class           |  method  |  version |  tested  |              comment             | manual | *used by |
 | --------------- |  ------  |  ------- |  ------- |  ------------------------------- | ------ | ---------- |
-|  **martaslog**  |          |          |          |                                  |        |            |
-|  martaslog      |  __init__  |  2.0.0 |          |                                  | -     | |
-|  martaslog      |  msg     |  2.0.0   |          |                                  | -     | |
-|  martaslog      |  notify  |  2.0.0   |          |                                  | -      |            |
-|  martaslog      |  receiveroption  |  2.0.0 |    |                                  | -     | |
-|  martaslog      |  updatelog |  2.0.0 |          |                                  | -     | |
-|  **basic**      |            |  2.0.0 |          |                                  |      | |
-|                 |  add_sensor  |  2.0.0 |  - |                            | -       | mysql,ow,arduino libs |
-|                 |  connect_db  |  2.0.0 |    yes |                                  | -       | archive |
-|                 |  datetime_to_array  |  2.0.0 |  yes |                             | -       | libs |
-|                 |  data_to_file  |  2.0.0 |  yes |                                  | -       | libs |
-|                 |  get_conf  |  2.0.0 |      yes |                                  | -       | marcosscripts |
-|                 |  get_sensors  |  2.0.0 |   yes |                                  | -       | marcosscripts |
-|                 |  scptransfer  |  2.0.0 |       -  |  identical method in imbot       | -       | up/download |
-|                 |  sendmail  |  2.0.0 |       -  |  identical method in imbot       | -       | imbot |
-|                 |  sendtelegram |  2.0.0  |   -  |  identical method in imbot       | 5.1     | marcosscripts, imbot |
-|                 |  time_to_array  |  2.0.0 | yes |                                  | -       | libs |
+|  **martaslog**  |          |          |          |                                  |        | monitor,threshold |
+|  martaslog      |  __init__  |  2.0.0 |      yes |                                  | -      |          |
+|  martaslog      |  msg     |  2.0.0   |      yes |  tested: mail,telegram, not:mqtt | -      |          |
+|  martaslog      |  notify  |  2.0.0   |      yes |                                  | -      |          |
+|  martaslog      |  receiveroption  |  2.0.0 |  yes |                                | -      |          |
+|  martaslog      |  updatelog |  2.0.0 |      yes |                                  | -      |          |
+|                 |  add_sensor  |  2.0.0 |      - |                               | -       | mysql,ow,arduino libs |
+|                 |  connect_db  |  2.0.0 |    yes |                                  | -      | archive  |
+|                 |  datetime_to_array  |  2.0.0 |  yes |                             | -      | libs     |
+|                 |  data_to_file  |  2.0.0 |  yes |                                  | -      | libs     |
+|                 |  get_conf  |  2.0.0 |      yes |                                  | -      | marcosscripts |
+|                 |  get_sensors  |  2.0.0 |   yes |                                  | -      | marcosscripts |
+|                 |  scptransfer  |  2.0.0 |    -  |                                  | -      | up/download |
+|                 |  sendmail  |  2.0.0 |      yes |  identical method in imbot       | -      | imbot    |
+|                 |  sendtelegram |  2.0.0  |  yes |  identical method in imbot       | -      | marcosscripts, imbot |
+|                 |  time_to_array  |  2.0.0 | yes |                                  | -      | libs     |
 
 """
 
@@ -436,6 +435,8 @@ def sendmail(dic, credentials="webmail", debug=False):
             part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(f))
             msg.attach(part)
 
+    if debug:
+        print ("Message", msg)
     # seems as if server name needs to be specified in py3.7 and 3.8, should work in older versions as well
     if port in [465]:
         smtp = smtplib.SMTP_SSL(smtpserver)
@@ -575,6 +576,7 @@ class martaslog(object):
         changes = self.updatelog(self.logfile, dictionary)
         if len(changes) > 0:
             self.notify(changes)
+        return changes
 
     def notify(self, dictionary):
         # if receiver == "stdout":
@@ -591,7 +593,7 @@ class martaslog(object):
             topic = "{}/{}/{}".format(stationid, "statuslog", self.hostname)
             print("Done. Topic={},".format(topic))
             print("Done. User={},".format(mqttuser))
-            client = mqtt.Client(client)
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client)
             if not mqttuser == None:
                 client.username_pw_set(username=mqttuser, password=mqttpassword)
             print(broker, mqttport, mqttdelay)
@@ -600,21 +602,22 @@ class martaslog(object):
             print('Update sent to MQTT')
         elif self.receiver == 'telegram':
             tgmsg = ''
+            teleconfig = self.telegram.get('config')
             for elem in dictionary:
                 tgmsg += "{}: {}\n".format(elem, dictionary[elem])
-            sendtelegram(tgmsg, configpath=self.telegram.get('config'), debug=False)
+            sendtelegram(tgmsg, configpath=teleconfig, debug=False)
             print('Update sent to telegram')
         elif self.receiver == 'email':
-            tgmsg = ''
+            msg = ''
             for elem in dictionary:
-                tgmsg += "{}: {}\n".format(elem, dictionary[elem])
-            mailcfg = self.email.get('config', {})
-            # construct maildict with message and receivers
-            maildict = {}
-            sendmail(maildict, mailcfg.get("mailcred"), debug=False)
+                msg += "{}: {}\n".format(elem, dictionary[elem])
+            mailpath = self.email.get('config', "")
+            maildict = get_conf(mailpath)
+            maildict['text'] = msg
+            sendmail(maildict, maildict.get("mailcred"), debug=False)
             print('Message send by mail')
         else:
-            print("Given receiver is not yet supported")
+            print("Given receiver is not yet supported - just keeping it in the log")
 
     def receiveroptions(self, receiver, options):
         dictionary = eval('self.{}'.format(receiver))
@@ -647,16 +650,29 @@ class TestMethods(unittest.TestCase):
         sens = get_sensors("../conf/sensors.cfg")
         self.assertEqual(sens,[])
 
-    def test_sendmail(self):
-        pass
-
-    def test_sendtelegram(self):
-        pass
-
     def test_time_to_array(self):
         s = "2021-11-22 23:12:23.122324"
         ar = time_to_array(s)
         self.assertEqual(ar[1],11)
+
+    def test_martaslog(self):
+        receiver = "email" # ["email","telegram"]
+        receiver = "telegram" # ["email","telegram"]
+        logfile = "/tmp/testlog.log"
+        logcont = {"tester":"off"}
+        with open(logfile, 'w') as file:
+            file.write(json.dumps(logcont))  # use `json.loads` to do the reverse
+        ml = martaslog(logfile=logfile,receiver=receiver)
+        if receiver == 'telegram':
+            ml.telegram['config'] = "../conf/telegram.cfg"
+        elif receiver == 'email':
+            ml.email['config'] = "../conf/mail.cfg"
+        elif receiver == 'mqtt':
+            ml.mqtt['broker'] = "localhost"
+            ml.mqtt['stationid'] = "tst"
+        statusdict = {"tester":"on"}
+        changes = ml.msg(statusdict)
+        self.assertTrue(changes)
 
 
 if __name__ == "__main__":

@@ -124,7 +124,7 @@ def main(argv):
     sn = socket.gethostname().upper()  # servername
     statusmsg = {}
     name = "{}-DBopt".format(sn)
-    credentials = 'cobsdb'
+    credentials = ''
     sql = 'sql'
     configpath = ""
     logpath = "/var/log/magpy/tg_db_opt.log"
@@ -171,11 +171,18 @@ def main(argv):
         elif opt in ("-D", "--debug"):
             debug = True
 
+    receiver = ""
+    cfg = ""
     if configpath:
         conf = mm.get_conf(configpath)
-        basepath = os.path.dirname(conf.get("logging"))
+        basepath = os.path.dirname(conf.get("logging",""))
+        if not basepath:
+            basepath = os.path.dirname(conf.get("logpath",""))
         logpath = os.path.join(basepath,"optimize.log")
-        telegramcfg = os.path.join(basepath,"..","conf","telegram.cfg")
+        receiver = conf.get('notification', "telegram")
+        cfg = conf.get('notificationcfg', os.path.join(basepath,"..","conf","telegram.cfg"))
+        if not credentials:
+            credentials = conf.get("credentials")
     print ("Running optimize version", version)
     print ("-------------------------------")
     report = optimize(credentials=credentials, sqlcred=sql, debug=debug)
@@ -184,9 +191,12 @@ def main(argv):
     statusmsg[name] = report
     print("Status", statusmsg[name])
 
-    if report and telegramcfg and not debug:
-        martaslog = ml(logfile=logpath, receiver='telegram')
-        martaslog.telegram['config'] = telegramcfg
+    if report and cfg and not debug:
+        martaslog = ml(logfile=logpath, receiver=receiver)
+        if receiver == 'telegram':
+            martaslog.telegram['config'] = cfg
+        elif receiver == 'email':
+            martaslog.email['config'] = cfg
         martaslog.msg(statusmsg)
     else:
         print("Status", statusmsg[name])

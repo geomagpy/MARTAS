@@ -587,6 +587,10 @@ def main(argv):
         cronlist.append("# Running MARCOS process {} ".format(jobname))
         cronlist.append("17  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(homedir, dir, "log",marcosjob+".log")))
         # optimizetable
+        if destination.find("db") >= 0:
+            cronlist.append("# Optimizing database")
+            cronlist.append("2  0  * * 0    $PYTHON {} -c {} -s sqlmaster > {} 2>&1".format(os.path.join(homedir, dir,"app","optimizetables.py"), os.path.join(homedir, dir,"conf","archive.cfg"), os.path.join(homedir, dir, "log","optimizetables.log")))
+            print (" ! optimzetable requires a sqlmaster input with addcred ")
 
     cronlist.append("# Log rotation for {}".format(jobname))
     cronlist.append("30  2     * * *    /usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "scripts", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))))
@@ -619,6 +623,7 @@ def main(argv):
                     "archivelog" : archivelog,
                     "monitorlog" : monitorlog,
                     "thresholdlog" : thresholdlog,
+                    "collectlog" : os.path.join(homedir, dir,"log","collect-source.log"),
                     "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
                     "notificationcfg" : os.path.join(confpath, "telegram.cfg"),
@@ -658,6 +663,10 @@ def main(argv):
                         "dest": os.path.join(homedir, dir, "conf", "threshold.cfg")}
     files_to_change["mailconf"] = {"source": os.path.join(homedir, dir, "conf", "mail.bak"),
                         "dest": os.path.join(homedir, dir, "conf", "mail.cfg")}
+    files_to_change["gammaconf"] = {"source": os.path.join(homedir, dir, "conf", "gamma.bak"),
+                        "dest": os.path.join(homedir, dir, "conf", "gamma.cfg")}
+    files_to_change["downloadconf"] = {"source": os.path.join(homedir, dir, "conf", "collect-source.bak"),
+                        "dest": os.path.join(homedir, dir, "conf", "collect-source.cfg")}
 
     for f in files_to_change:
         d = files_to_change.get(f)
