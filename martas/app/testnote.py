@@ -5,15 +5,8 @@
 Testing notifications
 """
 
-from magpy.stream import *
-
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-from martas import martaslog as ml
-from martas import sendmail as sm
-
-import telegram_send
+from martas.core.methods import martaslog as ml
+import sys
 import os
 import getopt
 

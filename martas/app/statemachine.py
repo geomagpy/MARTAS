@@ -74,10 +74,7 @@ status : stop
 """
 
 
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# Define packges to be used (local refers to test environment) 
+# Define packges to be used (local refers to test environment)
 # ------------------------------------------------------------
 from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, read
 from magpy.database import mysql,readDB

@@ -529,28 +529,27 @@ MARTAS/apps. Below you will find a comprehensive list of these scripts and their
 find subsections with detailed instructions and example applications for all of these programs.
 
 
-| Script             | Purpose                                           | Config        | Version               | Section |
-|--------------------|---------------------------------------------------|---------------|-----------------------|---------|
-| archive.py         | Read database tables and create archive files     | archive.cfg   | 2.0.0                 | 6.2     |
-| ardcomm.py         | Communicating with arduino microcontroller        |               | 1.0.0                 | 6.3     |
-| checkdatainfo.py   | List/ad data tables not existing in DATAINFO/SENS |               | 2.0.0                 | 6.4     |
-| db_truncate.py     | Delete data from all data tables                  | truncate.cfg  | 2.0.0                 | 6.5     |
-| di.py              |                                                   |               |                       | 6.6     |
-| file_download.py   | Download files, store them and add to archives    | collect.cfg   | 2.0.0*                | 6.7     |
-| file_upload.py     | Upload files                                      | upload.json   | 2.0.0*                | 6.8     |
-| filter.py          | filter data                                       | filter.cfg    | ADD                   | -       |
-| gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg     |                       | 6.10    |
-| monitor.py         | Monitoring space, data and logfiles               | monitor.cfg   | 2.0.0                 | 6.11    |
-| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg    | 2.0.0*                | 6.12    |
-| optimzetables.py   | Optimize table disk usages (requires ROOT)        |               | 2.0.0*                | 6,13    |
-| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg    | 2.0.0*                | 6.12    |
-| serialinit.py      | Sensor initialization uses this method            |               | 2.0.0*                | 6.14    |
-| speedtest.py       | Test bandwidth of the internet connection         |               |                       | 6.15    |
-| statemachine.py    |                                                   |               |                       | 6.16    |
-| telegramnote.py    |                                                   |               | REMOVE - sendtelegram |         |
-| testnote.py        |                                                   |               | REMOVE - unittest     |         |
-| testserial.py      |                                                   |               |                       |         |
-| threshold.py       | Tests values and send reports                     | threshold.cfg | 2.0.0                 | 6.      |
+| Script             | Purpose                                              | Config        | Version | Section |
+|--------------------|------------------------------------------------------|---------------|---------|---------|
+| archive.py         | Read database tables and create archive files        | archive.cfg   | 2.0.0   | 6.2     |
+| ardcomm.py         | Communicating with arduino microcontroller           |               | 1.0.0   | 6.3     |
+| checkdatainfo.py   | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0   | 6.4     |
+| db_truncate.py     | Delete data from all data tables                     | truncate.cfg  | 2.0.0   | 6.5     |
+| di.py              |                                                      |               |         | 6.6     |
+| file_download.py   | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.7     |
+| file_upload.py     | Upload files                                         | upload.json   | 2.0.0*  | 6.8     |
+| filter.py          | filter data                                          | filter.cfg    | ADD     | -       |
+| gamma.py           | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.10    |
+| monitor.py         | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0   | 6.11    |
+| obsdaq.py          | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.12    |
+| optimzetables.py   | Optimize table disk usages (requires ROOT)           |               | 2.0.0*  | 6,13    |
+| palmacq.py         | Communicate with PalmAcq datalogger                  | obsdaq.cfg    | 2.0.0*  | 6.12    |
+| serialinit.py      | Sensor initialization uses this method               |               | 2.0.0*  | 6.14    |
+| speedtest.py       | Test bandwidth of the internet connection            |               | 2.0.0*  | 6.15    |
+| statemachine.py    | Currently under development - will replace threshold |               | 1.0.0   | 6.16    |
+| testnote.py        | Send a quick message by mail or telegram             |               | 2.0.0   | 6.17    |
+| testserial.py      | test script for serial comm - development tool       |               | 1.0.0   | 6.18    |
+| threshold.py       | Tests values and send reports                        | threshold.cfg | 2.0.0   | 6.19    |
 
 Version 2.0.0* means it still needs to be tested
 
@@ -691,7 +690,7 @@ Problem:
 Solution:
  - this error is typically related to an empty memory file
  
-### 6.10 gamma.py
+### 6.10 gamma
 
 Working with Spectral radiometric data: The gamma script can be used to extract spectral measurements, reorganize the 
 data and to analyze such spectral data as obtained by a DIGIBASE RH.
@@ -776,10 +775,14 @@ If you want to run it periodically then add to crontab:
 
 ### 6.16 statemachine
 
+See threshold. Statemaschine is currently developed and may replace threshold in a future version.
 
-### 6.x testnote.py
 
-Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, please install addapps.
+### 6.17 testnote
+
+Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile 
+content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, 
+please install addapps.
 
 OPTIONS:
 
@@ -795,6 +798,10 @@ APPLICATION:
         python3 testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
         python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
 
+
+### 6.18 testserial
+
+Simple test code for serial communication. Not for any productive purpose.
 
 ### 6.19 threshold
 
