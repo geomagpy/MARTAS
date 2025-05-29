@@ -523,6 +523,8 @@ class martaslog(object):
         self.mqtt = {'broker': 'localhost', 'delay': 60, 'port': 1883, 'stationid': 'wic', 'client': 'P1', 'user': None,
                      'password': None}
         self.telegram = {'config': "/home/leon/telegramtest.conf"}
+        self.email = {'config': "/home/leon/mail.cfg"}
+
         self.logfile = logfile
         self.receiver = receiver
         self.hostname = socket.gethostname()
@@ -597,22 +599,20 @@ class martaslog(object):
             client.publish(topic, json.dumps(dictionary))
             print('Update sent to MQTT')
         elif self.receiver == 'telegram':
-            # try: # import Ok
-            # import telegram_send
-            # except: # import error
-            # try: # conf file exists
-            # except: # send howto
-            # requires a existing configuration file for telegram_send
-            # to create one use:
-            # python
-            # import telegram_send
-            # telegram_send.configure("/path/to/my/telegram.cfg",channel=True)
             tgmsg = ''
             for elem in dictionary:
                 tgmsg += "{}: {}\n".format(elem, dictionary[elem])
             sendtelegram(tgmsg, configpath=self.telegram.get('config'), debug=False)
-            # telegram_send.send(messages=[tgmsg],conf=self.telegram.get('config'),parse_mode="markdown")
             print('Update sent to telegram')
+        elif self.receiver == 'email':
+            tgmsg = ''
+            for elem in dictionary:
+                tgmsg += "{}: {}\n".format(elem, dictionary[elem])
+            mailcfg = self.email.get('config', {})
+            # construct maildict with message and receivers
+            maildict = {}
+            sendmail(maildict, mailcfg.get("mailcred"), debug=False)
+            print('Message send by mail')
         else:
             print("Given receiver is not yet supported")
 

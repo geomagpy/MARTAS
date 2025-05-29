@@ -16,8 +16,11 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey (GeoSphere Austria)
 
 ### Table of Contents
 
-
-
+1. [About](#1-about)
+2. [Installation](#2-installation)
+3. [Initialization of MARTAS/MARCOS](#3-initialization-of-martasmarcos)
+4. [MARTAS](#4-martas)
+5. [MARCOS](#5-marcos)
 
 
 ## 1. About
@@ -391,42 +394,15 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
 
          FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 
-## 4. Experts settings
+### 4.7 Enabling Authentication
 
-### 4.1 Enabling Authentication
+If you want to use authentication you should use addcred (MagPy, section 10.6) to obsfuscate user and passwords, which
+helps you to avoid plain text passwords directly in scripts. Please note, that these methods do not encrypt passwords. 
+They just store it in a different, independent file. To add such information into the credentials list use:
 
-    If you want to use authentication you should use addcred (MagPy, section 10.6) to obsfuscate user and passwords, which helps you to avoid plain text passwords directly in scripts. Please note, that these methods do not encrypt passwords. They just store it in a different, independent file. To add such information into the credentials list use:
+        $ addcred -t transfer -c mqtt -u user -p mypasswd -a localhost
 
-        $ python addcred.py -t transfer -c mqtt -u user -p mypasswd -a localhost
-
-    for super user:
-        $ sudo python addcred.py -t transfer -c mqtt -u user -p mypasswd -a localhost
-
-    Provide the shortcut (mqtt) and username during the installation process.
-
-
-### 4.2  Poll for change of public IP (useful for WiFi/UMTS connection):
-    - edit paths in UtlityScripts/sendip.py to your own FTP server (if using)
-    - Add call into crontab (as often as needed):
-	$ crontab -e
-	Something like this (for hourly polling):
-	1 */1 * * * python ~/MARTAS/UtilityScripts/sendip.py
-
-
-### 4.3 Manual instructions and running martas not as a service:
-
-    You can run MARTAS from the command line by changing into the MARTAS directory and
-    using the following commands:
-
-        $ python3 acquisition_mqtt.py -m /path/to/martas.cfg -P mypasswd
-
-    Using encryption with credentials created by addcred:
-
-        $ python acquisition_mqtt.py -m /home/cobs/martas.cfg -c mqtt
-
-    Providing authentication directly:
-
-        $ python3 acquisition_mqtt.py -m /path/to/martas.cfg -u mosquittouser -P mosquittopasswd
+Provide the shortcut (mqtt) and username during the installation process.
 
 
 ### 4.8 Setup of a Broker
@@ -440,7 +416,7 @@ in 1.1. If you want to use authentication on the broker follow the steps outline
 broker, make sure that MARTAS can reach this broker system via its address (IP/HTTP) on port 1883.
 
 
-## 5. Setting up MARCOS
+## 5. MARCOS
 
 In the following we are setting up MARCOS to collect measurement data from a broker. MARCOS subscribes to the broker 
 and receives any new data published there. All three systems, MARTAS, BROKER, and MARCOS can run on the same machine 
@@ -462,7 +438,8 @@ can start this job manually as follows.:
 
         $ bash collect-myjob.sh start 
 
-    - The following options are now available:
+The following options are now available:
+
         $ bash collect-myjob.sh start 
         $ bash collect-myjob.sh stop 
         $ bash collect-myjob.sh restart 
@@ -537,8 +514,342 @@ c) Customizing the WEB interface/ports of MARCOS
 When selecting destination "stdout" the ASCII output will be written to the destination defined by logging. This can 
 either be sys.stdout or the given log file. 
 
-
 #### 5.3.5 Selecting diff as destination
+
+Calculates real-time differences between sensors attached to the same MARTAS. This is useful if you want to 
+visualize gradients directly.
+
+## 6. Applications and Scripts
+
+### 6.1 Overview of applications
+
+MARTAS comes along with a number of application scripts to support data acquisition, collection of data, access of 
+remote data sources and organizations tools for databases. All these scripts can be found within the directory 
+MARTAS/apps. Below you will find a comprehensive list of these scripts and their purpose. In the following you will 
+find subsections with detailed instructions and example applications for all of these programs.
+
+
+| Script             | Purpose                                           | Config        | Version               | Section |
+|--------------------|---------------------------------------------------|---------------|-----------------------|---------|
+| archive.py         | Read database tables and create archive files     | archive.cfg   | 2.0.0                 | 6.2     |
+| ardcomm.py         | Communicating with arduino microcontroller        |               | 1.0.0                 | 6.3     |
+| checkdatainfo.py   | List/ad data tables not existing in DATAINFO/SENS |               | 2.0.0                 | 6.4     |
+| db_truncate.py     | Delete data from all data tables                  | truncate.cfg  | 2.0.0                 | 6.5     |
+| di.py              |                                                   |               |                       | 6.6     |
+| file_download.py   | Download files, store them and add to archives    | collect.cfg   | 2.0.0*                | 6.7     |
+| file_upload.py     | Upload files                                      | upload.json   | 2.0.0*                | 6.8     |
+| filter.py          | filter data                                       | filter.cfg    | ADD                   | -       |
+| gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg     |                       | 6.10    |
+| monitor.py         | Monitoring space, data and logfiles               | monitor.cfg   | 2.0.0                 | 6.11    |
+| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg    | 2.0.0*                | 6.12    |
+| optimzetables.py   | Optimize table disk usages (requires ROOT)        |               | 2.0.0*                | 6,13    |
+| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg    | 2.0.0*                | 6.12    |
+| serialinit.py      | Sensor initialization uses this method            |               | 2.0.0*                | 6.14    |
+| speedtest.py       | Test bandwidth of the internet connection         |               |                       | 6.15    |
+| statemachine.py    |                                                   |               |                       | 6.16    |
+| telegramnote.py    |                                                   |               | REMOVE - sendtelegram |         |
+| testnote.py        |                                                   |               | REMOVE - unittest     |         |
+| testserial.py      |                                                   |               |                       |         |
+| threshold.py       | Tests values and send reports                     | threshold.cfg | 2.0.0                 | 6.      |
+
+Version 2.0.0* means it still needs to be tested
+
+### 6.2 archive
+
+Archive.py gets data from a databank and stores it to any accessible repository (e.g. disk). Old database entries exceeding a defined age can be deleted in dependency of data resolution. Archive files can be stored in a user defined format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly data are kept. Settings are given in a configuration file.
+IMPORTANT: data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained there.
+IMPORTANT: take care about depth - needs to be large enough to find data
+
+        # Automatic application
+        python3 archive.py -c ~/.martas/conf/archive.cfg
+
+        # Manual for specific sensors and time range
+        python3 archive.py -c ~/.martas/conf/archive.cfg -b 2020-11-22 -s Sensor1,Sensor2 -d 30
+
+The configuration file will be initialized using martas_init. Additional changes and options are available.
+
+        nano ~/.martas/conf/archive.cfg
+
+provides credentials, path, defaultdepth, archiveformat, writearchive, applyflags, cleandb, cleanratio
+and lists and dictionaries to modify criteria for specific sensors:
+sensordict      :    Sensor1:depth,format,writeDB,writeArchive,applyFlags,cleanratio;
+blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
+
+
+### 6.3 ardcomm
+
+Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands
+
+
+### 6.4 checkdatainfo
+
+checkdatainfo.py checks for all data tables which are missing in DATAINFO  and SENOSRS. This method helps to 
+identify any data tables which are continuously filled, but not available in XMagPy and which are not treated by
+archive. This also means that these tables are not frequently trimmed in size. Use db_truncate to trim those tables.
+
+Options:
+-c (required) : credentials for a database
+-i            : data table identifiers - end of table name i.e "00??" (? can be numbers from 0-9)
+-d            : check datainfo
+-s            : check sensors
+-a            : add missing data to DATAINFO ( if "-d") and SENSORS (if "-s")
+
+Example:
+
+        python checkdatainfo.py -c cobsdb -d -s
+
+
+### 6.5 db_truncate
+
+db_truncate.py truncates contents of timesseries in a MagPy database. Whereas "archive" also allows for truncating 
+the database (based on DATAINO) "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
+(independent of DATAINFO contents).
+The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12
+will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly 
+data are kept. Settings are given in a configuration file.
+
+Application:
+
+        python3 db_truncate.py -c truncate.cfg
+
+
+### 6.7 di
+
+at the moment still part of MARCOSscripts
+
+
+
+### 6.7 file_download
+
+Downloads data by default in to an archive "raw" structure like /srv/archive/STATIONID/SENSORID/raw
+Adds data into a MagPy database (if writedatabase is True)
+Adds data into a basic archive structure (if writearchive is True)
+The application requires credentials of remote source and local database created by addcred
+
+   1) Getting binary data from a FTP Source every, scheduled day
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             sourcedatapath        :      /remote/data
+             filenamestructure     :      *%s.bin
+
+   2) Getting binary data from a FTP Source every, scheduled day, using secondary time column and an offset of 2.3 seconds
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             sourcedatapath        :      /remote/data
+             filenamestructure     :      *%s.bin
+             LEMI025_28_0002       :      defaulttimecolumn:sectime;time:-2.3
+
+   3) Just download raw data to archive
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             writedatabase     :      False
+             writearchive      :      False
+
+   4) Rsync from a ssh server (passwordless access to remote machine is necessary, cred file does not need to contain a pwd)
+    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
+    in config "collect-ftpsource.cfg":
+             protocol          :      rsync
+             writedatabase     :      False
+             writearchive      :      False
+
+   5) Uploading raw data from local raw archive
+    python3 collectfile-new.py -c ../conf/collect-localsource.cfg
+    in config "collect-localsource.cfg":
+             protocol          :      
+             sourcedatapath    :      /srv/archive/DATA/SENSOR/raw
+             writedatabase     :      False
+             writearchive      :      True
+             forcerevision     :      0001
+
+      
+### 6.9 file_upload
+
+Upload data to a destination using various different protocols supported are FTP, SFTP, RSYNC, SCP. Jobs are listed in 
+a json structure and read by the upload process. You can have multiple jobs. Each job refers to a local path. Each job
+can also have multiple destinations.
+
+Examples:
+1. FTP Upload from a directory using files not older than 2 days
+{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
+2. FTP Upload a single file
+{"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
+3. FTP Upload all files with extensions
+{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
+4. Test environment
+{"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
+5. RSYNC upload
+{"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
+6. JOB on BROKER
+{"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
+
+Application:
+
+   python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
+
+Problem:
+ - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finished", "SUCCESS"
+Solution:
+ - this error is typically related to an empty memory file
+ 
+### 6.10 gamma.py
+
+Working with Spectral radiometric data: The gamma script can be used to extract spectral measurements, reorganize the 
+data and to analyze such spectral data as obtained by a DIGIBASE RH.
+
+Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
+1) Please install linux drivers as provided and described here:
+   https://github.com/kjbilton/libdbaserh
+
+2) Use a script to measure spectral data periodically (almost 1h)
+
+        #!/bin/bash
+        DATUM=$(date '+%Y-%m-%d')
+        SN=$(/home/pi/Software/digibase/dbaserh -l | grep : | cut -f 2)
+        NAME="/srv/mqtt/DIGIBASE_16272059_0001/raw/DIGIBASE_"$SN"_0001.Chn"
+        /home/pi/Software/digibase/dbaserh -set hvt 710
+        /home/pi/Software/digibase/dbaserh -q -hv on -start -i 3590 -t 3590 >> $NAME
+
+3) Use crontab to run this script every hour
+
+        0  *  *  *  *  root  bash /home/pi/Software/gammascript.sh > /var/log/magpy/gamma.log
+
+4) use gamma.py to extract spectral data and store it in daily json structures
+
+        58 5   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/DIGIBASE_16272059_0001.Chn  -c /home/pi/SCRIPTS/gamma.cfg -j extract,cleanup -o /srv/mqtt/DIGIBASE_16272059_0001/raw/ > /var/log/magpy/digiextract.log  2>&1
+
+4) use gamma.py to analyse spectral data and create graphs
+
+        30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
+
+
+### 6.11 monitor
+
+It is possible to monitor most essential aspects of data acquisition and storage. Monitor allows for testing data 
+actuality, get changes in log files, and/or get warnings if disk space is getting small. Besides, monitor.py can
+be used to trigger external scripts in case of an observed "CRITICAL: execute script." state. This, however, is only
+supported for logfile monitoring in case of repeated messages. 
+The following jobs are supported, provided usually as joblist within the monitor.cfg configuration file:
+
+1. **space** - testing for disk size of basedirectory (i.e. /srv/mqtt or srv/archive)
+2. **martas** - check for latest file updates in basedirectory and subdirs
+3. **datafile** - check for latest file updates only in basedirectory, not in subdirs
+4. **marcos** - check for latest timestamp in data tables
+5. **logfile** - log-test-types are: new or repeat, last, contains; new -> logfile has been changed since last run; repeat -> checks for repeated logsearchmessage in changed logs if more than tolerance then through execute script msg; last -> checks for logsearchmessage in last two lines; contains -> checks for logsearchmessage in full logfile
+
+The monitor configuration file will be initialized by martas_init.
+
+Application:
+
+        python3 monitor.py -c ~/.martas/conf/monitor.cfg
+
+### 6.12 obsdaq and palmacq
+
+Richard, please...
+
+
+### 6.13 optimizetables
+
+Optimizing tables and free space, the unblocking version. Please note, executing this job requires root privileges
+
+REQUIREMENTS:
+ - magpy
+ - sudo apt install percona-toolkit
+ - main user (user/cobs) needs to be able to use sudo without passwd (add to /etc/sudoers)
+
+### 6.14 serialinit
+
+Serialinit is used by all initialization jobs. See init folder...  
+
+
+### 6.15 speedtest
+
+Perform a speedtest based on speedtest-cli (https://www.speedtest.net/de/apps/cli)
+
+        sudo apt install speedtest-cli
+
+Application:
+        python3 speedtest.py -n speed_starlink01_0001
+
+If you want to run it periodically then add to crontab:
+
+        */5  *  *  *  *  /usr/bin/python3 /path/to/speedtest.py -c /path/to/conf.cfg -n speed_starlink01_0001  > /dev/NULL 2&>1
+
+### 6.16 statemachine
+
+
+### 6.x testnote.py
+
+Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, please install addapps.
+
+OPTIONS:
+
+        -m            : message to be send
+        -n            : notification type: email, telegram or log
+        -c            : path to configuration file
+        -l            : key value of the log dictionary (value will be the message)
+        -p            : path to the logfile (will contains a dictionary)
+
+APPLICATION:
+
+        python3 testnote.py -n email -m "Hello World" -c /etc/martas/mail.cfg -l TestMessage -p /home/user/test.log
+        python3 testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
+        python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
+
+
+### 6.19 threshold
+
+The threshold application can be used to check your data in realtime and trigger certain action in case a defined 
+threshold is met. Among the possible actions are notifications by mail or messenger, switching command to a connected
+microcontroller, or execution of bash scripts. This app reads data from a defined source: a MARTAS buffer files, 
+MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you 
+define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are
+met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can 
+be monitored independently by mail, nagios, icinga, telegram.
+Threshold.py can be scheduled in crontab. 
+
+In case you are using telegram notifications please note that these notification routines are independent of an 
+eventually used TelegramBot ([section 7.4]()) for communication with your MARTAS machine. 
+You can use the same channel, however.
+
+Threshold requires a configuration file which is setup during the initialization process with [martas_init] 
+and the application needs to be scheduled in crontab. In order to test specific data sets you will have to modify the
+test parameters in the configuration file by providing a list of sensorid; timerange to check; key to check, value, 
+function, state, statusmessage, switchcommand(optional).
+SensorID, key:  if sensorid and key of several lines are identical, always the last valid test line defines the message
+                 Therefore use warning thresholds before alert thresholds
+Function:       can be one of max, min, median, average(mean), stddev
+State:          can be one below, above, equal
+Statusmessage:  default is replaced by "Current 'function' 'state' 'value', e.g. (1) "Current average below 5"
+                 the following words (last occurrence) are replace by datetime.utcnow(): date, month, year, (week), hour, minute
+                 "date" is replaced by current date e.g. 2019-11-22
+                 "month" is replaced by current month e.g. 2019-11
+                 "week" is replaced by current calender week e.g. 56
+                 "minute" looks like 2019-11-22 13:10
+                 -> "date" changes the statusmessage every day and thus a daily notification is triggered as long a alarm condition is active
+
+IMPORTANT: statusmessage should not contain semicolons, colons and commas; generally avoid special characters
+
+
+1) Testing whether 1Hz data from column x of sensor "MYSENS_1234_0001" exceeded a certain threshold of 123 in the last 
+10 minutes. Send the defined default message to the notification system as defined in the config file. 
+
+1  :  MYSENS_1234_0001;600;x;123;max;above;default
+
+2) Testing whether 1Hz data from column x of sensor "MYSENS_1234_0001" exceeded on average 123 in the last 
+10 minutes. Send a message like "warning issued at 2019-11-22".
+
+2  :  MYSENS_1234_0001;600;x;123;average;above;alarm issued at date
+
+3) Testing whether the standard deviation of 1Hz data from column x of sensor "MYSENS_1234_0001" exceeds on 2 in the last 
+10 minutes. Send a message like "found flapping states".
+
+3  :  MYSENS_1234_0001;600;x;2;stddev;above;flapping state
+
+4) Testing whether the median 1Hz data from column x of sensor "MYSENS_1234_0001" exceeds a threshold of 123 in the last 
+10 minutes. Send the defined default message to the notification system as defined in the config file. Send a "switch"
+command to a connected microcontroller if this state is reached.
+
+4  :  MYSENS_1234_0001;600;x;123;median;above;default;swP:1:4
 
 
 
@@ -546,19 +857,6 @@ either be sys.stdout or the given log file.
 
 Please note: if you want to use threshold testing or monitoring, then you can use the installer "install.addapps.sh" in
 the install directory to set up/initialize these programs.
-
-### 7.1 The threshold notifier threshold.py
-
-MARTAS comes along with a threshold application. This application can be used to check your data in realtime and trigger certain action in case a defined threshold is met. Among the possible actions are notifications by mail or messenger, switching command to a connected microcontroller, or execution of bash scripts. This app reads data from a defined source: a MARTAS buffer files, MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can be monitored independently by mail, nagios, icinga, telegram.
-Threshold.py can be scheduled in crontab. You can configure Threshold.py to se
-
-Threshold.py (and monitor.py) can use the Telegram messenager to broadcast notifications. If you want to use that you need to install telegram_send.
-
-        $ sudo pip install telegram_send
-
-        # IMPORTANT: requires Python3.6 !!
-
-Please note that these notification routines are independent of an eventually used TelegramBot (7.4, working also with Python3.5 and smaller) for communication with your MARTAS machine. You can use the same channel, however.
 
 
 ### 7.2 Monitoring MARTAS and MARCOS process with monitor.py
@@ -739,286 +1037,6 @@ Go to your channel overview and add (i.e. MyFirstBot) as administrator to your c
       -> for private channels send any message within the channel. Then copy the link of this message:
       i.e. https://t.me/c/1123456789/31
       add a preciding -100 and you got your id: "-1001123456789"
-
-## 8. Applications and Scripts
-
-### 8.1 Overview of applications
-
-MARTAS comes along with a number of application scripts to support data acquisition, collection of data, access of 
-remote data sources and organizations tools for databases. All these scripts can be found within the directory 
-MARTAS/apps. Below you will find a comprehensive list of these scripts and their purpose. In the following you will 
-find subsections with detailed instructions and example applications for all of these programs.
-
-
-| Script             | Purpose                                           | Config       | Version               | Section |
-|--------------------|---------------------------------------------------|--------------|-----------------------|---------|
-| archive.py         | Read database tables and create archive files     | archive.cfg  | 2.0.0                 | 8.2     |
-| ardcomm.py         | Communicating with arduino microcontroller        |              | 1.0.0                 | 8.3     |
-| checkdatainfo.py   | List/ad data tables not existing in DATAINFO/SENS |              | 2.0.0                 | 8.4     |
-| db_truncate.py     | Delete data from all data tables                  | truncate.cfg | 2.0.0                 | 8.5     |
-| di.py              |                                                   |              |                       | 8.6     |
-| file_download.py   | Download files, store them and add to archives    | collect.cfg  | 2.0.0*                | 8.7     |
-| file_upload.py     | Upload files                                      | upload.json  | 2.0.0*                | 8.8     |
-| filter.py          | filter data                                       | filter.cfg   | ADD                   | -       |
-| gamma.py           | DIGIBASE gamma radiation acquisition and analysis | gamma.cfg    |                       | 8.10    |
-| monitor.py         | Monitoring space, data and logfiles               | monitor.cfg  | 2.0.0                 | 8.11    |
-| obsdaq.py          | Communicate with ObsDAQ ADC                       | obsdaq.cfg   | 2.0.0*                | 8.12    |
-| optimzetables.py   | Optimize table disk usages (requires ROOT)        |              | 2.0.0*                | 8,13    |
-| palmacq.py         | Communicate with PalmAcq datalogger               | obsdaq.cfg   | 2.0.0*                | 8.12    |
-| serialinit.py      | Sensor initialization uses this method            |              | 2.0.0*                | 8.14    |
-| speedtest.py       | Test bandwidth of the internet connection         |              |                       | 8.15    |
-| statemachine.py    |                                                   |              |                       |         |
-| telegramnote.py    |                                                   |              | REMOVE - sendtelegram |         |
-| testnote.py        |                                                   |              | REMOVE - unittest     |         |
-| testserial.py      |                                                   |              |                       |         |
-| threshold.py       |                                                   |              |                       |         |
-
-Version 2.0.0* means it still needs to be tested
-
-### 8.2 archive
-
-Archive.py gets data from a databank and stores it to any accessible repository (e.g. disk). Old database entries exceeding a defined age can be deleted in dependency of data resolution. Archive files can be stored in a user defined format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly data are kept. Settings are given in a configuration file.
-IMPORTANT: data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained there.
-IMPORTANT: take care about depth - needs to be large enough to find data
-
-        # Automatic application
-        python3 archive.py -c ~/.martas/conf/archive.cfg
-
-        # Manual for specific sensors and time range
-        python3 archive.py -c ~/.martas/conf/archive.cfg -b 2020-11-22 -s Sensor1,Sensor2 -d 30
-
-The configuration file will be initialized using martas_init. Additional changes and options are available.
-
-        nano ~/.martas/conf/archive.cfg
-
-provides credentials, path, defaultdepth, archiveformat, writearchive, applyflags, cleandb, cleanratio
-and lists and dictionaries to modify criteria for specific sensors:
-sensordict      :    Sensor1:depth,format,writeDB,writeArchive,applyFlags,cleanratio;
-blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
-
-
-### 8.3 ardcomm
-
-Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands
-
-
-### 8.4 checkdatainfo
-
-checkdatainfo.py checks for all data tables which are missing in DATAINFO  and SENOSRS. This method helps to 
-identify any data tables which are continuously filled, but not available in XMagPy and which are not treated by
-archive. This also means that these tables are not frequently trimmed in size. Use db_truncate to trim those tables.
-
-Options:
--c (required) : credentials for a database
--i            : data table identifiers - end of table name i.e "00??" (? can be numbers from 0-9)
--d            : check datainfo
--s            : check sensors
--a            : add missing data to DATAINFO ( if "-d") and SENSORS (if "-s")
-
-Example:
-
-        python checkdatainfo.py -c cobsdb -d -s
-
-
-### 8.5 db_truncate
-
-db_truncate.py truncates contents of timesseries in a MagPy database. Whereas "archive" also allows for truncating 
-the database (based on DATAINO) "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
-(independent of DATAINFO contents).
-The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12
-will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly 
-data are kept. Settings are given in a configuration file.
-
-Application:
-
-        python3 db_truncate.py -c truncate.cfg
-
-
-### 8.7 di
-
-at the moment still part of MARCOSscripts
-
-
-
-### 8.7 file_download
-
-Downloads data by default in to an archive "raw" structure like /srv/archive/STATIONID/SENSORID/raw
-Adds data into a MagPy database (if writedatabase is True)
-Adds data into a basic archive structure (if writearchive is True)
-The application requires credentials of remote source and local database created by addcred
-
-   1) Getting binary data from a FTP Source every, scheduled day
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
-    in config "collect-ftpsource.cfg":
-             sourcedatapath        :      /remote/data
-             filenamestructure     :      *%s.bin
-
-   2) Getting binary data from a FTP Source every, scheduled day, using secondary time column and an offset of 2.3 seconds
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
-    in config "collect-ftpsource.cfg":
-             sourcedatapath        :      /remote/data
-             filenamestructure     :      *%s.bin
-             LEMI025_28_0002       :      defaulttimecolumn:sectime;time:-2.3
-
-   3) Just download raw data to archive
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
-    in config "collect-ftpsource.cfg":
-             writedatabase     :      False
-             writearchive      :      False
-
-   4) Rsync from a ssh server (passwordless access to remote machine is necessary, cred file does not need to contain a pwd)
-    python3 collectfile-new.py -c ../conf/collect-ftpsource.cfg
-    in config "collect-ftpsource.cfg":
-             protocol          :      rsync
-             writedatabase     :      False
-             writearchive      :      False
-
-   5) Uploading raw data from local raw archive
-    python3 collectfile-new.py -c ../conf/collect-localsource.cfg
-    in config "collect-localsource.cfg":
-             protocol          :      
-             sourcedatapath    :      /srv/archive/DATA/SENSOR/raw
-             writedatabase     :      False
-             writearchive      :      True
-             forcerevision     :      0001
-
-      
-### 8.9 file_upload
-
-Upload data to a destination using various different protocols supported are FTP, SFTP, RSYNC, SCP. Jobs are listed in 
-a json structure and read by the upload process. You can have multiple jobs. Each job refers to a local path. Each job
-can also have multiple destinations.
-
-Examples:
-1. FTP Upload from a directory using files not older than 2 days
-{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
-2. FTP Upload a single file
-{"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
-3. FTP Upload all files with extensions
-{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
-4. Test environment
-{"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
-5. RSYNC upload
-{"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
-6. JOB on BROKER
-{"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
-
-Application:
-
-   python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
-
-Problem:
- - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finished", "SUCCESS"
-Solution:
- - this error is typically related to an empty memory file
- 
-### 8.10 gamma.py
-
-Working with Spectral radiometric data: The gamma script can be used to extract spectral measurements, reorganize the 
-data and to analyze such spectral data as obtained by a DIGIBASE RH.
-
-Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
-1) Please install linux drivers as provided and described here:
-   https://github.com/kjbilton/libdbaserh
-
-2) Use a script to measure spectral data periodically (almost 1h)
-
-        #!/bin/bash
-        DATUM=$(date '+%Y-%m-%d')
-        SN=$(/home/pi/Software/digibase/dbaserh -l | grep : | cut -f 2)
-        NAME="/srv/mqtt/DIGIBASE_16272059_0001/raw/DIGIBASE_"$SN"_0001.Chn"
-        /home/pi/Software/digibase/dbaserh -set hvt 710
-        /home/pi/Software/digibase/dbaserh -q -hv on -start -i 3590 -t 3590 >> $NAME
-
-3) Use crontab to run this script every hour
-
-        0  *  *  *  *  root  bash /home/pi/Software/gammascript.sh > /var/log/magpy/gamma.log
-
-4) use gamma.py to extract spectral data and store it in daily json structures
-
-        58 5   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/DIGIBASE_16272059_0001.Chn  -c /home/pi/SCRIPTS/gamma.cfg -j extract,cleanup -o /srv/mqtt/DIGIBASE_16272059_0001/raw/ > /var/log/magpy/digiextract.log  2>&1
-
-4) use gamma.py to analyse spectral data and create graphs
-
-        30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
-
-
-### 8.11 monitor
-
-It is possible to monitor most essential aspects of data acquisition and storage. Monitor allows for testing data 
-actuality, get changes in log files, and/or get warnings if disk space is getting small. Besides, monitor.py can
-be used to trigger external scripts in case of an observed "CRITICAL: execute script." state. This, however, is only
-supported for logfile monitoring in case of repeated messages. 
-The following jobs are supported, provided usually as joblist within the monitor.cfg configuration file:
-
-1. **space** - testing for disk size of basedirectory (i.e. /srv/mqtt or srv/archive)
-2. **martas** - check for latest file updates in basedirectory and subdirs
-3. **datafile** - check for latest file updates only in basedirectory, not in subdirs
-4. **marcos** - check for latest timestamp in data tables
-5. **logfile** - log-test-types are: new or repeat, last, contains; new -> logfile has been changed since last run; repeat -> checks for repeated logsearchmessage in changed logs if more than tolerance then through execute script msg; last -> checks for logsearchmessage in last two lines; contains -> checks for logsearchmessage in full logfile
-
-The monitor configuration file will be initialized by martas_init.
-
-Application:
-
-        python3 monitor.py -c ~/.martas/conf/monitor.cfg
-
-### 8.12 obsdaq and palmacq
-
-Richard, please...
-
-
-### 8.13 optimizetables
-
-OPTIMIZING tables and free space, the unblocking version.
-
-Please note, executing this job requires root privileges
-
-REQUIREMENTS:
- - magpy
- - sudo apt install percona-toolkit
- - main user (cobs) needs to be able to use sudo without passwd (add to /etc/sudoers)
-
-### 8.14 serialinit
-
-important to initialize sensors using init configurations.  
-
-
-### 8.15 speedtest.py
-
-Perform a speedtest based on speedtest-cli
-(https://www.speedtest.net/de/apps/cli)
-
-
-        sudo apt install speedtest-cli
-
-
-1) Run
-        python3 speedtest.py -n speed_starlink01_0001
-2) Run periodically
-        sudo crontab -e
-
-        */5  *  *  *  *  /usr/bin/python3 /path/to/speedtest.py -c /path/to/conf.cfg -n speed_starlink01_0001  > /dev/NULL 2&>1
-
-
-### 8.x testnote.py
-
-Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, please install addapps.
-
-#### OPTIONS:
-
-        -m            : message to be send
-        -n            : notification type: email, telegram or log
-        -c            : path to configuration file
-        -l            : key value of the log dictionary (value will be the message)
-        -p            : path to the logfile (will contains a dictionary)
-
-#### APPLICATION:
-
-        python3 testnote.py -n email -m "Hello World" -c /etc/martas/mail.cfg -l TestMessage -p /home/user/test.log
-        python3 testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
-        python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
-
 
 
 

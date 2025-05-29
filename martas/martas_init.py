@@ -102,7 +102,6 @@ def main(argv):
     logpath = "/tmp"
     jobname = "martas"
     marcosjob = "marcos"
-    mailcred = ""
     initjob = "MARTAS"
     stationname = "WIC"
     mqttbroker = "localhost"
@@ -113,11 +112,16 @@ def main(argv):
     archivepath = "/srv/archive"
     archivelog = "/tmp/archivestatus.log"
     monitorlog = "/tmp/monitor.log"
+    thresholdlog = "/tmp/threshold.log"
+    thresholdsource = "file"
     destination = "stdout"
     filepath = "/tmp"
     databasecredentials = "mydb"
     payloadformat = "martas"
     noti = "telegram"
+    notipath = os.path.join(confpath, "telegram.cfg")
+    mailcred = "mymailcred"
+    mainpath = os.path.join(homedir,dir)
 
     cronlist = []
     print (" ------------------------------------------- ")
@@ -239,26 +243,33 @@ def main(argv):
     print (" Notifications preference:")
     print ("  Select one of the following notification techniques: log, email, telegram.")
     print ("  Default is telegram.")
-    print ("  For telegram notification please update telegram.cfg in your configuration directory.")
     newnot = input()
     if newnot and newnot in ["log","email","telegram"]:
         # check whether existing
         noti = newnot
         print (" -> notification by: {}".format(noti))
 
-
-    print (" ------------------------------------------- ")
-    print (" E-mail notifications:")
-    print ("  Provide the credential shortcut of MagPy's cred module.")
-    print ("  Otherwise press return.")
-    newmailcred = input()
-    if newmailcred:
-        # check whether existing
-        mailcred = newmailcred
-        val = cred.lc(newmailcred, "user")
-        if not val:
-            print (" ! Mail cerdential do not exist")
-        print (" -> E-mail credentials: {}".format(mailcred))
+    if noti == "email":
+        print (" ------------------------------------------- ")
+        print (" E-mail notifications:")
+        print ("  Provide the addcred credential shortcut:")
+        newmailcred = input()
+        if newmailcred:
+            # check whether existing
+            mailcred = newmailcred
+            val = cred.lc(newmailcred, "user")
+            if not val:
+                print (" ! Mail credentials do not yet exist - please create them to use email notifications")
+            print (" -> E-mail credentials: {}".format(mailcred))
+        notipath = os.path.join(confpath, "mail.cfg")
+        print("  For email notification please update mail.cfg in your configuration directory.")
+    elif noti == "telegram":
+        print(" ------------------------------------------- ")
+        print(" Telegram notifications:")
+        print("  For telegram notification please update telegram.cfg in your configuration directory.")
+        notipath = os.path.join(confpath, "telegram.cfg")
+    else:
+        pass
 
 
     print (" ------------------------------------------- ")
@@ -431,7 +442,7 @@ def main(argv):
 
         if destination.find("file") >= 0:
             print (" ------------------------------------------- ")
-            print (" Please specify a filepath:")
+            print (" Please specify a path to store files:")
             filepath = input()
             if not os.path.isdir(filepath):
                 print ("  ! the selected directory is not yet existing - aborting")
@@ -467,6 +478,14 @@ def main(argv):
                 print (" ! you don't have write access - aborting")
                 sys.exit()
             archivepath = newarchivepath
+
+        print(" ------------------------------------------- ")
+        print(" Threshold tester can be used on archive or db.")
+        print(" Please enter 'db' (default) or 'file':")
+        thresholdsource = "db"
+        newthresholdsource = input()
+        if newthresholdsource == "file":
+            thresholdsource = "file"
 
         logpath = os.path.join(logpath, "{}.log".format(marcosjob))
         archivelog = os.path.join(homedir, dir, "log", "archivestatus.log")
@@ -590,6 +609,7 @@ def main(argv):
     replacedict = { "/logpath" : logpath,
                     "/sensorpath" : os.path.join(confpath, "sensors.cfg"),
                     "/initdir" : initpath,
+                    "/mainpath" : os.path.join(homedir,dir),
                     "/srv/mqtt" : bufferpath,
                     "/obsdaqpath" : os.path.join(confpath, "obsdaq.cfg"),
                     "myhome" : stationname,
@@ -598,8 +618,11 @@ def main(argv):
                     "archivepath" : archivepath,
                     "archivelog" : archivelog,
                     "monitorlog" : monitorlog,
+                    "thresholdlog" : thresholdlog,
+                    "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
                     "notificationcfg" : os.path.join(confpath, "telegram.cfg"),
+                    "mymailcred" : mailcred,
                     "mydb" : databasecredentials,
                     "./web" : "{}".format(os.path.join(homedir, dir,"web")),
                     "brokeraddress" : mqttbroker,
@@ -631,6 +654,10 @@ def main(argv):
                               "dest": os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))}
     files_to_change["monitorconf"] = {"source": os.path.join(homedir, dir, "conf", "monitor.bak"),
                         "dest": os.path.join(homedir, dir, "conf", "monitor.cfg")}
+    files_to_change["thresholdconf"] = {"source": os.path.join(homedir, dir, "conf", "threshold.bak"),
+                        "dest": os.path.join(homedir, dir, "conf", "threshold.cfg")}
+    files_to_change["mailconf"] = {"source": os.path.join(homedir, dir, "conf", "mail.bak"),
+                        "dest": os.path.join(homedir, dir, "conf", "mail.cfg")}
 
     for f in files_to_change:
         d = files_to_change.get(f)

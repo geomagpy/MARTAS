@@ -657,6 +657,8 @@ def main(argv):
         print (statusmsg)
     else:
         martaslog = ml(logfile=logpath,receiver=receiver)
+        if receiver == 'email':
+            martaslog.telegram['config'] = receiverconf
         martaslog.telegram['config'] = receiverconf
         martaslog.msg(statusmsg)
 

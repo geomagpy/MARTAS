@@ -9,7 +9,7 @@ DESCRIPTION:
 Threshold application reads data from a defined source
 (DB or file, eventually MQTT).
 Threshold values can be defined for keys in the data file,
-notifications can be send out when ceratin criteria are met,
+notifications can be send out when certain criteria are met,
 and switching commands can be send if thresholds are exceeded
 or undergone.
 All threshold processes can be logged and  can be monitored
@@ -17,7 +17,7 @@ by nagios, icinga or martas.
 Threshold.py can be scheduled in crontab.
 
 REQUIREMENTS:
-pip install geomagpy (>= 0.3.99)
+pip install geomagpy (>= 2.0.0)
 
 
 APPLICATION:
@@ -112,26 +112,20 @@ shutdown -P +1
 
 """
 
-from __future__ import print_function
-from __future__ import unicode_literals
-
 # Define packges to be used (local refers to test environment)
 # ------------------------------------------------------------
-from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, read
-from magpy.database import mysql,readDB
-from datetime import datetime, timedelta
+from magpy.stream import DataStream, read
+from magpy.core import database
+from magpy.core.methods import is_number
 import magpy.opt.cred as mpcred
+from martas.core import methods as mameth
+from martas.core.methods import martaslog as ml
+
+from datetime import datetime, timedelta, timezone
 import sys, getopt, os
-try:
-    import paho.mqtt.client as mqtt
-except:
-    print ("MQTT not available")
+import paho.mqtt.client as mqtt
 
-
-if sys.version.startswith('2'):
-    pyvers = '2'
-else:
-    pyvers = '3'
+pyvers = '3'
 
 
 class sp(object):
@@ -163,89 +157,7 @@ class sp(object):
     #valuedict = {'sensorid':'ENV05_2_0001','timerange':1800,'key':'t1','value':5,'function':'average','state':'below','message':'on','switchcommand':'None'}
 
 
-def is_number(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
-
-
-def GetConf2(path, confdict={}):
-    """
-    Version 2020-10-28
-    DESCRIPTION:
-       can read a text configuration file and extract lists and dictionaries
-    VARIBALES:
-       path             Obvious
-       confdict         provide default values
-    SUPPORTED:
-       key   :    stringvalue                                 # extracted as { key: str(value) }
-       key   :    intvalue                                    # extracted as { key: int(value) }
-       key   :    item1,item2,item3                           # extracted as { key: [item1,item2,item3] }
-       key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
-       key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
-    """
-    exceptionlist = ['bot_id']
-
-    def is_number(s):
-        try:
-            float(s)
-            return True
-        except ValueError:
-            return False
-
-    try:
-        config = open(path,'r')
-        confs = config.readlines()
-        for conf in confs:
-            conflst = conf.split(':')
-            if conflst[0].strip() in exceptionlist or is_number(conflst[0].strip()):
-                # define a list where : occurs in the value and is not a dictionary indicator
-                conflst = conf.split(':',1)
-            if conf.startswith('#'):
-                continue
-            elif conf.isspace():
-                continue
-            elif len(conflst) == 2:
-                conflst = conf.split(':',1)
-                key = conflst[0].strip()
-                value = conflst[1].strip()
-                # Lists
-                if value.find(',') > -1:
-                    value = value.split(',')
-                    value = [el.strip() for el  in value]
-                try:
-                    confdict[key] = int(value)
-                except:
-                    confdict[key] = value
-            elif len(conflst) > 2:
-                # Dictionaries
-                if conf.find(';') > -1 or len(conflst) == 3:
-                    ele = conf.split(';')
-                    main = ele[0].split(':')[0].strip()
-                    cont = {}
-                    for el in ele:
-                        pair = el.split(':')
-                        # Lists
-                        subvalue = pair[-1].strip()
-                        if subvalue.find(',') > -1:
-                            subvalue = subvalue.split(',')
-                            subvalue = [el.strip() for el  in subvalue]
-                        try:
-                            cont[pair[-2].strip()] = int(subvalue)
-                        except:
-                            cont[pair[-2].strip()] = subvalue
-                    confdict[main] = cont
-                else:
-                    print ("Subdictionary expected - but no ; as element divider found")
-    except:
-        print ("Problems when loading conf data from file. Using defaults")
-
-    return confdict
-
-
-def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, debug=False):
+def get_data(source, path, dbcredentials, sensorid, amount, startdate=None, debug=False):
     """
     DESCRIPTION:
     read the appropriate amount of data from the data file, database or mqtt stream
@@ -254,7 +166,7 @@ def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, d
     data = DataStream()
     msg = ''
     if not startdate:
-        startdate = datetime.utcnow()
+        startdate = datetime.now(timezone.utc).replace(tzinfo=None)
         endtime = None
     else:
         endtime = startdate
@@ -262,28 +174,27 @@ def GetData(source, path, db, dbcredentials, sensorid, amount, startdate=None, d
     starttime = startdate-timedelta(seconds=int(amount))
 
     if source in ['file','File']:
-        filepath = os.path.join(path,sensorid)
         # TODO eventually check for existance and look for similar names
         # expath = CheckPath(filepath)
         # if expath:
         if debug:
-            print ("Trying to access files in {}: Timerange: {} to {}".format(filepath,starttime,endtime))
+            print ("Trying to access files {} in {}: Timerange: {} to {}".format(sensorid, path,starttime,endtime))
         try:
-            data = read(os.path.join(filepath,'*'), starttime=starttime, endtime=endtime)
+            data = read(os.path.join(path, sensorid, '*'), starttime=starttime, endtime=endtime)
         except:
             msg = "Could not access data for sensorid {}".format(sensorid)
             if debug:
                 print (msg)
     elif source in ['db','DB','database','Database']:
-        db = mysql.connect()
-        data = readDB(db, sensorid, starttime=starttime)
+        db = mameth.connect_db(dbcredentials)
+        data = db.read(sensorid, starttime=starttime)
 
     if debug:
         print ("Got {} datapoints".format(data.length()[0]))
 
     return (data, msg)
 
-def GetTestValue(data=DataStream(), key='x', function='average', debug=False):
+def get_test_value(data=DataStream(), key='x', function='average', debug=False):
     """
     DESCRIPTION
     Returns comparison value(e.g. mean, max etc)
@@ -322,13 +233,15 @@ def GetTestValue(data=DataStream(), key='x', function='average', debug=False):
     return (testvalue, msg)
 
 
-def CheckThreshold(testvalue, threshold, state, debug=False):
+def check_threshold(testvalue, threshold, state, debug=False):
     """
     DESCRIPTION:
      returns statusmessage
     """
     evaluate = False
     msg = ''
+    comp = "=="
+
     if state in ['below','Below','smaller']:
         comp = '<'
     elif state in ['above','Above','greater']:
@@ -341,7 +254,8 @@ def CheckThreshold(testvalue, threshold, state, debug=False):
         comp = '<='
     else:
         msg = 'state needs to be one of below, above or equal'
-    tester = "{} {} {}".format(testvalue,comp,threshold)
+
+    tester = "{} {} {}".format(testvalue, comp, threshold)
     if debug:
         print ("Checking: {}".format(tester))
     try:
@@ -358,14 +272,14 @@ def CheckThreshold(testvalue, threshold, state, debug=False):
 
     return (evaluate, msg)
 
-def InterpreteStatus(valuedict, debug=False):
+def interprete_status(valuedict, debug=False):
     """
     DESCRIPTION:
     checks the message and replace certain keywords with predefined test
     """
     msg = valuedict.get('statusmessage')
     defaultline =  'Current {} {} {}'.format(valuedict.get('function'),valuedict.get('state'),valuedict.get('value'))
-    ct = datetime.utcnow()
+    ct = datetime.now(timezone.utc).replace(tzinfo=None)
     msg = msg.replace('none', '')
     msg = msg.replace('default', defaultline)
     msg = msg.replace('date', datetime.strftime(ct,"%Y-%m-%d"))
@@ -378,13 +292,17 @@ def InterpreteStatus(valuedict, debug=False):
     return msg
 
 
-def AssignParameterlist(namelist=[],confdict={}):
+def assign_parameterlist(namelist=None,confdict=None):
     """
     DESCRIPTION:
         assign the threshold parameters to a dictionary
     EXAMPLE:
-        para = AssignParameterlist(sp.valuenamelist,conf)
+        para = assign_parameterlist(sp.valuenamelist,conf)
     """
+    if not namelist:
+        namelist = []
+    if not confdict:
+        confdict = {}
     para = {}
     for i in range(1,9999):
         valuedict = {}
@@ -457,14 +375,14 @@ def main(argv):
         elif opt in ("-m", "--configfile"):
             configfile = arg
             print ("Getting all parameters from configration file: {}".format(configfile))
-            conf = GetConf2(configfile, confdict=conf)
-            para = AssignParameterlist(sp.valuenamelist,conf)
+            conf = mameth.get_conf(configfile, confdict=conf)
+            para = assign_parameterlist(sp.valuenamelist,conf)
         elif opt in ("-D", "--debug"):
             debug = True
         elif opt in ("-T", "--Test"):
             travistestrun = True
-            conf = GetConf2(os.path.join('../..', 'conf', 'threshold.cfg'))
-            para = AssignParameterlist(sp.valuenamelist,conf)
+            conf = mameth.get_conf(os.path.join('../..', 'conf', 'threshold.cfg'))
+            para = assign_parameterlist(sp.valuenamelist,conf)
 
         # TODO activate in order prevent default values
         #if not configfile or conf == {}:
@@ -481,9 +399,6 @@ def main(argv):
 
 
     try:
-        martaslogpath = os.path.join(conf.get('martasdir'), 'core')
-        sys.path.insert(1, martaslogpath)
-        from martas import martaslog as ml
         logpath = conf.get('bufferpath')
     except:
         print ("Could not import martas logging routines - check MARTAS directory path")
@@ -503,16 +418,16 @@ def main(argv):
                 if debug:
                     print ("Accessing data from {} at {}: Sensor {} - Amount: {} sec".format(conf.get('source'),conf.get('bufferpath'),valuedict.get('sensorid'),valuedict.get('timerange') ))
 
-                (data,msg1) = GetData(conf.get('source'), conf.get('bufferpath'), conf.get('database'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
-                (testvalue,msg2) = GetTestValue( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
+                (data,msg1) = get_data(conf.get('source'), conf.get('bufferpath'), conf.get('dbcredentials'), valuedict.get('sensorid'),valuedict.get('timerange'), debug=debug , startdate=conf.get('startdate') )
+                (testvalue,msg2) = get_test_value( data, valuedict.get('key'), valuedict.get('function'), debug=debug) # Returns comparison value(e.g. mean, max etc)
                 if not testvalue and travistestrun:
                     print ("Testrun for parameterset {} OK".format(i))
                 elif not testvalue and not testvalue == 0.0:
                     print ("Please check your test data set... are bufferfiles existing? Is the sensorid correct?")
                 elif is_number(testvalue):
-                    (evaluate, msg) = CheckThreshold(testvalue, valuedict.get('value'), valuedict.get('state'), debug=debug) # Returns statusmessage
+                    (evaluate, msg) = check_threshold(testvalue, valuedict.get('value'), valuedict.get('state'), debug=debug) # Returns statusmessage
                     if evaluate and msg == '':
-                        content = InterpreteStatus(valuedict,debug=debug)
+                        content = interprete_status(valuedict,debug=debug)
                         # Perform switch and added "switch on/off" to content
                         if not valuedict.get('switchcommand') in ['None','none',None,""]:
                             if debug:
@@ -581,7 +496,7 @@ def main(argv):
     if receiver == 'telegram':
         martaslog.telegram['config'] = cfg
     elif receiver == 'email':
-        martaslog.email['config'] = cfg
+        martaslog.email = cfg
 
     changes = martaslog.msg(statusdict)
 

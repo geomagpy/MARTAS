@@ -12,7 +12,7 @@ sudo apt install speedtest-cli
 
 ################################
 
-add crontag to regularly run monitor (root)
+add crontab to regularly run monitor (root)
 sudo crontab -e
 */5  *  *  *  *  /usr/bin/python3 /path/to/speedtest.py -c /path/to/conf.cfg -n speed_starlink01_0001  > /dev/NULL 2&>1
 """
@@ -21,13 +21,9 @@ sudo crontab -e
 # ------------------------------------------------------------
 import os, sys, getopt
 from datetime import datetime
-import paho.mqtt.client as mqtt
-import json
+from martas.version import __version__
+
 import socket
-from magpy.stream import DataStream
-import magpy.database as mpdb
-import magpy.opt.cred as mpcred
-import numpy as np
 
 import subprocess
 import dateutil.parser
@@ -36,7 +32,7 @@ import csv
 
 def getspeed(server=None, debug=False):
 
-    # TODO test what happens if network is not avaiable 
+    # TODO test what happens if network is not available
     call = ["speedtest",'--csv']
     if debug:
         print ("Executing script ...")
@@ -91,7 +87,7 @@ def write_basic_ascii(result,path='/srv/mqtt/',speedtestname='speed_666_0001', d
     
 
 def main(argv):
-    version = '1.0.0'
+    version = __version__
     statusmsg = {}
     configpath = ''
     hostname = socket.gethostname().upper()
