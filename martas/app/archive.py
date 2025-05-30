@@ -166,22 +166,15 @@ def get_parameter(plist, debug=False):
         print ("  Depth needs to be an integer")
         sys.exit()
     fo = plist[1]
-    wa = testbool(plist[2])
-    af = testbool(plist[3])
-    cdb = testbool(plist[4])
+    wa = mm.get_bool(plist[2])
+    af = mm.get_bool(plist[3])
+    cdb = mm.get_bool(plist[4])
     try:
         ratio = int(plist[5])
     except:
         print ("  Ratio needs to be an integer")
         sys.exit()
     return depth,fo,wa,af,cdb,ratio
-
-
-def testbool(string):
-    if string in ['True','true','TRUE','Yes','yes','ja','Ja']:
-        return True
-    else:
-        return False
 
 
 def validtimerange(timetuple, mintime, maxtime, debug=False):

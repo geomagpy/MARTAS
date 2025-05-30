@@ -17,6 +17,7 @@ install_requires=[
             "paramiko",
             "pexpect",
             "pyserial",
+            "python-crontab",
             "twisted",
             "setuptools"
           ]

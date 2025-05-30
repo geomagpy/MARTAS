@@ -14,6 +14,7 @@ import sys
 import os
 from magpy.opt import cred
 from pathlib import Path
+from crontab import CronTab
 
 
 def main(argv):
@@ -60,6 +61,8 @@ def main(argv):
     # get home directory of current user
     homedir = os.getenv("HOME")
 
+    marcos_in_crontab = False
+
     import martas
     file_path = os.path.dirname(martas.__file__)
     print(file_path)
@@ -100,6 +103,7 @@ def main(argv):
     confpath = "/tmp"
     initpath = "/tmp"
     logpath = "/tmp"
+    malogpath = "/tmp/martas.log"
     jobname = "martas"
     marcosjob = "marcos"
     initjob = "MARTAS"
@@ -119,7 +123,6 @@ def main(argv):
     databasecredentials = "mydb"
     payloadformat = "martas"
     noti = "telegram"
-    notipath = os.path.join(confpath, "telegram.cfg")
     mailcred = "mymailcred"
     mainpath = os.path.join(homedir,dir)
 
@@ -158,7 +161,9 @@ def main(argv):
     else:
         confpath = os.path.join(homedir,dir,"conf")
     shutil.copyfile(os.path.join(confpath, "archive.cfg"), os.path.join(confpath, "archive.bak"))
+    shutil.copyfile(os.path.join(confpath, "download-source.cfg"), os.path.join(confpath, "download-source.bak"))
     shutil.copyfile(os.path.join(confpath, "gamma.cfg"), os.path.join(confpath, "gamma.bak"))
+    shutil.copyfile(os.path.join(confpath, "mail.cfg"), os.path.join(confpath, "mail.bak"))
     shutil.copyfile(os.path.join(confpath, "monitor.cfg"), os.path.join(confpath, "monitor.bak"))
     shutil.copyfile(os.path.join(confpath, "martas.cfg"), os.path.join(confpath, "martas.bak"))
     shutil.copyfile(os.path.join(confpath, "marcos.cfg"), os.path.join(confpath, "marcos.bak"))
@@ -244,6 +249,7 @@ def main(argv):
     print ("  Select one of the following notification techniques: log, email, telegram.")
     print ("  Default is telegram.")
     newnot = input()
+    notipath = os.path.join(confpath, "telegram.cfg")
     if newnot and newnot in ["log","email","telegram"]:
         # check whether existing
         noti = newnot
@@ -282,7 +288,7 @@ def main(argv):
     else:
         print("  -> selected MARTAS")
 
-    monitorlog = os.path.join(os.path.join(homedir, dir, "log", "monitor.log"))
+    monitorlog = os.path.join(os.path.join(logpath, "monitor.log"))
 
     if initjob == "MARTAS":
         print (" ------------------------------------------- ")
@@ -329,7 +335,7 @@ def main(argv):
         if newpayloadformat == 'intermagnet':
             payloadformat = 'intermagnet'
 
-        logpath = os.path.join(logpath, "martas.log")
+        malogpath = os.path.join(logpath, "martas.log")
 
         print(" ------------------------------------------- ")
         print(" Creating the MARTAS run time script")
@@ -411,6 +417,16 @@ def main(argv):
 
         cronlist.append("# Running MARTAS ")
         cronlist.append("15  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
+        cronlist.append("# Monitoring {} - hourly".format(jobname)) # jobname only for MARTAS
+
+        with CronTab(user=True) as cron:
+            comment = 'Running MARTAS'
+            line = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "runmartas.sh"),
+                                                          os.path.join(logpath, "runmartas.log"))
+            if not list(cron.find_comment(comment)):
+                job = cron.new(command=line, comment=comment)
+                job.setall('15 0 * * *')
+        #print('cron.write() was just executed')
 
     elif initjob == "MARCOS":
         print (" You can have multiple collector jobs on one machine.")
@@ -487,8 +503,8 @@ def main(argv):
         if newthresholdsource == "file":
             thresholdsource = "file"
 
-        logpath = os.path.join(logpath, "{}.log".format(marcosjob))
-        archivelog = os.path.join(homedir, dir, "log", "archivestatus.log")
+        malogpath = os.path.join(logpath, "{}.log".format(marcosjob))
+        archivelog = os.path.join(logpath, "archivestatus.log")
 
         print(" ------------------------------------------- ")
         print(" Creating the MARCOS run time script for {}".format(jobname))
@@ -581,36 +597,61 @@ def main(argv):
             for line in runscript:
                 fout.write(line+"\n")
 
-        # TODO: add archiving only once for MARCOS
-        cronlist.append("# Archiving ")
-        cronlist.append("20  0  * * *    $PYTHON {} -c {} > {} 2>&1".format(os.path.join(homedir, dir,"app","archive.py"),os.path.join(homedir, dir,"conf","archive.cfg"), os.path.join(homedir, dir, "log","archive.log")))
-        cronlist.append("# Running MARCOS process {} ".format(jobname))
-        cronlist.append("17  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(homedir, dir, "log",marcosjob+".log")))
-        # optimizetable
-        if destination.find("db") >= 0:
-            cronlist.append("# Optimizing database")
-            cronlist.append("2  0  * * 0    $PYTHON {} -c {} -s sqlmaster > {} 2>&1".format(os.path.join(homedir, dir,"app","optimizetables.py"), os.path.join(homedir, dir,"conf","archive.cfg"), os.path.join(homedir, dir, "log","optimizetables.log")))
-            print (" ! optimzetable requires a sqlmaster input with addcred ")
+        with CronTab(user=True) as cron:
+            comment1 = "Running MARCOS process {}".format(jobname)
+            line1 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(logpath, marcosjob+".log"))
+            if not list(cron.find_comment(comment1)):
+                job1 = cron.new(command=line1, comment=comment1)
+                job1.setall('17 0 * * *')
+            comment2 = "Archiving"
+            line2 = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","archive.py"),os.path.join(confpath,"archive.cfg"), os.path.join(logpath,"archive.log"))
+            if not list(cron.find_comment(comment2)):
+                job2 = cron.new(command=line2, comment=comment2)
+                job2.setall('20 0 * * *')
+            if destination.find("db") >= 0:
+                comment3 = "Optimizing database"
+                line3 = "{} {} -c {} -s sqlmaster > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","optimizetables.py"), os.path.join(confpath,"archive.cfg"), os.path.join(logpath,"optimizetables.log"))
+                if not list(cron.find_comment(comment3)):
+                    job3 = cron.new(command=line3, comment=comment3)
+                    job3.setall('2 0 * * 2')
 
-    cronlist.append("# Log rotation for {}".format(jobname))
-    cronlist.append("30  2     * * *    /usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "scripts", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))))
-    cronlist.append("# Running cleanup")
-    cronlist.append("9  0  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "cleanup.sh"),
-                                                                  os.path.join(homedir, dir, "log",
-                                                                               "cleanup.log")))
-    # TODO MARCOS: add the follwoing inputs only if not yet existing
-    cronlist.append("# Monitoring hourly {}".format(jobname)) # jobname only for MARTAS
-    cronlist.append("1  *     * * *    $PYTHON {} -c {} > {} 2>&1".format(os.path.join(homedir, dir,"app","monitor.py"),os.path.join(homedir, dir,"conf","monitor.cfg"), os.path.join(homedir, dir, "log","monitor.log")))
-    cronlist.append("# Running backup")
-    cronlist.append("7  0  * * 1    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "backup.sh"),
-                                                                  os.path.join(homedir, dir, "log",
-                                                                               "backup.log")))
-    # threshold
-    # optimizetables
+    with CronTab(user=True) as cron:
+        if initjob == "MARCOS":
+            comment4 = "Monitoring MARCOS - hourly"
+        else:
+            comment4 = "Monitoring MARTAS {} - hourly".format(jobname)
+        line4 = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","monitor.py"),os.path.join(confpath,"monitor.cfg"), os.path.join(logpath,"monitor.log"))
+        if not list(cron.find_comment(comment4)):
+            job4 = cron.new(command=line4, comment=comment4)
+            job4.setall('30 * * * *')
+        comment5 = "Running cleanup"
+        line5 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "cleanup.sh"),
+                                                                              os.path.join(logpath,
+                                                                                           "cleanup.log"))
+        if not list(cron.find_comment(comment5)):
+            job5 = cron.new(command=line5, comment=comment5)
+            job5.setall('9 0 * * *')
+        comment6 = "Running backup"
+        line6 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "backup.sh"),
+                                                                  os.path.join(logpath,
+                                                                               "backup.log"))
+        if not list(cron.find_comment(comment6)):
+            job6 = cron.new(command=line6, comment=comment6)
+            job6.setall('7 0 * * 1')
+        comment7 = "Threshold testing - please configure before enabling"
+        line7 = "{} {} -m {}".format(sys.executable, os.path.join(homedir, dir,"app","threshold.py"), os.path.join(confpath,"threshold.cfg"))
+        if not list(cron.find_comment(comment7)):
+            job7 = cron.new(command=line7, comment=comment7)
+            job7.minute.every(10)
+            job7.enable(False)
+        comment8 = "Log rotation for {}".format(jobname)
+        line8 = "/usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "scripts", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname)))
+        if not list(cron.find_comment(comment8)):
+            job8 = cron.new(command=line8, comment=comment8)
+            job8.setall('3 1 * * *')
 
 
-
-    replacedict = { "/logpath" : logpath,
+    replacedict = { "/logpath" : malogpath,
                     "/sensorpath" : os.path.join(confpath, "sensors.cfg"),
                     "/initdir" : initpath,
                     "/mainpath" : os.path.join(homedir,dir),
@@ -622,11 +663,11 @@ def main(argv):
                     "archivepath" : archivepath,
                     "archivelog" : archivelog,
                     "monitorlog" : monitorlog,
-                    "thresholdlog" : thresholdlog,
-                    "collectlog" : os.path.join(homedir, dir,"log","collect-source.log"),
+                    "thresholdlog" : os.path.join(logpath,"threshold.log"),
+                    "collectlog" : os.path.join(logpath,"collect-source.log"),
                     "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
-                    "notificationcfg" : os.path.join(confpath, "telegram.cfg"),
+                    "notificationcfg" : notipath,
                     "mymailcred" : mailcred,
                     "mydb" : databasecredentials,
                     "./web" : "{}".format(os.path.join(homedir, dir,"web")),
@@ -643,30 +684,30 @@ def main(argv):
     if initjob == "MARTAS":
         replacedict["/mybasedir"] = bufferpath
         replacedict["space,martas,marcos,logfile"] = "space,martas,logpfile"
-        files_to_change["martasconf"] = {"source" : os.path.join(homedir, dir, "conf", "martas.bak") ,
-                                        "dest" : os.path.join(homedir, dir, "conf", "martas.cfg") }
+        files_to_change["martasconf"] = {"source" : os.path.join(confpath, "martas.bak") ,
+                                        "dest" : os.path.join(confpath, "martas.cfg") }
 
     if initjob == "MARCOS":
         replacedict["/mybasedir"] = archivepath
         replacedict["space,martas,marcos,logfile"] = "space,marcos"
-        files_to_change["marcosconf"] = {"source" : os.path.join(homedir, dir, "conf", "marcos.bak") ,
-                                        "dest" : os.path.join(homedir, dir, "conf", "{}.cfg".format(marcosjob)) }
-        files_to_change["archiveconf"] = {"source": os.path.join(homedir, dir, "conf", "archive.bak"),
-                                     "dest": os.path.join(homedir, dir, "conf", "archive.cfg")}
+        files_to_change["marcosconf"] = {"source" : os.path.join(confpath, "marcos.bak") ,
+                                        "dest" : os.path.join(confpath, "{}.cfg".format(marcosjob)) }
+        files_to_change["archiveconf"] = {"source": os.path.join(confpath, "archive.bak"),
+                                     "dest": os.path.join(confpath, "archive.cfg")}
 
         # file for which replacements will happen and new names
     files_to_change["skeletonlogrotate"] = {"source": os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
                               "dest": os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))}
-    files_to_change["monitorconf"] = {"source": os.path.join(homedir, dir, "conf", "monitor.bak"),
-                        "dest": os.path.join(homedir, dir, "conf", "monitor.cfg")}
-    files_to_change["thresholdconf"] = {"source": os.path.join(homedir, dir, "conf", "threshold.bak"),
-                        "dest": os.path.join(homedir, dir, "conf", "threshold.cfg")}
-    files_to_change["mailconf"] = {"source": os.path.join(homedir, dir, "conf", "mail.bak"),
-                        "dest": os.path.join(homedir, dir, "conf", "mail.cfg")}
-    files_to_change["gammaconf"] = {"source": os.path.join(homedir, dir, "conf", "gamma.bak"),
-                        "dest": os.path.join(homedir, dir, "conf", "gamma.cfg")}
-    files_to_change["downloadconf"] = {"source": os.path.join(homedir, dir, "conf", "collect-source.bak"),
-                        "dest": os.path.join(homedir, dir, "conf", "collect-source.cfg")}
+    files_to_change["monitorconf"] = {"source": os.path.join(confpath, "monitor.bak"),
+                        "dest": os.path.join(confpath, "monitor.cfg")}
+    files_to_change["thresholdconf"] = {"source": os.path.join(confpath, "threshold.bak"),
+                        "dest": os.path.join(confpath, "threshold.cfg")}
+    files_to_change["mailconf"] = {"source": os.path.join(confpath, "mail.bak"),
+                        "dest": os.path.join(confpath, "mail.cfg")}
+    files_to_change["gammaconf"] = {"source": os.path.join(confpath, "gamma.bak"),
+                        "dest": os.path.join(confpath, "gamma.cfg")}
+    files_to_change["downloadconf"] = {"source": os.path.join(confpath, "collect-source.bak"),
+                        "dest": os.path.join(confpath, "collect-source.cfg")}
 
     for f in files_to_change:
         d = files_to_change.get(f)

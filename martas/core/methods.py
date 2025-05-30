@@ -39,6 +39,7 @@ Methods:
 |                 |  connect_db  |  2.0.0 |    yes |                                  | -      | archive  |
 |                 |  datetime_to_array  |  2.0.0 |  yes |                             | -      | libs     |
 |                 |  data_to_file  |  2.0.0 |  yes |                                  | -      | libs     |
+|                 |  get_bool  |  2.0.0 |      yes |                                  | -      | archive,filter |
 |                 |  get_conf  |  2.0.0 |      yes |                                  | -      | marcosscripts |
 |                 |  get_sensors  |  2.0.0 |   yes |                                  | -      | marcosscripts |
 |                 |  scptransfer  |  2.0.0 |    -  |                                  | -      | up/download |
@@ -187,6 +188,13 @@ def data_to_file(outputdir="", sensorid="", filedate="", bindata=None, header=No
                     myfile.write("{}{}".format(bindata,"\n"))
     except:
         print("buffer {}: Error while saving file".format(sensorid))
+
+
+def get_bool(string):
+    if string in ['True','true','TRUE','Yes','yes','ja','Ja']:
+        return True
+    else:
+        return False
 
 
 def get_conf(path, confdict=None):
@@ -640,6 +648,10 @@ class TestMethods(unittest.TestCase):
         dt = datetime(2021,11,22)
         ar = datetime_to_array(dt)
         self.assertEqual(ar[1],11)
+
+    def test_get_bool(self):
+        val = get_bool("TRUE")
+        self.assertTrue(val)
 
     def test_get_conf(self):
         cfg = get_conf("../conf/martas.cfg")

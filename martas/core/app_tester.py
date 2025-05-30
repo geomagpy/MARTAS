@@ -13,12 +13,16 @@ sys.path.insert(1,'/home/leon/Software/MARTAS/') # should be magpy2
 import os
 import numpy as np
 from magpy.stream import DataStream
+from magpy.core import database
+from magpy.opt import cred as mpcred
+
 from datetime import datetime, timedelta
 from martas.core import methods as mameth
 
 from martas.app import archive
 from martas.app import checkdatainfo
 from martas.app import db_truncate
+from martas.app import filter
 from martas.app import threshold
 
 
@@ -74,10 +78,6 @@ class TestArchive(unittest.TestCase):
     #    sens = archive.get_parameter(plist, debug=False)
     #    self.assertEqual(sens,[])
 
-    def test_testbool(self):
-        val = archive.testbool("TRUE")
-        self.assertTrue(val)
-
     #def test_validtimerange(self):
     #    archive.validtimerange(timetuple, mintime, maxtime, debug=False)
 
@@ -119,7 +119,54 @@ class TestDBTrcuncate(unittest.TestCase):
         pass
 
 
-class Testthreshold(unittest.TestCase):
+class TestFilter(unittest.TestCase):
+    """
+    Test environment for all methods
+    """
+
+    def test_read_conf(self):
+        cfg = filter.read_conf("config/filter.cfg")
+        self.assertNotEqual(cfg,None)
+
+    def test_get_delta(self):
+        #self.assertEqual(cmod, "updated but already accepted")
+        #self.assertFalse(modres)
+        pass
+
+    def test_get_sensors(self):
+        recent = True
+        dd = filter.read_conf("../conf/filter.cfg")
+        groupparameterdict = dd.get('groupparameterdict')
+        blacklist = dd.get('blacklist')
+        basics = dd.get('basics')
+        recentthreshold = int(basics.get('recentthreshold', 7200))
+        self.assertEqual(recentthreshold,7200)
+        credentials = 'cobsdb'
+        db = database.DataBank(host=mpcred.lc(credentials, 'host'), user=mpcred.lc(credentials, 'user'),
+                                   password=mpcred.lc(credentials, 'passwd'), database=mpcred.lc(credentials, 'db'))
+        highreslst = filter.get_sensors(db=db,groupdict=groupparameterdict,samprate='HF', blacklist=blacklist, recent=recent, recentthreshold=recentthreshold, debug=True)
+        print ("Donw:", highreslst)
+
+    def test_one_second_filter(self):
+        sensorlist = []
+        basepath = '/srv/archive'
+        destination = 'db'
+        credentials = 'cobsdb'
+        dd = filter.read_conf("../conf/filter.cfg")
+        groupparameterdict = dd.get('groupparameterdict')
+        blacklist = dd.get('blacklist')
+        permanent = dd.get('permanent')
+        basics = dd.get('basics')
+        outputformat = basics.get('outputformat')
+        recentthreshold = int(basics.get('recentthreshold', 7200))
+        db = database.DataBank(host=mpcred.lc(credentials, 'host'), user=mpcred.lc(credentials, 'user'),
+                                   password=mpcred.lc(credentials, 'passwd'), database=mpcred.lc(credentials, 'db'))
+        statusmsg = filter.one_second_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='realtime', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
+        print ("HERE")
+        statusmsg = filter.one_second_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='archive', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
+        print ("Done")
+
+class TestThreshold(unittest.TestCase):
 
     def test_assign_parameterlist(self):
         conf = mameth.get_conf(os.path.join('..', 'conf', 'threshold.cfg'))

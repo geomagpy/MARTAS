@@ -1,0 +1,617 @@
+#!/usr/bin/env python
+# coding=utf-8
+"""
+
+DESCRIPTION
+    Filtering data files. By default all results are written to table '0002'. A DATAINFO input is not created. To do that add option -s and specify the sensor(s).
+
+
+PARAMETER:
+    sensors:
+
+APPLICATION
+    filter.py -j archive for daily jobs (read HF cdf archive files)
+    filter.py -j realtime for permanent jobs (read HF database data)
+
+filter.py -c singlefilter.cfg -j archive,second -d 5 -e 2021-02-01
+
+
+# Better read a json stucture
+a
+
+filter.py requires a file called realtime.py within the same directory. realtime.py looks like:
+
+
+filter.cfg
+
+{"filter": {
+              "groupparameterdict":{ "LEMI" : {"station" : "WIC", "filtertype":"default", "realtime" : "True", "window" : 40000},
+                                     "LEMI036_3_0001_0001" : {"filtertype":"hann", "filterwidth":100, "resample_period":1, "realtime":"False", "window" : 40000},
+                                     "LEMI025_28_0002_0001" : {"filtertype":"default", "realtime":"False", "window" : 40000},
+                                     "GSM90_14245_0002_0001" : {"filtertype":"gaussian", "filterwidth":3.33333333, "resample_period":1, "realtime":"True", "window" : 10000},
+                                     "IWT_TILT01_0001_0003" : {"filtertype": "default", "realtime" : "False", "window" : 40000},
+                                     "BM35" : {"filtertype":"gaussian", "filterwidth":3.33333333, "resample_period":1, "realtime":"True", "window" : 10000},
+                                     "G823A" : {"filtertype": "default", "realtime" : "False", "window" : 40000}
+                                    },
+              "scalardict":{"GP20S3NS_012201_0001_0001": {"type" : "GP20S3", "components" : ["x","y","z"]},
+                             "GP20S3V_911005_0001_0001" :  {"type" : "GP20S3", "components" : ["x","y","z"]},
+                             "GP20S3EW_111201_0001_0001" :  {"type" : "GP20S3", "components" : ["x","y","z"]}
+                                    },
+              "realtime": ["LEMI025_22_0003_0001","LEMI036_1_0002_0001","LEMI036_3_0001_0001","GSM90_14245_0002_0001","BM35_029_0001_0001","BM35_033_0001_0001"],
+              "blacklist": ["LEMI025_28_0002_0001"],
+              "basics": {"basepath":"/srv/archive","outputformat":"PYCDF","destination":"db"}
+            }
+}
+
+
+# If you just want to filter data for archiving directly to disk only of a single sensor use
+singlefilter.cfg
+{"filter": {
+              "groupparameterdict":{ "LEMI025_28_0002_0001" : {"filtertype":"default", "realtime":"False", "window" : 40000}},
+              "scalardict":{},
+              "realtime": [],
+              "blacklist": [],
+              "basics": {"basepath":"/srv/archive","outputformat":"PYCDF","destination":"disk"}
+            }
+}
+
+and use:
+filter.py -c singlefilter.cfg -j archive,second -d 5 -e 2021-02-01
+
+Please note that filtering always reads the complete timerange..thus for long time ranges construct a bash job like:
+filter.py -c singlefilter.cfg -j archive,second -d 2 -e 2021-02-01
+filter.py -c singlefilter.cfg -j archive,second -d 2 -e 2021-01-30
+filter.py -c singlefilter.cfg -j archive,second -d 2 -e 2021-02-28
+filter.py -c singlefilter.cfg -j archive,second -d 2 -e 2021-02-26
+
+
+| class  |    method     | since vers |  validation   |  comment    | manual  |  *used by |
+| ------ |  -----------  | ---------- | ------------- | ----------  | ------- | --------- |
+|        |               |            |               |             |         |           |
+|        |  read_conf    |      2.0.0 |  yes          |             |         |           |
+|        |  get_delta    |      2.0.0 |  yes          |             |         |           |
+|        |  get_sensors  |      2.0.0 |  yes          |             |         |           |
+
+
+"""
+
+from magpy.stream import *
+from magpy.core import database
+from magpy.core import methods
+import magpy.opt.cred as mpcred
+
+import getopt
+import socket
+import json
+
+from martas.version import __version__
+from martas.core.methods import martaslog as ml
+from martas.core import methods as mm
+
+
+def read_conf(path):
+    """
+    DESCRIPTION
+    Read a dictionary structure from a text file
+    """
+    filterdict = {}
+    if os.path.isfile(path):
+        with open(path, "r") as f:
+             contents = f.read()
+             c = contents.replace(" ","").replace("\n","")
+             d = json.loads(c)
+             filterdict = d.get('filter')
+    return filterdict
+
+
+## Method for extracting DeltaValues for part 2
+def get_delta(st,i, debug=False):
+    comp = ['x','y','z']
+    truecomp = comp[i]
+    if debug:
+        print ("Running get delta with", st, i)
+    for co in comp:
+        pos=0
+        while pos >= 0:
+            if debug:
+                print ("Component", co)
+            pos = st.find(co)
+            pos2 = st.find(',',pos)
+            if debug:
+                print (pos,pos2)
+            if not pos2 >= 0:
+                pos2 = len(st)
+            if pos >= 0:
+                part = st[pos:pos2]
+                if co == truecomp:
+                    partar = part.split('_')
+                    delta = "f_{}".format(float(partar[1])*0.001)
+                else:
+                    delta = ''
+                st = st.replace(part,delta)
+                if debug:
+                    print ("pos > 0:", st, delta)
+    if not 'st' in st:
+        st = st.replace(',','')
+    if debug:
+        print ("Returning:", re.sub('\,+', ',', st))
+    return re.sub('\,+', ',', st)
+
+
+def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshold=7200,blacklist=None, debug=False):
+    """
+    DESCRIPTION
+      extracts Sensors with names similar a the one in groupdict
+      You can also select for sampling rates and recent data
+
+    REQUIREMENTS
+      an input in DATAINFO is required
+        -> check G823 on Aldebaran
+        -> highest res always to 0001 -> why are there so many LEMI028 inputs in table
+    """
+
+    if not groupdict:
+        groupdict = {}
+    if not blacklist:
+        blacklist = []
+    returndict = {}
+    timerange = recentthreshold # used for sampling rate determination
+    dbdateformat = "%Y-%m-%d %H:%M:%S.%f"
+
+    for key in groupdict:
+        print ("Dealing with group", key)
+        # Checking all available sensors
+        # ##############################
+        srlist = []
+        stationid = groupdict[key].get('station',None)
+        stationstr = ''
+        if stationid:
+            stationstr = ' AND StationID LIKE "{}"'.format(stationid)
+        sensorlist = db.select('DataID', 'DATAINFO','DataID LIKE "{}%"{}'.format(key,stationstr))
+        if debug:
+            print ("   -> Found {}".format(sensorlist))
+
+        # Apply black list
+        # ##############################
+        sensorlist = [sens for sens in sensorlist if not sens in blacklist]
+
+        # If sampling rate criteria is given then subselect all sensors
+        # ##############################
+        if samprate:
+            if debug:
+                print ("Limiting selection to sensors with sampling rate {}".format(samprate))
+            validsensors1 = []  # add sensors for which the sampling rate is given in DATAINFO
+            determinesr = [] # add senors for which the sampling rate needs to be determined
+            srlist = []
+            if debug:
+                print (" a) Selecting sensors with appropriate sampling rate in DATAINFO")
+            for sensor in sensorlist:
+                res = db.select('DataSamplingrate','DATAINFO','DataID="{}"'.format(sensor))
+                try:
+                    sr = float(res[0])
+                    if debug:
+                        print ("Sensor (DATAINFO): {} -> Samplingrate: {}".format(sensor,sr))
+                    if samprate == 'HF':
+                        if sr < 0.98:
+                            validsensors1.append(sensor)
+                            srlist.append(sr)
+                    else:
+                        try:
+                            samprate = float(samprate)
+                        except:
+                            samprate = 1.0
+                        if samprate*0.98 <= sr and sr <= samprate*1.02:
+                            validsensors1.append(sensor)
+                            srlist.append(sr)
+                except:
+                    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print ("Check sampling rate {} of {}".format(res,sensor))
+                    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    determinesr.append(sensor)
+
+            if debug:
+                print (" b) checking sampling rate of sensors with no sampling rate given in DATAINFO")
+            for sensor in determinesr:
+                lastdata = db.get_lines(sensor,timerange)
+                if lastdata.length()[0] > 0:
+                    sr = lastdata.samplingrate()
+                    if debug:
+                        print ("Sensor (TESTING DATA): {} -> Samplingrate: {}".format(sensor,sr))
+                    if samprate == 'HF':
+                        if sr < 0.98:
+                            validsensors1.append(sensor)
+                            srlist.append(sr)
+                    else:
+                        try:
+                            samprate = float(samprate)
+                        except:
+                            samprate = 1.0
+                        if samprate*0.98 <= sr and sr <= samprate*1.02:
+                            validsensors1.append(sensor)
+                            srlist.append(sr)
+            sensorlist = validsensors1
+
+        # If only sensors with current data should be used
+        # ##############################
+        if recent:
+            currentthreshold = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=recentthreshold)
+            if debug:
+                print ("Limiting selection to sensors with current data")
+            validsensors = []
+            validsr = []
+            for idx,sensor in enumerate(sensorlist):
+                last = db.select('time',sensor,expert="ORDER BY time DESC LIMIT 10")
+                if len(last) > 0:
+                    dbdate = last[0]
+                    if not isinstance(dbdate, (datetime,np.datetime64)) and not dbdate.find('.') > 0:   # what happens if dbdata is a mysql date format?
+                        dbdate = dbdate+'.0'
+                    try:
+                        if datetime.strptime(dbdate, dbdateformat) > currentthreshold:
+                            if debug:
+                                print ("   Current data for {}".format(sensor))
+                            validsensors.append(sensor)
+                            validsr.append(srlist[idx])
+                    except:
+                        pass
+            sensorlist = validsensors
+
+        # join all obtained sensors into a new dictionary
+        # ##############################
+        for sensor in sensorlist:
+            returndict[sensor] = groupdict.get(key)
+
+    return returndict
+
+
+def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=None, jobtype='realtime', endtime=datetime.now(timezone.utc).replace(tzinfo=None), dayrange=2, basepath='', dbinputsensors=None, destination='db', outputformat='PYCDF', recentthreshold=7200, debug=False):
+    """
+    DESCRIPTION
+        Create one-second records by filtering data sets
+
+    PARAMETER
+        jobtype  : 'realtime' or 'archive'
+        destination : 'db' or 'disk' -> if db (for realtime), disk archiving is done by archive; disk should only be used to convert old files 
+    """
+    ## TODO
+    # Allow to define groups in highreslist (e.g. LEMI036*)
+    # Then firstly extract all instruments which fit to the appropriate group
+    # and assign the parameters to each instrument.
+    # Later list positions need to overwrite previous inputs: e.g.
+    #   LEMI036*, par1, par2
+    #   LEMI036_3, par4, par5
+    if not statusmsg:
+        statusmsg = {}
+    if not groupdict:
+        groupdict = {}
+    if not permanent:
+        permanent = []
+    if not blacklist:
+        blacklist = []
+    if not dbinputsensors:
+        dbinputsensors = []
+    stationid = ''
+    sensor = ''
+
+    if debug:
+        print ("Selected options are: Destination = {}; outputformat = {}; path = {}".format(destination, outputformat, basepath))
+
+    dayrangedefault = dayrange
+    sn = socket.gethostname()
+    recent = True
+    if jobtype == 'archive':
+        recent = False
+
+    highreslst = get_sensors(db=db,groupdict=groupdict,samprate='HF', blacklist=blacklist, recent=recent, recentthreshold=recentthreshold, debug=debug)
+    print ("  Obtained HF list:", highreslst)
+
+    print ("  Starting one second data filtering:  (Filtering high resolution data sets)")
+    p1start = datetime.now()
+    for inst in highreslst:
+        print ("  ----------------------------")
+        print ("  Dealing with instrument {}".format(inst))
+        name = '{}-filter-{}-{}'.format(sn,jobtype,inst.replace('_',''))
+        last = DataStream()
+        dataexpected = True
+        try:
+            noresample = None
+            resample_period = None
+            options = highreslst[inst]
+            if debug:
+                print ("     -> Selected options:", options)
+            print ("     Obtaining projected data amount")
+            if jobtype == 'realtime' and inst in permanent:
+                print ("     Realtime job selected -> getting data from database")
+                amount = options.get('window',40000)
+                rt = options.get('realtime',False)
+                # amount * sampling rate defines coverage in seconds -> 10Hz (0.1 sec * 40000 -> 4000 sec or 0.5 sec * 10000 -> 5000 sec)
+                if not mm.get_bool(rt):
+                    amount = amount*3                # triple the amount of expected data if only hourly uploads are existing
+                last = db.get_lines(inst,amount)
+                try:
+                    test = len(last)
+                except:
+                    statusmsg[name] = 'db access - data not existing'
+                if debug:
+                    print ("     -> Extracting {} data points".format(amount))
+                if last.length()[0] > 0:
+                    sr = last.samplingrate()
+                    expectedcoverage = amount*sr
+                    now = datetime.now(timezone.utc).replace(tzinfo=None)
+                    last = last.trim(starttime=now-timedelta(seconds=expectedcoverage),endtime=now) # remove all timesteps execceding current time (typical IWT error)
+                    if debug:
+                        print ("     -> Extracted {} data points in reality after slicing".format(last.length()[0]))
+                print ("     -> Done")
+            elif jobtype == 'realtime' and not inst in permanent:
+                dataexpected = False
+            elif not jobtype == 'realtime':
+                dayrange = options.get('dayrange',dayrangedefault)
+                print ("     Archive job selected -> getting data from archive")
+                stationid = db.select('StationID', 'DATAINFO', 'DataID LIKE "{}"'.format(inst))[0]
+                sensor = "_".join(inst.split('_')[:-1])
+                datapath = os.path.join(basepath,stationid,sensor,inst,'*')
+                begin = endtime-timedelta(days=dayrange)
+                print ("    Reading data between {} and {}".format(begin, endtime))
+                last = read(datapath,starttime=begin,endtime=endtime)
+                print ("     -> found data between {}".format(last._find_t_limits()))
+                print ("         corresponding to {} datapoints".format(last.length()[0]))
+                print ("     -> Done")
+
+            print ("    Got {} datapoints".format(last.length()[0]))
+
+            if last.length()[0] > 0:
+                if options.get('filtertype') == 'default':
+                    filtertype = 'gaussian'
+                    filterwidth = None # use default of 3.3333333 seconds
+                else:
+                    filtertype = options.get('filtertype','gaussian')
+                    fwin = options.get('filterwidth',None)
+                    filterwidth = timedelta(seconds=fwin)
+                    resamp = options.get('resample_period',None)
+                    if resamp == 'noresample':
+                        noresample = True
+                    else:
+                        try:
+                            resample_period=int(resamp)
+                        except:
+                            pass
+                print ("    Analysis parameter: {}, Filtertype: {}, Filterwidth: {}, Resample period: {}, {}".format(inst, filtertype, filterwidth, resample_period, noresample))
+                filtstream = last.filter(filter_type=filtertype, filter_width=filterwidth, missingdata='conservative',resample_period=resample_period,noresample=noresample)
+                # cut out the last 90% to reduce boundary filter effects # after 0.4.6
+                try:
+                    print ("    Cutting out lower end of stream (5 percent) ..")
+                    filtstream = filtstream.cut(95)
+                    print ("     -> Done")
+                except:
+                    pass
+
+                #### ALWAYS write to 0002 table
+                newtab = inst[:-5]+'_0002'
+
+                if not destination == 'disk':
+                    # Write to database
+                    try:
+                        if not debug:
+                            if not inst in dbinputsensors:
+                                db.write(filtstream,tablename=newtab)
+                            else:
+                                print ("   Sensor contained in DBlist - adding Metainformation to DATAINFO")
+                                db.write(filtstream)
+                            print ("    Writing to DB successful")
+                        else:
+                            print ("    !! Debug selected - skipping writing to DB")
+                    except:
+                        """db.write errors currently not captured - 
+                           only general DB connection failures.
+                           it happens once in a while that DB connection
+                           is lost before writing (on sol at 3:00 and 4:00 UTC)
+                           eventually connected to other DB access e.g.di analyses
+                        """
+                        pass
+                else:
+                    print ("   Writing data directly to disk...")
+                    archivepath = os.path.join(basepath,stationid,sensor,newtab)
+                    print ("   Destinationpath: {}".format(archivepath))
+                    if not debug and outputformat and archivepath:
+                         print ("     valid write conditions")
+                         #print (newtab, outputformat)
+                         filtstream.write(archivepath,filenamebegins=newtab+'_',format_type=outputformat)
+                         print ("    -> Done")
+                    else:
+                        print ("   Debug: skip writing")
+                        print ("    -> without debug a file with {} inputs would be written to {}".format(filtstream.length()[0],archivepath))
+
+                statusmsg[name] = 'fine'
+            else:
+                # send no data monitor
+                if dataexpected:
+                    statusmsg[name] = 'no data found'
+        except:
+            # send failed message to monitor
+            statusmsg[name] = 'one second filter: general failure'
+
+    if debug:
+        p1end = datetime.now()
+        print ("   One second job needed {}".format(p1end-p1start))
+    return statusmsg
+
+
+def main(argv):
+    version = __version__
+    configpath = ''
+    statusmsg = {}
+    debug=False
+    jobtype = 'realtime'
+    process = 'all'
+    basepath = '/srv/archive'
+    dayrange = 2
+    destination='db'
+    joblist = [] # jobtype can be realtime,second; archive;supergrad; etc
+    newloggername = 'mm-dp-filter.log'
+    recentthreshold=7200
+    sensorlist = []
+    db = None
+
+    telegramconfig = '/home/cobs/SCRIPTS/telegram_notify.conf'
+    endtime = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    try:
+        opts, args = getopt.getopt(argv,"hc:j:e:d:s:p:D",["config=","joblist=","endtime=","dayrange=","sensors=","path=","debug=",])
+    except getopt.GetoptError:
+        print ('cobs_filter.py -c <config>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print ('-------------------------------------')
+            print ('Description:')
+            print ('-- cobs_filter.py will analyse magnetic data --')
+            print ('-----------------------------------------------------------------')
+            print ('detailed description ..')
+            print ('...')
+            print ('...')
+            print ('-------------------------------------')
+            print ('Usage:')
+            print ('python cobs_filter.py -c <config>')
+            print ('-------------------------------------')
+            print ('Options:')
+            print ('-c (required) : configuration data path')
+            print ('-j            : define jobtype i.e. realtime or archive')
+            print ('-e            : endtime')
+            print ('-d            : dayrange')
+            print ('-s            : sensors for which meta data is added to DATAINFO')
+            print ('-p            : basepath - default is in config file')
+            print ('-l            : loggername')
+            print ('-------------------------------------')
+            print ('Application:')
+            print ('python3 filter.py -c ../conf/filter.cfg -j archive,second -d 3 -s LEMI025_28_0002_0001')
+            sys.exit()
+        elif opt in ("-c", "--config"):
+            # delete any / at the end of the string
+            configpath = os.path.abspath(arg)
+        elif opt in ("-j", "--jobtype"):
+            # define a jobtype (realtime, archive)
+            joblist = arg.split(",")
+            if len(joblist) == 1:
+                jobtype = joblist[0]
+            else:
+                jobtype = joblist[0]
+                process = joblist[1]
+                if not process in ['supergrad','second']:
+                    process = 'all'
+        elif opt in ("-d", "--dayrange"):
+            # define a dayrange for archive jobs - default is 2
+            dayrange = int(arg)
+        elif opt in ("-e", "--endtime"):
+            # define a dayrange for archive jobs - default is 2
+            try:
+                endtime = methods.testtime(arg)
+            except:
+                print (" Endtime could not be read")
+                endtime = datetime.now(timezone.utc).replace(tzinfo=None)
+        elif opt in ("-s", "--sensors"):
+            # define a dayrange for archive jobs - default is 2
+            sensorlist = arg.split(',')
+            #TODO what dioes sensor actually specifiy? - if selected still all sensors are analyzed
+        elif opt in ("-p", "--path"):
+            # delete any / at the end of the string
+            basepath = os.path.abspath(arg)
+        elif opt in ("-l", "--loggername"):
+            # define an endtime for the current analysis - default is now
+            newloggername = arg
+        elif opt in ("-D", "--debug"):
+            # delete any / at the end of the string
+            debug = True
+
+    print ("Running filter.py version {}  for {} job".format(version,jobtype))
+
+    if not os.path.exists(configpath):
+        print ('Specify a valid path to configuration information')
+        print ('-- check magnetism_products.py -h for more options and requirements')
+        sys.exit()
+
+    if not jobtype == 'realtime':
+        jobtype = "archive"
+
+    if endtime:
+        try:
+            endtime = methods.testtime(endtime)
+        except:
+            print ("Endtime could not be interpreted - Aborting")
+            sys.exit(1)
+
+
+    print ("1. Read and check validity of configuration data")
+    dd = read_conf(configpath)
+    if not dd:
+        print ("cobs_filter: empty configuration file - aborting")
+        sys.exit(0)
+
+    scalardict = dd.get('scalardict')
+    groupparameterdict = dd.get('groupparameterdict')
+    permanent = dd.get('permanent')
+    blacklist = dd.get('blacklist')
+    basics = dd.get('basics')
+    try:
+        recentthreshold=int(basics.get('recentthreshold',7200))
+    except:
+        recentthreshold=7200
+    destination = basics.get('destination')
+    if not basepath:
+        basepath = basics.get('basepath')
+    telegramconfigtmp = basics.get('telegramconfig',None)
+    if telegramconfigtmp:
+        telegramconfig = telegramconfigtmp
+    outputformat = basics.get('outputformat')
+
+    print ("2. Activate logging scheme as selected in config")
+    logpath = '/var/log/magpy/mm-filter-{}.log'.format(jobtype)
+    #sn = 'ALDEBARAN' # servername  get name from machine ...
+    sn = socket.gethostname()
+    statusmsg = {}
+    name = "{}-FILTER".format(sn)
+
+    credentials = 'cobsdb'
+    try:
+        print ("Connecting to local MARCOS Database")
+        db = database.DataBank(host=mpcred.lc(credentials,'host'), user=mpcred.lc(credentials,'user'),
+                               password=mpcred.lc(credentials,'passwd'), database=mpcred.lc(credentials,'db'))
+        print ("... success")
+        statusmsg[name] = 'DB on {} connected'.format(sn)
+    except:
+        print ("... failed")
+        statusmsg[name] = '{}: DB connection failed'.format(sn)
+
+    if process in ['all','second']:
+        statusmsg = one_second_filter(db, statusmsg=statusmsg, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype=jobtype, endtime=endtime, dayrange=dayrange, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=debug)
+
+    if not debug and not process == 'second':
+        martaslog = ml(logfile=logpath,receiver='telegram')
+        martaslog.telegram['config'] = telegramconfig
+        martaslog.msg(statusmsg)
+    else:
+        print ("Debug selected - statusmsg looks like:")
+        print (statusmsg)
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
+
+
+
+
+"""
+groupparameterdict   :   'LEMI' : {'station' : 'WIC', 'filtertype':'default', 'realtime' : True, 'window' : 40000},
+                         'GSM90_14245_0002_0001' : {'filtertype':'gaussian', 'filterwidth':3.33333333, 'resample_period':1, 'realtime':True, 'window' : 10000},
+                         'IWT_TILT01_0001_0003' : {'filtertype': 'default', 'realtime' : False, 'window' : 40000},
+                         'BM35' : {'filtertype':'gaussian', 'filterwidth':3.33333333, 'resample_period':1, 'realtime':True, 'window' : 10000},
+                         'G823A' : {'filtertype': 'default', 'realtime' : False, 'window' : 40000}}
+
+
+# Realtime list is used for time slicing to avoid linearly filled gaps
+realtime     :    LEMI025_22_0003_0001,LEMI036_1_0002_0001,LEMI036_3_0001_0001,GSM90_14245_0002_0001,BM35_029_0001_0001,BM35_033_0001_0001
+
+blacklist    :    LEMI025_28_0002_0001,
+
+scalardict   :    GP20S3NS_012201_0001_0001 : {'type' : 'GP20S3', 'components' : ['x','y','z']},
+                  'GP20S3V_911005_0001_0001' :  {'type' : 'GP20S3', 'components' : ['x','y','z']},
+                  'GP20S3EW_111201_0001_0001' :  {'type' : 'GP20S3', 'components' : ['x','y','z']}}
+"""
+
