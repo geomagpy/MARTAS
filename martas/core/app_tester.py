@@ -147,7 +147,7 @@ class TestFilter(unittest.TestCase):
         highreslst = filter.get_sensors(db=db,groupdict=groupparameterdict,samprate='HF', blacklist=blacklist, recent=recent, recentthreshold=recentthreshold, debug=True)
         print ("Donw:", highreslst)
 
-    def test_one_second_filter(self):
+    def test_apply_filter(self):
         sensorlist = []
         basepath = '/srv/archive'
         destination = 'db'
@@ -161,9 +161,9 @@ class TestFilter(unittest.TestCase):
         recentthreshold = int(basics.get('recentthreshold', 7200))
         db = database.DataBank(host=mpcred.lc(credentials, 'host'), user=mpcred.lc(credentials, 'user'),
                                    password=mpcred.lc(credentials, 'passwd'), database=mpcred.lc(credentials, 'db'))
-        statusmsg = filter.one_second_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='realtime', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
+        statusmsg = filter.apply_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='realtime', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
         print ("HERE")
-        statusmsg = filter.one_second_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='archive', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
+        statusmsg = filter.apply_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='archive', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
         print ("Done")
 
 class TestThreshold(unittest.TestCase):

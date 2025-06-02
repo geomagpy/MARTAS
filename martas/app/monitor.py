@@ -455,6 +455,7 @@ def main(argv):
     statusmsg = {}
     jobs = ''
     joblist = []
+    changes = []
     configpath = ''
     jobname = 'MARTASMONITOR'
     hostname = socket.gethostname().upper()
@@ -552,7 +553,7 @@ def main(argv):
         joblist = _testJobs(joblist,allowedjobs)
     else:
         if os.path.isfile(configpath):
-            print ("read file with GetConf")
+            print (" reading configuration file ...")
             monitorconf = mm.get_conf(configpath)
             # directly get the joblist
             joblist = monitorconf.get('joblist')
@@ -615,13 +616,18 @@ def main(argv):
     # --------------------------------
     if debug:
         print ("Running the following jobs: {}".format(joblist))
+    #spacename = "{}-{}-diskspace".format(hostname, jobname)
+    #statusmsg[spacename] = getspace(basedirectory)
     try:
         if 'space' in joblist:
             if debug:
                 print ("Running space job")
             try:
-                spacename = "{}-{}-diskspace".format(hostname,jobname)
-                statusmsg[spacename] = getspace(basedirectory)
+                spacename = "{}-{}-diskspace".format(hostname, jobname)
+                if os.path.exists(basedirectory):
+                    statusmsg[spacename] = getspace(basedirectory)
+                else:
+                    statusmsg[spacename] = "{} does not exist".format(basedirectory)
             except:
                 statusmsg['diskspace'] = "Checking disk space failed"
         if 'martas' in joblist:

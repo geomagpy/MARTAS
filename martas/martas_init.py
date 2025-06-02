@@ -15,7 +15,7 @@ import os
 from magpy.opt import cred
 from pathlib import Path
 from crontab import CronTab
-
+import martas
 
 def main(argv):
     debug = False
@@ -61,9 +61,26 @@ def main(argv):
     # get home directory of current user
     homedir = os.getenv("HOME")
 
-    marcos_in_crontab = False
+    envact = ""
+    # get the environment
+    try:
+        # Scan for conda environment
+        env = os.environ["CONDA_PREFIX"]
+        # will cause a KEY ERROR if not existing
+        envname = os.path.basename(os.path.normpath(env))
+        if env.endswith("envs/{}".format(envname)):
+            envact = "conda activate {}".format(envname)
+        else:
+            envact = "conda activate base"
+    except:
+        # No conda environment - test for virtualenv
+        try:
+            env = os.environ["VIRTUAL_ENV"]
+            envact = "source {}".format(os.path.join(env,"bin","activate"))
+        except:
+            pass
 
-    import martas
+    # get the martas package path
     file_path = os.path.dirname(martas.__file__)
     print(file_path)
     if not debug:
@@ -112,11 +129,11 @@ def main(argv):
     mqttport = "1883"
     mqttqos = "1"
     mqttcred = ""
-    bufferpath = "/srv/mqtt"
-    archivepath = "/srv/archive"
+    bufferpath = os.path.join(homedir, "MARTAS", "mqtt")
+    archivepath = os.path.join(homedir, "MARCOS", "archive")
     archivelog = "/tmp/archivestatus.log"
-    monitorlog = "/tmp/monitor.log"
-    thresholdlog = "/tmp/threshold.log"
+    monitorlog = "/tmp/monitorstatus.log"
+    thresholdlog = "/tmp/thresholdstatus.log"
     thresholdsource = "file"
     destination = "stdout"
     filepath = "/tmp"
@@ -162,6 +179,7 @@ def main(argv):
         confpath = os.path.join(homedir,dir,"conf")
     shutil.copyfile(os.path.join(confpath, "archive.cfg"), os.path.join(confpath, "archive.bak"))
     shutil.copyfile(os.path.join(confpath, "download-source.cfg"), os.path.join(confpath, "download-source.bak"))
+    shutil.copyfile(os.path.join(confpath, "filter.cfg"), os.path.join(confpath, "filter.bak"))
     shutil.copyfile(os.path.join(confpath, "gamma.cfg"), os.path.join(confpath, "gamma.bak"))
     shutil.copyfile(os.path.join(confpath, "mail.cfg"), os.path.join(confpath, "mail.bak"))
     shutil.copyfile(os.path.join(confpath, "monitor.cfg"), os.path.join(confpath, "monitor.bak"))
@@ -288,7 +306,7 @@ def main(argv):
     else:
         print("  -> selected MARTAS")
 
-    monitorlog = os.path.join(os.path.join(logpath, "monitor.log"))
+    monitorlog = os.path.join(os.path.join(logpath, "monitorstatus.log"))
 
     if initjob == "MARTAS":
         print (" ------------------------------------------- ")
@@ -313,18 +331,18 @@ def main(argv):
         print (" (press return for accepting the default: {})".format(bufferpath))
         newbufferpath = input()
         if newbufferpath:
-            if not os.path.isdir(newbufferpath):
-                print("  the selected directory is not yet existing - trying to create it...")
-                try:
-                    Path(newbufferpath).mkdir(parents=True, exist_ok=True)
-                    print("  done")
-                except:
-                    print("  ! failed, check permissions - aborting")
-                    sys.exit()
-            if not os.access(newbufferpath, os.W_OK):
-                print(" ! you don't have write access to the specific directory - aborting")
-                sys.exit()
             bufferpath = newbufferpath
+        if not os.path.isdir(bufferpath):
+            print("  the selected directory is not yet existing - trying to create it...")
+            try:
+                Path(bufferpath).mkdir(parents=True, exist_ok=True)
+                print("  done")
+            except:
+                print("  ! failed, check permissions - aborting")
+                sys.exit()
+        if not os.access(bufferpath, os.W_OK):
+            print(" ! you don't have write access to the specific directory - aborting")
+            sys.exit()
 
         print (" ------------------------------------------- ")
         print (" Please specify the MQTT payload format:")
@@ -342,6 +360,8 @@ def main(argv):
         runscript = []
         runscript.append("#! /bin/bash")
         runscript.append("# MARTAS acquisition program")
+        runscript.append("")
+        runscript.append("{}".format(envact))
         runscript.append("")
         runscript.append('PYTHON={}'.format(sys.executable))
         runscript.append('BOT="acquisition"')
@@ -461,7 +481,7 @@ def main(argv):
             print (" Please specify a path to store files:")
             filepath = input()
             if not os.path.isdir(filepath):
-                print ("  ! the selected directory is not yet existing - aborting")
+                print ("  ! the selected directory is not yet existing - please create and re-run martas-init - aborting now")
                 sys.exit()
             if not os.access(filepath, os.W_OK):
                 print (" ! you don't have write access - aborting")
@@ -479,29 +499,35 @@ def main(argv):
 
         print (" ------------------------------------------- ")
         print (" MARCOS will archive database contents in CDF files by default.")
-        print(" Please provide a path for the data archive (default: /srv/archive):")
+        print(" Please provide a path for the data archive (default: {}):".format(archivepath))
         newarchivepath = input()
         if newarchivepath:
-            if not os.path.isdir(newarchivepath):
-                print("  the selected directory is not yet existing - trying to create it...")
-                try:
-                    Path(newarchivepath).mkdir(parents=True, exist_ok=True)
-                    print("  done")
-                except:
-                    print("  ! failed, check permissions - aborting")
-                    sys.exit()
-            if not os.access(newarchivepath, os.W_OK):
-                print (" ! you don't have write access - aborting")
-                sys.exit()
             archivepath = newarchivepath
+        if not os.path.isdir(archivepath):
+            print("  the selected directory is not yet existing - trying to create it...")
+            try:
+                Path(archivepath).mkdir(parents=True, exist_ok=True)
+                print("  done")
+            except:
+                print("  ! failed, check permissions and re-run martas-init - aborting")
+                sys.exit()
+        if not os.access(archivepath, os.W_OK):
+            print (" ! you don't have write access - select an appropriate path and re-run martas-init - aborting")
+            sys.exit()
 
         print(" ------------------------------------------- ")
         print(" Threshold tester can be used on archive or db.")
-        print(" Please enter 'db' (default) or 'file':")
-        thresholdsource = "db"
+        defaultsource = "db"
+        if not destination.find("db") >= 0:
+            defaultsource = "file"
+            print(" Please enter 'db' or 'file' (default):")
+        else:
+            print(" Please enter 'db' (default) or 'file':")
         newthresholdsource = input()
-        if newthresholdsource == "file":
-            thresholdsource = "file"
+        if newthresholdsource in ['db','file']:
+            thresholdsource = newthresholdsource
+        else:
+            thresholdsource = defaultsource
 
         malogpath = os.path.join(logpath, "{}.log".format(marcosjob))
         archivelog = os.path.join(logpath, "archivestatus.log")
@@ -511,6 +537,8 @@ def main(argv):
         runscript = []
         runscript.append("#! /bin/bash")
         runscript.append("# MARCOS acquisition program")
+        runscript.append("")
+        runscript.append("{}".format(envact))
         runscript.append("")
         runscript.append('PYTHON={}'.format(sys.executable))
         runscript.append('BOT="collector"')
@@ -599,7 +627,7 @@ def main(argv):
 
         with CronTab(user=True) as cron:
             comment1 = "Running MARCOS process {}".format(jobname)
-            line1 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(logpath, marcosjob+".log"))
+            line1 = "/usr/bin/bash -i {} start > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(logpath, marcosjob+".log"))
             if not list(cron.find_comment(comment1)):
                 job1 = cron.new(command=line1, comment=comment1)
                 job1.setall('17 0 * * *')
@@ -608,6 +636,11 @@ def main(argv):
             if not list(cron.find_comment(comment2)):
                 job2 = cron.new(command=line2, comment=comment2)
                 job2.setall('20 0 * * *')
+            comment2a = "Filtering"
+            line2a = "#{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","filter.py"),os.path.join(confpath,"filter.cfg"), os.path.join(logpath,"filter.log"))
+            if not list(cron.find_comment(comment2a)):
+                job2a = cron.new(command=line2a, comment=comment2a)
+                job2a.minute.every(2)
             if destination.find("db") >= 0:
                 comment3 = "Optimizing database"
                 line3 = "{} {} -c {} -s sqlmaster > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","optimizetables.py"), os.path.join(confpath,"archive.cfg"), os.path.join(logpath,"optimizetables.log"))
@@ -645,7 +678,7 @@ def main(argv):
             job7.minute.every(10)
             job7.enable(False)
         comment8 = "Log rotation for {}".format(jobname)
-        line8 = "/usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "scripts", "status"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname)))
+        line8 = "/usr/sbin/logrotate -s {} {} > /dev/null 2>&1".format(os.path.join(homedir, dir, "logrotate", "logstate"), os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname)))
         if not list(cron.find_comment(comment8)):
             job8 = cron.new(command=line8, comment=comment8)
             job8.setall('3 1 * * *')
@@ -663,8 +696,9 @@ def main(argv):
                     "archivepath" : archivepath,
                     "archivelog" : archivelog,
                     "monitorlog" : monitorlog,
-                    "thresholdlog" : os.path.join(logpath,"threshold.log"),
-                    "collectlog" : os.path.join(logpath,"collect-source.log"),
+                    "thresholdlog" : os.path.join(logpath,"thresholdstatus.log"),
+                    "collectlog" : os.path.join(logpath,"download-source.log"),
+                    "filterlog" : os.path.join(logpath,"filterstatus.log"),
                     "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
                     "notificationcfg" : notipath,
@@ -706,8 +740,10 @@ def main(argv):
                         "dest": os.path.join(confpath, "mail.cfg")}
     files_to_change["gammaconf"] = {"source": os.path.join(confpath, "gamma.bak"),
                         "dest": os.path.join(confpath, "gamma.cfg")}
-    files_to_change["downloadconf"] = {"source": os.path.join(confpath, "collect-source.bak"),
-                        "dest": os.path.join(confpath, "collect-source.cfg")}
+    files_to_change["filterconf"] = {"source": os.path.join(confpath, "filter.bak"),
+                        "dest": os.path.join(confpath, "filter.cfg")}
+    files_to_change["downloadconf"] = {"source": os.path.join(confpath, "download-source.bak"),
+                        "dest": os.path.join(confpath, "download-source.cfg")}
 
     for f in files_to_change:
         d = files_to_change.get(f)
@@ -724,6 +760,12 @@ def main(argv):
     print("\n".join(cronlist))
     print("Setup finished. SUCCESS")  # used for monitoring of logfile
     # end of init
+    print("")  # used for monitoring of logfile
+    print("Things to do:")
+    print("- check configuration files in {}")
+    if initjob == "MARCOS":
+        print("- update filter.cfg and activate filter job in crontab in case of > 1Hz data")
+        print("- read the manual (again) for monitoring and threshold - activate/configure")
 
 if __name__ == "__main__":
    main(sys.argv[1:])

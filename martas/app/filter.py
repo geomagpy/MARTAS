@@ -159,7 +159,7 @@ def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshol
     dbdateformat = "%Y-%m-%d %H:%M:%S.%f"
 
     for key in groupdict:
-        print ("Dealing with group", key)
+        print ("Get-senors: Dealing with group", key)
         # Checking all available sensors
         # ##############################
         srlist = []
@@ -179,18 +179,18 @@ def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshol
         # ##############################
         if samprate:
             if debug:
-                print ("Limiting selection to sensors with sampling rate {}".format(samprate))
+                print ("- Limiting selection to sensors with sampling rate {}".format(samprate))
             validsensors1 = []  # add sensors for which the sampling rate is given in DATAINFO
             determinesr = [] # add senors for which the sampling rate needs to be determined
             srlist = []
             if debug:
-                print (" a) Selecting sensors with appropriate sampling rate in DATAINFO")
+                print (" * Selecting sensors with appropriate sampling rate in DATAINFO")
             for sensor in sensorlist:
                 res = db.select('DataSamplingrate','DATAINFO','DataID="{}"'.format(sensor))
                 try:
                     sr = float(res[0])
                     if debug:
-                        print ("Sensor (DATAINFO): {} -> Samplingrate: {}".format(sensor,sr))
+                        print ("    Sensor (DATAINFO): {} -> Samplingrate: {}".format(sensor,sr))
                     if samprate == 'HF':
                         if sr < 0.98:
                             validsensors1.append(sensor)
@@ -209,14 +209,14 @@ def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshol
                     print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                     determinesr.append(sensor)
 
-            if debug:
-                print (" b) checking sampling rate of sensors with no sampling rate given in DATAINFO")
+            if len(determinesr) > 0 and debug:
+                print (" * checking sampling rate of sensors with no sampling rate given in DATAINFO")
             for sensor in determinesr:
                 lastdata = db.get_lines(sensor,timerange)
                 if lastdata.length()[0] > 0:
                     sr = lastdata.samplingrate()
                     if debug:
-                        print ("Sensor (TESTING DATA): {} -> Samplingrate: {}".format(sensor,sr))
+                        print ("    Sensor (TESTING DATA): {} -> Samplingrate: {}".format(sensor,sr))
                     if samprate == 'HF':
                         if sr < 0.98:
                             validsensors1.append(sensor)
@@ -230,31 +230,29 @@ def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshol
                             validsensors1.append(sensor)
                             srlist.append(sr)
             sensorlist = validsensors1
-
+            if debug:
+                print (" -> got {} sensors".format(len(sensorlist)))
         # If only sensors with current data should be used
         # ##############################
         if recent:
             currentthreshold = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=recentthreshold)
             if debug:
-                print ("Limiting selection to sensors with current data")
+                print ("- Limiting selection to sensors with current data")
             validsensors = []
             validsr = []
             for idx,sensor in enumerate(sensorlist):
                 last = db.select('time',sensor,expert="ORDER BY time DESC LIMIT 10")
                 if len(last) > 0:
                     dbdate = last[0]
-                    if not isinstance(dbdate, (datetime,np.datetime64)) and not dbdate.find('.') > 0:   # what happens if dbdata is a mysql date format?
-                        dbdate = dbdate+'.0'
-                    try:
-                        if datetime.strptime(dbdate, dbdateformat) > currentthreshold:
-                            if debug:
-                                print ("   Current data for {}".format(sensor))
-                            validsensors.append(sensor)
-                            validsr.append(srlist[idx])
-                    except:
-                        pass
+                    if dbdate > currentthreshold:
+                        if debug:
+                            print ("   current data for {}".format(sensor))
+                        validsensors.append(sensor)
+                        validsr.append(srlist[idx])
             sensorlist = validsensors
 
+        if debug:
+            print(" -> finally got {} sensors for filtering".format(len(sensorlist)))
         # join all obtained sensors into a new dictionary
         # ##############################
         for sensor in sensorlist:
@@ -263,7 +261,7 @@ def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshol
     return returndict
 
 
-def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=None, jobtype='realtime', endtime=datetime.now(timezone.utc).replace(tzinfo=None), dayrange=2, basepath='', dbinputsensors=None, destination='db', outputformat='PYCDF', recentthreshold=7200, debug=False):
+def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=None, jobtype='realtime', endtime=datetime.now(timezone.utc).replace(tzinfo=None), dayrange=2, basepath='', dbinputsensors=None, destination='db', outputformat='PYCDF', recentthreshold=7200, debug=False):
     """
     DESCRIPTION
         Create one-second records by filtering data sets
@@ -301,14 +299,15 @@ def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blackl
     if jobtype == 'archive':
         recent = False
 
-    highreslst = get_sensors(db=db,groupdict=groupdict,samprate='HF', blacklist=blacklist, recent=recent, recentthreshold=recentthreshold, debug=debug)
-    print ("  Obtained HF list:", highreslst)
-
-    print ("  Starting one second data filtering:  (Filtering high resolution data sets)")
+    highreslst = get_sensors(db=db,groupdict=groupdict,samprate='HF',blacklist=blacklist,recent=recent,recentthreshold=recentthreshold,debug=debug)
+    if debug:
+        print ("  Obtained HF list (sampling rate higher then 1 Hz):", highreslst)
+        print ("  Starting one second data filtering:  (Filtering high resolution data sets)")
     p1start = datetime.now()
     for inst in highreslst:
-        print ("  ----------------------------")
-        print ("  Dealing with instrument {}".format(inst))
+        if debug:
+            print ("  ----------------------------")
+            print ("  Dealing with instrument {}".format(inst))
         name = '{}-filter-{}-{}'.format(sn,jobtype,inst.replace('_',''))
         last = DataStream()
         dataexpected = True
@@ -318,9 +317,10 @@ def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blackl
             options = highreslst[inst]
             if debug:
                 print ("     -> Selected options:", options)
-            print ("     Obtaining projected data amount")
+                print ("  Obtaining projected data amount")
             if jobtype == 'realtime' and inst in permanent:
-                print ("     Realtime job selected -> getting data from database")
+                if debug:
+                    print ("     Realtime job selected -> getting data from database")
                 amount = options.get('window',40000)
                 rt = options.get('realtime',False)
                 # amount * sampling rate defines coverage in seconds -> 10Hz (0.1 sec * 40000 -> 4000 sec or 0.5 sec * 10000 -> 5000 sec)
@@ -333,30 +333,34 @@ def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blackl
                     statusmsg[name] = 'db access - data not existing'
                 if debug:
                     print ("     -> Extracting {} data points".format(amount))
-                if last.length()[0] > 0:
+                if len(last) > 0:
                     sr = last.samplingrate()
-                    expectedcoverage = amount*sr
+                    expectedcoverage_in_sec = amount*sr
                     now = datetime.now(timezone.utc).replace(tzinfo=None)
-                    last = last.trim(starttime=now-timedelta(seconds=expectedcoverage),endtime=now) # remove all timesteps execceding current time (typical IWT error)
+                    last = last.trim(starttime=now-timedelta(seconds=expectedcoverage_in_sec),endtime=now) # remove all timesteps exceeding current time (typical IWT error)
                     if debug:
-                        print ("     -> Extracted {} data points in reality after slicing".format(last.length()[0]))
-                print ("     -> Done")
+                        print ("     -> Extracted {} data points in reality after slicing".format(len(last)))
+                        print ("     -> Done")
             elif jobtype == 'realtime' and not inst in permanent:
                 dataexpected = False
             elif not jobtype == 'realtime':
                 dayrange = options.get('dayrange',dayrangedefault)
-                print ("     Archive job selected -> getting data from archive")
+                if debug:
+                    print ("     Archive job selected -> getting data from archive")
                 stationid = db.select('StationID', 'DATAINFO', 'DataID LIKE "{}"'.format(inst))[0]
                 sensor = "_".join(inst.split('_')[:-1])
                 datapath = os.path.join(basepath,stationid,sensor,inst,'*')
                 begin = endtime-timedelta(days=dayrange)
-                print ("    Reading data between {} and {}".format(begin, endtime))
+                if debug:
+                    print ("    Reading data between {} and {}".format(begin, endtime))
                 last = read(datapath,starttime=begin,endtime=endtime)
-                print ("     -> found data between {}".format(last._find_t_limits()))
-                print ("         corresponding to {} datapoints".format(last.length()[0]))
-                print ("     -> Done")
+                if debug:
+                    print ("     -> found data between {}".format(last.timerange()))
+                    print ("         corresponding to {} datapoints".format(len(last)))
+                    print ("     -> Done")
 
-            print ("    Got {} datapoints".format(last.length()[0]))
+            if debug:
+                print ("    Got {} datapoints".format(last.length()[0]))
 
             if last.length()[0] > 0:
                 if options.get('filtertype') == 'default':
@@ -374,13 +378,17 @@ def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blackl
                             resample_period=int(resamp)
                         except:
                             pass
-                print ("    Analysis parameter: {}, Filtertype: {}, Filterwidth: {}, Resample period: {}, {}".format(inst, filtertype, filterwidth, resample_period, noresample))
+                if debug:
+                    print ("    Default analysis parameter (may be re-specified for individual sensors): {}, filter type: {}, filter width: {}, resample period: {}, {}".format(inst, filtertype, filterwidth, resample_period, noresample))
                 filtstream = last.filter(filter_type=filtertype, filter_width=filterwidth, missingdata='conservative',resample_period=resample_period,noresample=noresample)
                 # cut out the last 90% to reduce boundary filter effects # after 0.4.6
                 try:
-                    print ("    Cutting out lower end of stream (5 percent) ..")
+                    if debug:
+                        print ("    Cutting out lower end of stream (5 percent) ..")
                     filtstream = filtstream.cut(95)
-                    print ("     -> Done")
+                    if debug:
+                        print ("     Filtstream coverage: length={}, {}".format(len(filtstream), filtstream.timerange()) )
+                        print ("     -> Done")
                 except:
                     pass
 
@@ -394,9 +402,9 @@ def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blackl
                             if not inst in dbinputsensors:
                                 db.write(filtstream,tablename=newtab)
                             else:
-                                print ("   Sensor contained in DBlist - adding Metainformation to DATAINFO")
+                                #print ("   Sensor contained in DBlist - adding Metainformation to DATAINFO")
                                 db.write(filtstream)
-                            print ("    Writing to DB successful")
+                            #print ("    Writing to DB successful")
                         else:
                             print ("    !! Debug selected - skipping writing to DB")
                     except:
@@ -408,14 +416,15 @@ def one_second_filter(db, statusmsg=None, groupdict=None, permanent=None, blackl
                         """
                         pass
                 else:
-                    print ("   Writing data directly to disk...")
+                    if debug:
+                        print ("   Writing data directly to disk...")
                     archivepath = os.path.join(basepath,stationid,sensor,newtab)
-                    print ("   Destinationpath: {}".format(archivepath))
+                    if debug:
+                        print ("   Destinationpath: {}".format(archivepath))
                     if not debug and outputformat and archivepath:
-                         print ("     valid write conditions")
-                         #print (newtab, outputformat)
-                         filtstream.write(archivepath,filenamebegins=newtab+'_',format_type=outputformat)
-                         print ("    -> Done")
+                        #print ("     valid write conditions")
+                        filtstream.write(archivepath,filenamebegins=newtab+'_',format_type=outputformat)
+                        #print ("    -> Done")
                     else:
                         print ("   Debug: skip writing")
                         print ("    -> without debug a file with {} inputs would be written to {}".format(filtstream.length()[0],archivepath))
@@ -446,37 +455,37 @@ def main(argv):
     dayrange = 2
     destination='db'
     joblist = [] # jobtype can be realtime,second; archive;supergrad; etc
-    newloggername = 'mm-dp-filter.log'
+    newloggername = ''
     recentthreshold=7200
     sensorlist = []
+    sendlog = False
     db = None
-
-    telegramconfig = '/home/cobs/SCRIPTS/telegram_notify.conf'
+    telegramconfig = '/etc/martas/telegram.cfg'
     endtime = datetime.now(timezone.utc).replace(tzinfo=None)
 
     try:
-        opts, args = getopt.getopt(argv,"hc:j:e:d:s:p:D",["config=","joblist=","endtime=","dayrange=","sensors=","path=","debug=",])
+        opts, args = getopt.getopt(argv,"hc:j:e:d:s:p:l:xD",["config=","joblist=","endtime=","dayrange=","sensors=","path=","loggername","sendlog","debug=",])
     except getopt.GetoptError:
-        print ('cobs_filter.py -c <config>')
+        print ('filter.py -c <config>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
             print ('-------------------------------------')
             print ('Description:')
-            print ('-- cobs_filter.py will analyse magnetic data --')
+            print ('-- filter.py to smooth and resample data --')
             print ('-----------------------------------------------------------------')
             print ('detailed description ..')
             print ('...')
             print ('...')
             print ('-------------------------------------')
             print ('Usage:')
-            print ('python cobs_filter.py -c <config>')
+            print ('python filter.py -c <config>')
             print ('-------------------------------------')
             print ('Options:')
             print ('-c (required) : configuration data path')
             print ('-j            : define jobtype i.e. realtime or archive')
-            print ('-e            : endtime')
-            print ('-d            : dayrange')
+            print ('-e            : endtime, default is now')
+            print ('-d            : (int) dayrange, amount of days to analyze before endtime')
             print ('-s            : sensors for which meta data is added to DATAINFO')
             print ('-p            : basepath - default is in config file')
             print ('-l            : loggername')
@@ -488,44 +497,36 @@ def main(argv):
             # delete any / at the end of the string
             configpath = os.path.abspath(arg)
         elif opt in ("-j", "--jobtype"):
-            # define a jobtype (realtime, archive)
+            # define a jobtype (realtime,archive)
             joblist = arg.split(",")
-            if len(joblist) == 1:
-                jobtype = joblist[0]
-            else:
-                jobtype = joblist[0]
-                process = joblist[1]
-                if not process in ['supergrad','second']:
-                    process = 'all'
+            jobtype = joblist[0]
         elif opt in ("-d", "--dayrange"):
             # define a dayrange for archive jobs - default is 2
             dayrange = int(arg)
         elif opt in ("-e", "--endtime"):
-            # define a dayrange for archive jobs - default is 2
+            # define an endtime, default is now
             try:
                 endtime = methods.testtime(arg)
             except:
-                print (" Endtime could not be read")
+                print (" Endtime could not be interpreted")
                 endtime = datetime.now(timezone.utc).replace(tzinfo=None)
         elif opt in ("-s", "--sensors"):
-            # define a dayrange for archive jobs - default is 2
             sensorlist = arg.split(',')
-            #TODO what dioes sensor actually specifiy? - if selected still all sensors are analyzed
+            #TODO what does sensor actually specifiy? - if selected still all sensors are analyzed
         elif opt in ("-p", "--path"):
-            # delete any / at the end of the string
             basepath = os.path.abspath(arg)
         elif opt in ("-l", "--loggername"):
-            # define an endtime for the current analysis - default is now
             newloggername = arg
+        elif opt in ("-x", "--sendlog"):
+            sendlog = True
         elif opt in ("-D", "--debug"):
-            # delete any / at the end of the string
             debug = True
 
-    print ("Running filter.py version {}  for {} job".format(version,jobtype))
+    print ("Running filter.py version {} for {} job".format(version,jobtype))
 
     if not os.path.exists(configpath):
         print ('Specify a valid path to configuration information')
-        print ('-- check magnetism_products.py -h for more options and requirements')
+        print ('-- check filter.py -h for more options and requirements')
         sys.exit()
 
     if not jobtype == 'realtime':
@@ -542,14 +543,16 @@ def main(argv):
     print ("1. Read and check validity of configuration data")
     dd = read_conf(configpath)
     if not dd:
-        print ("cobs_filter: empty configuration file - aborting")
+        print ("filter: empty configuration file - aborting")
         sys.exit(0)
 
-    scalardict = dd.get('scalardict')
-    groupparameterdict = dd.get('groupparameterdict')
-    permanent = dd.get('permanent')
-    blacklist = dd.get('blacklist')
-    basics = dd.get('basics')
+    if debug:
+        print ("Configuration:", dd)
+    groupparameter = dd.get('groupparameter',{})
+    permanent = dd.get('permanent',[])
+    blacklist = dd.get('blacklist',[])
+    basics = dd.get('basics',{})
+    # By default the last 2 hours are filtered for realtime data
     try:
         recentthreshold=int(basics.get('recentthreshold',7200))
     except:
@@ -557,37 +560,42 @@ def main(argv):
     destination = basics.get('destination')
     if not basepath:
         basepath = basics.get('basepath')
-    telegramconfigtmp = basics.get('telegramconfig',None)
-    if telegramconfigtmp:
-        telegramconfig = telegramconfigtmp
+    receiver  = basics.get('notification',"")
+    notificationcfg  = basics.get('notificationcfg',"")
+    logpath = basics.get('logpath',"/tmp/filterstatus.log")
+    if newloggername:
+        logpath = os.path.join()
+    #telegramconfigtmp = basics.get('telegramconfig',None)
+    #if telegramconfigtmp:
+    #    telegramconfig = telegramconfigtmp
     outputformat = basics.get('outputformat')
+    credentials = basics.get('credentials',"cobsdb")
 
     print ("2. Activate logging scheme as selected in config")
-    logpath = '/var/log/magpy/mm-filter-{}.log'.format(jobtype)
     #sn = 'ALDEBARAN' # servername  get name from machine ...
     sn = socket.gethostname()
     statusmsg = {}
     name = "{}-FILTER".format(sn)
 
-    credentials = 'cobsdb'
     try:
-        print ("Connecting to local MARCOS Database")
-        db = database.DataBank(host=mpcred.lc(credentials,'host'), user=mpcred.lc(credentials,'user'),
-                               password=mpcred.lc(credentials,'passwd'), database=mpcred.lc(credentials,'db'))
+        print ("Connecting to database")
+        db = mm.connect_db(credentials)
         print ("... success")
         statusmsg[name] = 'DB on {} connected'.format(sn)
     except:
         print ("... failed")
         statusmsg[name] = '{}: DB connection failed'.format(sn)
 
-    if process in ['all','second']:
-        statusmsg = one_second_filter(db, statusmsg=statusmsg, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype=jobtype, endtime=endtime, dayrange=dayrange, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=debug)
+    statusmsg = apply_filter(db, statusmsg=statusmsg, groupdict=groupparameter, permanent=permanent, blacklist=blacklist, jobtype=jobtype, endtime=endtime, dayrange=dayrange, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=debug)
 
-    if not debug and not process == 'second':
-        martaslog = ml(logfile=logpath,receiver='telegram')
-        martaslog.telegram['config'] = telegramconfig
+    if not debug and sendlog:
+        martaslog = ml(logfile=logpath,receiver=receiver)
+        if receiver == 'telegram':
+            martaslog.telegram['config'] = notificationcfg
+        elif receiver == 'email':
+            martaslog.email['config'] = notificationcfg
         martaslog.msg(statusmsg)
-    else:
+    elif not sendlog:
         print ("Debug selected - statusmsg looks like:")
         print (statusmsg)
 

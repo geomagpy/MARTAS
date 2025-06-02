@@ -326,6 +326,7 @@ def main(argv):
     statusdict = {}
     statuskeylist = []
     travistestrun = False
+    changes = []
 
     usagestring = 'threshold.py -h <help> -m <configpath>'
     try:

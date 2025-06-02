@@ -612,7 +612,7 @@ Application:
         python3 db_truncate.py -c truncate.cfg
 
 
-### 6.7 di
+### 6.6 di
 
 at the moment still part of MARCOSscripts
 
@@ -661,7 +661,7 @@ The application requires credentials of remote source and local database created
              forcerevision     :      0001
 
       
-### 6.9 file_upload
+### 6.8 file_upload
 
 Upload data to a destination using various different protocols supported are FTP, SFTP, RSYNC, SCP. Jobs are listed in 
 a json structure and read by the upload process. You can have multiple jobs. Each job refers to a local path. Each job
@@ -689,6 +689,15 @@ Problem:
  - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finished", "SUCCESS"
 Solution:
  - this error is typically related to an empty memory file
+
+
+### 6.9 filter
+
+Use the filter application to smooth and resample data sets. The methods uses the MagPy filter mathod and allows
+for the application of all included filter methods (https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#5-timeseries-methods).
+
+
+
  
 ### 6.10 gamma
 
