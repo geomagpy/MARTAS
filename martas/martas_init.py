@@ -700,6 +700,7 @@ def main(argv):
                     "thresholdlog" : os.path.join(logpath,"thresholdstatus.log"),
                     "collectlog" : os.path.join(logpath,"download-source.log"),
                     "filterlog" : os.path.join(logpath,"filterstatus.log"),
+                    "basevaluelog" : os.path.join(logpath,"basevaluestatus.log"),
                     "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
                     "notificationcfg" : notipath,

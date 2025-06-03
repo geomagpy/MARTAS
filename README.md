@@ -529,27 +529,27 @@ MARTAS/apps. Below you will find a comprehensive list of these scripts and their
 find subsections with detailed instructions and example applications for all of these programs.
 
 
-| Script             | Purpose                                              | Config        | Version | Section |
-|--------------------|------------------------------------------------------|---------------|---------|---------|
-| archive.py         | Read database tables and create archive files        | archive.cfg   | 2.0.0   | 6.2     |
-| ardcomm.py         | Communicating with arduino microcontroller           |               | 1.0.0   | 6.3     |
-| checkdatainfo.py   | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0   | 6.4     |
-| db_truncate.py     | Delete data from all data tables                     | truncate.cfg  | 2.0.0   | 6.5     |
-| di.py              |                                                      |               |         | 6.6     |
-| file_download.py   | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.7     |
-| file_upload.py     | Upload files                                         | upload.json   | 2.0.0*  | 6.8     |
-| filter.py          | filter data                                          | filter.cfg    | 2.0.0   | 6.9     |
-| gamma.py           | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.10    |
-| monitor.py         | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0   | 6.11    |
-| obsdaq.py          | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.12    |
-| optimzetables.py   | Optimize table disk usages (requires ROOT)           |               | 2.0.0*  | 6,13    |
-| palmacq.py         | Communicate with PalmAcq datalogger                  | obsdaq.cfg    | 2.0.0*  | 6.12    |
-| serialinit.py      | Sensor initialization uses this method               |               | 2.0.0*  | 6.14    |
-| speedtest.py       | Test bandwidth of the internet connection            |               | 2.0.0*  | 6.15    |
-| statemachine.py    | Currently under development - will replace threshold |               | 1.0.0   | 6.16    |
-| testnote.py        | Send a quick message by mail or telegram             |               | 2.0.0   | 6.17    |
-| testserial.py      | test script for serial comm - development tool       |               | 1.0.0   | 6.18    |
-| threshold.py       | Tests values and send reports                        | threshold.cfg | 2.0.0   | 6.19    |
+| Script           | Purpose                                              | Config        | Version | Section |
+|------------------|------------------------------------------------------|---------------|---------|---------|
+| archive.py       | Read database tables and create archive files        | archive.cfg   | 2.0.0   | 6.2     |
+| ardcomm.py       | Communicating with arduino microcontroller           |               | 1.0.0   | 6.3     |
+| basevalue.py     | Analyse DI data and create adopted baselines         | basevalue.cfg |         | 6.4     |
+| checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0   | 6.5     |
+| db_truncate.py   | Delete data from all data tables                     | truncate.cfg  | 2.0.0   | 6.6     |
+| file_download.py | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.7     |
+| file_upload.py   | Upload files                                         | upload.json   | 2.0.0*  | 6.8     |
+| filter.py        | filter data                                          | filter.cfg    | 2.0.0   | 6.9     |
+| gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.10    |
+| monitor.py       | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0   | 6.11    |
+| obsdaq.py        | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.12    |
+| optimzetables.py | Optimize table disk usages (requires ROOT)           |               | 2.0.0*  | 6,13    |
+| palmacq.py       | Communicate with PalmAcq datalogger                  | obsdaq.cfg    | 2.0.0*  | 6.12    |
+| serialinit.py    | Sensor initialization uses this method               |               | 2.0.0*  | 6.14    |
+| speedtest.py     | Test bandwidth of the internet connection            |               | 2.0.0*  | 6.15    |
+| statemachine.py  | Currently under development - will replace threshold |               | 1.0.0   | 6.16    |
+| testnote.py      | Send a quick message by mail or telegram             |               | 2.0.0   | 6.17    |
+| testserial.py    | test script for serial comm - development tool       |               | 1.0.0   | 6.18    |
+| threshold.py     | Tests values and send reports                        | threshold.cfg | 2.0.0   | 6.19    |
 
 Version 2.0.0* means it still needs to be tested
 
@@ -586,7 +586,17 @@ blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
 Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands
 
 
-### 6.4 checkdatainfo
+### 6.4 basevalue
+
+Basevalue.py recalculates basevalues from DI measurements and provided variation and scalar data. The method can use 
+multiple data sources and piers as defined in the configuration file. It further supports different run modes defining
+the complexity of baseline fits, application of rotation matricies etc. These run modes are used for the yearly 
+definitive data analysis of the Conrad Obs. It is recommended to use a similar data coverage of approximately one year
+particularly with polynomial or spline fits to get comparable fitting parameters. In default mode: if
+enddate is set to now and no startdate is given, then startdate will be 380 days before enddate. 
+
+
+### 6.5 checkdatainfo
 
 checkdatainfo.py checks for all data tables which are missing in DATAINFO  and SENOSRS. This method helps to 
 identify any data tables which are continuously filled, but not available in XMagPy and which are not treated by
@@ -604,7 +614,7 @@ Example:
         python checkdatainfo.py -c cobsdb -d -s
 
 
-### 6.5 db_truncate
+### 6.6 db_truncate
 
 db_truncate.py truncates contents of timesseries in a MagPy database. Whereas "archive" also allows for truncating 
 the database (based on DATAINO) "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
@@ -616,11 +626,6 @@ data are kept. Settings are given in a configuration file.
 Application:
 
         python3 db_truncate.py -c truncate.cfg
-
-
-### 6.6 di
-
-at the moment still part of MARCOSscripts
 
 
 

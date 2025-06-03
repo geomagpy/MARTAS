@@ -547,8 +547,8 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                             absresult = absresult._drop_nans('dy')
                             absresult = absresult._drop_nans('dz')
                             func = absresult.fit(['dx', 'dy', 'dz'], fitfunc='spline', knotstep=0.3)
-                            mp.plot(absresult, ['dx', 'dy', 'dz'], symbollist=['o', 'o', 'o'], padding=[5, 0.005, 5],
-                                    function=func, plottitle=pier)
+                            mp.tsplot([absresult], [['dx', 'dy', 'dz']], symbols=[['o', 'o', 'o']],
+                                      padding=[5, 0.005, 5], functions=[[func,func,func]], title=pier)
                         except:
                             print(" - Not enough data points for suitable baseline")
                             pass
@@ -571,7 +571,7 @@ def check_conf(config, startdate, enddate, varios=None, scalars=None, piers=None
         scalars = []
     if piers == None:
         piers = []
-    if enddate == 'now':
+    if enddate == 'now' or config.get('enddate') == 'now':
         endtime = datetime.now(timezone.utc).replace(tzinfo=None)
         config['enddate'] = endtime.strftime("%Y-%m-%d")
         if not startdate:
@@ -816,28 +816,32 @@ def main(argv):
         print('-- check basevalue.py -h for more options and requirements')
         sys.exit()
 
-    print("1. Read and check validity of configuration data")
+    if debug:
+        print("- Read and check validity of configuration data")
     config = mm.get_conf(configpath)
     config = check_conf(config, startdate, enddate, varios=varios, scalars=scalars, piers=piers, debug=debug)
+    if debug:
+        print("  Configuration data:", config)
 
-    print("2. Activate logging scheme as selected in config")
-    config = define_logger(config=config, category="Info", job=os.path.basename(__file__),
-                           newname='mm-basevalue-tool.log', debug=debug)
-
-    name1 = "{}-basevalue".format(config.get('logname'))
+    #print("2. Activate logging scheme as selected in config")
+    #config = define_logger(config=config, category="Info", job=os.path.basename(__file__),
+    #                       newname='mm-basevalue-tool.log', debug=debug)
+    # Use the logfile from config
+    credentials = config.get('dbcredentials')
+    name1 = "{}".format(os.path.basename(config.get('logfile')))
+    name1 = name1.replace(".log","")
     statusmsg[name1] = 'Baseline notification successful'
-
-    print("3. Connect databases and select first available")
+    if debug:
+        print("- Connect databases and select first available")
     try:
-        config = connect_databases(config=config, debug=debug)
-        db = config.get('primaryDB')
-        connectdict = config.get('conncetedDB')
+        db = mm.connect_db(credentials)
+        print (" ... success")
+        config['primaryDB'] = db
     except:
         statusmsg[name1] = 'database failed'
 
-    print(config)
-
-    print("4. Running data analysis")
+    if debug:
+        print("- Running data analysis")
     joblist, runmode = get_runmode(joblist)
     if debug:
         print("  -> you selected the following jobs ({}) and runmode {}".format(joblist, runmode))
@@ -848,22 +852,27 @@ def main(argv):
             print("Selected parameters:")
             print(runmode, config.get('usealpha'), config.get('magrotation'), config.get('compensation'), startdate,
                   enddate, config.get('year'))
-        basevalue_recalc(runmode, config=config, debug=debug)
+        #basevalue_recalc(runmode, config=config, debug=debug)
 
     if 'overview' in joblist:
         print("Creating plots and overview")
         if debug:
             print("Selected parameters:")
             print(runmode, startdate, enddate, config.get('year'))
-        baseline_overview(runmode=runmode, config=config, debug=debug)
+        #baseline_overview(runmode=runmode, config=config, debug=debug)
 
     print("basevalue successfully finished")
 
     # 6. Logging section
     # ###########################
     if not debug:
-        martaslog = ml(logfile=config.get('logfile'), receiver=config.get('notification'))
-        martaslog.telegram['config'] = config.get('notificationconfig')
+        receiver = config.get('notification')
+        notificationcfg = config.get('notificationconfig')
+        martaslog = ml(logfile=config.get('logfile'), receiver=receiver)
+        if receiver == 'telegram':
+            martaslog.telegram['config'] = notificationcfg
+        elif receiver == 'email':
+            martaslog.email['config'] = notificationcfg
         martaslog.msg(statusmsg)
     else:
         print("Debug selected - statusmsg looks like:")
