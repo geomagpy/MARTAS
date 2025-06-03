@@ -637,10 +637,11 @@ def main(argv):
                 job2 = cron.new(command=line2, comment=comment2)
                 job2.setall('20 0 * * *')
             comment2a = "Filtering"
-            line2a = "#{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","filter.py"),os.path.join(confpath,"filter.cfg"), os.path.join(logpath,"filter.log"))
+            line2a = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","filter.py"),os.path.join(confpath,"filter.cfg"), os.path.join(logpath,"filter.log"))
             if not list(cron.find_comment(comment2a)):
                 job2a = cron.new(command=line2a, comment=comment2a)
                 job2a.minute.every(2)
+                job2a.enable(False)
             if destination.find("db") >= 0:
                 comment3 = "Optimizing database"
                 line3 = "{} {} -c {} -s sqlmaster > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","optimizetables.py"), os.path.join(confpath,"archive.cfg"), os.path.join(logpath,"optimizetables.log"))

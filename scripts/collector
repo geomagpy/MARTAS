@@ -584,8 +584,8 @@ def on_message(client, userdata, msg):
                     #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
                     dbarrayinterpreted = True
                 # create a stream.header
-                #if debug:
-                #    log.msg(stream.ndarray)
+                if debug:
+                    log.msg(stream.ndarray)
                 stream.header = headstream[sensorid]
                 if debug:
                     log.msg("writing header: {}".format(headstream[sensorid]))

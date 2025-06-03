@@ -693,10 +693,82 @@ Solution:
 
 ### 6.9 filter
 
-Use the filter application to smooth and resample data sets. The methods uses the MagPy filter mathod and allows
+Use the filter application to smooth and resample data sets. The methods uses the MagPy filter method and allows
 for the application of all included filter methods (https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#5-timeseries-methods).
+By default only data sets with sampling periods faster than 1 Hz will be filtered. You can change this behavior
+you with input options.
+The filter method principally supports two run modes using option -j, **realtime** and **archive**, of which realtime 
+is the default mode. Both run modes require a configuration 
+file. The configuration file is a json structure containing a filter dictionary with the following major sub items:
+
+| item           | description                                                                        |
+|----------------|------------------------------------------------------------------------------------|
+| groupparameter | a dictionary with filter characteristics of specific sensors or data groups        |
+| permanent      | a list of sensors subjected to *realtime* analysis                                 | 
+| blacklist      | a list of SensorIDs which should not be filtered although belonging to data groups |
+| basics         | a dictionary with general definition, paths and notification                       |
+
+Groupparameter contains subdictionaries of the following format:
+
+         {...,
+         "LEMI036_3_0001_0001" : {"filtertype":"hann", 
+                                  "filterwidth":100, 
+                                  "missingdata":"conservative",
+                                  "resample_period":1, 
+                                  "window" : 40000, 
+                                  "dayrange":4,
+                                  "station" : "WIC",
+                                  "revision" : "0002"},
+         "LEMI025" : {"filtertype":"gaussian"} 
+         }
+
+The groupparameter item can either be a unique DataID, a SensorID or any fraction of those name. "LEMI025" will define
+a group and apply the filter parameters to all DataIDs containing "LEMI025". The content of each groupparameter is also
+organized as a dictionary. The following items can be defined for each group entry. *station* will limit the application
+to data sets from this obs-code/IMO/station. *filtertyp*, *filterwidth* and *missingdata* define
+the major filter characteristics. Please check MagPy's help(DataStream().filter) for all available filters and their
+parameters. *resample_period* is given in Hz. If you want skip resampling then insert "noresample". *window* defines 
+the amount of data on which the filter is applied in 
+**realtime** mode. If you want to subject the last 600 seconds of 10Hz data, then window should be 6000. *realtime* is 
+deprecated and will be removed. *dayrange* defines the data range to be filtered in **archive** mode. *revision* defines
+the DataID revision assigned to the output. Usually this is "0002".
+Please note: any parameter defined in groupparameter will override defaults and general values provided as options like
+-d dayrange. 
+
+The permanent item defines a list of realtime sensors. Only these DataID's are considered for realtime analysis.
+
+The blacklist item is a list of data sets to be ignored. 
+
+Basics provides a dictionary with general information.
+
+              "basics": {"basepath":"/home/user/MARCOS/archive",
+                         "outputformat":"PYCDF",
+                         "destination":"db",
+                         "credentials":"mydb",
+                         "notification":"telegram",
+                         "notificationconf":"/home/user/.martas/conf/telegram.cfg",
+                         "logpath":"/home/user/.martas/log/filterstatus.log"}
 
 
+The filter application will firstly scan the database for all DataIDs defined as *grouparameter* items fulfilling the 
+sampling rate criteria, below 1 Hz as default, and drop all DataID's as defined in the *blacklist*.
+A **realtime** job will then check whether recent data recordings exist, which by default are not older then 7200 sec, 
+2 hours. Then it will will perform a filter analysis using the given parameters. 
+A **archive** job will use the dayrange parameter, default is 2, and option endtime, default is UTC-now. Endtime can 
+only be modified using the general option -e.
+
+        python filter.py -c ~/myconfig.cfg -j archive -e LEMI036_123_0001
+
+The output will be stored within the defined destination. Please note: if a database is your destination then DATAINFO
+is NOT updated by default. Data sets are stored within the data table ending with the provided revision, default 
+"0002". If you want to update DATAINFO you need to provide the SensorID in option -s.
+
+        python filter.py -c ~/myconfig.cfg -j realtime -s LEMI036_123_0001
+
+Other general optins are -l to define a loggernamse, which is useful if you have several filter jobs running on one
+machine. The option -x will enable sending of logging information to the defined notification system. By default 
+this is switched of because database contents are usually monitored, which also would report failures with 
+specific data sets. 
 
  
 ### 6.10 gamma

@@ -162,6 +162,7 @@ def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshol
         print ("Get-senors: Dealing with group", key)
         # Checking all available sensors
         # ##############################
+        samprate = groupdict[key].get('samplingrate',samprate)
         srlist = []
         stationid = groupdict[key].get('station',None)
         stationstr = ''
@@ -322,7 +323,7 @@ def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=N
                 if debug:
                     print ("     Realtime job selected -> getting data from database")
                 amount = options.get('window',40000)
-                rt = options.get('realtime',False)
+                rt = options.get('realtime',True)
                 # amount * sampling rate defines coverage in seconds -> 10Hz (0.1 sec * 40000 -> 4000 sec or 0.5 sec * 10000 -> 5000 sec)
                 if not mm.get_bool(rt):
                     amount = amount*3                # triple the amount of expected data if only hourly uploads are existing
@@ -377,15 +378,22 @@ def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=N
                         try:
                             resample_period=int(resamp)
                         except:
+                            resample_period=1.0
                             pass
+                missingdata = options.get('missingdata', 'conservative')
+                destrevision = options.get('revision', '0002')
                 if debug:
                     print ("    Default analysis parameter (may be re-specified for individual sensors): {}, filter type: {}, filter width: {}, resample period: {}, {}".format(inst, filtertype, filterwidth, resample_period, noresample))
-                filtstream = last.filter(filter_type=filtertype, filter_width=filterwidth, missingdata='conservative',resample_period=resample_period,noresample=noresample)
+                filtstream = last.filter(filter_type=filtertype, filter_width=filterwidth, missingdata=missingdata,resample_period=resample_period,noresample=noresample)
                 # cut out the last 90% to reduce boundary filter effects # after 0.4.6
                 try:
                     if debug:
-                        print ("    Cutting out lower end of stream (5 percent) ..")
-                    filtstream = filtstream.cut(95)
+                        print ("    Cutting out two lines (seconds) from start and two from beginning ..")
+                    am = len(filtstream)
+                    print (len(filtstream))
+                    filtstream = filtstream.cut(am-2, 1, 0)
+                    filtstream = filtstream.cut(am-4, 1, 1)
+                    print ("Should be length -4", len(filtstream))
                     if debug:
                         print ("     Filtstream coverage: length={}, {}".format(len(filtstream), filtstream.timerange()) )
                         print ("     -> Done")
@@ -393,7 +401,7 @@ def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=N
                     pass
 
                 #### ALWAYS write to 0002 table
-                newtab = inst[:-5]+'_0002'
+                newtab = "{}_{}".format(inst[:-5],destrevision)
 
                 if not destination == 'disk':
                     # Write to database
@@ -520,6 +528,7 @@ def main(argv):
         elif opt in ("-x", "--sendlog"):
             sendlog = True
         elif opt in ("-D", "--debug"):
+            print ("Debug activated ...")
             debug = True
 
     print ("Running filter.py version {} for {} job".format(version,jobtype))
@@ -595,7 +604,7 @@ def main(argv):
         elif receiver == 'email':
             martaslog.email['config'] = notificationcfg
         martaslog.msg(statusmsg)
-    elif not sendlog:
+    elif debug:
         print ("Debug selected - statusmsg looks like:")
         print (statusmsg)
 
