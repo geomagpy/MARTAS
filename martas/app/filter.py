@@ -69,7 +69,6 @@ filter.py -c singlefilter.cfg -j archive,second -d 2 -e 2021-02-26
 | ------ |  -----------  | ---------- | ------------- | ----------  | ------- | --------- |
 |        |               |            |               |             |         |           |
 |        |  read_conf    |      2.0.0 |  yes          |             |         |           |
-|        |  get_delta    |      2.0.0 |  yes          |             |         |           |
 |        |  get_sensors  |      2.0.0 |  yes          |             |         |           |
 
 
@@ -103,39 +102,6 @@ def read_conf(path):
              filterdict = d.get('filter')
     return filterdict
 
-
-## Method for extracting DeltaValues for part 2
-def get_delta(st,i, debug=False):
-    comp = ['x','y','z']
-    truecomp = comp[i]
-    if debug:
-        print ("Running get delta with", st, i)
-    for co in comp:
-        pos=0
-        while pos >= 0:
-            if debug:
-                print ("Component", co)
-            pos = st.find(co)
-            pos2 = st.find(',',pos)
-            if debug:
-                print (pos,pos2)
-            if not pos2 >= 0:
-                pos2 = len(st)
-            if pos >= 0:
-                part = st[pos:pos2]
-                if co == truecomp:
-                    partar = part.split('_')
-                    delta = "f_{}".format(float(partar[1])*0.001)
-                else:
-                    delta = ''
-                st = st.replace(part,delta)
-                if debug:
-                    print ("pos > 0:", st, delta)
-    if not 'st' in st:
-        st = st.replace(',','')
-    if debug:
-        print ("Returning:", re.sub('\,+', ',', st))
-    return re.sub('\,+', ',', st)
 
 
 def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshold=7200,blacklist=None, debug=False):
@@ -351,6 +317,7 @@ def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=N
                 stationid = db.select('StationID', 'DATAINFO', 'DataID LIKE "{}"'.format(inst))[0]
                 sensor = "_".join(inst.split('_')[:-1])
                 datapath = os.path.join(basepath,stationid,sensor,inst,'*')
+                print (datapath)
                 begin = endtime-timedelta(days=dayrange)
                 if debug:
                     print ("    Reading data between {} and {}".format(begin, endtime))
@@ -520,7 +487,6 @@ def main(argv):
                 endtime = datetime.now(timezone.utc).replace(tzinfo=None)
         elif opt in ("-s", "--sensors"):
             sensorlist = arg.split(',')
-            #TODO what does sensor actually specifiy? - if selected still all sensors are analyzed
         elif opt in ("-p", "--path"):
             basepath = os.path.abspath(arg)
         elif opt in ("-l", "--loggername"):
@@ -567,16 +533,12 @@ def main(argv):
     except:
         recentthreshold=7200
     destination = basics.get('destination')
-    if not basepath:
-        basepath = basics.get('basepath')
+    basepath = basics.get('basepath', "/srv/archive")
     receiver  = basics.get('notification',"")
     notificationcfg  = basics.get('notificationcfg',"")
     logpath = basics.get('logpath',"/tmp/filterstatus.log")
     if newloggername:
-        logpath = os.path.join()
-    #telegramconfigtmp = basics.get('telegramconfig',None)
-    #if telegramconfigtmp:
-    #    telegramconfig = telegramconfigtmp
+        logpath = os.path.join(os.path.dirname(logpath),newloggername)
     outputformat = basics.get('outputformat')
     credentials = basics.get('credentials',"cobsdb")
 

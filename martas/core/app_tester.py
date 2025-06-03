@@ -128,11 +128,6 @@ class TestFilter(unittest.TestCase):
         cfg = filter.read_conf("config/filter.cfg")
         self.assertNotEqual(cfg,None)
 
-    def test_get_delta(self):
-        #self.assertEqual(cmod, "updated but already accepted")
-        #self.assertFalse(modres)
-        pass
-
     def test_get_sensors(self):
         recent = True
         dd = filter.read_conf("../conf/filter.cfg")
@@ -145,7 +140,7 @@ class TestFilter(unittest.TestCase):
         db = database.DataBank(host=mpcred.lc(credentials, 'host'), user=mpcred.lc(credentials, 'user'),
                                    password=mpcred.lc(credentials, 'passwd'), database=mpcred.lc(credentials, 'db'))
         highreslst = filter.get_sensors(db=db,groupdict=groupparameterdict,samprate='HF', blacklist=blacklist, recent=recent, recentthreshold=recentthreshold, debug=True)
-        print ("Donw:", highreslst)
+        print ("Done:", highreslst)
 
     def test_apply_filter(self):
         sensorlist = []
@@ -162,9 +157,7 @@ class TestFilter(unittest.TestCase):
         db = database.DataBank(host=mpcred.lc(credentials, 'host'), user=mpcred.lc(credentials, 'user'),
                                    password=mpcred.lc(credentials, 'passwd'), database=mpcred.lc(credentials, 'db'))
         statusmsg = filter.apply_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='realtime', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
-        print ("HERE")
         statusmsg = filter.apply_filter(db, statusmsg={}, groupdict=groupparameterdict, permanent=permanent, blacklist=blacklist, jobtype='archive', endtime=datetime.now(), dayrange=2, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=True)
-        print ("Done")
 
 class TestThreshold(unittest.TestCase):
 

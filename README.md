@@ -538,7 +538,7 @@ find subsections with detailed instructions and example applications for all of 
 | di.py              |                                                      |               |         | 6.6     |
 | file_download.py   | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.7     |
 | file_upload.py     | Upload files                                         | upload.json   | 2.0.0*  | 6.8     |
-| filter.py          | filter data                                          | filter.cfg    | ADD     | -       |
+| filter.py          | filter data                                          | filter.cfg    | 2.0.0   | 6.9     |
 | gamma.py           | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.10    |
 | monitor.py         | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0   | 6.11    |
 | obsdaq.py          | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.12    |
@@ -555,9 +555,15 @@ Version 2.0.0* means it still needs to be tested
 
 ### 6.2 archive
 
-Archive.py gets data from a databank and stores it to any accessible repository (e.g. disk). Old database entries exceeding a defined age can be deleted in dependency of data resolution. Archive files can be stored in a user defined format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 118 years of hourly data are kept. Settings are given in a configuration file.
-IMPORTANT: data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained there.
-IMPORTANT: take care about depth - needs to be large enough to find data
+Archive.py gets data from a databank and stores it to any accessible repository (e.g. disk). Old database entries 
+exceeding a defined age can be deleted in dependency of data resolution. Archive files can be stored in a user defined 
+format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A 
+cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 
+118 years of hourly data are kept. Settings are given in a configuration file.
+IMPORTANT: data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained 
+there.
+IMPORTANT: take care about depth - needs to be large enough to find data. Any older data set (i.e. you uploaded data 
+from a year ago) will NOT be archive and also not be cleaned. Use db_truncate to clean the db in such cases.
 
         # Automatic application
         python3 archive.py -c ~/.martas/conf/archive.cfg
@@ -698,8 +704,10 @@ for the application of all included filter methods (https://github.com/geomagpy/
 By default only data sets with sampling periods faster than 1 Hz will be filtered. You can change this behavior
 you with input options.
 The filter method principally supports two run modes using option -j, **realtime** and **archive**, of which realtime 
-is the default mode. Both run modes require a configuration 
-file. The configuration file is a json structure containing a filter dictionary with the following major sub items:
+is the default mode. For the application of the **realtime** mode a MagPy database is mandatory. **archive** requires an
+archive structure as obtained by the archive.py application. Both run modes require 
+a configuration file. The configuration file is a json structure containing a filter dictionary with the following 
+sub items:
 
 | item           | description                                                                        |
 |----------------|------------------------------------------------------------------------------------|
@@ -769,6 +777,9 @@ Other general optins are -l to define a loggernamse, which is useful if you have
 machine. The option -x will enable sending of logging information to the defined notification system. By default 
 this is switched of because database contents are usually monitored, which also would report failures with 
 specific data sets. 
+
+The filter method should be applied in an overlapping way, as the beginning and end of the filtered sequence are
+removed in dependency of the filter width. 
 
  
 ### 6.10 gamma
