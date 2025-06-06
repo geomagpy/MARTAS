@@ -9,6 +9,7 @@ exec(open('martas/version.py').read())
 shutil.copyfile('martas/acquisition.py','scripts/acquisition')
 shutil.copyfile('martas/collector.py','scripts/collector')
 shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
+shutil.copyfile('martas/martas_backup.py', 'scripts/martas_backup')
 
 install_requires=[
             "geomagpy > 1.1.9",
@@ -28,7 +29,7 @@ setup(
     author='R. Leonhardt',
     author_email='roman.leonhardt@geosphere.at',
     packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.install', 'martas.lib', 'martas.logrotate', 'martas.scripts', 'martas.telegram', 'martas.web'],
-    scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init'],
+    scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init', 'scripts/martas_backup'],
     url='',
     license='LICENSE.txt',
     description='MARTAS',

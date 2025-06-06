@@ -178,6 +178,7 @@ def main(argv):
     else:
         confpath = os.path.join(homedir,dir,"conf")
     shutil.copyfile(os.path.join(confpath, "archive.cfg"), os.path.join(confpath, "archive.bak"))
+    shutil.copyfile(os.path.join(confpath, "basevalue.cfg"), os.path.join(confpath, "basevalue.bak"))
     shutil.copyfile(os.path.join(confpath, "download-source.cfg"), os.path.join(confpath, "download-source.bak"))
     shutil.copyfile(os.path.join(confpath, "filter.cfg"), os.path.join(confpath, "filter.bak"))
     shutil.copyfile(os.path.join(confpath, "gamma.cfg"), os.path.join(confpath, "gamma.bak"))
@@ -636,6 +637,11 @@ def main(argv):
             if not list(cron.find_comment(comment2)):
                 job2 = cron.new(command=line2, comment=comment2)
                 job2.setall('20 0 * * *')
+            comment2b = "Truncating old and none-DATAINFO tables"
+            line2b = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","db_truncate.py"),os.path.join(confpath,"archive.cfg"), os.path.join(logpath,"db_truncate.log"))
+            if not list(cron.find_comment(comment2b)):
+                job2b = cron.new(command=line2b, comment=comment2b)
+                job2b.setall('20 2 * * *')
             comment2a = "Filtering"
             line2a = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","filter.py"),os.path.join(confpath,"filter.cfg"), os.path.join(logpath,"filter.log"))
             if not list(cron.find_comment(comment2a)):
@@ -730,6 +736,12 @@ def main(argv):
                                         "dest" : os.path.join(confpath, "{}.cfg".format(marcosjob)) }
         files_to_change["archiveconf"] = {"source": os.path.join(confpath, "archive.bak"),
                                      "dest": os.path.join(confpath, "archive.cfg")}
+        files_to_change["basevalueconf"] = {"source": os.path.join(confpath, "basevalue.bak"),
+                                     "dest": os.path.join(confpath, "basevalue.cfg")}
+        files_to_change["filterconf"] = {"source": os.path.join(confpath, "filter.bak"),
+                                         "dest": os.path.join(confpath, "filter.cfg")}
+        files_to_change["downloadconf"] = {"source": os.path.join(confpath, "download-source.bak"),
+                                           "dest": os.path.join(confpath, "download-source.cfg")}
 
         # file for which replacements will happen and new names
     files_to_change["skeletonlogrotate"] = {"source": os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
@@ -742,10 +754,6 @@ def main(argv):
                         "dest": os.path.join(confpath, "mail.cfg")}
     files_to_change["gammaconf"] = {"source": os.path.join(confpath, "gamma.bak"),
                         "dest": os.path.join(confpath, "gamma.cfg")}
-    files_to_change["filterconf"] = {"source": os.path.join(confpath, "filter.bak"),
-                        "dest": os.path.join(confpath, "filter.cfg")}
-    files_to_change["downloadconf"] = {"source": os.path.join(confpath, "download-source.bak"),
-                        "dest": os.path.join(confpath, "download-source.cfg")}
 
     for f in files_to_change:
         d = files_to_change.get(f)

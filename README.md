@@ -607,7 +607,6 @@ Instructions will be added gradually here. Meanwhile contact the Conrad Observat
 The basevalue application, particulary its overview plotting method, currently has some limitations as it was developed
 for DHZ baselines and might not display XYZ data correctly. 
 
-
 ### 6.5 checkdatainfo
 
 checkdatainfo.py checks for all data tables which are missing in DATAINFO  and SENOSRS. This method helps to 
@@ -637,7 +636,7 @@ data are kept. Settings are given in a configuration file.
 
 Application:
 
-        python3 db_truncate.py -c truncate.cfg
+        python3 db_truncate.py -c archive.cfg
 
 
 
