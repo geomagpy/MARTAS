@@ -101,6 +101,8 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
     vainstlist = config.get('vainstlist')
     scinstlist = config.get('scinstlist')
     pierlist = config.get('pierlist')
+    primarypier = config.get('primarypier') #,'A2')
+    pierdict = config.get('pierdict') #,'A2')
     year = config.get('year')
     blvabb = config.get('blvabb')
     datasource = config.get('datasource')  # db,file
@@ -127,9 +129,9 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
         print(" - endtime: {} ".format(endtime))
 
     if not len(vainstlist) > 0:
-        print(" cobs_baseline requires variometer data: please provide")
+        print(" baseline requires variometer data: please provide")
     if not len(scinstlist) > 0:
-        print(" cobs_baseline requires continuous scalar data: please provide")
+        print(" baseline requires continuous scalar data: please provide")
     # further required are: sourcepath, outpath
     # sourcepath = sourcepath,'DI','data',
     # sourcepath = outpath,'magpy',
@@ -145,6 +147,11 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     filename = "{}_{}_{}.txt".format(basename, year, runmode)
                 else:
                     filename = "{}.txt".format(basename)
+                    if not os.path.isfile(os.path.join(blvdatapath, filename)):
+                        filename = "{}_{}_{}.txt".format(basename, year, runmode)
+
+                if debug:
+                    print ("Path and Filename", blvdatapath, filename)
 
                 if datasource == 'db':
                     print(" Accessing database...")
@@ -169,13 +176,13 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     print(" -- Dropping flags from DB:", dataid)
                     blvflaglist = db.flags_from_db(dataid)
                     print("   -> {} flags".format(len(blvflaglist)))
-                    absr = blvflaglist.apply_flags(absr, mode='drop')
+                    if len(blvflaglist) > 0:
+                        absr = blvflaglist.apply_flags(absr, mode='drop')
                     print(" -- Dropping flags from File", flagfile)
                     flaglist = flagging.load(flagfile, sensorid=dataid)
                     print("   -> {} flags".format(len(flaglist)))
-                    absr = flaglist.apply_flags(absr, mode='drop')
-                    # absr = absr.flag(flaglist)
-                    # absr = absr.remove_flagged()
+                    if len(flaglist) > 0:
+                        absr = flaglist.apply_flags(absr, mode='drop')
                     absr = absr._drop_nans('dx')
                     absr = absr._drop_nans('dy')
                     absr = absr._drop_nans('dz')
@@ -190,49 +197,49 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     basez = blvmeans._get_column('z')
                     sym = symbols[idx]
                     alpha = 1
-                    if pier in ['A16', 'H1']:
-                        alpha = 0.5
-                    if pier in ['A16']:
-                        alpha = 0.2
+                    if pierdict.get(pier):
+                        if methods.is_number(pierdict.get(pier)):
+                            alpha = float(pierdict.get(pier))
                     plt.subplot(311)
                     plt.title('{}'.format(basename[:-3]))
                     plt.ylabel('BASE H')
                     plt.grid(True)
-                    plot_date(ti, basex, 'b' + sym, alpha=alpha)
-                    if pier == 'A2':
+                    plot(ti, basex, 'b' + sym, alpha=alpha)
+                    if pier == primarypier:
                         x1, x2, y1, y2 = plt.axis()
                         plt.axis((x1, x2, y1 - 4, y2 + 4))
                     if absr.length()[0] > 10:
+                        print (denormalize(ttmp, func[1], func[2]))
                         if not runmode == 'thirdrun' and len(func) > 0:
-                            plot_date(denormalize(ttmp, func[1], func[2]), func[0]['fdx'](ttmp), 'r-')
-                        elif pier == 'A2' and len(func) > 0:
-                            plot_date(denormalize(ttmp, func[1], func[2]), func[0]['fdx'](ttmp), 'r-', linewidth=2)
+                            plot(denormalize(ttmp, func[1], func[2]), func[0]['fdx'](ttmp), 'r-')
+                        elif pier == primarypier and len(func) > 0:
+                            plot(denormalize(ttmp, func[1], func[2]), func[0]['fdx'](ttmp), 'r-', linewidth=2)
                     plt.subplot(312)
                     # plt.tick_params(axis='y', which='both', labelleft='off', labelright='on')
                     plt.ylabel('BASE D')
                     plt.grid(True)
-                    plot_date(ti, basey, 'g' + sym, alpha=alpha)
-                    if pier == 'A2':
+                    plot(ti, basey, 'g' + sym, alpha=alpha)
+                    if pier == primarypier:
                         x1, x2, y1, y2 = plt.axis()
                         plt.axis((x1, x2, y1 - 0.05, y2 + 0.05))
                     if absr.length()[0] > 10:
                         if not runmode == 'thirdrun' and len(func) > 0:
-                            plot_date(denormalize(ttmp, func[1], func[2]), func[0]['fdy'](ttmp), 'r-')
-                        elif pier == 'A2' and len(func) > 0:
-                            plot_date(denormalize(ttmp, func[1], func[2]), func[0]['fdy'](ttmp), 'r-', linewidth=2)
+                            plot(denormalize(ttmp, func[1], func[2]), func[0]['fdy'](ttmp), 'r-')
+                        elif pier == primarypier and len(func) > 0:
+                            plot(denormalize(ttmp, func[1], func[2]), func[0]['fdy'](ttmp), 'r-', linewidth=2)
                     plt.subplot(313)
                     plt.ylabel('BASE Z')
                     plt.grid(True)
                     # plt.xticks(rotation='vertical')
-                    plot_date(ti, basez, 'm' + sym, alpha=alpha, label=pier)
-                    if pier == 'A2':
+                    plot(ti, basez, 'm' + sym, alpha=alpha, label=pier)
+                    if pier == primarypier:
                         x1, x2, y1, y2 = plt.axis()
                         plt.axis((x1, x2, y1 - 4 - legendoffset, y2 + 4 - legendoffset))
                     if absr.length()[0] > 10:
                         if not runmode == 'thirdrun':
-                            plot_date(denormalize(ttmp, func[1], func[2]), func[0]['fdz'](ttmp), 'r-')
-                        elif pier == 'A2':
-                            plot_date(denormalize(ttmp, func[1], func[2]), func[0]['fdz'](ttmp), 'r-', linewidth=2)
+                            plot(denormalize(ttmp, func[1], func[2]), func[0]['fdz'](ttmp), 'r-')
+                        elif pier == primarypier:
+                            plot(denormalize(ttmp, func[1], func[2]), func[0]['fdz'](ttmp), 'r-', linewidth=2)
                     if absr.length()[0] > 0 and runmode == 'thirdrun' and not debug:
                         print("Writing new abs files as {}".format(basename))
                         absr.write(blvdatapath, filenamebegins=basename, filenameends='_' + str(year) + '.txt',
@@ -266,7 +273,7 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
     diindent = config.get('diid', '')
     datasource = config.get('datasource')  # db,file
     blvdatapath = config.get('blvdatapath')
-    flagfile = config.get('flagfile')
+    flagfile = config.get('diflagfile')
     db = config.get('primaryDB')
     obscode = config.get('obscode')
     writemode = config.get('writemode')
@@ -285,6 +292,7 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
     expectedI = config.get('expectedI', None)
     skipscalardb = config.get('skipscalardb', False)
     movetoarchive = config.get('movetoarchive', False)
+    contflagfile = config.get('contflagfile', False) # flagging data for vario and scalar from file
     movetoarchivenow = movetoarchive
 
     sourcepath = os.path.join(config.get('base'), 'archive', obscode)
@@ -335,17 +343,21 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
 
     for scinst in scinstlist:
         print(" Now dealing with scalar {}".format(scinst))
-        if os.path.isdir(scinst):
-            print(" scalar instrument provided as full path")
-            # directory provided - use this path and get scinst from last layer
-            scalarpath = os.path.join(scinst, '*')
-            scinst = os.path.basename(os.path.normpath(scinst))
+        if scinst:
+            if os.path.isdir(scinst):
+                print(" scalar instrument provided as full path")
+                # directory provided - use this path and get scinst from last layer
+                scalarpath = os.path.join(scinst, '*')
+                scinst = os.path.basename(os.path.normpath(scinst))
+                scalarinst = scinst[:-5]
+                print("  -> scalar instrument: {}".format(scinst))
+            else:
+                scalarinst = scinst[:-5]
+                scalarpath = os.path.join(sourcepath, scalarinst, scinst, '*')
             scalarinst = scinst[:-5]
-            print("  -> scalar instrument: {}".format(scinst))
         else:
-            scalarinst = scinst[:-5]
-            scalarpath = os.path.join(sourcepath, scalarinst, scinst, '*')
-        scalarinst = scinst[:-5]
+            scalarpath = None
+            scalarinst = "None"
         for vainst in vainstlist:
             print(" Now dealing with vario {}".format(vainst))
             if os.path.isdir(vainst):
@@ -461,7 +473,7 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                                                  db=db, skipscalardb=skipscalardb, compensation=compensation,
                                                  magrotation=magrotation, alpha=alpha, beta=beta, abstype=abstype,
                                                  azimuth=azimuth, deltaD=deltaD, deltaI=deltaI, dbadd=dbadd,
-                                                 movetoarchive=movetoarchivenow)
+                                                 movetoarchive=movetoarchivenow, flagfile=contflagfile)
                 # TODO addDB
                 # How is addDB working? -> Append new DI files? Replace existing?
                 # How to clean files within the time range?
@@ -607,6 +619,12 @@ def check_conf(config, startdate, enddate, varios=None, scalars=None, piers=None
     if piers and len(piers) > 0:
         print(" Setting piers to {}".format(piers))
         config['pierlist'] = piers
+    pl = config.get('pierlist')
+    if not isinstance(pl, (list, tuple)):
+        config['pierlist'] = [pl]
+    if not config.get('primarypier'):
+        if len(config.get('pierlist')) > 0:
+            config['primarypier'] = config.get('pierlist')[0]
 
     if config.get('year') in ['None', 'False', None, 0]:
         config['year'] = None
@@ -828,13 +846,16 @@ def main(argv):
     #                       newname='mm-basevalue-tool.log', debug=debug)
     # Use the logfile from config
     credentials = config.get('dbcredentials')
+    credential = None
+    if len(credentials) > 0:
+        credential = credentials[0]
     name1 = "{}".format(os.path.basename(config.get('logfile')))
     name1 = name1.replace(".log","")
     statusmsg[name1] = 'Baseline notification successful'
     if debug:
-        print("- Connect databases and select first available")
+        print("- Connecting to database {}".format(credential))
     try:
-        db = mm.connect_db(credentials)
+        db = mm.connect_db(credential)
         print (" ... success")
         config['primaryDB'] = db
     except:
@@ -852,14 +873,14 @@ def main(argv):
             print("Selected parameters:")
             print(runmode, config.get('usealpha'), config.get('magrotation'), config.get('compensation'), startdate,
                   enddate, config.get('year'))
-        #basevalue_recalc(runmode, config=config, debug=debug)
+        basevalue_recalc(runmode, config=config, debug=debug)
 
     if 'overview' in joblist:
         print("Creating plots and overview")
         if debug:
             print("Selected parameters:")
             print(runmode, startdate, enddate, config.get('year'))
-        #baseline_overview(runmode=runmode, config=config, debug=debug)
+        baseline_overview(runmode=runmode, config=config, debug=debug)
 
     print("basevalue successfully finished")
 

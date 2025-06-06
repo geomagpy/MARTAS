@@ -533,7 +533,7 @@ find subsections with detailed instructions and example applications for all of 
 |------------------|------------------------------------------------------|---------------|---------|---------|
 | archive.py       | Read database tables and create archive files        | archive.cfg   | 2.0.0   | 6.2     |
 | ardcomm.py       | Communicating with arduino microcontroller           |               | 1.0.0   | 6.3     |
-| basevalue.py     | Analyse DI data and create adopted baselines         | basevalue.cfg |         | 6.4     |
+| basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg | 2.0.0*  | 6.4     |
 | checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0   | 6.5     |
 | db_truncate.py   | Delete data from all data tables                     | truncate.cfg  | 2.0.0   | 6.6     |
 | file_download.py | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.7     |
@@ -588,12 +588,24 @@ Communication program for microcontrollers (here ARDUINO) e.g. used for remote s
 
 ### 6.4 basevalue
 
-Basevalue.py recalculates basevalues from DI measurements and provided variation and scalar data. The method can use 
+Basevalue.py (re)calculates basevalues from DI measurements and provided variation and scalar data. The method can use 
 multiple data sources and piers as defined in the configuration file. It further supports different run modes defining
 the complexity of baseline fits, application of rotation matricies etc. These run modes are used for the yearly 
-definitive data analysis of the Conrad Obs. It is recommended to use a similar data coverage of approximately one year
+definitive data analysis of the Conrad Observatory. It is recommended to use a similar data coverage of approximately one year
 particularly with polynomial or spline fits to get comparable fitting parameters. In default mode: if
 enddate is set to now and no startdate is given, then startdate will be 380 days before enddate. 
+
+For continuous application throughout the year, i.e. an automatic DI analysis of new input values and a continuous 
+calculation of an adopted baseline the following parameters are suggested.
+
+        python basevalue.py -c ~/.martas/conf/basevalue.cfg
+
+For definitive data analysis, verification of baselines, iterative optimization of adopted baselines, and validation of 
+multiple pier measurements, you can use very same method with a combination of different run modes (option -j). 
+Instructions will be added gradually here. Meanwhile contact the Conrad Observatory team if you have questions.
+
+The basevalue application, particulary its overview plotting method, currently has some limitations as it was developed
+for DHZ baselines and might not display XYZ data correctly. 
 
 
 ### 6.5 checkdatainfo
