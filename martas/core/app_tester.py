@@ -11,8 +11,9 @@ import sys
 sys.path.insert(1,'/home/leon/Software/MARTAS/') # should be magpy2
 
 import os
+import shutil
 import numpy as np
-from magpy.stream import DataStream
+from magpy.stream import DataStream, read
 from magpy.core import database
 from magpy.opt import cred as mpcred
 
@@ -20,6 +21,7 @@ from datetime import datetime, timedelta
 from martas.core import methods as mameth
 
 from martas.app import archive
+from martas.app import basevalue
 from martas.app import checkdatainfo
 from martas.app import db_truncate
 from martas.app import filter
@@ -80,6 +82,76 @@ class TestArchive(unittest.TestCase):
 
     #def test_validtimerange(self):
     #    archive.validtimerange(timetuple, mintime, maxtime, debug=False)
+
+
+class TestBasevalue(unittest.TestCase):
+    """
+    Test environment for all basevalue methods
+    """
+
+    def test_check_conf(self):
+        config = mameth.get_conf(os.path.join('..', 'conf', 'basevalue.cfg'))
+        startdate, enddate = None, None
+        varios, scalars, piers = [],[],[]
+        config = basevalue.check_conf(config, startdate, enddate, varios=varios, scalars=scalars, piers=piers, debug=True)
+        pl = config.get('pierlist')
+        self.assertEqual(len(pl), 2)
+
+    def test_get_runmode(self):
+        joblist = ['firstrun','overview']
+        jl, jt = basevalue.get_runmode(joblist)
+        self.assertEqual(jt, 'firstrun')
+
+    def test_prepare_and_backup_file(self):
+        testpath = os.path.join('/tmp', 'BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2.txt')
+        print ("Copying BLV to temporary directory")
+        shutil.copyfile(os.path.join('..', 'test', 'BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2.txt'),testpath)
+        np = basevalue.backup_file(testpath)
+        self.assertTrue(np)
+        starttime = "2024-01-01"
+        endtime = "2024-12-31"
+        data = read(testpath)
+        lb = len(data)
+        print ("Trimming BLV in temporary directory")
+        basevalue.prepare_file(testpath, starttime, endtime, format_type='PYSTR')
+        data = read(testpath)
+        la = len(data)
+        self.assertEqual(lb-la, 119)
+
+    def test_prepare_table(self):
+        starttime = "2024-01-01"
+        endtime = "2024-12-31"
+        testpath = os.path.join('/tmp', 'BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2.txt')
+        credentials = 'cobsdb'
+        db = database.DataBank(host=mpcred.lc(credentials, 'host'), user=mpcred.lc(credentials, 'user'),
+                                   password=mpcred.lc(credentials, 'passwd'), database=mpcred.lc(credentials, 'db'))
+        shutil.copyfile(os.path.join('..', 'test', 'BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2.txt'),testpath)
+        data = read(testpath)
+        lb = len(data)
+        db.write(data, tablename = 'BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2', mode = 'replace')
+        dl = basevalue.prepare_table(db, 'BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2', starttime, endtime, tcol='time', cond=None)
+        d = db.read('BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2')
+        la = len(d)
+        self.assertEqual(lb-la, 119)
+
+    def test_baseline_overview(self):
+        config = mameth.get_conf(os.path.join('..', 'conf', 'basevalue.cfg'))
+        startdate, enddate = None, "2023-12-31"
+        varios, scalars, piers = ["LEMI036_1_0002_0002"],["GP20S3NSS2_012201_0001_0001"],["A2"]
+        config = basevalue.check_conf(config, startdate, enddate, varios=varios, scalars=scalars, piers=piers, debug=True)
+        config['blvdatapath'] = "/tmp"
+        config['blvabb'] = "BLV"
+        print (config)
+        dl = basevalue.baseline_overview(runmode='firstrun', config=config, debug=True)
+        self.assertTrue(dl)
+
+    def test_baseline_recalc(self):
+        #dl = basevalue.basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotation=True, compensation=True,
+        #             startdate=None, enddate=None, debug=False)
+        #self.assertEqual(len(dl), 10)
+        pass
+
+
 
 
 class TestCheckdataInfo(unittest.TestCase):

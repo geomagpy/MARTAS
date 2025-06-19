@@ -147,6 +147,8 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     filename = "{}_{}_{}.txt".format(basename, year, runmode)
                 else:
                     filename = "{}.txt".format(basename)
+                    if debug:
+                        print ("Checking for {}".format(basename))
                     if not os.path.isfile(os.path.join(blvdatapath, filename)):
                         filename = "{}_{}_{}.txt".format(basename, year, runmode)
 
@@ -173,16 +175,26 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     print("------------------------------")
                     absr = absr.removeduplicates()
                     dataid = absr.header.get('DataID')
-                    print(" -- Dropping flags from DB:", dataid)
-                    blvflaglist = db.flags_from_db(dataid)
-                    print("   -> {} flags".format(len(blvflaglist)))
-                    if len(blvflaglist) > 0:
-                        absr = blvflaglist.apply_flags(absr, mode='drop')
-                    print(" -- Dropping flags from File", flagfile)
-                    flaglist = flagging.load(flagfile, sensorid=dataid)
-                    print("   -> {} flags".format(len(flaglist)))
-                    if len(flaglist) > 0:
-                        absr = flaglist.apply_flags(absr, mode='drop')
+                    print(" -- Dropping flags contained in data set:")
+                    blvflaglistint = absr.header.get("DataFlags")
+                    if blvflaglistint:
+                        print ("    found {} flags".format(len(blvflaglistint)))
+                        absr = blvflaglistint.apply_flags(absr, mode='drop')
+                    if db:
+                        print(" -- Dropping flags from DB:", dataid)
+                        blvflaglist = db.flags_from_db(dataid)
+                        print("   -> {} flags".format(len(blvflaglist)))
+                        if len(blvflaglist) > 0:
+                            absr = blvflaglist.apply_flags(absr, mode='drop')
+                    else:
+                        if debug:
+                            print ("   No DB connected: Could not access flags from DB")
+                    if flagfile:
+                        print(" -- Dropping flags from File", flagfile)
+                        flaglist = flagging.load(flagfile, sensorid=dataid)
+                        print("   -> {} flags".format(len(flaglist)))
+                        if len(flaglist) > 0:
+                            absr = flaglist.apply_flags(absr, mode='drop')
                     absr = absr._drop_nans('dx')
                     absr = absr._drop_nans('dy')
                     absr = absr._drop_nans('dz')
@@ -204,12 +216,12 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     plt.title('{}'.format(basename[:-3]))
                     plt.ylabel('BASE H')
                     plt.grid(True)
-                    plot(ti, basex, 'b' + sym, alpha=alpha)
+                    plot(ti, basex, color='darkgray', linestyle='', marker=sym, alpha=alpha)
                     if pier == primarypier:
                         x1, x2, y1, y2 = plt.axis()
                         plt.axis((x1, x2, y1 - 4, y2 + 4))
                     if absr.length()[0] > 10:
-                        print (denormalize(ttmp, func[1], func[2]))
+                        #print (denormalize(ttmp, func[1], func[2]))
                         if not runmode == 'thirdrun' and len(func) > 0:
                             plot(denormalize(ttmp, func[1], func[2]), func[0]['fdx'](ttmp), 'r-')
                         elif pier == primarypier and len(func) > 0:
@@ -218,7 +230,7 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     # plt.tick_params(axis='y', which='both', labelleft='off', labelright='on')
                     plt.ylabel('BASE D')
                     plt.grid(True)
-                    plot(ti, basey, 'g' + sym, alpha=alpha)
+                    plot(ti, basey, color='darkgray', linestyle='', marker=sym, alpha=alpha)
                     if pier == primarypier:
                         x1, x2, y1, y2 = plt.axis()
                         plt.axis((x1, x2, y1 - 0.05, y2 + 0.05))
@@ -231,7 +243,7 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     plt.ylabel('BASE Z')
                     plt.grid(True)
                     # plt.xticks(rotation='vertical')
-                    plot(ti, basez, 'm' + sym, alpha=alpha, label=pier)
+                    plot(ti, basez, color='darkgray', linestyle='', marker=sym, alpha=alpha, label=pier)
                     if pier == primarypier:
                         x1, x2, y1, y2 = plt.axis()
                         plt.axis((x1, x2, y1 - 4 - legendoffset, y2 + 4 - legendoffset))
@@ -254,6 +266,8 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                     os.makedirs(plotdir)
                 plt.savefig(os.path.join(plotdir, 'allbasevalues.png'))
             plt.show()
+
+    return True
 
 
 def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotation=True, compensation=True,
@@ -705,6 +719,10 @@ def backup_file(path):
 
 
 def prepare_file(path, starttime, endtime, format_type='PYSTR'):
+    """
+    DESCRIPTION
+        Prepare file will remove all contents from the file within the selected timerange
+    """
     print(" -> fullreplace: preparing file")
     try:
         # read data
@@ -736,7 +754,7 @@ def prepare_table(db, tablename, starttime, endtime, tcol='time', cond=None):
     try:
         delstring = "DELETE FROM {} WHERE {}DATE({}) BETWEEN DATE('{}') AND DATE('{}')".format(tablename, condition,
                                                                                                tcol, starttime, endtime)
-        cursor = db.cursor()
+        cursor = db.db.cursor()
         cursor.execute(delstring)
         cursor.close()
     except:

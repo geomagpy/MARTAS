@@ -604,7 +604,7 @@ For definitive data analysis, verification of baselines, iterative optimization 
 multiple pier measurements, you can use very same method with a combination of different run modes (option -j). 
 Instructions will be added gradually here. Meanwhile contact the Conrad Observatory team if you have questions.
 
-The basevalue application, particulary its overview plotting method, currently has some limitations as it was developed
+The basevalue application, in particular its overview plotting method, currently has some limitations as it was developed
 for DHZ baselines and might not display XYZ data correctly. 
 
 ### 6.5 checkdatainfo

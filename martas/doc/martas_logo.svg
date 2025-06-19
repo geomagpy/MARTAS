@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   sodipodi:docname="martas_logo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.64052329"
+     inkscape:cx="208.42334"
+     inkscape:cy="556.57617"
+     inkscape:window-width="1850"
+     inkscape:window-height="1136"
+     inkscape:window-x="70"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Ebene 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:10.5833px;line-height:1.25;font-family:Gargi;-inkscape-font-specification:Gargi;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
+       x="67.276268"
+       y="108.14953"
+       id="text2234"><tspan
+         sodipodi:role="line"
+         id="tspan2232"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Gargi;-inkscape-font-specification:Gargi;stroke-width:0.264583"
+         x="67.276268"
+         y="108.14953" /></text>
+    <circle
+       style="fill:#e3dbdb;fill-rule:evenodd;stroke-width:2;stroke-miterlimit:4;stroke-dasharray:none;stroke:#800000;stroke-opacity:1"
+       id="path22132"
+       cx="97.195862"
+       cy="79.766449"
+       r="34" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:58.6815px;line-height:1.25;font-family:sans-serif;fill:#800000;fill-opacity:1;stroke:none;stroke-width:1.46705"
+       x="74.087051"
+       y="95.234634"
+       id="text14466"
+       transform="scale(0.98854133,1.0115915)"><tspan
+         sodipodi:role="line"
+         id="tspan14464"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:'EB Garamond SC';-inkscape-font-specification:'EB Garamond SC';fill:#800000;stroke-width:1.46705"
+         x="74.087051"
+         y="95.234634">M</tspan></text>
+  </g>
+</svg>
