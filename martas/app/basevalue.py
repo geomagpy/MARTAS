@@ -127,6 +127,7 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
         print(" - datasource: {} ".format(datasource))
         print(" - starttime: {} ".format(starttime))
         print(" - endtime: {} ".format(endtime))
+        print(" - primaryDB: {} ".format(db))
 
     if not len(vainstlist) > 0:
         print(" baseline requires variometer data: please provide")
@@ -270,8 +271,7 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
     return True
 
 
-def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotation=True, compensation=True,
-                     startdate=None, enddate=None, debug=False):
+def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=False):
     """
     DESCRIPTION
         recalculate basevalues
@@ -297,7 +297,6 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
     writeblv2file = config.get('writeblv2file', False)
     writeblv2db = config.get('writeblv2db', False)
     writedi2db = config.get('writedi2db', False)
-
     fixalpha = config.get('usealpha', True)
     fixbeta = config.get('usebeta', True)
     magrotation = config.get('magrotation', True)
@@ -350,13 +349,15 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
         print(" blv files will written to", blvdatapath)
 
     if runmode in ['thirdrun']:
-        print(" Using only primary F as scalar record")
+        if debug:
+            print(" Using only primary F as scalar record")
         # it is better to use the primary instrument !!!! -> correct flags are used
         # scinstlist = ['CobsF_sec_0001']
         scinstlist = [scinstlist[0]]
 
     for scinst in scinstlist:
-        print(" Now dealing with scalar {}".format(scinst))
+        if debug:
+            print(" Now dealing with scalar {}".format(scinst))
         if scinst:
             if os.path.isdir(scinst):
                 print(" scalar instrument provided as full path")
@@ -373,7 +374,8 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
             scalarpath = None
             scalarinst = "None"
         for vainst in vainstlist:
-            print(" Now dealing with vario {}".format(vainst))
+            if debug:
+                print(" Now dealing with vario {}".format(vainst))
             if os.path.isdir(vainst):
                 print(" vario instrument provided as full path")
                 variopath = os.path.join(vainst, '*')
@@ -381,7 +383,7 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                 print("  -> vario instrument: {}".format(vainst))
             else:
                 variopath = os.path.join(sourcepath, vainst[:-5], vainst, '*')
-            if fixalpha:
+            if fixalpha and db:
                 # IMPORTANT: use alpha for current year
                 header = db.fields_to_dict(vainst)
                 exist = header.get('DataRotationAlpha', '').split(',')
@@ -403,7 +405,7 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
             else:
                 alpha = None
 
-            if fixbeta:
+            if fixbeta and db:
                 # IMPORTANT: use alpha for current year
                 header = db.fields_to_dict(vainst)
                 exist = header.get('DataRotationBeta', '').split(',')
@@ -425,7 +427,8 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
             else:
                 beta = None
 
-            print(" rotation data determined")
+            if debug:
+                print(" rotation data determined")
 
             if debug:
                 # contains a path
@@ -444,7 +447,8 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                     movetoarchivenow = None
 
             for pier in pierlist:
-                print(" Analyzing for pier {}".format(pier))
+                if debug:
+                    print(" Analyzing for pier {}".format(pier))
                 if diindent == 'All':
                     blvid = ".txt"
                 else:
@@ -465,7 +469,8 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                 else:
                     abstype = 'manual'
                     azimuth = False
-                print(" di data provided in {}".format(didatapath))
+                if debug:
+                    print(" di data provided in {}".format(didatapath))
                 print("----------------------------------------------------------")
                 print("----------------------------------------------------------")
                 print("{} absolute analysis for pier {} with {} and {}".format(year, pier, vainst[:-5], scalarinst))
@@ -482,12 +487,14 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                     elif writemode in ['replace', 'overwrite']:
                         print(" writedi2db only supports two write modes: append/insert and fullreplace")
 
+                if debug:
+                    print ("Parameter", didatapath, variopath, scalarpath, startdate, enddate)
                 absresult = di.absolute_analysis(didatapath, variopath, scalarpath, diid=blvid, pier=pier,
                                                  expD=expectedD, expI=expectedI, starttime=startdate, endtime=enddate,
                                                  db=db, skipscalardb=skipscalardb, compensation=compensation,
                                                  magrotation=magrotation, alpha=alpha, beta=beta, abstype=abstype,
                                                  azimuth=azimuth, deltaD=deltaD, deltaI=deltaI, dbadd=dbadd,
-                                                 movetoarchive=movetoarchivenow, flagfile=contflagfile)
+                                                 movetoarchive=movetoarchivenow, flagfile=contflagfile, debug=debug)
                 # TODO addDB
                 # How is addDB working? -> Append new DI files? Replace existing?
                 # How to clean files within the time range?
@@ -502,8 +509,9 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                     print(" -------------------------------------")
                     print(" - getting flags:")
                     flaglist = []
-                    flaglist = db.flags_from_db(flagname)
-                    print("   -> {} flags in db".format(len(flaglist)))
+                    if db:
+                        flaglist = db.flags_from_db(flagname)
+                        print("   -> {} flags in db".format(len(flaglist)))
                     fllist = flagging.load(flagfile, sensorid=flagname)
                     print("   -> {} flags in file {}".format(len(fllist), flagfile))
                     if len(fllist) > 0 and len(flaglist) > 0:
@@ -561,7 +569,8 @@ def basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotat
                             # - Replace only existing data (replace) - (replace in file)
                             # - Append data if not existing (append) - (skip in file)
                             # - Delete all and write new file (overwrite) - (overwrite in file)
-                            db.write(absresult, tablename=filenamebegins, mode=wm)
+                            if db:
+                                db.write(absresult, tablename=filenamebegins, mode=wm)
                             print(" ... success")
                     else:
                         print(" Debug: no writing - would create a file like {} in {}".format(filenamebegins,
@@ -656,6 +665,19 @@ def check_conf(config, startdate, enddate, varios=None, scalars=None, piers=None
         config['scinstlist'] = [config.get('scinstlist')]
     if not isinstance(config.get('pierlist'), list):
         config['pierlist'] = [config.get('pierlist')]
+
+    credentials = config.get('dbcredentials')
+    credential = None
+    if len(credentials) > 0:
+        credential = credentials[0]
+    if debug:
+        print("- Connecting to database {}".format(credential))
+    try:
+        db = mm.connect_db(credential)
+        print (" ... success")
+        config['primaryDB'] = db
+    except:
+        config['primaryDB'] = None
 
     sourcepath = os.path.join(config.get('base', ''), 'archive', config.get('obscode', ''))
 
@@ -863,20 +885,10 @@ def main(argv):
     #config = define_logger(config=config, category="Info", job=os.path.basename(__file__),
     #                       newname='mm-basevalue-tool.log', debug=debug)
     # Use the logfile from config
-    credentials = config.get('dbcredentials')
-    credential = None
-    if len(credentials) > 0:
-        credential = credentials[0]
     name1 = "{}".format(os.path.basename(config.get('logfile')))
     name1 = name1.replace(".log","")
     statusmsg[name1] = 'Baseline notification successful'
-    if debug:
-        print("- Connecting to database {}".format(credential))
-    try:
-        db = mm.connect_db(credential)
-        print (" ... success")
-        config['primaryDB'] = db
-    except:
+    if not config.get('primaryDB'):
         statusmsg[name1] = 'database failed'
 
     if debug:

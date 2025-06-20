@@ -9,6 +9,7 @@ import unittest
 
 import sys
 sys.path.insert(1,'/home/leon/Software/MARTAS/') # should be magpy2
+sys.path.insert(1,'/home/leon/Software/magpy/') # should be magpy2
 
 import os
 import shutil
@@ -136,22 +137,33 @@ class TestBasevalue(unittest.TestCase):
 
     def test_baseline_overview(self):
         config = mameth.get_conf(os.path.join('..', 'conf', 'basevalue.cfg'))
+        config['dbcredentials'] = "cobsdb"
         startdate, enddate = None, "2023-12-31"
         varios, scalars, piers = ["LEMI036_1_0002_0002"],["GP20S3NSS2_012201_0001_0001"],["A2"]
         config = basevalue.check_conf(config, startdate, enddate, varios=varios, scalars=scalars, piers=piers, debug=True)
         config['blvdatapath'] = "/tmp"
         config['blvabb'] = "BLV"
-        print (config)
         dl = basevalue.baseline_overview(runmode='firstrun', config=config, debug=True)
         self.assertTrue(dl)
 
     def test_baseline_recalc(self):
-        #dl = basevalue.basevalue_recalc(runmode, config=None, fixalpha=True, fixbeta=True, magrotation=True, compensation=True,
-        #             startdate=None, enddate=None, debug=False)
-        #self.assertEqual(len(dl), 10)
-        pass
-
-
+        config = mameth.get_conf(os.path.join('..', 'conf', 'basevalue.cfg'))
+        config['dbcredentials'] = "cobsdb"
+        startdate, enddate = None, "2025-12-31"
+        varios, scalars, piers = ["LEMI036_1_0002_0002"],["GP20S3NSS2_012201_0001_0001"],["A2"]
+        config = basevalue.check_conf(config, startdate, enddate, varios=varios, scalars=scalars, piers=piers, debug=True)
+        config['blvdatapath'] = "/tmp"
+        config['base'] = os.path.abspath("../test")
+        config['obscode'] = "WIC"
+        config['didatapath'] = os.path.abspath("../test/archive/WIC/DI/analyze")
+        config['blvabb'] = "BLV"
+        print (config)
+        runmode = "firstrun"
+        basevalue.basevalue_recalc(runmode, config=config, startdate=None, enddate=None, debug=False)
+        t = False
+        if os.path.isfile(os.path.join("/tmp","BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2_2025_firstrun.txt")):
+            t = True
+        self.assertTrue(t)
 
 
 class TestCheckdataInfo(unittest.TestCase):
