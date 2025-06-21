@@ -129,6 +129,7 @@ def main(argv):
     mqttport = "1883"
     mqttqos = "1"
     mqttcred = ""
+    backuppath = os.path.join(homedir, "backup")
     bufferpath = os.path.join(homedir, "MARTAS", "mqtt")
     archivepath = os.path.join(homedir, "MARCOS", "archive")
     archivelog = "/tmp/archivestatus.log"
@@ -214,6 +215,17 @@ def main(argv):
     newstationname = input()
     if newstationname:
         stationname = ''.join(filter(str.isalnum, newstationname))
+    print (" -> Station ID: {}".format(stationname))
+
+    print (" ------------------------------------------- ")
+    print (" Please insert a destination path for regular backups (default is ~/backups)")
+    print (' (please insert "none" if you do not want regular backups of the martas system)')
+    print (" (press return for accepting default: {})".format(os.path.join(homedir,"backup")))
+    newbackuppath = input()
+    if newstationname and not newstationname in ["NONE","none","no","n","NO","None","N"]:
+        backupath = newbackuppath
+    elif newstationname in ["NONE","none","no","n","NO","None","N"]:
+        backuppath = ""
     print (" -> Station ID: {}".format(stationname))
 
     print (" ------------------------------------------- ")
@@ -671,13 +683,13 @@ def main(argv):
         if not list(cron.find_comment(comment5)):
             job5 = cron.new(command=line5, comment=comment5)
             job5.setall('9 0 * * *')
-        comment6 = "Running backup"
-        line6 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "backup.sh"),
-                                                                  os.path.join(logpath,
-                                                                               "backup.log"))
-        if not list(cron.find_comment(comment6)):
-            job6 = cron.new(command=line6, comment=comment6)
-            job6.setall('7 0 * * 1')
+
+        if backuppath:
+            comment6 = "Backup of MARTAS"
+            line6 = "martas_backup -b {} -d {} > {} 2>&1".format(os.path.join(homedir, dir), backuppath, os.path.join(logpath,"backup.log"))
+            if not list(cron.find_comment(comment6)):
+                job6 = cron.new(command=line6, comment=comment6)
+                job6.setall('7 0 * * 1')
         comment7 = "Threshold testing - please configure before enabling"
         line7 = "{} {} -m {}".format(sys.executable, os.path.join(homedir, dir,"app","threshold.py"), os.path.join(confpath,"threshold.cfg"))
         if not list(cron.find_comment(comment7)):

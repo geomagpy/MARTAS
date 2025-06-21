@@ -1154,6 +1154,57 @@ Go to your channel overview and add (i.e. MyFirstBot) as administrator to your c
       add a preciding -100 and you got your id: "-1001123456789"
 
 
+## 8. Additional tools
+
+### 8.1 definitive.py for geomagnetic definitive data preparation
+
+The definitive module contains a number of methods for geomagnetic definitive data analysis. It is currently part of 
+MARTAS2.0 and uses the same configuration data as basevalue. Please note that this module was specifically developed 
+for the Conrad Observatory and some of the methods will only be useful for very similar procedures. The module contains
+methods for analyzing variometer and scalar data. The methods are designed for an iterative analysis of one-second data,
+allowing for optimization of baseline adoption. Filtered one-minute products are generated.
+Following the data treatment philosophy of MagPy data from different sensors is treated separately,
+
+#### 8.1.1 variocorr
+
+Using variocorr one can analyse the variation data of several instruments, apply flagging information, eventually apply 
+transformations, rotations and offsets, and perform baseline adoption. Three different application levels are supported 
+for an iterative analysis: firstrun, secondrun and thirdrun. Firstrun will use a simple average baseline, whereas 
+secondrun and thirdrun support complex baseline fits. The application of bias fields (also called compensation fields), 
+rotation angles (Euler rotation) and flagging information can be varied between runs. By default the method requires 
+a full year of one second data of one or multiple instruments and baseline data files for each sensor. Data will be 
+treated in monthly chunks. The method can also be used for single day analysis by providing the date in 
+config['testdate']. The method returns monthly MagPyCDF data files containing raw data, flagging info and 
+baseline function, i.e. data files which contain basically every information to review IM variation and produce IM
+definitve data.
+Variocorr will always return rotation angles between measured field components and a magnetic coordinate system as 
+obtained by DI data. In case of an optimal DHZ oriented system these angles are zero. 
+
+#### 8.1.2 variocomb
+
+Variocomb is used to create a merged variation data set from multiple variometer records. The order of instruments in 
+the configuration files is used to define primary, secondary, ... systems. Baseline corrected data from variocorr is 
+then used to construct a joint record with gaps filled in minute resolution. Variocomb can also read scalar products 
+from 8.1.3 and create definitive minute products as requested by INTERMAGNET/IAGA. Definitve second products have to 
+be constructed from outputs of variocomb and scalarcomb in a separate step.
+
+#### 8.1.3 scalarcorr and scalarcomb
+
+For scalar data the two methods to the same job as similar methods for variometers, without baseline adoption. Please
+note, complex F baseline require a different approach currently not supported by these methods. Currently only constant
+offsets are supported. Joint data sets are supported for both minute and second data.
+
+#### 8.1.4 create_rotation
+
+Take the return of variocorr and add rotation data into the database so that average yearly rotations can be considered
+for analysis (leading to baseline jumps every year). 
+
+#### 8.1.5 pier_diff
+
+Used to determine F differences of multiple piers provided that a mobile reference sensor is used regularly to measure on 
+all these piers. This is very Conrad Observatory specific and you might want to contact the Cobs Team for details.  
+
+
 
 ## 9. Frequently asked questions
 

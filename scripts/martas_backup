@@ -19,10 +19,8 @@ import os
 from datetime import datetime
 
 import getopt
-from crontab import CronTab
-import sys
-import platform
 import socket
+import sys
 
 from martas.version import __version__
 from martas.core import methods as mm
@@ -35,63 +33,28 @@ def backup_files(source_dir, backup_dir):
     """
     # Get the current date and time for naming the backup folder
     current_time = datetime.now().strftime('%Y-%m-%d')
-    host = socket.gethostname()
-
-    backup_folder = os.path.join(backup_dir, f"backup_{host}_{current_time}", ".martas")
-    try:
+    backup_folder = os.path.join(backup_dir, f"backup_{current_time}", ".martas")
+    #try:
+    ok = True
+    if ok:
         # Create the backup directory
-        if not os.path.exists(backup_folder):
-            os.makedirs(backup_folder)
+        #os.makedirs(backup_folder)
         # Copy all files and subdirectories from source to backup folder
-        if os.path.exists(backup_folder):
-            shutil.rmtree(backup_folder)
         shutil.copytree(source_dir, backup_folder)
         print(f"Backup: Files have been copied to {backup_folder}")
-    except Exception as e:
-        print(f"Error: {e}")
-    return os.path.join(backup_dir, f"backup_{host}_{current_time}")
+    #except Exception as e:
+    #    print(f"Error: {e}")
+
 
 def zip_backup(backup_folder):
     # Get the current date and time for naming the backup folder
     pass
 
-def save_crontab(backup_folder, cronname="usercron.bak"):
-    cronfile = os.path.join(backup_folder, cronname)
-    with CronTab(user=True) as cron:
-        cron.write(cronfile)
 
-def create_info(backup_folder, martaspath):
-    infofile = os.path.join(backup_folder, "README.txt")
-    l = []
-    l.append("# MARTAS BACKUP - SYSTEM INFORMATION")
-    l.append("")
-    l.append("MARTAS path: {}".format(martaspath))
-    # add python version and environment here
-    l.append("Python version: {}".format(sys.version))
+def create_info(backup_folder):
+    # add indo on python version and environment here
     # add info on MARTAS or MARCOS, and main path
-    l.append("MARTAS version: {}".format(__version__))
-    # operating system
-    l.append("Operating system: {} {}".format(platform.system(),platform.release()))
-    with open(infofile, 'w') as f:
-        for line in l:
-            f.write(f"{line}\n")
-
-def read_info(backup_folder):
-    infofile = os.path.join(backup_folder, "README.txt")
-    with open(infofile, 'r') as f:
-        pass
-    # readlines and compare info with currentsystem
-    l = []
-    l.append("# MARTAS BACKUP - SYSTEM INFORMATION")
-    l.append("")
-    l.append("MARTAS path: {}".format(martaspath))
-    # add python version and environment here
-    l.append("Python version: {}".format(sys.version))
-    # add info on MARTAS or MARCOS, and main path
-    l.append("MARTAS version: {}".format(__version__))
-    # operating system
-    l.append("Operating system: {} {}".format(platform.system(),platform.release()))
-    return martaspath
+    pass
 
 
 def recover_init(backup_folder):
@@ -104,17 +67,15 @@ def recover_populate(backup_folder):
 
 def main(argv):
     version = __version__
-    homedir = os.getenv("HOME")
-    backuppath = os.path.join(homedir,".martas")
-    destpath = "/tmp"
+    backuppath = ''
     recoverpath = ''
     debug = False
 
     try:
-        opts, args = getopt.getopt(argv, "hb:d:r:D",
-                                   ["backup=", "destination=", "recover=", "debug="])
+        opts, args = getopt.getopt(argv, "hb:r:D",
+                                   ["backup=", "recover=", "debug="])
     except getopt.GetoptError:
-        print('martas_backup.py -b <backup> -d <destination> -r <recover>')
+        print('martas_backup.py -b <backup> -r <recover>')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
@@ -134,8 +95,7 @@ def main(argv):
             print('python martas_backup.py -c <config>')
             print('-------------------------------------')
             print('Options:')
-            print('-b            : backup - path to main dir, i.e. /home/user/.martas')
-            print('-d            : destination to write backup to i.e. /home/user/backup')
+            print('-b            : backup - path to main dir')
             print("-r            : recover from backup")
             print('-------------------------------------')
             print('Application:')
@@ -145,9 +105,6 @@ def main(argv):
         elif opt in ("-b", "--backup"):
             # delete any / at the end of the string
             backuppath = os.path.abspath(arg)
-        elif opt in ("-d", "--destination"):
-            # delete any / at the end of the string
-            destpath = os.path.abspath(arg)
         elif opt in ("-r", "--recover"):
             recoverpath = os.path.abspath(arg)
         elif opt in ("-D", "--debug"):
@@ -157,35 +114,24 @@ def main(argv):
     print("Running martas backup version {}".format(version))
     print("--------------------------------")
 
-    if backuppath: # default as backuppath is tmp
+    if backuppath:
         if not os.path.exists(backuppath):
             print('!! Specify a valid path to the main MARTAS/MARCOS folder !!')
             sys.exit()
         # create a backup folder in tmp
         # copy main directory into the backup folder
-        bpath = backup_files(backuppath, destpath)
+        backup_files(backuppath, "/tmp")
         # save credential information in folder
-        if os.path.isfile(os.path.join(homedir,".magpycred")):
-            shutil.copyfile(os.path.join(homedir,".magpycred"), os.path.join(bpath,".magpycred"))
         # save crontab to folder
-        save_crontab(bpath)
         # save pythonpath/info in backup readme
-        martaspath = backuppath.replace(homedir,"")
-        create_info(bpath, martaspath)
-        # zip it and move to destination folder
-        destination = os.path.join(destpath,os.path.basename(bpath))
-        shutil.make_archive(destination, 'zip', bpath)
-        print(" backup saved to {}.zip".format(destination))
 
+        pass
     elif recoverpath:
         if not os.path.exists(recoverpath):
             print('!! Specify a valid path to a existing backup !!')
             sys.exit()
-        # unpack zip
-        shutil.unpack_archive(recoverpath, '/tmp')
-        # extract martaspath, pythonpath and info on main MARTAS/MARCOS folder
+        # extract pythonpath and info on main MARTAS/MARCOS folder
         # check validity and eventually send warning
-        martaspath = read_info()
         # extract main folder
         # extract crontab
         # extract credentials

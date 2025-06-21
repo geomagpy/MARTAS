@@ -2,7 +2,12 @@
 # coding=utf-8
 
 """
-Definitve analysis methods
+Definitive module contains methods for geomagnetic definitive data analysis. It is currently part of MARTAS2.0
+as it uses the same configuration data as basevalue.
+Please note that this module was specifically developed for the Conrad Observatory and some of the methods
+will only be useful for very similar procedures.
+
+Definitive analysis methods
 
 | class   |      method     |  version |  tested  |              comment             | manual | *used by |
 | ------- |  -------------  |  ------- |  ------- |  ------------------------------- | ------ | ---------- |
@@ -26,25 +31,6 @@ from magpy.core import methods
 from martas.core import methods as mm
 from martas.app import basevalue
 from magpy.core import plot as mp
-
-"""
-import magpy.absolutes as di
-from magpy.core import database
-from magpy.opt import cred as mpcred
-
-from martas.version import __version__
-
-from dateutil.parser import parse
-from shutil import copyfile
-
-import itertools
-import getopt
-import pwd
-import socket
-import sys  # for sys.version_info()
-
-from martas.core.methods import martaslog as ml
-"""
 
 
 def create_rotation_sql(rotangledict, config=None, debug=False):
