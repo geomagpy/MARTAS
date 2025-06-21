@@ -21,9 +21,10 @@ def main(argv):
     debug = False
     dir = ".martas"
     redo = False
+    update = False
 
     try:
-        opts, args = getopt.getopt(argv,"hd:rD",["path=","redo=","debug=",])
+        opts, args = getopt.getopt(argv,"hd:ruD",["path=","redo=","update=","debug=",])
     except getopt.GetoptError:
         print ('martas_init')
         sys.exit(2)
@@ -44,8 +45,10 @@ def main(argv):
             print ('Options:')
             print ('-d, --directory : define the main configuration directory')
             print ('                : i.e. -d MARTAS will store everything within /hone/user/MARTAS')
-            print ('-r, --redo : replace already existing configuration files')
-            print ('           : ATTENTION: redo will delete all previous configurations')
+            print ('-u, --update : will update applications (app, doc, web) folder with new version')
+            print ('             : a backup is advisable before updating')
+            print ('-r, --redo   : replace already existing configuration files')
+            print ('             : ATTENTION: redo will delete all previous configurations')
             print ('-------------------------------------')
             print ('Application:')
             print ('-------------------------------------')
@@ -55,6 +58,8 @@ def main(argv):
             dir = arg
         elif opt in ("-r", "--redo"):
             redo = True
+        elif opt in ("-u", "--update"):
+            update = True
         elif opt in ("-D", "--debug"):
             debug = True
 
@@ -89,6 +94,10 @@ def main(argv):
         os.makedirs(os.path.join(homedir,dir,"log"), exist_ok=True)
     #
     # copy files into subdirs
+    if update:
+        shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "web"),ignore_errors=True)
     if redo:
         shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "conf"),ignore_errors=True)
