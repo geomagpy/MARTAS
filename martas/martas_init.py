@@ -733,8 +733,10 @@ def main(argv):
                     }
     if mqttcred:
         replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)
+    if backuppath:
+        replacedict["/backuppath"] = backuppath
 
-    files_to_change = {}
+        files_to_change = {}
     if initjob == "MARTAS":
         replacedict["/mybasedir"] = bufferpath
         replacedict["space,martas,marcos,logfile"] = "space,martas,logpfile"
@@ -766,6 +768,8 @@ def main(argv):
                         "dest": os.path.join(confpath, "mail.cfg")}
     files_to_change["gammaconf"] = {"source": os.path.join(confpath, "gamma.bak"),
                         "dest": os.path.join(confpath, "gamma.cfg")}
+    files_to_change["cleanup"] = {"source": os.path.join(homedir, dir, "scripts", "cleanup.sh"),
+                        "dest": os.path.join(homedir, dir, "scripts", "cleanup.sh")}
 
     for f in files_to_change:
         d = files_to_change.get(f)
