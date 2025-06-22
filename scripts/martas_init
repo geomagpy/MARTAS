@@ -16,14 +16,17 @@ from magpy.opt import cred
 from pathlib import Path
 from crontab import CronTab
 import martas
+from martas.version import __version__
+
 
 def main(argv):
     debug = False
     dir = ".martas"
     redo = False
+    update = False
 
     try:
-        opts, args = getopt.getopt(argv,"hd:rD",["path=","redo=","debug=",])
+        opts, args = getopt.getopt(argv,"hd:ruD",["path=","redo=","update=","debug=",])
     except getopt.GetoptError:
         print ('martas_init')
         sys.exit(2)
@@ -44,8 +47,10 @@ def main(argv):
             print ('Options:')
             print ('-d, --directory : define the main configuration directory')
             print ('                : i.e. -d MARTAS will store everything within /hone/user/MARTAS')
-            print ('-r, --redo : replace already existing configuration files')
-            print ('           : ATTENTION: redo will delete all previous configurations')
+            print ('-u, --update : will update applications (app, doc, web) folder with new version')
+            print ('             : a backup is advisable before updating')
+            print ('-r, --redo   : replace already existing configuration files')
+            print ('             : ATTENTION: redo will delete all previous configurations')
             print ('-------------------------------------')
             print ('Application:')
             print ('-------------------------------------')
@@ -55,6 +60,8 @@ def main(argv):
             dir = arg
         elif opt in ("-r", "--redo"):
             redo = True
+        elif opt in ("-u", "--update"):
+            update = True
         elif opt in ("-D", "--debug"):
             debug = True
 
@@ -89,6 +96,11 @@ def main(argv):
         os.makedirs(os.path.join(homedir,dir,"log"), exist_ok=True)
     #
     # copy files into subdirs
+    if update:
+        print ("Updating app, doc and web to MARTAS version {}".format(__version__))
+        shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
+        shutil.rmtree(os.path.join(homedir, dir, "web"),ignore_errors=True)
     if redo:
         shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "conf"),ignore_errors=True)
@@ -129,6 +141,7 @@ def main(argv):
     mqttport = "1883"
     mqttqos = "1"
     mqttcred = ""
+    backuppath = os.path.join(homedir, "backup")
     bufferpath = os.path.join(homedir, "MARTAS", "mqtt")
     archivepath = os.path.join(homedir, "MARCOS", "archive")
     archivelog = "/tmp/archivestatus.log"
@@ -214,6 +227,17 @@ def main(argv):
     newstationname = input()
     if newstationname:
         stationname = ''.join(filter(str.isalnum, newstationname))
+    print (" -> Station ID: {}".format(stationname))
+
+    print (" ------------------------------------------- ")
+    print (" Please insert a destination path for regular backups (default is ~/backups)")
+    print (' (please insert "none" if you do not want regular backups of the martas system)')
+    print (" (press return for accepting default: {})".format(os.path.join(homedir,"backup")))
+    newbackuppath = input()
+    if newstationname and not newstationname in ["NONE","none","no","n","NO","None","N"]:
+        backupath = newbackuppath
+    elif newstationname in ["NONE","none","no","n","NO","None","N"]:
+        backuppath = ""
     print (" -> Station ID: {}".format(stationname))
 
     print (" ------------------------------------------- ")
@@ -671,13 +695,13 @@ def main(argv):
         if not list(cron.find_comment(comment5)):
             job5 = cron.new(command=line5, comment=comment5)
             job5.setall('9 0 * * *')
-        comment6 = "Running backup"
-        line6 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "scripts", "backup.sh"),
-                                                                  os.path.join(logpath,
-                                                                               "backup.log"))
-        if not list(cron.find_comment(comment6)):
-            job6 = cron.new(command=line6, comment=comment6)
-            job6.setall('7 0 * * 1')
+
+        if backuppath:
+            comment6 = "Backup of MARTAS"
+            line6 = "martas_backup -b {} -d {} > {} 2>&1".format(os.path.join(homedir, dir), backuppath, os.path.join(logpath,"backup.log"))
+            if not list(cron.find_comment(comment6)):
+                job6 = cron.new(command=line6, comment=comment6)
+                job6.setall('7 0 * * 1')
         comment7 = "Threshold testing - please configure before enabling"
         line7 = "{} {} -m {}".format(sys.executable, os.path.join(homedir, dir,"app","threshold.py"), os.path.join(confpath,"threshold.cfg"))
         if not list(cron.find_comment(comment7)):
@@ -721,8 +745,10 @@ def main(argv):
                     }
     if mqttcred:
         replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)
+    if backuppath:
+        replacedict["/backuppath"] = backuppath
 
-    files_to_change = {}
+        files_to_change = {}
     if initjob == "MARTAS":
         replacedict["/mybasedir"] = bufferpath
         replacedict["space,martas,marcos,logfile"] = "space,martas,logpfile"
@@ -754,6 +780,8 @@ def main(argv):
                         "dest": os.path.join(confpath, "mail.cfg")}
     files_to_change["gammaconf"] = {"source": os.path.join(confpath, "gamma.bak"),
                         "dest": os.path.join(confpath, "gamma.cfg")}
+    files_to_change["cleanup"] = {"source": os.path.join(homedir, dir, "scripts", "cleanup.sh"),
+                        "dest": os.path.join(homedir, dir, "scripts", "cleanup.sh")}
 
     for f in files_to_change:
         d = files_to_change.get(f)
