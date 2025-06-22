@@ -16,6 +16,8 @@ from magpy.opt import cred
 from pathlib import Path
 from crontab import CronTab
 import martas
+from martas.version import __version__
+
 
 def main(argv):
     debug = False
@@ -95,6 +97,7 @@ def main(argv):
     #
     # copy files into subdirs
     if update:
+        print ("Updating app, doc and web to MARTAS version {}".format(__version__))
         shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "web"),ignore_errors=True)
