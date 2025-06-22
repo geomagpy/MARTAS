@@ -164,7 +164,7 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                         print(" Accessing file...", os.path.join(blvdatapath, filename))
                         if debug:
                             print(" Starttime, Endtime:", starttime, endtime)
-                        absr = read(os.path.join(blvdatapath, filename), starttime=starttime, endtime=endtime)
+                        absr = read(os.path.join(blvdatapath, filename), starttime=starttime, endtime=endtime, datecheck=False)
                     else:
                         absr = DataStream()
 

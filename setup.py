@@ -18,9 +18,10 @@ install_requires=[
             "paramiko",
             "pexpect",
             "pyserial",
+            "requests",
             "python-crontab",
             "twisted",
-            "setuptools"
+            "setuptools >= 61.0.0"
           ]
 
 setup(
