@@ -259,9 +259,18 @@ def sftptransfer(source, destination, host="yourserverdomainorip.com", user="roo
     #if not logfile == 'stdout':
     #    paramiko.util.log_to_file(logfile)
 
-
     if not proxy:
-        transport = paramiko.Transport((host, port))
+        #transport = paramiko.Transport((host, port))
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            ssh.connect(host, username=user, password=password, timeout=10)
+            with ssh.open_sftp() as sftp:
+                destina = os.path.join(destination,os.path.basename(source))
+                sftp.put(source, destina)
+        except:
+            print("failed to connect client ... aborting")
+            return False
     else:
         print ("Using proxy (needs to a tuple (paddr,pport)): {}".format(proxy))  
         import socks
@@ -271,13 +280,16 @@ def sftptransfer(source, destination, host="yourserverdomainorip.com", user="roo
               addr=proxy[0],
               port=proxy[1]
         )
-        s.connect((host,port))
-        transport = paramiko.Transport(s)
-
-    transport.connect(username=user,password=password)
-    with paramiko.SFTPClient.from_transport(transport) as client:
-        destina = os.path.join(destination,os.path.basename(source))
-        client.put(source, destina)
+        try:
+            s.connect((host,port))
+            transport = paramiko.Transport(s)
+            transport.connect(username=user,password=password)
+            with paramiko.SFTPClient.from_transport(transport) as client:
+                destina = os.path.join(destination,os.path.basename(source))
+                client.put(source, destina)
+        except:
+            print("failed to connect client ... aborting")
+            return False
 
     return True
 

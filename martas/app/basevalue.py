@@ -68,7 +68,7 @@ from martas.core import methods as mm
 
 
 ## Methods from yearly_analysis_1 -> can later be imported to yearly_analysis
-def baseline_overview(runmode='firstrun', config=None, debug=False):
+def baseline_overview(runmode='firstrun', config=None, destpath=None, debug=False):
     """
     DESCRIPTION:
         Provide an overview about existing basevalues. The baseline_overview method will read existing basevalue
@@ -165,6 +165,8 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                         if debug:
                             print(" Starttime, Endtime:", starttime, endtime)
                         absr = read(os.path.join(blvdatapath, filename), starttime=starttime, endtime=endtime, datecheck=False)
+                        if debug:
+                            print(" Obtained {} data points".format(len(absr)))
                     else:
                         absr = DataStream()
 
@@ -253,9 +255,9 @@ def baseline_overview(runmode='firstrun', config=None, debug=False):
                             plot(denormalize(ttmp, func[1], func[2]), func[0]['fdz'](ttmp), 'r-')
                         elif pier == primarypier:
                             plot(denormalize(ttmp, func[1], func[2]), func[0]['fdz'](ttmp), 'r-', linewidth=2)
-                    if absr.length()[0] > 0 and runmode == 'thirdrun' and not debug:
-                        print("Writing new abs files as {}".format(basename))
-                        absr.write(blvdatapath, filenamebegins=basename, filenameends='_' + str(year) + '.txt',
+                    if absr.length()[0] > 0 and destpath and not debug:
+                        print("Writing new abs files to {} as {}".format(destpath, basename))
+                        absr.write(destpath, filenamebegins=basename, filenameends='_' + str(year) + '.txt',
                                    format_type='PYSTR', coverage='all')
                 else:
                     print("No absolutes found for {} - continuing".format(pier))

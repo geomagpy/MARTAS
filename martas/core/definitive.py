@@ -791,7 +791,7 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 if debug:
                     print("  Loaded {} flags from file in this time range".format(len(fileflaglist)))
                 if len(vaflaglist) > 0 and len(fileflaglist) > 0:
-                    vaflaglist = flaglist.join(fileflaglist)
+                    vaflaglist = vaflaglist.join(fileflaglist)
                 elif not len(vaflaglist) > 0:
                     vaflaglist = fileflaglist
                 if debug:
@@ -847,13 +847,15 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 # ---------------------
                 # requirement: base value data has been cleaned up
                 basename = ""
+                ppier = config.get('primarypier','A2')
+                blvabb = config.get('blvabb')
                 if runmode in  ['firstrun']:
                     scalar = prf[:-5]
-                    #basename = 'BLVcomp_'+inst[:-5]+'_'+scalar+'_A2_'+str(year)+'.txt'
-                    basename = 'BLV_'+inst[:-5]+'_'+scalar+'_A2_'+str(year)+'.txt' ### NEW
+                    basename = "{}_{}_{}_{}_{}.txt".format(blvabb, inst[:-5], scalar, ppier, year)
                 elif runmode in ['secondrun','thirdrun']:
                     scalar = prf[:-5]
-                    basename = 'BLVcomp_'+inst[:-5]+'_'+scalar+'_A2_'+str(year)+'_'+runmode+'.txt'
+                    basename = "{}_{}_{}_{}_{}_{}.txt".format(blvabb, inst[:-5], scalar, ppier, year, runmode)
+                    #basename = 'BLVcomp_'+inst[:-5]+'_'+scalar+'_A2_'+str(year)+'_'+runmode+'.txt'
                 if not basefile:
                     basefile = os.path.join(outpath,'magpy',basename)
 
