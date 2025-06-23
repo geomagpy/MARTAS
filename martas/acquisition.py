@@ -294,7 +294,7 @@ def on_connect(client, userdata, flags, rc, properties):
     if rc == 0 and msgcount < 4:
         log.msg("Moving on...")
     elif rc == 5 and msgcount < 4:
-        log.msg("Authetication required")
+        log.msg("Authentication required")
     msgcount += 1
     # add a counter here with max logs
 

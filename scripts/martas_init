@@ -124,6 +124,8 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "install"), os.path.join(homedir, dir, "install"))
     if not os.path.isdir(os.path.join(homedir,dir,"logrotate")):
         shutil.copytree(os.path.join(file_path, "logrotate"), os.path.join(homedir, dir, "logrotate"))
+    if not os.path.isdir(os.path.join(homedir,dir,"scripts")):
+        shutil.copytree(os.path.join(file_path, "scripts"), os.path.join(homedir, dir, "scripts"))
     if not os.path.isdir(os.path.join(homedir,dir,"web")):
         shutil.copytree(os.path.join(file_path, "web"), os.path.join(homedir, dir, "web"))
     #shutil.copyfile(os.path.join(file_path, "collector.py"), os.path.join(homedir, dir, "collector.py"))
@@ -141,7 +143,7 @@ def main(argv):
     mqttport = "1883"
     mqttqos = "1"
     mqttcred = ""
-    backuppath = os.path.join(homedir, "backup")
+    backuppath = os.path.join(homedir, "backups")
     bufferpath = os.path.join(homedir, "MARTAS", "mqtt")
     archivepath = os.path.join(homedir, "MARCOS", "archive")
     archivelog = "/tmp/archivestatus.log"
@@ -232,7 +234,7 @@ def main(argv):
     print (" ------------------------------------------- ")
     print (" Please insert a destination path for regular backups (default is ~/backups)")
     print (' (please insert "none" if you do not want regular backups of the martas system)')
-    print (" (press return for accepting default: {})".format(os.path.join(homedir,"backup")))
+    print (" (press return for accepting default: {})".format(os.path.join(homedir,"backups")))
     newbackuppath = input()
     if newstationname and not newstationname in ["NONE","none","no","n","NO","None","N"]:
         backupath = newbackuppath

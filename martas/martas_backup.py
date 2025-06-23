@@ -10,6 +10,8 @@ including info on python version, environment etc
 martas_backup -r -p backup_path (or --recover)   -  will recover (plus init, if necessary) a martas stations after
 pip install ... will issue warnining if python versions etc is different
 
+TODO
+add fstab and ntp.conf
 """
 
 # Define packages to be used (local refers to test environment)

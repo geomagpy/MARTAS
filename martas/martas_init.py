@@ -124,6 +124,8 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "install"), os.path.join(homedir, dir, "install"))
     if not os.path.isdir(os.path.join(homedir,dir,"logrotate")):
         shutil.copytree(os.path.join(file_path, "logrotate"), os.path.join(homedir, dir, "logrotate"))
+    if not os.path.isdir(os.path.join(homedir,dir,"scripts")):
+        shutil.copytree(os.path.join(file_path, "scripts"), os.path.join(homedir, dir, "scripts"))
     if not os.path.isdir(os.path.join(homedir,dir,"web")):
         shutil.copytree(os.path.join(file_path, "web"), os.path.join(homedir, dir, "web"))
     #shutil.copyfile(os.path.join(file_path, "collector.py"), os.path.join(homedir, dir, "collector.py"))
@@ -141,7 +143,7 @@ def main(argv):
     mqttport = "1883"
     mqttqos = "1"
     mqttcred = ""
-    backuppath = os.path.join(homedir, "backup")
+    backuppath = os.path.join(homedir, "backups")
     bufferpath = os.path.join(homedir, "MARTAS", "mqtt")
     archivepath = os.path.join(homedir, "MARCOS", "archive")
     archivelog = "/tmp/archivestatus.log"
@@ -203,6 +205,7 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "sensors.cfg"), os.path.join(confpath, "sensors.bak"))
     shutil.copyfile(os.path.join(confpath, "telegram.cfg"), os.path.join(confpath, "telegram.bak"))
     shutil.copyfile(os.path.join(confpath, "threshold.cfg"), os.path.join(confpath, "threshold.bak"))
+    shutil.copyfile(os.path.join(homedir, dir, "scripts", "cleanup.sh"), os.path.join(homedir, dir, "scripts", "cleanup.bak"))
 
     print (" ------------------------------------------- ")
     print (" Please insert a path for log files:")
@@ -232,7 +235,7 @@ def main(argv):
     print (" ------------------------------------------- ")
     print (" Please insert a destination path for regular backups (default is ~/backups)")
     print (' (please insert "none" if you do not want regular backups of the martas system)')
-    print (" (press return for accepting default: {})".format(os.path.join(homedir,"backup")))
+    print (" (press return for accepting default: {})".format(os.path.join(homedir,"backups")))
     newbackuppath = input()
     if newstationname and not newstationname in ["NONE","none","no","n","NO","None","N"]:
         backupath = newbackuppath
@@ -780,7 +783,7 @@ def main(argv):
                         "dest": os.path.join(confpath, "mail.cfg")}
     files_to_change["gammaconf"] = {"source": os.path.join(confpath, "gamma.bak"),
                         "dest": os.path.join(confpath, "gamma.cfg")}
-    files_to_change["cleanup"] = {"source": os.path.join(homedir, dir, "scripts", "cleanup.sh"),
+    files_to_change["cleanup"] = {"source": os.path.join(homedir, dir, "scripts", "cleanup.bak"),
                         "dest": os.path.join(homedir, dir, "scripts", "cleanup.sh")}
 
     for f in files_to_change:
@@ -800,7 +803,7 @@ def main(argv):
     # end of init
     print("")  # used for monitoring of logfile
     print("Things to do:")
-    print("- check configuration files in {}")
+    print("- check configuration files in {}".format(os.path.join(homedir,dir,"conf")))
     if initjob == "MARCOS":
         print("- update filter.cfg and activate filter job in crontab in case of > 1Hz data")
         print("- read the manual (again) for monitoring and threshold - activate/configure")
