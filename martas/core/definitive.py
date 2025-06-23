@@ -512,23 +512,28 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                     if debug:
                         print ("  Flagging with existing flags:")
                         print ("  a) from DB:")
-                    flaglist = db.flags_from_db(scinst[:-5], begin=dstarttime, end=dendtime) #data.header['SensorID'])
+                    flaglist = db.flags_from_db(scinst[:-5], starttime=dstarttime, endtime=dendtime) #data.header['SensorID'])
                     if debug:
                         print ("     Length of DB flaglist: {}".format(len(flaglist)))
                         print ("  b) from file:")
                     if not flagfile:
                         flagfile = os.path.join(outpath,'magpy',scinst[:-5]+'_flags.json')
                     if os.path.isfile(flagfile):
-                        fileflaglist = flagging.load(flagfile, sensorid=sc.header['SensorID'], begin=dstarttime, end=dendtime)
+                        fileflaglist = flagging.load(flagfile, sensorid=sc.header.get('SensorID'), begin=dstarttime, end=dendtime)
                         if debug:
-                            print("  Loaded {} flags from file in this time range".format(len(fileflaglist)))
+                            print("  Loaded {} flags from file in the time range {} to {}".format(len(fileflaglist),dstarttime, dendtime))
                         if len(flaglist) > 0 and len(fileflaglist) > 0:
                             flaglist = flaglist.join(fileflaglist)
                         elif not len(flaglist) > 0:
                             flaglist = fileflaglist
                     if debug:
                         print("  Found a sum of {} flags".format(len(flaglist)))
-                    sc.header["DataFlags"] = flaglist
+                    #sc.header["DataFlags"] = flaglist
+                    if debug:
+                        print ("  Removing flagged data before applying deltas and time shifting")
+                    if flaglist:
+                        sc = flaglist.apply_flags(sc, mode='drop')
+                        sc.header["DataFlags"] = None
                     if debug:
                         print ("  Applying offsets and timeshifts")
                     sc = sc.apply_deltas()
@@ -551,15 +556,13 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                         fname = '{}_scalar_oc_sec_{}'.format(scinst,runmode)
                         hsc.write(os.path.join(outpath,'magpy'),filenamebegins=fname,dateformat='%Y%m',coverage='month',mode='replace',format_type='PYCDF')
                     if debug:
-                        print ("  Removing flagged data before filtering")
-                    if flaglist:
-                        sc = flaglist.apply_flags(sc, mode='drop')
-                    if debug:
                         print ("  Filtering")
                     sc = sc.filter(missingdata='mean')
                     if debug:
                         print ("  Fill gaps with nan")
                     sc = sc.get_gaps()
+                    if debug:
+                        print ("  Keeping only f column")
                     for el in KEYLIST:
                         if not el in ['time','f']:
                             sc = sc._drop_column(el)
@@ -759,6 +762,8 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
             if len(va) > 1:
                 # 1) get header from db
                 # ---------------------
+                if debug:
+                    print ("MEANS: {},{},{}".format(va.mean("x"),va.mean("y"),va.mean("z")))
                 dhead = db.fields_to_dict(inst)
                 if dhead:
                     va.header = dhead
@@ -781,15 +786,16 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 #  --a. add flaglist from db
                 if debug:
                     print ("  Flagging")
+                vaflagsdropped = False
                 vaflaglist = db.flags_from_db(va.header['SensorID'], starttime=dstarttime, endtime=dendtime)
                 if debug:
                     print("  Loaded {} flags from DB for this time range".format(len(vaflaglist)))
                 #  --b. add flaglist from file
                 if not flagfile:
                     flagfile = os.path.join(outpath,'magpy',inst[:-5]+'_flags.json')
-                fileflaglist = flagging.load(flagfile, sensorid=va.header['SensorID'])
+                fileflaglist = flagging.load(flagfile, sensorid=va.header.get('SensorID'), begin=dstarttime, end=dendtime)
                 if debug:
-                    print("  Loaded {} flags from file in this time range".format(len(fileflaglist)))
+                    print("  Loaded {} flags from file in time range {} to {}".format(len(fileflaglist), dstarttime, dendtime))
                 if len(vaflaglist) > 0 and len(fileflaglist) > 0:
                     vaflaglist = vaflaglist.join(fileflaglist)
                 elif not len(vaflaglist) > 0:
@@ -801,11 +807,15 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 #va = flaglist.apply_flags(va, mode='drop')
                 ## Checkpoint
                 #mp.plot(va,variables=['x','y','z'],annotate=True)
+                if debug:
+                    print ("   MEANS: {},{},{}".format(va.mean("x"),va.mean("y"),va.mean("z")))
                 # 5) apply compensation
                 # ---------------------
                 if debug:
                     print("  Applying compensation values")
                 va = va.compensation(skipdelta=True)
+                if debug:
+                    print ("   MEANS: {},{},{}".format(va.mean("x"),va.mean("y"),va.mean("z")))
                 # 6) apply delta values
                 # ---------------------
                 if debug:
@@ -814,7 +824,7 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 # 7) determine and apply rotation
                 # ---------------------
                 if debug:
-                    print("  Applying rotation values")   ### should be done after removal of flags....
+                    print("  Rotation values ...")   ### should be done after removal of flags....
                 rotstring = va.header.get('DataRotationAlpha','')
                 rotdict = string2dict(rotstring,typ='oldlist')
                 if debug:
@@ -824,31 +834,37 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 if debug:
                     print ("  Existing rotation angle beta for {}: {}".format(str(year), betadict.get(str(year),'')))
                 if runmode == 'firstrun' or rotdict.get(str(year),0) == 0:
-                    print ("Initial run: No rotation value determined so far -- doing that now")
-                    print ("Need to drop flagged data now...")
-                    if vaflaglist:
+                    print (" Initial run: Rotation value will be determined")
+                    print ("   Need to drop flagged data now...")
+                    if vaflaglist and not vaflagsdropped:
                         va = vaflaglist.apply_flags(va, mode='drop')
-                    print ("Getting rotation angle - please note... correct beta determination requires DI data for reference Inclination")
+                        va.header['DataFlags'] = None
+                        vaflagsdropped = True
+                    print ("   Getting rotation angle - please note: correct beta determination requires DI data for reference inclination")
                     alpha, beta, gamma = va.determine_rotationangles(referenceD=0.0, referenceI=None)
                     rotangle = alpha
-                    print ("Determined rotation angle alpha for {}: {}".format(va.header.get('SensorID'),rotangle))
-                    print ("!!! Please note: These  new rotation angles are not yet applied.")
-                    print ("!!! Please note: They are used for secondrun onwards.")
-                    print ("!!! Please note: update DB with correct rotation angles. ")
+                    print ("  Determined rotation angle alpha for {}: {}".format(va.header.get('SensorID'),rotangle))
+                    print ("  !!! Please note: These  new rotation angles are not yet applied.")
+                    print ("  !!! Please note: They are used for secondrun onwards.")
+                    print ("  !!! Please note: update DB with correct rotation angles. ")
                 else:
                     rotangle = float(rotdict.get(str(year),'0.0'))
                     beta = float(betadict.get(str(year),'0.0'))
-                    print("Advanced runs (after firstrun): Using rotation angles alpha= {} and beta={}".format(rotangle, beta))
+                    print("  Applying rotation (after firstrun): Using rotation angles alpha= {} and beta={}".format(rotangle, beta))
                     # Only apply full year values - as baseline calc uses them as well
                     va = va.rotation(alpha=rotangle, beta=beta)
                 orgva = va.copy()
 
+                if debug:
+                    print ("   MEANS: {},{},{}".format(va.mean("x"),va.mean("y"),va.mean("z")))
                 # 8) calc baseline
                 # ---------------------
                 # requirement: base value data has been cleaned up
                 basename = ""
                 ppier = config.get('primarypier','A2')
                 blvabb = config.get('blvabb')
+                if debug:
+                    print ("Getting basevalue data now (primary pier only):", basefile, inst, prf, ppier)
                 if runmode in  ['firstrun']:
                     scalar = prf[:-5]
                     basename = "{}_{}_{}_{}_{}.txt".format(blvabb, inst[:-5], scalar, ppier, year)
@@ -857,25 +873,27 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                     basename = "{}_{}_{}_{}_{}_{}.txt".format(blvabb, inst[:-5], scalar, ppier, year, runmode)
                     #basename = 'BLVcomp_'+inst[:-5]+'_'+scalar+'_A2_'+str(year)+'_'+runmode+'.txt'
                 if not basefile:
-                    basefile = os.path.join(outpath,'magpy',basename)
+                    basevaluefile = os.path.join(outpath,'magpy',basename)
+                else:
+                    basevaluefile = basefile
 
                 if debug:
-                    print ("  Applying baseline file: {}".format(basefile))
-                if os.path.isfile(basefile):
-                    absr = read(basefile)
+                    print ("  Applying baseline file: {}".format(basevaluefile))
+                if os.path.isfile(basevaluefile):
+                    absr = read(basevaluefile)
                     flaglist = absr.header.get("DataFlags")
                     if flaglist:
                         absr = flaglist.apply_flags(absr, mode='drop')
                     if debug:
                         print ("  Basevalue SensorID:", absr.header.get('DataID'))
-                        print ("   -- Dropping flags from DB")
+                        print ("   -- Dropping basedata flags from DB")
                     blvflaglist = db.flags_from_db(absr.header.get('DataID'))
                     if debug:
                         print ("   -> {} flags".format(len(blvflaglist)))
                     if flaglist:
                         absr = flaglist.apply_flags(absr, mode='drop')
                     if debug:
-                        print ("   -- Dropping flags from File")
+                        print ("   -- Dropping basedata flags from file")
                     flaglist = flagging.load( config.get('diflagfile',''), sensorid=absr.header.get('DataID'))
                     if debug:
                         print ("   -> {} flags".format(len(flaglist)))
@@ -885,9 +903,10 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                     # Checkpoint
                     #mp.plot(absr)
                     if runmode == 'firstrun':
-                        print ("  Dropping flagged data")
-                        if vaflaglist:
+                        if vaflaglist and not vaflagsdropped:
+                            print("  Baseline adoption: dropping flagged data")
                             va = vaflaglist.apply_flags(va, mode='drop')
+                            vaflagsdropped = True
                         va = va.get_gaps()
                         print ("  Filtering data")
                         va = va.filter(missingdata='mean')
@@ -949,6 +968,9 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                             ett = methods.testtime(baselst[1][0])-timedelta(days=1)
 
                     print ("  AbsInfo in stream: {}".format(va.header.get('DataAbsInfo')))
+                    if debug:
+                        print("   MEANS: {},{},{}".format(va.mean("x"), va.mean("y"), va.mean("z")))
+
                     if runmode in ['secondrun','thirdrun'] and not skipsec: # Save high res data when finishing
                         hva = va.copy()
                         print ("  Updating rotation information...")
@@ -958,12 +980,13 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                         fname = '{}_vario_sec_{}_'.format(inst,runmode)
                         hva.write(os.path.join(outpath,'magpy'),filenamebegins=fname,dateformat='%Y%m',coverage='month',mode='replace',format_type='PYCDF')
                     print("  remove, gaps and filter:", va.length()[0])
-                    if vaflaglist:
+                    if vaflaglist and not vaflagsdropped:
                         va = vaflaglist.apply_flags(va, mode='drop')
+                        vaflagsdropped = True
                     #print(va.length())
-                    va = va.get_gaps()
-                    #print(va.length())
-                    va = va.filter()
+                    if not runmode == 'firstrun':
+                        va = va.get_gaps()
+                        va = va.filter(missingdata='mean')
                     va = va.get_gaps()
                     if debug:
                         print ("  Absolute data has now been loaded and applied - determining true beta now")
@@ -981,6 +1004,8 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
 
                     if debug:
                         print ("  Writing")
+                    if debug:
+                        print("   MEANS: {},{},{}".format(va.mean("x"), va.mean("y"), va.mean("z")))
                     if va.length()[0] > 0:
                         va.write(os.path.join(outpath,'magpy'), filenamebegins=inst+'_vario_'+bl+'_'+str(year),dateformat='%Y',mode='replace',coverage='all',format_type='PYCDF')
                 else:

@@ -347,8 +347,8 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
         enddate = config.get('enddate')
 
     if debug:
-        print(" BLV analysis:")
-        print(" blv files will written to", blvdatapath)
+        print("BLV analysis:")
+        print(" blv files will be written to", blvdatapath)
 
     if runmode in ['thirdrun']:
         if debug:
@@ -537,46 +537,43 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                     else:
                         filenamebegins = "{}_{}_{}".format(basename, year, runmode)
 
-                    if not debug:
-                        extension = '.txt'
-                        if format_type == 'PYCDF':
-                            extension = '.cdf'
-                        if writeblv2file:
-                            succ = True
-                            if backup:
-                                succ = backup_file(os.path.join(blvdatapath, filenamebegins + extension))
-                            if succ:
-                                print(" - writing data to file using writemode {} ...".format(writemode))
-                                wm = writemode
-                                if wm in ['append', 'skip']:
-                                    wm = 'skip'
-                                if wm == 'fullreplace':
-                                    wm = prepare_file(os.path.join(blvdatapath, filenamebegins + extension), startdate,
-                                                      enddate, format_type=format_type)
-                                print("   -> writing {} data points".format(absresult.length()[0]))
-                                absresult.write(blvdatapath, coverage='all', filenamebegins=filenamebegins,
-                                                format_type=format_type, mode=wm)
-                                print(" ... success")
+                    extension = '.txt'
+                    if format_type == 'PYCDF':
+                        extension = '.cdf'
 
-                        if writeblv2db and _check_db_cond(pier, vainst, scinst, config.get('writedbcond')):
-                            print(" - Writing data to DB using writemode {} ...".format(writemode))
+                    if writeblv2file:
+                        succ = True
+                        if backup:
+                            succ = backup_file(os.path.join(blvdatapath, filenamebegins + extension))
+                        if succ:
+                            print(" - writing data to file using writemode {} ...".format(writemode))
                             wm = writemode
-                            if wm in ['overwrite', 'delete']:
-                                wm = 'delete'
                             if wm in ['append', 'skip']:
-                                wm = 'insert'
+                                wm = 'skip'
                             if wm == 'fullreplace':
-                                wm = prepare_table(db, filenamebegins, startdate, enddate)
-                            # - Replace everything within time range (fullreplace) (not existing in file)
-                            # - Replace only existing data (replace) - (replace in file)
-                            # - Append data if not existing (append) - (skip in file)
-                            # - Delete all and write new file (overwrite) - (overwrite in file)
-                            if db:
-                                db.write(absresult, tablename=filenamebegins, mode=wm)
+                                wm = prepare_file(os.path.join(blvdatapath, filenamebegins + extension), startdate,
+                                                  enddate, format_type=format_type)
+                            print("   -> writing {} data points".format(absresult.length()[0]))
+                            absresult.write(blvdatapath, coverage='all', filenamebegins=filenamebegins,
+                                            format_type=format_type, mode=wm)
                             print(" ... success")
-                    else:
-                        print(" Debug: no writing - would create a file like {} in {}".format(filenamebegins,
-                                                                                              blvdatapath))
+
+                    if writeblv2db and _check_db_cond(pier, vainst, scinst, config.get('writedbcond')):
+                        print(" - Writing data to DB using writemode {} ...".format(writemode))
+                        wm = writemode
+                        if wm in ['overwrite', 'delete']:
+                            wm = 'delete'
+                        if wm in ['append', 'skip']:
+                            wm = 'insert'
+                        if wm == 'fullreplace':
+                            wm = prepare_table(db, filenamebegins, startdate, enddate)
+                        # - Replace everything within time range (fullreplace) (not existing in file)
+                        # - Replace only existing data (replace) - (replace in file)
+                        # - Append data if not existing (append) - (skip in file)
+                        # - Delete all and write new file (overwrite) - (overwrite in file)
+                        if db:
+                            db.write(absresult, tablename=filenamebegins, mode=wm)
+                        print(" ... success")
 
                     if plot == 'True':
                         try:
@@ -592,7 +589,7 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                     print(" saving (and eventually plotting) successfully finished ")
                     print(" -------------------------------------")
                 else:
-                    print(" -> obtained an empty absresult")
+                    print(" -> obtained an empty abs-result")
                     print(" -------------------------------------")
 
 
