@@ -21,6 +21,9 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey (GeoSphere Austria)
 3. [Initialization of MARTAS/MARCOS](#3-initialization-of-martasmarcos)
 4. [MARTAS](#4-martas)
 5. [MARCOS](#5-marcos)
+6. [Applications](#6-applcations)
+7. [Logging and notifications](#7-logging-and-notifications)
+8. [Additional tools](#8-additional-tools)
 
 
 ## 1. About
@@ -94,15 +97,15 @@ independent, it is currently only tested and supported on debian-like LINUX syst
 
 ### 2.2 Installing MARTAS/MARCOS
 
-Create a python environment:
+Please make sure that packages as listed in 2.1 are installed. Then create a python environment:
 
-        $ virtualenv 
+        $ virtualenv ~/env/martas
 
 Activate the environement:
 
         $ source ~/env/martas/bin/activate
 
-Get the MARTAS package:
+Get the most recent MARTAS package:
 
          download martas-2.x.x.tar.gz
 
@@ -157,8 +160,33 @@ For quickly enabling authentication you can also use the following instructions 
 
 Thats it. How to use credentials in MARTAS is described in section 7.x.
 
+In order to access such protected MQTT data streams you can use the addcred tool in order to avoid plain passwords in 
+your configuration files. Please note, that this method does not encrypt passwords. It just obsfucate it and store it 
+in a different, independent file. To add such information into the credentials list use:
 
-#### 2.3.3 Understanding Quality-of-Service (QOS)
+        $ addcred -t transfer -c mqtt -u user -p mypasswd -a localhost
+
+Provide the shortcut (mqtt) and username during the installation process.
+
+#### 2.3.3 Testing MQTT data transfer
+
+Issue the following subscription command:
+
+        mosquitto_sub -h IPADDRESS_OF_MARTAS -t test/#
+
+On a freshly installed MARTAS machine issue the following command:
+
+        mosquitto_pub -h localhost -m "test message" -t test -d
+
+In case you are using a different MQTT broker: change 'localhost' and 'IPADDRESS_OF_MARTAS' with the IP of the BROKER
+In case you are using authenticated access use the following additional options:
+
+        mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -d
+
+As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription
+command. Checkout the official mosquitto pages for more information.
+ 
+#### 2.3.4 Understanding Quality-of-Service (QOS)
 
 The Quality-of-Service (qos) level is an agreement between the sender of a message and the receiver of a message that 
 defines the guarantee of delivery for a specific message. There are three qos levels in MQTT: (0) At most once, (1) At 
@@ -187,15 +215,39 @@ Start the MARTAS/MARCOS initialization routine
 
 This routine will ask you a series of questions to configure the acquisition (MARTAS) or collector (MARCOS) to your 
 needs. In case you want to use e-mail, messenger notifications or database support, make sure that you setup these
-tool ideally before running martas_init, and provide credential information using [addcred](https://github.com), section 10.6. 
-You might want to checkout [section 6.1](#6-1) for details on notifications and [section 5.3.2](#5-3-2) for database support. 
-Please also make sure that you have write permissions on the directories to be used.
+tools ideally before running martas_init, and provide credential information using [addcred](https://github.com), section 10.6. 
+You might want to checkout [section 6.1](#6-1) for details on notifications and [section 5.3.2](#5-3-2) for database 
+support. Please also make sure that you have write permissions on the directories to be used and that those directories
+exist already.
+
+The martas_init routine will create a .martas folder and copy some applications into this directory. When updating 
+the martas python package, these apps remain unaffected. In order to update the apps you should run martas_init again
+with the -u option. If you want to replace an existing martas/marcos installation and reset the contents of all 
+configuration files then run the martas_init command with the -r option. By default martaa_init will create a .martas
+folder in the uses home directory for storing its data and configurations. You can change this directory by providing
+another path (reltive to the users homedirectory) using -d. I.e. -d MARTAS will use /home/user/MARTAS as default 
+directory.
 
 ### 3.2 Inputs during setup
 
+The required inputs are self explaining. Please read the comments and suggestions carefully. Before starting the 
+initialization routine make sure that you know what to do, i.e. read the manual. If you did anything wrong you can 
+restart/redo initialization anytime using option -r. You will need information about paths, storage directories,
+database, communication protocols etc. You can modify anything later by editing the configuration files.
+
+### 3.3 Running MARTAS/MAROCS after initialization
+
+Martas_init will update your users crontab and schedule a number of jobs for running the respective module. Typically
+the main job will be started shortly after midnight. You might want to issue this command directly after initialization.
+Depending on which module (MARTAS or MARCOS) you are installing, you will have a series of scheduled applications.
+Please checkout the module specific sections for details.
+
+In order to start your desired module directly after initialization use one of the commands (or check 
+crontab -l for the exact name) as listed in section 4.2 or 5.2.
+
 ## 4. MARTAS
 
-### 4.1 Configuring sensors
+### 4.1 Defining and configuring sensors
 
 When initialization is finished there is only one further step to do in case of a MARTAS acquisition machine. You need 
 to specify the sensors. For this you will have to edit the sensors configuration file.
@@ -239,98 +291,23 @@ IMPORTANT:
 
 Further details and descriptions are found in the commentary section of the sensors.cfg configuration file.
 
-### 4.2 Running the acquisition system
 
-#### 4.2.1 When installation is finished you can start the system as follows:
+### 4.2 Sensors requiring initialization
 
-        $ sudo /etc/init.d/martas start
+Several sensors currently supported by MARTAS require an initialization. The initialization process defines e.g. 
+sampling rates, filters, etc. in a way that the sensor systems is automatically sending data to the serial port 
+afterwards. MARTAS supports such initialization routines by sending the respective and necessary command sequence to 
+the system. Initialization commands are stored within the MARTAS configuration directory (Default: /etc/martas/init).
+The contents of the initialization files for supported instruments is outlined in Appendix 10.1. In order to use such
+initialization, you need to provide the path within the sensors configuration line in sensors.cfg:
 
-    - The following options are now available:
-        $ sudo /etc/init.d/martas status
-        $ sudo /etc/init.d/martas start
-        $ sudo /etc/init.d/martas restart
-        $ sudo /etc/init.d/martas stop
-
-#### 4.2.2 Command line
-
-        $ python acquisition.py -m /home/user/martas.cfg
-
-#### 4.2.3 Adding a cleanup for the bufferdirectory
-
-   Principally, all data is buffered in binary files, by default within the /srv/mqtt directory.
-   You can mount a SD card or external memory as such a bufferdirectory.
-   In order to prevent an overflow of the local file system you can also activate a cleanup job
-   to remove old files from the buffer directory.
-
-   Add the following line to /etc/crontab
-
-	15 0 * * * root sh /home/user/MARTAS/app/cleanup.sh
-
-   Edit cleanup.sh to fit your needs. By default it reads (deleting all files older than 100 days):
-
-	find /srv/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
-
-#### 4.2.4 Adding a start option to crontab
-
-   In case that the MARTAS acquisition process hangs up or gets terminated by an unkown reason
-   it is advisable to add a start option to crontab, which starts MARTAS in case it is not
-   running any more
-
-   Add the following line to /etc/crontab
-
-       10  0  *  *  *  root    /etc/init.d/martas start
-
-### 4.4 Sensors requiring initialization
-
-Several sensors currently supported by MARTAS require an initialization. The initialization process defines e.g. sampling rates, filters, etc. in a way that the sensor systems is automatically sending data to the serial port afterwards. MARTAS supports such initialization routines by sending the respective and necessary command sequence to the system. Initialization commands are stored within the MARTAS configuration directory (Default: /etc/martas/init). The contents of the initialization files for supported instruments is outlined in Appendix 10.1. In order to use such initialization, you need to provide the path within the sensors configuration line in sensors.cfg:
-
-sensors.cfg: line for a GSM90 Overhauzr, the initialzation configuration is taken from gsm90v7init.sh (within the martas config directory)
+sensors.cfg: line for a GSM90 Overhauzr, the initialzation configuration is taken from gsm90v7init.sh (within the 
+martas config directory)
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
 
-### 4.5 Regular backups of all MARTAS configurations
-
-MARTAS comes with a small backup application to be scheduled using cron, which saves basically all MARTAS configuration files within a zipped archive. The aim of this application is to save all essential information within one single data file so that in case of a system crash (hardware problem, SD card defect, etc) you can easily and quickly setup an identical "new" system. You might also use the backups to setup similar copies of a specific system.
-
-To enable regular monthly backups, first copy the backup_config.sh application to /etc/martas/
-
-          $ (sudo) cp /home/USER/MARTAS/apps/backup_config.sh /etc/martas
-
-Modify backup_config.sh and insert the correct user name in line 13:
-
-          $ (sudo) nano /etc/martas/backup_config.sh
-
-Schedule the script using cron (as root).
-
-          $ sudo nano /etc/crontab
-
-Insert the following line to create backups every 1 day per month.
-
-          10 0   1 * *   root /bin/bash /etc/martas/backup_config.sh
-
-
-In order to recover a system from an existing backup, MARTAS/install contains a recovery script "recover.martas.sh". In the following example we asume that your system broke down i.e. due to a SD card failure of your beaglebone/raspberry single board PC. You need to recover your system on a newly installed SD card. To apply the recover script you need to perform the following steps:
-
-1. Install a basic debian/ubuntu linux system on your acquisition machine (i.e. see steps 1-3 in section 12.5.2 for beaglebone)
-
-2. login into the new machine as the projected user USER
-
-3. create a directory /home/USER/Backups and copy the backup file you want to apply into this folder
-
-        mkdir /home/USER/Backups
-        (s)cp /source/myoldmachine_19990402_backup.tar.gz /home/USER/Backups/
-
-4. get MARTAS (eventually you need to install git - apt install git)
-
-        git clone https://github.com/geomagpy/MARTAS
-
-5. Run the recover script. This script will guide you through the process
-
-        sudo bash /home/USER/MARTAS/install/recover.martas.sh
-
-
-### 4.6. Typical Sensor definitions in sensors.cfg
+### 4.3. Examples for sensor definitions in sensors.cfg
 
 #### Geomagetic GSM90 Overhauzer Sensors (GEM Systems)
 
@@ -364,7 +341,7 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
 
 #### MariaDB/MySQL database access  
 
-         #cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
+         cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
 
 #### Onewire Senors (Dallas)  
 
@@ -394,26 +371,79 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
 
          FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 
-### 4.7 Enabling Authentication
+#### Data files (supported are all data files, readable with MagPy)
 
-If you want to use authentication you should use addcred (MagPy, section 10.6) to obsfuscate user and passwords, which
-helps you to avoid plain text passwords directly in scripts. Please note, that these methods do not encrypt passwords. 
-They just store it in a different, independent file. To add such information into the credentials list use:
-
-        $ addcred -t transfer -c mqtt -u user -p mypasswd -a localhost
-
-Provide the shortcut (mqtt) and username during the installation process.
+         WICadjusted,/home/leon/Cloud/Daten,-,-,-,-,active,None,30,1,IMfile,*.min,-,0001,-,-,-,magnetism,-
 
 
-### 4.8 Setup of a Broker
+### 4.4 Running the acquisition system
 
+Please note: the steps described within this section have already been preconfigured during martas_init. You can 
+manually change and re-configure anytime.
 
-A broker defines a system which is permanently receiving data from a MARTAS system via MQTT, i.e. MARTAS publishes data
-to the broker. The broker can be the same system as the one running MARTAS (when following the installation
-instructions, your system will be ready to act as a broker), but it can also be an external machine. MARTAS makes 
-use of a mosquitto brokers. Everything what you need to do to establish a broker is to install mosquitto as outlined
-in 1.1. If you want to use authentication on the broker follow the steps outlined in section 1.3. In order to use this 
-broker, make sure that MARTAS can reach this broker system via its address (IP/HTTP) on port 1883.
+#### 4.2.1 When installation is finished you can start the system as follows:
+
+        $ sudo /etc/init.d/martas start
+
+    - The following options are now available:
+        $ sudo /etc/init.d/martas status
+        $ sudo /etc/init.d/martas start
+        $ sudo /etc/init.d/martas restart
+        $ sudo /etc/init.d/martas stop
+
+#### 4.4.2 Command line
+
+        $ python acquisition.py -m /home/user/martas.cfg
+
+#### 4.4.3 Adding a cleanup for the bufferdirectory
+
+   Principally, all data is buffered in binary files, by default within the /home/USER/MARTAS/mqtt directory.
+   You can mount a SD card or external memory as such a bufferdirectory.
+   In order to prevent an overflow of the local file system you can also activate a cleanup job
+   to remove old files from the buffer directory.
+
+   Add the following line to /etc/crontab
+
+	15 0 * * * root sh /home/user/MARTAS/scripts/cleanup.sh
+
+   Edit cleanup.sh to fit your needs. By default it reads (deleting all files older than 100 days):
+
+	find /home/USER/MARTAS/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
+
+#### 4.4.4 Adding a start option to crontab
+
+   In case that the MARTAS acquisition process hangs up or gets terminated by an unkown reason
+   it is advisable to add a start option to crontab, which starts MARTAS in case it is not
+   running any more. You can also schedule a restart using similar inputs
+
+   Add the following line to /etc/crontab
+
+       10  0  *  *  *  root    /etc/init.d/martas start
+
+### 4.4.4 Regular backups of all MARTAS configurations
+
+MARTAS comes with a small backup application to be scheduled using cron, which saves basically all MARTAS configuration
+files within a zipped archive. The aim of this application is to save all essential information within one single data
+file so that in case of a system crash (hardware problem, SD card defect, etc) you can easily and quickly setup an 
+identical "new" system. You might also use the backups to setup similar copies of a specific system.
+
+A backup can be created by issuing the following command:
+
+          $ martas_backup -b /home/USER/.martas -d ~/backups
+
+Schedule the script using cron.
+
+          $ crontab -e
+
+Insert the following line to create backups every 1 day per month.
+
+          10 0   1 * *   martas_backup -b /home/USER/.martas -d /home/USER/backups
+
+You might want to save the backup on a different storage device using the destination option -d. 
+
+In order to recover a system from an existing backup, call 
+
+          $ martas_backup -r /home/USER/backups/backup_NAME_DATE.zip 
 
 
 ## 5. MARCOS
@@ -519,7 +549,7 @@ either be sys.stdout or the given log file.
 Calculates real-time differences between sensors attached to the same MARTAS. This is useful if you want to 
 visualize gradients directly.
 
-## 6. Applications and Scripts
+## 6. Applications
 
 ### 6.1 Overview of applications
 
@@ -967,11 +997,17 @@ command to a connected microcontroller if this state is reached.
 4  :  MYSENS_1234_0001;600;x;123;median;above;default;swP:1:4
 
 
+## 7. Visualization and monitoring
 
-## 7. Logging and notifications
+### 7.1 Visualization
 
-Please note: if you want to use threshold testing or monitoring, then you can use the installer "install.addapps.sh" in
-the install directory to set up/initialize these programs.
+| Content                 | Description                                                      |
+| -------------------------|------------------------------------------------------------------|
+|  **web**                 | Webinterface as used by the collector with destination websocket |
+|  web/index.html          | local main page                                                  |
+|  web/plotws.js           | arranging plots of real time diagrams on html page               |
+|  web/smoothie.js         | plotting library/program (http://smoothiecharts.org/)            |
+|  web/smoothiesettings.js | define settings for real time plots                              |
 
 
 ### 7.2 Monitoring MARTAS and MARCOS process with monitor.py
@@ -1061,8 +1097,6 @@ For sending notifications you then just need to edit the basic configuration fil
 Insert your bot_id (token) and the user_id. Thats it. Then you can use testnote.py to for testing whether its working (eventually you must run this command two times with a different message).
 
         python3 MARTAS/app/testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
-
-
 
 
 ### 7.4 Support for NAGIOS/ICINGA
@@ -1156,7 +1190,23 @@ Go to your channel overview and add (i.e. MyFirstBot) as administrator to your c
 
 ## 8. Additional tools
 
-### 8.1 definitive.py for geomagnetic definitive data preparation
+### 8.1 martas_backup
+
+The martas_backup routine will be scheduled automatically within the martas_init routine. martas_backup creates a 
+backup of all configuration files and settings. These backups can be used to recover a MARTAS/MARCOS system quickly.
+Recovery is widely independent of hardware and software versions. To recover a broken MARTAS system you would perform
+the following steps:
+
+1) Perform all installations steps of section 2
+2) Then run: martas_backup -r /path/to/backup_mymachine_DATE.zip
+
+Thats it... You can also use this routine to clone existing MARTAS installations to new machines.
+
+Backups are created by default on a weekly basis and you might want to store them on a different storage device. 
+Eventually use file_upload for this purpose.
+
+
+### 8.2 definitive.py for geomagnetic definitive data production
 
 The definitive module contains a number of methods for geomagnetic definitive data analysis. It is currently part of 
 MARTAS2.0 and uses the same configuration data as basevalue. Please note that this module was specifically developed 
@@ -1165,7 +1215,7 @@ methods for analyzing variometer and scalar data. The methods are designed for a
 allowing for optimization of baseline adoption. Filtered one-minute products are generated.
 Following the data treatment philosophy of MagPy data from different sensors is treated separately,
 
-#### 8.1.1 variocorr
+#### 8.2.1 variocorr
 
 Using variocorr one can analyse the variation data of several instruments, apply flagging information, eventually apply 
 transformations, rotations and offsets, and perform baseline adoption. Three different application levels are supported 
@@ -1180,7 +1230,7 @@ definitve data.
 Variocorr will always return rotation angles between measured field components and a magnetic coordinate system as 
 obtained by DI data. In case of an optimal DHZ oriented system these angles are zero. 
 
-#### 8.1.2 variocomb
+#### 8.2.2 variocomb
 
 Variocomb is used to create a merged variation data set from multiple variometer records. The order of instruments in 
 the configuration files is used to define primary, secondary, ... systems. Baseline corrected data from variocorr is 
@@ -1188,100 +1238,54 @@ then used to construct a joint record with gaps filled in minute resolution. Var
 from 8.1.3 and create definitive minute products as requested by INTERMAGNET/IAGA. Definitve second products have to 
 be constructed from outputs of variocomb and scalarcomb in a separate step.
 
-#### 8.1.3 scalarcorr and scalarcomb
+#### 8.2.3 scalarcorr and scalarcomb
 
 For scalar data the two methods to the same job as similar methods for variometers, without baseline adoption. Please
 note, complex F baseline require a different approach currently not supported by these methods. Currently only constant
 offsets are supported. Joint data sets are supported for both minute and second data.
 
-#### 8.1.4 create_rotation
+#### 8.2.4 create_rotation
 
 Take the return of variocorr and add rotation data into the database so that average yearly rotations can be considered
 for analysis (leading to baseline jumps every year). 
 
-#### 8.1.5 pier_diff
+#### 8.2.5 pier_diff
 
 Used to determine F differences of multiple piers provided that a mobile reference sensor is used regularly to measure on 
 all these piers. This is very Conrad Observatory specific and you might want to contact the Cobs Team for details.  
 
 
+### 8.3 Useful commands during runtime
 
-## 9. Frequently asked questions
+acquisition process still running?  
 
-#### During installation of pip packages dependency problems are occuring
+              bash /home/USER/.martas/runmartas status
 
-If you observe such problems (problems occured in the past with matplotlib, numpy and/or scipy) then it is advisable
-to install the recommended packages for your system using apt instead of pip. Please remove the pip packages (pip remove..) and install system
-packages using e.g. sudo apt install python3-scipy
+check log file contents
 
-#### I want to send out data periodically from a MARTAS acquisition machine using FTP or similar. Is this easily possible?
+              tail -30 /home/USER/.martas/log/martas.log
 
-use app/file_upload.py within crontab (see 8.6)
+Are buffer files written
 
-#### I want download buffer files from the MARTAS machine peridically in order to fill gaps of my qos 0 MQTT stream. How to do that?
+              ls -al /home/USER/MARTAS/mqtt/YOURSENSOR/
 
-use app/file_download.py within crontab (see 8.5)
+Can I subscribe to the MQTT data stream (MQTTBROKER might be localhost, etc) 
 
+              mosquitto_sub -h MQTTBROKER -t TOPIC/#
 
-## 10. Checklist for error analysis
+Can I publish data to a broker?
 
-### 10.1 Acquisition
+              mosquitto_pub -h MQTTBROKER -t TOPIC -m "Hello"
 
-In order to find any issues with data acquisition we recommend to check the following aspects:
+ collector process running?  
 
-    1) acquisition process running?  
+          bash /home/USER/.martas/collect-JOBNAME status
 
-              sudo /etc/init.d/martas status
+log file contents
 
-       if not start/restart the process
+          tail -30 /home/USER/.martas/log/collect-JOBNAME.log
 
-    2) log file contents?
-
-              tail -30 /var/log/magpy/martas.log
-
-       Check the logfile contents. Typically they might indicate already what is going wrong. For more detailed information within the logfiles please edit "martas.cdf" and set "debug  :  True" before restarting the acquisition process.
-
-    3) buffer file written?
-
-              ls -al /srv/mqtt/YOURSENSOR/
-
-       Check if buffer data written. If buffer file is not written please check acquisition with debug mode (see above). Is your sensor already supported?
-
-### 10.2 Data transfer and MQTT Broker
-
-    1) Can I subscribe to the MQTT data stream?  
-
-              mosquitto_sub -t TOPIC/#
-
-        Above command, issued on the defined data broker (in martas.cfg) will give you some information on published data.
-
-    2) Can I subscribe to the data from elsewhere?
-
-              mosquitto_sub -h BROKER_IP_ADDRESS -t TOPIC/#
-
-         If this one fails check section 1.1 again.
-
-    2) Can I publish data to a broker?
-
-              mosquitto_pub -h BROKER_IP_ADDRESS -t testTOPIC -m "Hello"
-
-              If this one fails check section 1.1 again.
-
-### 10.3. MARCOS collector
-
-1) collector process running?  
-
-          sudo /etc/init.d/collect-MYBROKER status
-
-   if not start/restart the process
-
-2) log file contents
-
-          tail -30 /var/log/magpy/COLLECT.log
-
-   Check the logfile contents. Typically they might indicate already what is going wrong. For more detailed information within the logfiles please edit "martas.cdf" and set "debug  :  True" before restarting the acquisition process.
-
-3) data files/ database  written
+data files/ database  written
 
           DATABASE:
           mysql -u user -p mydb
@@ -1291,77 +1295,9 @@ In order to find any issues with data acquisition we recommend to check the foll
           ls -al /my/file/destination/
 
 
-## 11. Strucure/Files in home directory of MARTAS user
+## 9. Appendix
 
-Within the MARTAS directory you will find the following files and programs:
-
-Content |  Description
-------- | ------------
-acquisition.py    |             accepts options (-h for help)
-collector.py    |                   accepts options (-h for help)
-README.md    |		You are here.
-LICENSE.md    |		GNU GPL 3.0 License
-requirements.txt   |    for contiunuous integration test runs
-**app**  |
-app/addcred.py    |	run to add protected credentials to be used e.g. by data sending protocol, database connections etc, avoinding the use of plain text passwords in scripts
-app/archive.py    |	MARCOS job to periodically archive contents of the data base into archive files (e.g. CDF). Remove information from the data base exceeding a defined age. The latter requires additionally to run sql optimze routines in order to prevent an overflow of the local data base storage files.
-app/ardcomm.py    |	Communication program for microcontrollers (here ARDUINO) e.g. used for reomte switching commands
-app/backup_config.sh    |	Bash scripts wich creates a zipped backup file containing all configuration information - stored in HOME/Backups (apply weekly or monthly, section 3.5)
-app/cleanup.sh    |	remove buffer files older than a definite period
-app/deleteold.py    |	delete old inputs from a database, using a sampling rate dependent indicator (deleteold.py -h)
-app/di.py    |	Routine based on MagPys absoluteAnalysis tool to analyse geomagnetic DI measurements from multiple input sources/observatories.
-app/file_upload.py    |	Wrapper to upload files to remote machine using either ssh, rsync, ftp
-app/file_download.py    |	Wrapper to download files to remote machine using either ssh, rsync, ftp
-app/monitor.py    |	Monitoring application to check buffer files (martas), database actuality (marcos), disk space and log files; can trigger external scripts
-app/mpconvert.py    |	converts MARTAS binary buffer files to other formats
-app/optimzetables.py    |	application to be used with archive.py or deleteold.py; uses SQL Optimze methods to clear the table space after data has been removed - non-blocking
-app/sendip.py    |	Helper for checking and sending public IP  (via ftp) - OLD
-app/serialinit.py    |	Load initialization file (in init) to activate continuous serial data delivery (passive mode)
-app/telegramnote.py    |	Small program to send notes to a Telegram Messenger BOT. Useful for periodic information as an alternative to e-mail.
-app/testnote.py    |	Small routine to test notification sending via email, telegram, etc.
-app/testserial.py    |	Small routine to test serial communication.
-app/threshold.py    |	Threshold tester (see section 7.1)
-app/obsdaq.py        | communicate with ObsDAQ ADC (see section 10.1.5)
-app/palmacq.py       | communicate with PalmAcq datalogger (see section 10.1.5)
-app/collectfile.py    |	access data locally or via rsync/ssh/ftp and add it to files/DB - OLD - replaced by file_download
-app/senddata.py    |	Send data from MARTAS to any other machine using cron/scheduler - OLD - replaced by file_upload
-**core**  |  Core methods used by the most runtime scripts and applications
-core/martas.py    |	basic logging routines for MARTAS/MARCOS and wrapper for e-mail,logfile,telegram notifications
-core/acquisitionsupport.py    |	contains general communication methods and configuration file interpreters
-**conf**  | Basic initialization files - used by installer
-conf/sensors.cfg    |	skeleton for sensors configuration information
-conf/martas.cfg    |	skeleton for basic MARTAS configuration -> acquisition
-conf/marcos.cfg    |	skeleton for basic MARCOS configuration -> collector
-conf/obsdaq.cfg    |	skeleton for basic obsdaq configuration - enter path in martas.cfg (see 10.1.5)
-**init**  | Basic initialization files - used by installer
-init/martas.sh    |	Start script to be used in /etc/init.d
-init/autostart.sh    |	Run to add and sctivate /etc/init.d/martas
-init/martas.logrotate    |	Example script to activate logrotation
-init/gsm90v7init.sh    |	Initialization script GEM GSM90 v7
-init/gsm90v6init.sh    |	Initialization script GEM GSM90 v6
-init/pos1init.sh    |	Initialization script Quantum POS1
-init/bm35init.sh    |	Initialization script Meteolab BM35 pressure
-init/obsdaqinit.sh  |   Initialization script for PalmAcq and ObsDAQ
-**install**  | Installer scripts. Will update configuration and copy job specific information to /etc/martas (default)
-install/install.marcos.sh    |	Installer for collector jobs  (section 6.0)
-install/install.martas.sh    |	Installer for acquisition jobs  (section 3.0)
-install/install.telegram.sh    |	Installer for Telegram messenger communication (section 7.3)
-install/install.addapps.sh    |   Installer for threshold testing and monitor
-install/recover.martas.sh    |   Recovery script to apply a backup (app/backup_config.sh) to a newly installed system (section 3.5)
-**libraries**  |  contain communication libraries for specific systems/protocols/instruments (required by acquisition.py)
-libmqtt/...    |			library for supported instruments (mqtt streaming)
-libwamp/...    |		library for sup. inst. (wamp streaming) - DISCONTINUED
-**web**  |  Webinterface as used by the collector with destination websocket
-web/index.html    |		local main page
-web/plotws.js    |	  	arranging plots of real time diagrams on html page
-web/smoothie.js    |		plotting library/program (http://smoothiecharts.org/)
-web/smoothiesettings.js    |        define settings for real time plots
-oldstuff/...    |		        Folder for old contents and earlier versions
-
-
-## 12. Appendix
-
-### 12.1 Libraries
+### 9.1 Libraries
 
 | Instrument          | versions | Inst-type   | Library                  | mode     | init           | requires         |
 |---------------------|----------|-------------|--------------------------|----------|----------------|------------------|
@@ -1393,9 +1329,9 @@ oldstuff/...    |		        Folder for old contents and earlier versions
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
-### 12.2 Initialization files
+### 9.2 Sensor specific initialization files and settings
 
-#### 12.2.1 GEM Systems Overhauzr GSM90
+#### 9.2.1 GEM Systems Overhauzr GSM90
 
 Using the initialization file of the GSM90 a command will be send towards the system in order to initialize passive data transfer. You need to edit the initialization file within the configuration directory (default is /etc/martas/init/gsm90...). Please adjust the connected serial port (e.g. S1, USB0 etc) and adept the following parameters:
 
@@ -1411,11 +1347,11 @@ Using the initialization file of the GSM90 a command will be send towards the sy
             D          -> sampling rate: D -> down, U -> up, leave out to keep sampling rate
             R          -> Run
 
-#### 12.2.2 Quantum POS1
+#### 9.2.2 Quantum POS1
 
-#### 12.2.3 Meteolabs BM35 pressure
+#### 9.2.3 Meteolabs BM35 pressure
 
-#### 12.2.4 ObsDAQ / PalmAcq
+#### 9.2.4 ObsDAQ / PalmAcq
 
 Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
 1) Use palmacq.py -h  and obsdaq.py -h for further information. These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
@@ -1429,10 +1365,11 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
       FGE\_S0252\_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time. From now on NTP time will be recorded additionally in the sectime column
 
-#### 12.2.5 LM
+#### 9.2.5 LM - TLippmann tilt meter
 
+To be added
 
-### 12.3 Dallas OW (One wire) support
+#### 9.2.6 Dallas OW (One wire) support
 
 a) modify owfs,conf
         $ sudo nano /etc/owfs.conf
@@ -1448,7 +1385,7 @@ b) start the owserver
         $ sudo etc/init.d/owserver start
 
 
-### 12.4  Communicating with an Arduino Uno Microcontroller
+#### 9.2.6  Communicating with an Arduino Uno Microcontroller
 
 An [Arduino Microcontroller] has to be programmed properly with serial outputs, which are interpretable from MARTAS. Such Arduino programs are called sketch.
 MARTAS contains a few example scripts, which show, how these sketches need to work, in order to be used with MARTAS. In principle, two basic acquisition modes are supported
@@ -1481,10 +1418,10 @@ Within the subdirectory MARTAS/sketchbook you will find a few example sketches f
 
 The following sketches are currently contained:
 
-Sketch name |  version | mode  | job
------------ | ------ | ------ | -------
-sketch\_MARTAS\_ac\_ow\_sw  | 1.0.0 |  active | requesting 1-wire sensor data and enabling remote switching of pin 4 (default: off) and pin 5 (default: on)
-sketch\_MARTAS\_pa\_ow  | 1.0.0 |  passive | recording 1-wire sensor data
+| Sketch name                |  version | mode  | job |
+|----------------------------| ------ | ------ | ------- |
+| sketch\_MARTAS\_ac\_ow\_sw | 1.0.0 |  active | requesting 1-wire sensor data and enabling remote switching of pin 4 (default: off) and pin 5 (default: on) |
+|  sketch\_MARTAS\_pa\_ow    | 1.0.0 |  passive | recording 1-wire sensor data |
 
 
 If you change the sensor configuration of the Arduino, then you need to stop martas, eventually delete the existing
@@ -1495,25 +1432,30 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
 
-## 13. Installation of a MARTAS Box - recipies
 
-### 13.1 MARTAS minimal installation with root privileges - Debian systems like Raspberry, Ubuntu, Beaglebome, etc
+### 9.3. Full installation guide of a MARTAS box
 
-#### 13.1.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
+#### 9.3.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
 
-Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian like system. Please follow the installation instructions given for the specific operating system. In the following we will give a quick example of such preparations for a Raspberry installation using debian bullseye:
+Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian 
+like system. Please follow the installation instructions given for the specific operating system. In the following we
+will give a quick example of such preparations for a Raspberry installation using debian bullseye:
 
-Install the operating system (i.e. debian bullseye) on a SD card using i.e. Balena Etcher. Do that on your linux working PC, which is NOT the single board computer. Afterwards insert the SD card into the single board computer and boot it. Finish the initial configurations as requested during the boot process. 
+Install the operating system (i.e. debian bullseye) on a SD card using i.e. Balena Etcher. Do that on your linux 
+working PC, which is NOT the single board computer. Afterwards insert the SD card into the single board computer and
+boot it. Finish the initial configurations as requested during the boot process. 
 
-Afterwards you might want to change hostname (Raspberry PI configuration or update /etc/hostname and /etc/hosts), partitions on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry enable ssh (raspberry PI configuration).
+Afterwards you might want to change hostname (Raspberry PI configuration or update /etc/hostname and /etc/hosts),
+partitions on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry
+enable ssh (raspberry PI configuration).
 
-#### 13.1.2 Step 1: Install necessary packages for all MARTAS applications
+#### 9.3.2 Step 1: Install necessary packages for all MARTAS applications
 
-Packages for MARTAS (including NAGIOS and MagPy support):
+Packages for MARTAS (including support for all modules including icinga/nagios monitoring):
 
         sudo apt update
         sudo apt upgrade
-        sudo apt-get install ntp arduino ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-matplotlib python3-scipy python3-serial python3-twisted python3-wxgtk4.0 python3-pip
+        sudo apt-get install ntp arduino owfs ssh mosquitto mosquitto-clients nagios-nrpe-server nagios-plugins fswebcam python3-virtualenv python3-wxgtk4.0 libsdl2-dev
 
 After installation you might want to configure ntp servers. You can activate pwd-less ssh access.
 To change from local time to UTC time the following command is useful:
@@ -1537,115 +1479,122 @@ Restart and check the status of the mosquitto broker
         sudo systemctl restart mosquitto.service
         sudo systemctl status mosquitto.service
 
-#### 13.1.3 Step 2: Install MARTAS
+#### 9.3.3 Step 2: Install MARTAS
 
-Open a terminal and clone MARTAS into your home directory:
+Open a terminal and create a virtual environment:
 
         cd ~
-        git clone https://github.com/geomagpy/MARTAS
+        virtualenv ~/env/martas
 
-OPTIONAL: create a special python environment for all MARTAS related packages
+Activate the environment
 
-        python3 -m menv /path/to/menv
+        source ~/env/martas/bin/activate
 
-Install MARTAS:
+Download and install MARTAS:
 
-        cd ~/MARTAS/install
-        sudo bash install.martas.sh
+        pip install martas
 
-An initial question will ask for the python path. If you are using an optional environment, then please insert this path. All required packages will then be installed in this environment.
-Install monitoring and additional MARTAS applications:
+Create a bufferdircetory
 
-        cd ~/MARTAS/install
-        sudo bash install.addapps.sh
+        mkdir ~/MARTAS
 
-Copy some default routines into the configuration path
+Add credentials for notifications by e-mail (skip this one if not used)
 
-        sudo cp ~/MARTAS/app/cleanup.sh /etc/martas/
-        sudo cp ~/MARTAS/app/backup_config.sh /etc/martas/
+        addcred -t email -c email -u USER -p PASSWD -h -p 
 
-and add them into the scheduler:
+Run initialization
 
-        sudo nano /etc/crontab
+        martas_init
 
-        # Insert these lines into /etc/crontab
-        15 0    * * * root /bin/bash /etc/martas/cleanup.sh
-        10 0    1 * * root /bin/bash /etc/martas/backup_config.sh
-        5  0    * * * root /etc/init.d/martas start
+Check crontab (crontab -l):
 
-Thats it. MARTAS is now ready to be used. Continue with sensor definitions and tests. Alternatively you can recover configurations from a previously backuped system (continue with 13.1.4).
+        crontab -l
+
+Thats it. MARTAS is now ready to be used. Continue with sensor definitions and tests. Alternatively you can recover 
+configurations from a martas_backup (see 8.1).
 
 Useful commands to check ports for sensor definitions are i.e.
 
         dmesg | grep usb
 
-#### 13.1.4 optional Step 3: recover a previously backuped system
 
-Please also check section 3.5. 
+#### 9.3.4 quick steps to run a new MARTAS with a new sensor for the first time (needs to be updated)
 
-Copy the backup file to the new MARTAS machine i.e. in directory /home/user/Downloads/
+In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
 
-Then run the following command and follow the instructions:
+A. GSM19 Sensor
 
-        cd ~/MARTAS/install
-        sudo bash recover.martas.sh
+   1. Power on by pressing "B"
+   2. go to "C - Info"
+   3. go to "B - RS232"
+   4. note parameters and then "F - Ok"
+   5. switch real-time transfer to yes and then "F - Ok"
+   6. "F - Ok"
+   7. press "1" and "C" for main menu
+   8. start recording - press "A"
+   9. if GPS is set to yes wait until GPS is found
 
-IMPORTANT: Recovered configuration files will replace all previously exisiting files. Please note: if python paths are changing (i.e. now python3, previously python2) then these paths need to be updated after recovery. Please carefully chech /etc/martas/init/*.sh, /etc/init.d/martas,  as well as all configuration files in /etc/martas. 
+B. MARTAS - beaglebone (BB)
+   1. connect BB to a DHCP network (if not possible connect a usbhub and screen+keyboard, then login and continue with 4.)
+   2. find out its IP
+      - option (1): with fully installed telegrambot: just send "getip" to the bot
+      - option (2): connect a screen and use ifconfig
+      - option (3): from a remote machine in the same network: check router or use nmap
+   3. connect to BB via ssh:
+      defaultuser: debian
+   4. stop MARTAS:
+              $ sudo su
+              $ /etc/init.d/martas stop
+   5. connect your sensor to the usb serial port using a usb to rs232 converter
+   6. check "lsusb" to see the name of the converter (e.g. pl2303)
+   7. check "dmesg | grep usb" to get the connections port like ttyUSB0
+   8. edit /etc/martas/sensors.cfg
+      make use of the SENSORID, the parameters of A4 and the port info of B7
+      (SENSORID should contain serial number of the system  i.e. GSM19\_123456\_0001)
+   9. save /etc/martas/sensors.cfg
 
-#### 13.1.5 optional use of a python environment
+A. GSM19 Sensor
+   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter)
+   11. start recording
 
-##### a) using venv
-
-Create a python environment for all MARTAS related packages using 
-
-        python3 -m venv ~/martasenv
-
-Activate the python environment before installing packages
-
-        source ~/martasenv/bin/activate
-
-Optional: You might want to install the requires packages before installing MARTAS (otherwise MARTAS will install them) 
-
-        pip install geomagpy
-        pip install pyserial
-        pip install paho-mqtt
-        pip install twisted
-        pip install python-telegram-bot==13.4
-        pip install telegram-send
-        pip install psutil
-        pip install telepot
-        pip install platform
-
-Provide the correct path to the python executable during MARTAS installation (replace USER or the path accordingly):
-
-        python path (default: /usr/bin/python3): /home/USER/martasenv/bin/python
-
-
-##### b) using conda
-
-Download and install a current mini/anaconda version
-Follow the instructions as provided here: 
-
-Create a new conda environment
-
-
-Activate the conda python environment before installing packages
-
-        conda activate martasenv
-
-Install required conda packages before installing MARTAS ( to be tested )
-
-        conda install numpy
-        conda install matplotlib 
-        conda install scipy
-        conda install twisted
-        conda install pyserial
-        pip install geomagpy
-
-### 13.2 Full installation on Raspberry - MARCOS/MARTAS
+B. MARTAS
+   10. start recording:
+              $ sudo su
+              $ /etc/init.d/martas start
+              $ exit
+   11. check recording:
+              $ cat /var/log/magpy/martas.log (check log file)
+              $ ls -al /srv/mqtt/SENSORID  (check buffermemory for new data)
 
 
-The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios monitoring control, Webinterface, and an archive on an external harddrive.
+
+#### 9.3.5 quick steps to setup a fully configured MARTAS with the respective sensor(s) (needs to be updated)
+
+In this example we use a MARTAS with a GSM19 Overhauzer sensor:
+
+A. Sensor (GSM19)
+
+   1. Connect the sensor to power and MARTAS
+   2. Switch on the sensor and start recoding (all A steps in 12.6.1)
+
+B. MARTAS
+   1. Connect MARTAS to power
+
+Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file.
+Please note: data is written as soon as all sensor specific information is available. When attaching a micro controller (i.e. arduino)
+you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sampling rate) until data is written to the buffer.
+
+#### 9.3.6 enable remote terminal access (TODO)
+
+tmate instructions
+
+### 9.4 Full installation guide of a MARCOS box
+
+
+The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios 
+monitoring control, Webinterface, and an archive on an external harddrive.
+
+#### 9.4.1  Installation script (needs to be updated)
 
 ```
 sudo apt-get install curl wget g++ zlibc gv imagemagick gedit gedit-plugins gparted ntp arduino ssh openssl libssl-dev gfortran  libproj-dev proj-data proj-bin git owfs mosquitto mosquitto-clients libncurses-dev build-essential nagios-nrpe-server nagios-plugins apache2 mariadb-server php php-mysql phpmyadmin netcdf-bin curlftpfs fswebcam
@@ -1793,99 +1742,47 @@ sudo mount -a
 ## FINALLY TEST IT!
 
 ```
-### 13.3 Testing MQTT data transfer
 
-See also in section 10.2 (error analysis). On the collector or any other MQTT machine issue the following subscription command:
+### 9.5 Development tools
 
-        mosquitto_sub -h IPADDRESS_OF_MARTAS -t test/#
+#### 9.5.1 Testing modules
 
-On the freshly installed MARTAS machine issue the following command:
+Unittest are included in the following modules. app_tester will perform a unittest on applications in the app folder:
 
-        mosquitto_pub -h localhost -m "test message" -t test -d
+       python core/app_tester.py
+       python core/methods.py
+       python core/definitive.py
 
-In case you are using a different MQTT broker: change 'localhost' and 'IPADDRESS_OF_MARTAS' with the IP of the BROKER
-In case you are using authenticated access use the following additional options:
+#### 9.5.2 Testing acquisition
 
-        mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -d
+The main program contains a testing option -T which will create an artificial/random data set published on topic "tst":
 
-As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription command. Checkout the official mosquitto pages for more information.
+       python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
-## 14. Short descriptions and Cookbooks
+#### 9.5.3 Testing MARTAS and MARCOS
 
-### 14.1 quick steps to run a new MARTAS with a new sensor for the first time
+Run a test acquisition to simulate a sensor
 
-In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
+       python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
-A. GSM19 Sensor
+Run a MARCOS collector to obtain this test data and store it in i.e. a file or db. Configure collect-tst.cfg to access TST
 
-   1. Power on by pressing "B"
-   2. go to "C - Info"
-   3. go to "B - RS232"
-   4. note parameters and then "F - Ok"
-   5. switch real-time transfer to yes and then "F - Ok"
-   6. "F - Ok"
-   7. press "1" and "C" for main menu
-   8. start recording - press "A"
-   9. if GPS is set to yes wait until GPS is found
+       python collector.py -m ~/.martas/conf/collect-tst.cfg
 
-B. MARTAS - beaglebone (BB)
-   1. connect BB to a DHCP network (if not possible connect a usbhub and screen+keyboard, then login and continue with 4.)
-   2. find out its IP
-      - option (1): with fully installed telegrambot: just send "getip" to the bot
-      - option (2): connect a screen and use ifconfig
-      - option (3): from a remote machine in the same network: check router or use nmap
-   3. connect to BB via ssh:
-      defaultuser: debian
-   4. stop MARTAS:
-              $ sudo su
-              $ /etc/init.d/martas stop
-   5. connect your sensor to the usb serial port using a usb to rs232 converter
-   6. check "lsusb" to see the name of the converter (e.g. pl2303)
-   7. check "dmesg | grep usb" to get the connections port like ttyUSB0
-   8. edit /etc/martas/sensors.cfg
-      make use of the SENSORID, the parameters of A4 and the port info of B7
-      (SENSORID should contain serial number of the system  i.e. GSM19\_123456\_0001)
-   9. save /etc/martas/sensors.cfg
+Run an additional acquisition job without -T using either the imfile library (file) or mysql library (db) to test these
+two libraries. Please configure sensors.cfg accordingly and use a stationID different to TST in martas.cfg. 
 
-A. GSM19 Sensor
-   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter)
-   11. start recording
-
-B. MARTAS
-   10. start recording:
-              $ sudo su
-              $ /etc/init.d/martas start
-              $ exit
-   11. check recording:
-              $ cat /var/log/magpy/martas.log (check log file)
-              $ ls -al /srv/mqtt/SENSORID  (check buffermemory for new data)
-
-### 14.2 quick steps to setup a fully configured MARTAS with the respective sensor(s)
-
-In this example we use a MARTAS with a GSM19 Overhauzer sensor:
-
-A. Sensor (GSM19)
-
-   1. Connect the sensor to power and MARTAS
-   2. Switch on the sensor and start recoding (all A steps in 12.6.1)
-
-B. MARTAS
-   1. Connect MARTAS to power
-
-Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file.
-Please note: data is written as soon as all sensor specific information is available. When attaching a micro controller (i.e. arduino)
-you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sampling rate) until data is written to the buffer.
+       nano ~/.martas/conf/sensors.cfg
+       python acquisition.py -m ~/.martas/conf/martas.cfg
 
 
+## 10. Issues and TODO
 
-## 15. Issues and TODO
-
-in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to delete the daily file and restart the recoding process. The next daily file will be OK in any case.
+in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
+delete the daily file and restart the recoding process. The next daily file will be OK in any case.
 
 - add trigger mode for GSM90 (sending f)
-- add to #5
 - update scp_log to use protected creds
-- add in how-to for using senddata and addcreds
 
 
 

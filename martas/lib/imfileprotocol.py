@@ -245,9 +245,13 @@ class IMfileProtocol(object):
             senddata = True
 
         if senddata:
-                if self.payloadformat == "intermagnet":
-                    pubdict = publishing.intermagnet(None, topic=topic, data=data, head=head,
+                if self.payloadformat in ["intermagnet","immqtt"]:
+                    if self.debug:
+                        print ("Publishing INTERMAGNET", topic, data, head)
+                    pubdict, count = publishing.intermagnet(None, topic=topic, data=data, head=head,
                                             imo=self.confdict.get('station', ''), meta=fullhead)
+                    if self.debug:
+                        print("Pubdict ", topic, pubdict)
                 else:
                     pubdict, count = publishing.martas(None, topic=topic, data=data, head=head, count=self.count,
                                             changecount=self.metacnt,
