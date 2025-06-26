@@ -306,7 +306,15 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
     expectedD = config.get('expectedD', None)
     expectedI = config.get('expectedI', None)
     skipscalardb = config.get('skipscalardb', False)
+    if skipscalardb in ['True','true']:
+        skipscalardb = True
+    else:
+        skipscalardb = False
     movetoarchive = config.get('movetoarchive', False)
+    if movetoarchive in ['True','true']:
+        movetoarchive = True
+    else:
+        movetoarchive = False
     contflagfile = config.get('contflagfile', False) # flagging data for vario and scalar from file
     movetoarchivenow = movetoarchive
 
@@ -451,8 +459,11 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
             for pier in pierlist:
                 if debug:
                     print(" Analyzing for pier {}".format(pier))
-                if diindent == 'All':
+                if diindent in ['All','all','ALL']:
                     blvid = ".txt"
+                elif diindent:
+                    print ("Got DIID:", diindent)
+                    blvid = diindent
                 else:
                     blvid = "{}_{}.txt".format(pier, obscode)
                 skipscalardb = False
@@ -491,6 +502,7 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
 
                 if debug:
                     print ("Parameter", didatapath, variopath, scalarpath, startdate, enddate)
+                    print("Parameter", db, skipscalardb, compensation, dbadd, azimuth, magrotation)
                 absresult = di.absolute_analysis(didatapath, variopath, scalarpath, diid=blvid, pier=pier,
                                                  expD=expectedD, expI=expectedI, starttime=startdate, endtime=enddate,
                                                  db=db, skipscalardb=skipscalardb, compensation=compensation,

@@ -950,22 +950,32 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                         ett = methods.testtime(endtime)
 
                         while ett > methods.testtime(starttime):
-                            baselst = db.get_baseline(va.header.get('SensorID',''),date=ett)
-                            if methods.testtime(baselst[1][0]) < methods.testtime(starttime):
+                            basedict = db.get_baseline(va.header.get('SensorID',''),date=ett)
+                            if debug:
+                                print ("Got baseline boundary conditions from DB:", basedict)
+                            # get the latest (highest ID) input of the basedictionary
+                            latestbaseind = max([int(basein) for basein in basedict])
+                            baseinput =  basedict.get(latestbaseind, {})
+                            bstart = baseinput.get("MinTime", "1777-04-30")
+                            bend = baseinput.get("MaxTime", "2223-04-30")
+                            if methods.testtime(bstart) < methods.testtime(starttime):
                                  stt = starttime
                             else:
-                                 stt = datetime.strftime(methods.testtime(baselst[1][0]),"%Y-%m-%d")
-                            if methods.testtime(baselst[2][0]) > methods.testtime(endtime):
+                                 stt = datetime.strftime(methods.testtime(bstart),"%Y-%m-%d")
+                            if methods.testtime(bend) > methods.testtime(endtime):
                                  ett = endtime
                             else:
-                                 ett = datetime.strftime(methods.testtime(baselst[2][0]),"%Y-%m-%d")
-                            print (" => Adding fit with typ {}, knots {}, degree {} between {} and {}".format(baselst[4][0], float(baselst[6][0]), float(baselst[5][0]),stt, ett))
+                                 ett = datetime.strftime(methods.testtime(bend),"%Y-%m-%d")
+                            fu = baseinput.get("BaseFunction", 'mean')
+                            kn = baseinput.get("BaseKnots", '0.3')
+                            de = baseinput.get("BaseDegree", '1')
+                            print (" => Adding fit with typ {}, knots {}, degree {} between {} and {}".format(fu, float(kn), float(de),stt, ett))
                             try:
-                                funclist.append(va.baseline(absr, extradays=0, fitfunc=baselst[4][0], knotstep=float(baselst[6][0]), fitdegree=float(baselst[5][0]),startabs=stt,endabs=ett))
+                                funclist.append(va.baseline(absr, extradays=0, fitfunc=fu, knotstep=float(kn), fitdegree=float(de),startabs=stt,endabs=ett))
                                 print (" => Done")
                             except:
                                 print (" => Failed to add baseline parameters")
-                            ett = methods.testtime(baselst[1][0])-timedelta(days=1)
+                            ett = methods.testtime(bstart)-timedelta(days=1)
 
                     print ("  AbsInfo in stream: {}".format(va.header.get('DataAbsInfo')))
                     if debug:
