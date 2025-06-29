@@ -199,18 +199,26 @@ def pier_diff(runmode, config=None, debug=False):
             else:
                 line = "{} ([]): never determined".format(elem)
             existdelta.append(line)
+        if debug:
+            print("   Found existing deltas:", existdelta)
 
         print ("############################")
         print (" - Extract F values from mobile sensor for pier {}".format(pier))
 
-        currentpier = get(pierflaglist,{'comment':pier})
+        #currentpier = get(pierflaglist,{'comment':pier})
+        currentpier = pierflaglist.select(parameter='comment', values=pier, identical=True, debug=True)
+        print ("Current pier:", len(currentpier))
         if len(currentpier) > 0:
             print (" - found valid data range ... ")
             arsum = [[]]*24
-            for el in currentpier:
-                ar = mobilef._select_timerange(starttime=el[0], endtime=el[1])
+            for el in currentpier.flagdict:
+                fd = currentpier.flagdict
+                flel = fd.get(el)
                 if debug:
-                     print (len(ar[0]), el[0], el[1])
+                    print ("    found flag element:", flel)
+                ar = mobilef._select_timerange(starttime=flel.get('starttime'), endtime=flel.get('endtime'))
+                if debug:
+                     print ("    obtained {} data points from mobile sensor".format(len(ar[0])))
                 if not len(arsum[0]) > 0:
                     arsum = ar
                     print (arsum)
@@ -222,17 +230,26 @@ def pier_diff(runmode, config=None, debug=False):
             pierts = DataStream([],mobilef.header,arsum)
             pierts = pierts.get_gaps()
             #mp.plot(pierts)
+            if debug:
+                print ("  Definitive:", definitive.timerange(), definitive.samplingrate())
+                print ("  Pierts:", pierts.timerange(), pierts.samplingrate())
 
-            fdiff = subtractStreams(definitive, pierts)
+            fdiff = subtract_streams(definitive, pierts)
             fdiff = fdiff.get_gaps()
-            fdiff = fdiff.flag_outlier(threshold=3,timerange=timedelta(seconds=600))
-            fdiff = fdiff.remove_flagged()
+            if debug:
+                print ("  diffs between definitive and piers:", len(fdiff))
+
+            fo = flagging.flag_outlier(fdiff)
+            if fo:
+                fdiff = fo.apply_flags(fdiff, 'drop')
+                print ("  dropping outliers:", len(fo))
+
             if plot == 'True':
                 mp.tsplot(fdiff, title=pier)
             fdiff = fdiff._drop_nans('f')
 
             af,afstd = fdiff.mean('f',meanfunction='median',std=True,percentage=5)
-            print (" - F-results:", af,afstd)
+            print (" - F-results for {}: {}+/-{}".format(pier, af,afstd))
 
         if pier in pierlist:
             print ("############################")
@@ -255,6 +272,27 @@ def pier_diff(runmode, config=None, debug=False):
                 print (" - Analyzing {}".format(blvname))
                 print (" - Determining dD, dI (and dF) in comparison to Definite_min...cdf file (based on A2):")
                 print (" - Trimming original data to overlapping range")
+                # remove flags first
+                print("  Flagging baseline ...")
+                flaglist = blvdata.header.get("DataFlags")
+                if flaglist:
+                    print("   -> dropping {} flags in baseline file".format(len(flaglist)))
+                    blvdata = flaglist.apply_flags(blvdata, mode='drop')
+                if debug:
+                    print("  Basevalue SensorID:", blvdata.header.get('SensorID'))
+                    print("   -- Dropping basedata flags from DB")
+                blvflaglist = db.flags_from_db(blvdata.header.get('SensorID'))
+                if debug:
+                    print("   -> {} flags".format(len(blvflaglist)))
+                if blvflaglist:
+                    blvdata = blvflaglist.apply_flags(blvdata, mode='drop')
+                if debug:
+                    print("   -- Dropping basedata flags from file: {}".format(config.get('diflagfile')))
+                fiflaglist = flagging.load(config.get('diflagfile', ''), sensorid=blvdata.header.get('SensorID'))
+                if debug:
+                    print("   -> {} flags".format(len(fiflaglist)))
+                if fiflaglist:
+                    blvdata = fiflaglist.apply_flags(blvdata, mode='drop')
                 vals2 = blvdata.copy()
                 #vals2 = vals2.idf2xyz()
                 #mp.plot(vals1)
@@ -262,8 +300,9 @@ def pier_diff(runmode, config=None, debug=False):
                 diff = subtract_streams(vals1,vals2, keys=['x','y','z','f'])
                 if diff.length()[0] > 2:
                     print (" - difference values: {}".format(diff.length()[0]))
-                    fl = flagging.flag_outlier(diff, keys=['x','y','z','f'], timerange=60, threshold=2, markall=True)
-                    diff = fl.apply_flags(diff, mode='drop')
+                    fl = flagging.flag_outlier(diff, keys=['x','y','z','f'], markall=True)
+                    if fl:
+                        diff = fl.apply_flags(diff, mode='drop')
                     if plot == 'True':
                         mp.tsplot(diff)
                     print (" - remaining after quick outlier removal: {}".format(diff.length()[0]))
@@ -298,11 +337,13 @@ def pier_diff(runmode, config=None, debug=False):
             dic['A2']  = a2dic
 
         command = dict2string(dic)
-        print (command)
+        if debug:
+            print (command)
         sqlline = "UPDATE PIERS SET DeltaDictionary='{}' WHERE PierID='{}';".format(command,pier)
                 #sqlstatement.append(sqlline)
         dic = string2dict(command,typ='dictionary')
-        print (dic)
+        if debug:
+            print (dic)
         sqlstatement.append(sqlline)
 
     print (sqlstatement)
@@ -360,13 +401,24 @@ def scalarcomb(runmode, config=None, startmonth=-1, endmonth=13, debug=False):
                     refmin = read(os.path.join(os.path.join(outpath,'magpy','{}_scalar_oc_min_{}_{}.cdf'.format(scinst,runmode,year))))
                     print ("Got {} data points in reference min file".format(refmin.length()[0]))
                     print ("Drop line with nan values")
+                    refmin = refmin.get_gaps()
+                    for el in DataStream().KEYLIST:
+                        if not el in ['time','f']:
+                            refmin = refmin._drop_column(el)
                     refmin = refmin._drop_nans('f')
                 if not combsecond and os.path.isfile(os.path.join(os.path.join(outpath,'magpy','{}_scalar_oc_sec_{}{}{:02d}.cdf'.format(scinst,runmode,dstarttime.year,dstarttime.month)))):
                     ref = read(os.path.join(os.path.join(outpath,'magpy','{}_scalar_oc_sec_{}{}{:02d}.cdf'.format(scinst,runmode,dstarttime.year,dstarttime.month))))
                     print ("Got {} data points in reference sec file".format(ref.length()[0]))
+                    ref = ref.get_gaps()
+                    for el in DataStream().KEYLIST:
+                        if not el in ['time','f']:
+                            ref = ref._drop_column(el)
                     # Drop flagged data
                     print ("Drop flagged")
                     print (ref.length(), ref.timerange())
+                    flaglist = ref.header.get("DataFlags")
+                    if flaglist:
+                        ref = flaglist.apply_flags(ref, mode='drop')
                     ref = ref.remove_flagged()
                     print ("Resampling data")
                     print (ref.length())
@@ -382,15 +434,24 @@ def scalarcomb(runmode, config=None, startmonth=-1, endmonth=13, debug=False):
                     if os.path.isfile(os.path.join(outpath,'magpy','{}_scalar_oc_min_{}_{}.cdf'.format(scinst,runmode,year))):
                         addmin = read(os.path.join(outpath,'magpy','{}_scalar_oc_min_{}_{}.cdf'.format(scinst,runmode,year)))
                         print ("Got {} data points in min file".format(addmin.length()[0]))
+                        addmin = addmin.get_gaps()
+                        for el in DataStream().KEYLIST:
+                            if not el in ['time', 'f']:
+                                addmin = addmin._drop_column(el)
                         print ("Drop line with nan values")
                         addmin = addmin._drop_nans('f')
                         print ("Merging timeseries")
                         refmin = join_streams(refmin,addmin)
+                        refmin = merge_streams(refmin,addmin)
                         print ("Reference now contains {} data points (min)".format(refmin.length()[0]))
                 if not combsecond:
                     if os.path.isfile(os.path.join(outpath,'magpy','{}_scalar_oc_sec_{}{}{:02d}.cdf'.format(scinst,runmode,dstarttime.year,dstarttime.month))):
                         add = read(os.path.join(outpath,'magpy','{}_scalar_oc_sec_{}{}{:02d}.cdf'.format(scinst,runmode,dstarttime.year,dstarttime.month)))
                         print ("Got {} data points in sec file".format(add.length()[0]))
+                        add = add.get_gaps()
+                        for el in DataStream().KEYLIST:
+                            if not el in ['time', 'f']:
+                                add = add._drop_column(el)
                         # Get sampling rate and only continue if sr <= 1
                         sr = add.samplingrate()
                         print ("Sampling rate : {} sec".format(sr))
@@ -410,6 +471,7 @@ def scalarcomb(runmode, config=None, startmonth=-1, endmonth=13, debug=False):
                             #flaglist = subtract.flag_outlier(threshold=3,returnflaglist=True)
                             print ("Merging timeseries")
                             ref = join_streams(ref,add)
+                            ref = merge_streams(ref,add)
                             print ("Reference now contains {} data points (sec)".format(ref.length()[0]))
                         else:
                             print ("sampling rate too large for second combination")
@@ -519,9 +581,9 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                     if not flagfile:
                         flagfile = os.path.join(outpath,'magpy',scinst[:-5]+'_flags.json')
                     if os.path.isfile(flagfile):
-                        fileflaglist = flagging.load(flagfile, sensorid=sc.header.get('SensorID'), begin=dstarttime, end=dendtime)
+                        fileflaglist = flagging.load(flagfile, begin=dstarttime, end=dendtime)
                         if debug:
-                            print("  Loaded {} flags from file in the time range {} to {}".format(len(fileflaglist),dstarttime, dendtime))
+                            print("  Loaded {} flags from file {} in the time range {} to {}".format(len(fileflaglist), flagfile, dstarttime, dendtime))
                         if len(flaglist) > 0 and len(fileflaglist) > 0:
                             flaglist = flaglist.join(fileflaglist)
                         elif not len(flaglist) > 0:
@@ -529,11 +591,12 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                     if debug:
                         print("  Found a sum of {} flags".format(len(flaglist)))
                     #sc.header["DataFlags"] = flaglist
-                    if debug:
-                        print ("  Removing flagged data before applying deltas and time shifting")
                     if flaglist:
+                        if debug:
+                            print("  Removing flagged data before applying deltas and time shifting")
                         sc = flaglist.apply_flags(sc, mode='drop')
                         sc.header["DataFlags"] = None
+                        print ("   -> Done")
                     if debug:
                         print ("  Applying offsets and timeshifts")
                     sc = sc.apply_deltas()
@@ -541,19 +604,19 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                         print ("  -> final length: {}".format(sc.length()[0]))
                     sc = sc.removeduplicates()
                     if debug:
-                        print ("  -> final length after dupliacte removal: {}".format(sc.length()[0]))
+                        print ("  -> final length after duplicate removal: {}".format(sc.length()[0]))
                     if not runmode=='firstrun' and not skipsec:
                         hsc = sc.copy()
                         if debug:
                             print ("  Drop all columns except f and comments for high resolution storage")
-                        for el in KEYLIST:
+                        for el in DataStream().KEYLIST:
                             if not el in ['time','f','flag','comment']:
                                 hsc = hsc._drop_column(el)
                         #print ("Resample to one second")   # Done in scalarcomb  -> resample deletes flags
                         #hsc = hsc.resample(['f','flag','comment'],period=1)
                         if debug:
                             print ("  Write monthly high resolution file with full info (length {}".format(hsc.length()[0]))
-                        fname = '{}_scalar_oc_sec_{}'.format(scinst,runmode)
+                        fname = '{}_scalar_oc_sec_{}_'.format(scinst,runmode)
                         hsc.write(os.path.join(outpath,'magpy'),filenamebegins=fname,dateformat='%Y%m',coverage='month',mode='replace',format_type='PYCDF')
                     if debug:
                         print ("  Filtering")
@@ -563,7 +626,7 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                     sc = sc.get_gaps()
                     if debug:
                         print ("  Keeping only f column")
-                    for el in KEYLIST:
+                    for el in DataStream().KEYLIST:
                         if not el in ['time','f']:
                             sc = sc._drop_column(el)
                     #mp.plot(sc)
@@ -655,13 +718,18 @@ def variocomb(runmode, config=None, debug=False):
         print ("Minute data combined")
         combminute = True
         refmin = refmin.get_gaps()
-        refmin.write(os.path.join(outpath,'magpy'),filenamebegins='CobsV_min_{}_'.format(runmode),coverage='all',mode='overwrite',format_type='PYCDF')
+        refmin.write(os.path.join(outpath,'magpy'),filenamebegins='CobsV_min_{}'.format(runmode),coverage='all',mode='overwrite',format_type='PYCDF')
     if writedefinitive:
         #read CobsF data if existing
         reff = read(os.path.join(os.path.join(outpath,'magpy','CobsF_min_{}*'.format(runmode))))
         if reff.length()[0] > 0:
             print ("Writing definitive one minute data")
-            definitive = mergeStreams(refmin,reff, keys=['f'])
+            ts, te = refmin.timerange()
+            reff = reff.trim(ts, te+timedelta(seconds=reff.samplingrate()))
+            if debug:
+                print("Minute V coverage:", refmin.timerange(), refmin.samplingrate())
+                print("Minute F coverage", reff.timerange(), reff.samplingrate())
+            definitive = merge_streams(refmin,reff, keys=['f'])
             #mp.plot(definitive)
             definitive.write(os.path.join(outpath,'magpy'),filenamebegins='Definitive_min_mag_{}_{}'.format(year,runmode),coverage='all',mode='overwrite',format_type='PYCDF')
 
@@ -793,7 +861,7 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 #  --b. add flaglist from file
                 if not flagfile:
                     flagfile = os.path.join(outpath,'magpy',inst[:-5]+'_flags.json')
-                fileflaglist = flagging.load(flagfile, sensorid=va.header.get('SensorID'), begin=dstarttime, end=dendtime)
+                fileflaglist = flagging.load(flagfile, begin=dstarttime, end=dendtime)
                 if debug:
                     print("  Loaded {} flags from file in time range {} to {}".format(len(fileflaglist), dstarttime, dendtime))
                 if len(vaflaglist) > 0 and len(fileflaglist) > 0:
@@ -803,7 +871,9 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 if debug:
                     print ("  Found a sum of {} flags".format(len(vaflaglist)))
                     print ("  Applying {} flags".format(len(vaflaglist)))
-                va.header["DataFlags"] = vaflaglist
+
+                va.header["DataFlags"] = vaflaglist # will be kept until second data is saved
+
                 #va = flaglist.apply_flags(va, mode='drop')
                 ## Checkpoint
                 #mp.plot(va,variables=['x','y','z'],annotate=True)
@@ -881,24 +951,26 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                     print ("  Applying baseline file: {}".format(basevaluefile))
                 if os.path.isfile(basevaluefile):
                     absr = read(basevaluefile)
+                    print ("  Flagging baseline ...")
                     flaglist = absr.header.get("DataFlags")
                     if flaglist:
+                        print("   -> dropping {} flags in baseline file".format(len(flaglist)))
                         absr = flaglist.apply_flags(absr, mode='drop')
                     if debug:
-                        print ("  Basevalue SensorID:", absr.header.get('DataID'))
+                        print ("  Basevalue SensorID:", absr.header.get('SensorID'))
                         print ("   -- Dropping basedata flags from DB")
-                    blvflaglist = db.flags_from_db(absr.header.get('DataID'))
+                    blvflaglist = db.flags_from_db(absr.header.get('SensorID'))
                     if debug:
                         print ("   -> {} flags".format(len(blvflaglist)))
-                    if flaglist:
-                        absr = flaglist.apply_flags(absr, mode='drop')
+                    if blvflaglist:
+                        absr = blvflaglist.apply_flags(absr, mode='drop')
                     if debug:
-                        print ("   -- Dropping basedata flags from file")
-                    flaglist = flagging.load( config.get('diflagfile',''), sensorid=absr.header.get('DataID'))
+                        print ("   -- Dropping basedata flags from file: {}".format(config.get('diflagfile')))
+                    fiflaglist = flagging.load( config.get('diflagfile',''),sensorid=absr.header.get('SensorID'))
                     if debug:
-                        print ("   -> {} flags".format(len(flaglist)))
-                    if flaglist:
-                        absr = flaglist.apply_flags(absr, mode='drop')
+                        print ("   -> {} flags".format(len(fiflaglist)))
+                    if fiflaglist:
+                        absr = fiflaglist.apply_flags(absr, mode='drop')
 
                     # Checkpoint
                     #mp.plot(absr)
@@ -994,6 +1066,7 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                         va = vaflaglist.apply_flags(va, mode='drop')
                         vaflagsdropped = True
                     #print(va.length())
+                    va.header["DataFlags"] = None
                     if not runmode == 'firstrun':
                         va = va.get_gaps()
                         va = va.filter(missingdata='mean')

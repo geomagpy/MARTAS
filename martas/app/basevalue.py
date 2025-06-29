@@ -501,8 +501,9 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                         print(" writedi2db only supports two write modes: append/insert and fullreplace")
 
                 if debug:
-                    print ("Parameter", didatapath, variopath, scalarpath, startdate, enddate)
+                    print("Parameter", didatapath, variopath, scalarpath, startdate, enddate)
                     print("Parameter", db, skipscalardb, compensation, dbadd, azimuth, magrotation)
+                    print("Parameter", alpha, beta, deltaD, deltaI)
                 absresult = di.absolute_analysis(didatapath, variopath, scalarpath, diid=blvid, pier=pier,
                                                  expD=expectedD, expI=expectedI, starttime=startdate, endtime=enddate,
                                                  db=db, skipscalardb=skipscalardb, compensation=compensation,
@@ -518,8 +519,10 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                     # remove all flagged data set (with CobsF)
                     basename = '{}_{}_{}_{}'.format(blvabb, vainst[:-5], scalarinst, pier)  # too save
                     flagname = '{}_{}_{}_{}'.format('BLV', vainst[:-5], scalarinst, pier)  # as flags are stored
+                    absresult["SensorID"] = flagname
+                    absresult["DataID"] = flagname
                     print(" -------------------------------------")
-                    print(" Storing data ")
+                    print(" Storing data with SensorID {}".format(flagname))
                     print(" -------------------------------------")
                     print(" - getting flags:")
                     flaglist = []

@@ -163,7 +163,7 @@ class IMfileProtocol(object):
         # get sampling rate
         ts,te = data._find_t_limits()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
-        # always deal with a timerange twice of the requestrate
+        # always deal with a timerange twice of the request rate - why?
         tlow = now-timedelta(seconds=self.requestrate*2)
         #TODO define a suitable startcondition for tlow
         tlow = ts
@@ -251,7 +251,7 @@ class IMfileProtocol(object):
                     pubdict, count = publishing.intermagnet(None, topic=topic, data=data, head=head,
                                             imo=self.confdict.get('station', ''), meta=fullhead)
                     if self.debug:
-                        print("Pubdict ", topic, pubdict)
+                        print("Pubdict ", pubdict)
                 else:
                     pubdict, count = publishing.martas(None, topic=topic, data=data, head=head, count=self.count,
                                             changecount=self.metacnt,

@@ -18,7 +18,7 @@ import unittest
 import os
 import sys
 from datetime import datetime
-import json
+from json import JSONEncoder, dumps
 import numpy as np
 from magpy.core.methods import is_number
 
@@ -95,6 +95,8 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
                 imo="self.confdict.get('station', ''), meta=self.sensordict)
         self.count = count
     """
+    debug = True
+    datelist = []
     datablock = {}
     if not pubdict:
         pubdict = {}
@@ -118,15 +120,41 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
             dtformat = "%Y-%m-%dT%H:%M:%S"
         return cadence, dtformat
 
+    def _get_components(head,meta):
+        components = None
+        component1 = meta.get("SensorElements", None)
+        component2 = meta.get("DataComponents", None)
+        try:
+            component3 = head.split()[4].strip("[").strip("]").replace(",", "")
+        except:
+            component3 = None
+        if not components:
+            components = component3
+        if not components:
+            components = component2
+        if not components:
+            components = component1
+        return components.lower()
+
+    def nan_to_none(obj):
+        if isinstance(obj, dict):
+            return {k: nan_to_none(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [nan_to_none(v) for v in obj]
+        elif isinstance(obj, float) and np.isnan(obj):
+            return None
+        return obj
+
+    class NanConverter(JSONEncoder):
+        def encode(self, obj, *args, **kwargs):
+            return super().encode(nan_to_none(obj), *args, **kwargs)
+
     # get the following info from file header
-    print ("HEADER", head, meta)
+    if debug:
+        print ("HEADER", head, meta)
     samplingperiod = meta.get("DataSamplingRate",1.0)
     publevel = meta.get("DataPublicationLevel", 1)
-    #cadence = "pt1m"
-    #publevel = "1"
-    component1 = meta.get("SensorElements", None)
-    #component2 = head.replace(".get("SensorElements", None)
-    components = "h"
+    components = _get_components(head,meta)
     # fill in header info
     if meta.get("ginCode", None):
         datablock["ginCode"] = meta.get("ginCode")
@@ -141,22 +169,58 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
     # "elevation": (IAGA-2002, ImagCDF)
     if meta.get("DataElevation", None):
         datablock["elevation"] = meta.get("DataElevation")
+    if meta.get("DataElevation", None):
+        datablock["elevation"] = meta.get("DataElevation")
+    if meta.get('StationInstitution'):
+        datablock["institute"] = meta.get("StationInstitution")
     # "institute": (IAGA-2002, ImagCDF - called "Source of data" in IAGA-2002)
+    if meta.get('StationName'):
+        datablock["name"] = meta.get("StationName")
     # "name": (IAGA-2002, ImagCDF - called "ObservatoryName" in ImagCDF)
+    if meta.get('DataSensorOrientation'):
+        datablock["sensorOrientation"] = meta.get("DataSensorOrientation")
     # "sensorOrientation": (IAGA-2002, ImagCDF - called "VectorSensOrient in CDF)
+    if meta.get('DataDigitalSampling'):
+        datablock["digitalSampling"] = meta.get("DataDigitalSampling")
     # "digitalSampling": (IAGA-2002)
+    if meta.get('DataSamplingFilter'):
+        datablock["dataIntervalType"] = meta.get("DataSamplingFilter")
     # "dataIntervalType": (IAGA-2002)
+    if meta.get('DataPublicationDate'):
+        datablock["publicationDate"] = meta.get("DataPublicationDate")
     # "publicationDate": (IAGA-2002, ImagCDF)
+    if meta.get('DataStandardLevel'):
+        datablock["standardLevel"] = meta.get("DataStandardLevel")
     # "standardLevel": (ImagCDF)
+    if meta.get('DataStandardName'):
+        datablock["standardName"] = meta.get("DataStandardName")
     # "standardName": (ImagCDF)
+    if meta.get('DataStandardVersion'):
+        datablock["standardVersion"] = meta.get("DataStandardVersion")
     # "standardVersion": (ImagCDF)
+    if meta.get('DataPartialStandDesc'):
+        datablock["partialStandDesc"] = meta.get("DataPartialStandDesc")
     # "partialStandDesc": (ImagCDF)
+    if meta.get('DataSource'):
+        datablock["source"] = meta.get("DataSource")
     # "source": (ImagCDF)
+    if meta.get('DataTerms'):
+        datablock["termsOfUse"] = meta.get("DataTerms")
     # "termsOfUse": (ImagCDF)
+    if meta.get('DataID'):
+        datablock["uniqueIdentifier"] = meta.get("DataID")
     # "uniqueIdentifier": (ImagCDF)
+    if meta.get('SensorID'):
+        datablock["ParentIdentifiers"] = meta.get("SensorID")
     # "parentIdentifiers": (ImagCDF)
+    if meta.get('StationWebInfo'):
+        datablock["referenceLinks"] = meta.get("StationWebInfo")
     # "referenceLinks": (ImagCDF)
+    if meta.get('DataComments'):
+        datablock["comments"] = meta.get("DataComments")
     # "comments": (IAGA-2002)
+    #if meta.get('StationK9'):
+    #    datablock["k9level"] = meta.get("StationK9")
 
     lines = data.split(";")
     # Get the startdate
@@ -168,47 +232,51 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
         data = line.split(",")
         # times and data
         if len(data)>7:
-            dt = data[:6]
+            dt = data[:7]
+            dtn = list(map(int, dt))
+            datelist.append(datetime(*dtn))
             #add all dates to a list
             dat = data[7:]
-            #print ("DATA", dat)
-            #print ("LEN", len(dat))
-            #print ("LEN Comp", len(components))
+            if debug:
+                print ("DATA", dat)
+                print ("LEN", len(dat))
+                print ("LEN Comp", len(components))
             if len(dat) >= len(components):
-                continue
+                pass
             else:
                 components = components[:len(dat)]
+            # Limit the amount of components to 4
+            components = components[:4]
             for idx,el in enumerate(components):
-                    val = dat[idx]
-                    blockname = f"geomagneticField{el.upper()}"
+                val = dat[idx]
+                blockname = f"geomagneticField{el.upper()}"
+                if debug:
                     print(blockname)
-                    l = datablock.get(blockname, [])
-                    if is_number(val) and np.isnan(float(val)):
-                        val = None
-                    l.append(float(val))
-                    datablock[blockname] = l
+                l = datablock.get(blockname, [])
+                if is_number(val) and np.isnan(float(val)):
+                    val = None
+                l.append(float(val))
+                datablock[blockname] = l
         else:
             # no data
             pass
-    # determine increment of datelist and eventually update cadence
-    # cadence = ...
+    # determine increment of date list and eventually update cadence
+    if len(datelist) > 1 and not samplingperiod:
+        meand = np.mean(np.diff(datelist))
+        samplingperiod = meand.total_seconds()
     cadence, dtformat = _get_cadence(samplingperiod)
     starttime = startdt.strftime(dtformat)
     datablock["startDate"] = starttime
 
-
     topic = "impf/{}/{}/{}/{}".format(imo.lower(), cadence, publevel, components)
 
-    # replace NaN with null
-
-    #datablock["geomagneticFieldX"] = [ 17595.02, null, 17594.99 ],
-    #datablock["geomagneticFieldY"] = [ -329.19, -329.18, -329.21 ],
+    # replace NaN with null - Test set
+    #datablock["geomagneticFieldX"] = [ 17595.02, np.nan, 17594.99 ]
+    #datablock["geomagneticFieldY"] = [ -329.19, -329.18, -329.21 ]
     #datablock["geomagneticFieldZ"] = [ 46702.70, 46703.01, 46703.24 ]
 
     # convert datablock to json
-    datajson = json.dumps(datablock)
-    #print (datajson)
-
+    datajson = dumps(datablock, cls=NanConverter)
     pubdict[topic] = datajson
 
     return pubdict, 0

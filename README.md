@@ -1761,7 +1761,7 @@ The main program contains a testing option -T which will create an artificial/ra
 
 #### 9.5.3 Testing MARTAS and MARCOS
 
-Run a test acquisition to simulate a sensor
+Run a test acquisition as shown in 9.5.2 to simulate a sensor
 
        python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
