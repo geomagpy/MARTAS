@@ -1342,13 +1342,15 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
     merge.write(os.path.join(outpath, 'magpy'), filenamebegins='Definitive_min_mag_' + str(year), dateformat='%Y',
                 coverage='all', format_type='PYCDF')
 
+    print ("Now producing output formats: {}. Header information looks like: {}".format(outputformats, merge.header))
+
     if plot == 'True':
         mp.plot(merge)
 
     if 'MagPyK' in outputformats:
         print(" ------------------------------ ")
         print(" b) running k values determination ")
-        print ("Header", merge.header)
+        #print ("Header", merge.header)
         kvals = activity.K_fmi(merge, K9_limit=500, longitude=15.87)
         #kvals = merge.k_fmi()
         kvals.write(os.path.join(outpath, 'magpy'), filenamebegins='Definitive_kvals_' + str(year), dateformat='%Y',
@@ -1380,9 +1382,9 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
 
     if 'IAF' in outputformats and 'MagPyK' in outputformats:
         print("Writing IAF minute files ...")
-        # IAF:  # Changing instituten name as only first 4 digits are used in IAF
+        # IAF:  # Changing institution name as only first 4 digits are used in IAF
         ##### Remove DKA file if you rewrite IAF
-        final.header['StationInstitution'] = 'GSA - GeoSphere Austria'
+        final.header['StationInstitution'] = ' GSA - GeoSphere Austria'
         final.write(os.path.join(outpath, 'IAF'), coverage='month', format_type='IAF', kvals=kvals, debug=True)
         final.write(os.path.join(outpath, 'IAF'), kind='A', format_type='IYFV')
 
