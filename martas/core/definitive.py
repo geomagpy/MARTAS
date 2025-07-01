@@ -31,6 +31,9 @@ from magpy.core import methods
 from martas.core import methods as mm
 from martas.app import basevalue
 from magpy.core import plot as mp
+from magpy.core import activity
+
+from calendar import monthrange
 
 
 def create_rotation_sql(rotangledict, config=None, debug=False):
@@ -353,6 +356,8 @@ def scalarcomb(runmode, config=None, startmonth=-1, endmonth=13, debug=False):
     """
     DESCRIPTION
         create a merged scalar data file
+    TODO
+       does not yet work properly - a manual analysis using xmagpy works fine with merge
     """
     if not config:
         config = {}
@@ -1112,6 +1117,544 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
     print ("##########################################################")
     return rotangledict
 
+
+def check_update_location(header, db, reference='A2'):
+    # Get A2 Position
+    lon = db.select('PierLong', 'PIERS', 'PierID = "{}"'.format(reference))[0]
+    lat = db.select('PierLat', 'PIERS', 'PierID = "{}"'.format(reference))[0]
+    try:
+        if isinstance(lon, str):
+            lon = lon.replace(",", ".")
+        if isinstance(lat, str):
+            lat = lat.replace(",", ".")
+        lon = float(lon)
+        lat = float(lat)
+    except:
+        print("Problem with database content of PIERS")
+        lon = None
+        lat = None
+    if lat and not (header.get('DataAcquisitionLatitude') == lat):
+        print(
+            " Found {} Location which differs from file content - updating DataAcquisitionLatitude: {} -> {}".format(
+                reference, header['DataAcquisitionLatitude'], lat))
+        header['DataAcquisitionLatitude'] = np.round(lat, 5)
+    if lon and not (header.get('DataAcquisitionLongitude') == lon):
+        print(
+            " Found {} Location which differs from file content - updating DataAcquisitionLomgitude: {} -> {}".format(
+                reference, header['DataAcquisitionLongitude'], lon))
+        header['DataAcquisitionLongitude'] = np.round(lon, 5)
+
+    return header
+
+
+def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, runmode="thirdrun"):
+    # Create monthly one second imagcdf files
+    # Add characteristics to a results dictionary
+    print(" ------------------------------------------------ ")
+    print(" ---------- Create Monthly ImagCDF's  ----------- ")
+    print(" ------------------------------------------------ ")
+    if not config:
+        config = {}
+    if not results:
+        results = {}
+    vainstlist = config.get('vainstlist')
+    scinstlist = config.get('scinstlist')
+    outpath = config.get('outpath',"/tmp")
+    db = config.get('primaryDB')
+    year = int(config.get('year'))
+
+    outputformats = config.get('outputformats')
+    # pierlist = config.get('pierlist')
+    plot = config.get('plot', 'False')
+    # blvabb = config.get('blvabb')
+    monthsum = {}
+
+    prv = vainstlist[0]  # primary variometer
+    prf = scinstlist[0]  # primary scalar
+
+    for i in range(startmonth, endmonth):
+        monthres = {}
+        month = str(i + 1).zfill(2)
+        nextmonth = str(i + 2).zfill(2)
+        nextyear = year
+        if nextmonth == '13':
+            nextyear = year + 1
+            nextmonth = '01'
+        expc = monthrange(year, int(i + 1))[1] * 24 * 3600
+        print("Dealing with month: {}".format(month))
+        vaname = "{}_vario_sec_{}_{}{}.cdf".format(prv, runmode, year, month)
+        print("Loading variation data: {}".format(vaname))
+        print("----------------------")
+        vario = read(os.path.join(outpath, 'magpy', vaname))
+        print("  -- loaded data")
+        if plot == 'True':
+            mp.tsplot(vario)
+        flags = vario.header.get("DataFlags")
+        if flags:
+            vario = flags.apply_flags(vario, mode="drop")
+        print("  -- removed flagged")
+        vario = vario.bc()
+        print("  -- corrected baseline")
+        vario = vario._convertstream('hdz2xyz')
+        print("  -- converted to xyz")
+        # TODO - join if several varios
+        # main = vario.copy()
+        # else:
+        # main = join_streams(main, vario)
+        print("  -- dropping columns except field and T")
+        vario = vario._drop_column('var1')
+        vario = vario._drop_column('var2')
+        vario = vario._drop_column('var5')
+        vario = vario._drop_column('str1')
+        pos = KEYLIST.index('x')
+        col = np.asarray(vario.ndarray[pos])
+        count = col.size - np.count_nonzero(np.isnan(col))
+        print("  Month {a} ---  Expected: {b}, Contained: {c}, Coverage: {d} %".format(a=month, b=expc, c=count,
+                                                                                       d=float(count) / float(
+                                                                                           expc) * 100.))
+        monthres['vario-expected'] = expc
+        monthres['vario-count'] = count
+        monthres['vario-coverage'] = float(count) / float(expc) * 100.
+        scname = "{}_scalar_oc_sec_{}_{}{}.cdf".format(prf, runmode, year, month)
+        print("Loading scalar data:", scname)
+        print("----------------------")
+        scalar = read(os.path.join(outpath, 'magpy', scname))
+        sr = scalar.samplingrate()
+        flags = scalar.header.get("DataFlags")
+        if flags:
+            scalar = flags.apply_flags(scalar, mode="drop")
+        print("  -- removed flagged")
+        print(scalar.length())
+        print("  -- droping duplicates")
+        scalar = scalar.removeduplicates()
+        print(scalar.length())
+        print("  -- rersampling at 1 sec")
+        scalar = scalar.resample(['f'], period=1)
+        expc = monthrange(year, int(i + 1))[1] * 24 * int(3600 / float(sr))
+        # flaglist = db2flaglist(db,scinst[:-5])
+        # scalar = scalar.flag(flaglist)
+        # print (scalar.length())
+        # scalar = scalar.remove_flagged()
+        pos = KEYLIST.index('f')
+        col = np.asarray(scalar.ndarray[pos].astype(float))
+        count = col.size - np.count_nonzero(np.isnan(col))
+        ### Get amount of expected and missing data
+        print("  Month {a} ---  Expected: {b}, Contained: {c}, Coverage: {d} %".format(a=month, b=expc, c=count,
+                                                                                       d=float(count) / float(
+                                                                                           expc) * 100.))
+        monthres['scalar-expected'] = expc
+        monthres['scalar-count'] = count
+        monthres['scalar-coverage'] = float(count) / float(expc) * 100.
+        monthsum[month] = monthres
+        if not sr == 1:
+            print("Sampling rate of scalar data: {}".format(sr))
+        #merge = join_streams(vario, scalar)
+        merge = merge_streams(vario, scalar, keys=['f'])
+        print("Merge lenght", merge.length())
+
+        merge = merge.get_gaps()
+        # For IMAGCDF
+        merge.header['DataPublicationLevel'] = 4  # 4 corresponds to definitive
+        merge.header['DataReferences'] = 'cobs.geosphere.at'
+        merge.header['StationInstitution'] = "GeoSphere Austria"
+
+        # Site Location
+        print(" Checking Location information and eventually update this information to A2")
+        merge.header = check_update_location(merge.header, db, reference='A2')
+
+        if 'IMAGCDF' in outputformats:
+            # savedata to IMAGCDF onesecond standard
+            print("Writing ImagCDF second")
+            merge.write(os.path.join(outpath, 'ImagCDF'), coverage='month', format_type='IMAGCDF')
+
+        if 'IAGA' in outputformats:
+            # savedata to IAGA02 onesecond standard
+            print("Rounding location accuracy")
+            merge.header['DataAcquisitionLatitude'] = np.round(float(merge.header.get('DataAcquisitionLatitude')), 5)
+            merge.header['DataAcquisitionLongitude'] = np.round(float(merge.header.get('DataAcquisitionLongitude')), 5)
+            print("Writing IAGA second")
+            merge.write(os.path.join(outpath, 'IAGA', 'second'), format_type='IAGA')
+
+        print("Coverage dictionary now looks like: {}".format(monthsum))
+
+    results['coverage'] = monthsum
+    return results
+
+
+def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
+    if not config:
+        config = {}
+    if not results:
+        results = {}
+    vainstlist = config.get('vainstlist')
+    scinstlist = config.get('scinstlist')
+    outpath = config.get('outpath',"/tmp")
+    db = config.get('primaryDB')
+
+    year = int(config.get('year'))
+
+    outputformats = config.get('outputformats')
+    # pierlist = config.get('pierlist')
+    plot = config.get('plot', 'False')
+    # blvabb = config.get('blvabb')
+    monthres = {}
+
+    print(" ---------------------------------------------------- ")
+    print(" ---- Definitive minute and calculate k values  ----- ")
+    print(" ---------------------------------------------------- ")
+    print(" ------------------------------ ")
+    print(" a) creating minute magpy archive ")
+    # expc = 365*1440
+    expc = 0
+    for i in range(0, 12):
+        expc += monthrange(year, int(i + 1))[1] * 24 * 60
+    merge = read(os.path.join(outpath, 'magpy', 'Definitive_min_mag_{}_{}.cdf'.format(year, runmode)))
+    pos = KEYLIST.index('x')
+    col = np.asarray(merge.ndarray[pos].astype(float))
+    count = col.size - np.count_nonzero(np.isnan(col))
+    print("Expected: {b}, Contained: {c}, Coverage: {d}".format(b=expc, c=count, d=float(count) / float(expc) * 100.))
+    monthres['vario-expected'] = expc
+    monthres['vario-count'] = count
+    monthres['vario-coverage'] = float(count) / float(expc) * 100.
+    pos = KEYLIST.index('f')
+    col = np.asarray(merge.ndarray[pos].astype(float))
+    count = col.size - np.count_nonzero(np.isnan(col))
+    print("Expected: {b}, Contained: {c}, Coverage: {d}".format(b=expc, c=count, d=float(count) / float(expc) * 100.))
+    monthres['scalar-expected'] = expc
+    monthres['scalar-count'] = count
+    monthres['scalar-coverage'] = float(count) / float(expc) * 100.
+
+    results['coverage-min'] = monthres
+    # Adding special header information (not contained in data base):
+    # For IAF
+    merge.header['DataConversion'] = merge.mean('x') / 3438. * 10000.
+    merge.header['DataQuality'] = 'IMAG'
+    # For IMAGCDF
+    merge.header['DataPublicationLevel'] = 4  # 4 corresponds to definitive
+    # TODO remove
+    merge.header['StationInstitution'] = "GeoSphere Austria"
+
+    merge = merge._convertstream('hdz2xyz')
+    merge.header['col-f'] = 'F'
+    print(" Checking Location information and eventually update this information to A2")
+    merge.header = check_update_location(merge.header, db, reference='A2')
+
+    merge.write(os.path.join(outpath, 'magpy'), filenamebegins='Definitive_min_mag_' + str(year), dateformat='%Y',
+                coverage='all', format_type='PYCDF')
+
+    if plot == 'True':
+        mp.plot(merge)
+
+    if 'MagPyK' in outputformats:
+        print(" ------------------------------ ")
+        print(" b) running k values determination ")
+        print ("Header", merge.header)
+        kvals = activity.K_fmi(merge, K9_limit=500, longitude=15.87)
+        #kvals = merge.k_fmi()
+        kvals.write(os.path.join(outpath, 'magpy'), filenamebegins='Definitive_kvals_' + str(year), dateformat='%Y',
+                    coverage='all', format_type='PYCDF', skipcompression=True)
+
+    print(" ------------------------------ ")
+    print(" c) Writing dissemination files ")
+    # Get deltaF values
+    final = merge.delta_f()
+    final = final.get_gaps()
+
+    # temporary change 2020 as proj seems to be wrongly converting longitudes on laptop
+    ##final.header['DataAcquisitionLongitude']  = -35130
+
+    if 'IAGA' in outputformats:
+        print("Rounding location accuracy")
+        final.header['DataAcquisitionLatitude'] = np.round(float(final.header.get('DataAcquisitionLatitude')), 5)
+        final.header['DataAcquisitionLongitude'] = np.round(float(final.header.get('DataAcquisitionLongitude')), 5)
+        print("Writing IAGA files ...")
+        print("Header info on IAGA code:", final.header.get('StationIAGAcode'), final.header.get('StationID'))
+        # IAGA: (only minute data)cd
+        final.write(os.path.join(outpath, 'IAGA', 'minute'), filenamebegins=final.header.get('StationIAGAcode'),
+                    filenameends='dmin.min', dateformat='%Y%m%d', format_type='IAGA')
+
+    if 'IMAGCDF' in outputformats:
+        print("Writing IMAGCDF minute files ...")
+        # ImagCDF:
+        final.write(os.path.join(outpath, 'ImagCDF'), coverage='year', format_type='IMAGCDF')
+
+    if 'IAF' in outputformats and 'MagPyK' in outputformats:
+        print("Writing IAF minute files ...")
+        # IAF:  # Changing instituten name as only first 4 digits are used in IAF
+        ##### Remove DKA file if you rewrite IAF
+        final.header['StationInstitution'] = 'GSA - GeoSphere Austria'
+        final.write(os.path.join(outpath, 'IAF'), coverage='month', format_type='IAF', kvals=kvals, debug=True)
+        final.write(os.path.join(outpath, 'IAF'), kind='A', format_type='IYFV')
+
+    return results
+
+
+def activity_analysis(config=None, results=None):
+    """
+    determine quiet,disturbed days
+       - get all days with A below 4 and above 30
+       - annual diffs - get average A for winter and summer month
+    required information:
+    """
+    print(" ------------------------------------------------- ")
+    print(" -- Step 2: Extended information e.g. activity  -- ")
+    print(" ------------------------------------------------- ")
+    # calc quiet days, sum of quiet days activity etc
+    if not config:
+        config = {}
+    if not results:
+        results = {}
+    vainstlist = config.get('vainstlist')
+    scinstlist = config.get('scinstlist')
+    outpath = config.get('outpath',"/tmp")
+    plotdir = config.get('plotdir',"/tmp")
+
+    # TODO Extract flagging info on storms and pulsations??
+    year = int(config.get('year'))
+
+    actdict = results.get('activity', {})
+
+    outputformats = config.get('outputformats')
+    plot = config.get('plot', 'False')
+
+    kupperthreshold = config.get('kupperthreshold')
+    klowerthreshold = config.get('klowerthreshold')
+
+    kvals = read(os.path.join(outpath, 'magpy', 'Definitive_kvals_' + str(year) + '.cdf'))
+
+    if plot == 'True':
+        mp.plot(kvals, noshow=True)
+
+    orgkvals = kvals.copy()
+    dailymeans = kvals.filter(filter_type='flat', filter_width=timedelta(days=1), resampleoffset=timedelta(minutes=780))
+    if plot == 'True':
+        mp.plot(dailymeans)
+    # act < 1:
+    quietdays = dailymeans.extract('var1', klowerthreshold, '<')
+    print("Amount of quiet days (daily average activity below {}): {}".format(klowerthreshold, quietdays.length()[0]))
+    quietdates = [elem.strftime("%Y-%m-%d") for elem in quietdays.ndarray[0]]
+    actdict['quiet_days'] = quietdates
+    # act > 3.5:
+    # disturbeddays = dailymeans.extract('var1',3.5,'>')
+    disturbeddays = dailymeans.extract('var1', kupperthreshold, '>')
+    print("Amount of disturbed days (daily average activity above {}): {}".format(kupperthreshold,
+                                                                                  disturbeddays.length()[0]))
+    disturbeddates = [elem.strftime("%Y-%m-%d") for elem in disturbeddays.ndarray[0]]
+    actdict['disturbed_days'] = disturbeddates
+
+    ### ######################################################
+    print(" --- Mean quiet day field variance --- ")
+    ### ######################################################
+    # stackStreams
+
+    ### ######################################################
+    print(" --- Activity statistics for year and terms --- ")
+    ### ######################################################
+    # mp.hist([dailymeans],[['var1']])
+    pos = KEYLIST.index('var1')
+    normit = True
+    maxprob = 0.6
+    maxN = 1500
+    ### #################
+    ###   Full year
+    plt.subplot(211)
+    orgkvals = orgkvals._drop_nans(KEYLIST[pos])
+    print(orgkvals.ndarray[pos])
+    maxk = int(max(orgkvals.ndarray[pos]))
+    print(maxk)
+    n, bins, patches = plt.hist(orgkvals.ndarray[pos], maxk, density=normit, facecolor='green', alpha=0.3)
+    plt.title(r'$\mathrm{Histogram\ of\ K\ values}\ $')
+    if not normit:
+        plt.ylabel('N')
+        plt.axis([0, 9, 0, maxN])
+    else:
+        plt.ylabel('Probability')
+        plt.axis([0, 9, 0, maxprob])
+        plt.text(6, 0.8 * maxprob, r'Year %s' % str(year))
+    plt.grid(True)
+    ### #################
+    ###   Summer
+    print(" - Summer")
+    cpkvals = orgkvals.copy()
+    summervals = orgkvals.trim(starttime='{}-03-21'.format(year), endtime='{}-10-21'.format(year))
+    plt.subplot(212)
+    """
+    n, bins, patches = plt.hist(summervals.ndarray[pos], maxk, normed=normit, facecolor='red', alpha=0.3)
+    if not normit:
+        plt.ylabel('N')
+        plt.axis([0, 9, 0, maxN])
+    else:
+        plt.ylabel('Probability')
+        plt.axis([0, 9, 0, maxprob])
+        plt.text(6, 0.8*maxprob, r'Summer term %s' % str(year))
+    plt.grid(True)
+    """
+
+    ### #################
+    ###   Winter
+    print(" - Winter")
+    cp2kvals = cpkvals.copy()
+    # cp2kvals = cp2kvals._drop_nans(KEYLIST[pos])
+    wintervals1 = cpkvals.trim(starttime='{}-01-01'.format(year), endtime='{}-03-21'.format(year))
+    wintervals2 = cp2kvals.trim(starttime='{}-10-21'.format(year), endtime='{}-12-31'.format(year))
+    wintervals = join_streams(wintervals1, wintervals2)
+    # plt.subplot(313)
+    wintervals = wintervals._drop_nans(KEYLIST[pos])
+    # print ("here", len(wintervals.ndarray[pos]))
+    print(np.mean(wintervals.ndarray[pos]), np.max(wintervals.ndarray[pos]), np.min(wintervals.ndarray[pos]))
+    n, bins, patches = plt.hist((summervals.ndarray[pos], wintervals.ndarray[pos]), maxk, density=normit,
+                                color=('red', 'blue'), alpha=0.3)  # int(max(wintervals.ndarray[pos]))
+    print("here again")
+    plt.xlabel('K')
+    if not normit:
+        plt.ylabel('N')
+        plt.axis([0, 9, 0, maxN])
+    else:
+        plt.ylabel('Probability')
+        plt.axis([0, 9, 0, maxprob])
+        plt.text(6, 0.6 * maxprob, r'Summer term %s' % str(year), color='red')
+        plt.text(6, 0.8 * maxprob, r'Winter term %s' % str(year), color='blue')
+    plt.grid(True)
+    if not os.path.exists(plotdir):
+        os.makedirs(plotdir)
+    plt.savefig(os.path.join(plotdir, 'localk.png'))
+    plot = True
+    if plot == 'True':
+        plt.show()
+
+    ### ######################################################
+    print(" --- Average hourly activity statistic distribution --- ")
+    ### ######################################################
+    """
+    streamlist = []
+    for day in quietdates:
+        select = kvals.copy()
+        sd = datetime.strptime(day,"%Y-%m-%d")
+        ed = datetime.strptime(day,"%Y-%m-%d")+timedelta(days=1)
+        st = select.trim(starttime=sd,endtime=ed)
+        streamlist.append(st)
+    stacked = stackStreams(streamlist, get='mean')
+    print stacked.ndarray
+    mp.plot(stacked)
+    #stackStreams
+    #mp.barchart([dailymeans],[['var1']])
+    """
+    results['activity'] = actdict
+    return results
+
+
+def blv(config=None, results=None, debug=False):
+    print(" -------------------------------------------- ")
+    print(" ------- Step 4: Creating BLV files --------- ")
+    print(" -------------------------------------------- ")
+    if not config:
+        config = {}
+    if not results:
+        results = {}
+    outpath = config.get('outpath',"/tmp")
+    db = config.get('primaryDB')
+
+    vainstlist = config.get('vainstlist')
+    scinstlist = config.get('scinstlist')
+    # TODO Extract flagging info on storms and pulsations??
+    year = int(config.get('year'))
+    blvabb = config.get('blvabb')
+    prv = vainstlist[0][:-5]  # primary variometer
+    prf = scinstlist[0][:-5]  # primary scalar
+    pier = 'A2'
+    runmode = 'thirdrun'
+
+    outputformats = config.get('outputformats')
+    plot = config.get('plot', 'False')
+
+    print("Loading data")
+    basename = '{}_{}_{}_{}'.format(blvabb, prv, prf, pier)  # too save
+    flagname = '{}_{}_{}_{}'.format('BLV', prv, prf, pier)  # as flags are stored
+
+    # runmode = 'thirdrun'
+    final = read(os.path.join(outpath, 'magpy', 'Definitive_min_mag_{}_{}.cdf'.format(year, runmode)))
+    # runmode = 'secondrun'
+    absresult = read(os.path.join(outpath, 'magpy', '{}_{}_{}.txt'.format(basename, year, runmode)))
+    # Flags have been removed already in yearly_analysis_1
+
+    print(" -- Dropping flags from DB")
+    flaglist = absresult.header.get("DataFlags")
+    if flaglist:
+        print("   -> dropping {} flags in baseline file".format(len(flaglist)))
+        absresult = flaglist.apply_flags(absresult, mode='drop')
+    if debug:
+        print("  Basevalue SensorID:", absresult.header.get('SensorID'))
+        print("   -- Dropping basedata flags from DB")
+    blvflaglist = db.flags_from_db(absresult.header.get('SensorID'))
+    if debug:
+        print("   -> {} flags".format(len(blvflaglist)))
+    if blvflaglist:
+        absresult = blvflaglist.apply_flags(absresult, mode='drop')
+    if debug:
+        print("   -- Dropping basedata flags from file: {}".format(config.get('diflagfile')))
+    fiflaglist = flagging.load(config.get('diflagfile', ''), sensorid=absresult.header.get('SensorID'))
+    if debug:
+        print("   -> {} flags".format(len(fiflaglist)))
+    if fiflaglist:
+        absresult = fiflaglist.apply_flags(absresult, mode='drop')
+    print(" -- Remaining abolsutes: {}".format(absresult.length()[0]))
+
+    # Add pier diff to delta F values
+
+    print("Calculating deltaF")
+    final = final.delta_f()
+    if plot == 'True':
+        mp.plot(final)
+    pos = KEYLIST.index('df')
+    # print "Mean delta F:", final.ndarray[pos]
+
+    print("Determine means")
+    pos = KEYLIST.index('df')
+    final = final.xyz2hdz()
+    meanh = final.mean('x')
+    meanf = final.mean('f')
+
+    print("Move delta F column to correct position")
+    df = final._get_column('df')
+    final = final._put_column(df, 'f')
+    print("Filtering daily means")
+    dailymean = final.dailymeans(keys=['x', 'y', 'z', 'f', 'df'])
+    df = dailymean._get_column('f')
+    dailymean = dailymean._put_column(df, 'df')
+
+    if plot == 'True':
+        mp.plot(dailymean, variables=['f', 'df'])
+    # print "Dailymean", dailymean.length(), dailymean.header
+
+    # Modify the absresult:
+    # a) add pierdiff to baseline
+    val = db.select('DataDeltaValues', 'DATAINFO', 'DataID="{}"'.format(scinstlist[0]))[0]
+    dic = string2dict(val, typ='listofdict')
+    # get all inputs with starttime <= end of year and endtime either missing or >= start of year
+    dflist = []
+    for el in dic:
+        stt = date2num(datetime(int(year), 1, 1))
+        ett = date2num(datetime(int(year), 12, 31))
+        st = float(el.get('st'))
+        et = float(el.get('et', ett))
+        if st <= ett and et > stt:
+            dflist.append(el.get('f', np.nan))
+    dflist = list(set(dflist))
+    if len(dflist) > 1 or len(dflist) < 0:
+        print("IMPORTANT: check delta F values for this year")
+    else:
+        deltaF = float(dflist[0])
+        print("Extracted a deltaF of {} from the database for {}".format(deltaF, scinstlist[0]))
+
+    print(" -- Remaining abolsutes: {}".format(dailymean.length()[0]))
+
+    print(" -- Absinfo looks like: {}".format(final.header.get('DataAbsInfo')))
+    absresult.header['StationID'] = 'WIC'
+    absresult.write(os.path.join(outpath, 'IAF'), coverage='all', format_type='BLV', deltaF=deltaF, diff=dailymean,
+                    year=str(year), meanh=meanh, meanf=meanf,
+                    absinfo=final.header.get('DataAbsInfo'))  # add daily means of deltaf
+
+    return results
 
 
 class TestDefinitive(unittest.TestCase):

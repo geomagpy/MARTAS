@@ -519,8 +519,8 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                     # remove all flagged data set (with CobsF)
                     basename = '{}_{}_{}_{}'.format(blvabb, vainst[:-5], scalarinst, pier)  # too save
                     flagname = '{}_{}_{}_{}'.format('BLV', vainst[:-5], scalarinst, pier)  # as flags are stored
-                    absresult["SensorID"] = flagname
-                    absresult["DataID"] = flagname
+                    absresult.header["SensorID"] = flagname
+                    absresult.header["DataID"] = flagname
                     print(" -------------------------------------")
                     print(" Storing data with SensorID {}".format(flagname))
                     print(" -------------------------------------")
