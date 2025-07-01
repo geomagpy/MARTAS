@@ -1215,6 +1215,9 @@ methods for analyzing variometer and scalar data. The methods are designed for a
 allowing for optimization of baseline adoption. Filtered one-minute products are generated.
 Following the data treatment philosophy of MagPy data from different sensors is treated separately,
 
+Please note: for a general application some of the methods will need to be updated. I included this module anyway, as 
+it might turn out to be useful for others, although it can not readily be applied in a general form.
+
 #### 8.2.1 variocorr
 
 Using variocorr one can analyse the variation data of several instruments, apply flagging information, eventually apply 
@@ -1253,6 +1256,19 @@ for analysis (leading to baseline jumps every year).
 
 Used to determine F differences of multiple piers provided that a mobile reference sensor is used regularly to measure on 
 all these piers. This is very Conrad Observatory specific and you might want to contact the Cobs Team for details.  
+
+#### 8.2.6 dissemination: definitive_min and definitive_sec
+
+Creates geomagnetic dissemination data by producing the corresponding data formats and contents from the MagPy files
+obtained by above methods. Created are IAGA, IAF and ImagCDF (in minute and second resolution).
+
+#### 8.2.7 dissemination: activity_analysis
+
+Performs an analysis of geomagnetic activity
+
+#### 8.2.8 dissemination: blv
+
+Creates INTERMAGNET baseline format files and includes all required information into these files.
 
 
 ### 8.3 Useful commands during runtime
