@@ -25,6 +25,7 @@ sys.path.insert(1,'/home/leon/Software/MARTAS/') # should be magpy2
 sys.path.insert(1,'/home/leon/Software/magpy/') # should be magpy2
 
 import unittest
+import copy
 from magpy.stream import *
 from magpy.core import methods
 
@@ -1331,8 +1332,10 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
     merge.header['DataQuality'] = 'IMAG'
     # For IMAGCDF
     merge.header['DataPublicationLevel'] = 4  # 4 corresponds to definitive
-    # TODO remove
-    merge.header['StationInstitution'] = "GeoSphere Austria"
+    # TODO remove - they are just here because I forgot them in the database
+    # " GSA" will be used for IAF
+    merge.header['StationInstitution'] = " GSA - GeoSphere Austria"
+    merge.header['DataSensorOrientation'] = "hdz"
 
     merge = merge._convertstream('hdz2xyz')
     merge.header['col-f'] = 'F'
@@ -1362,6 +1365,7 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
     final = merge.delta_f()
     final = final.get_gaps()
 
+    backup = copy.deepcopy(final.header)
     # temporary change 2020 as proj seems to be wrongly converting longitudes on laptop
     ##final.header['DataAcquisitionLongitude']  = -35130
 
@@ -1370,6 +1374,7 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
         final.header['DataAcquisitionLatitude'] = np.round(float(final.header.get('DataAcquisitionLatitude')), 5)
         final.header['DataAcquisitionLongitude'] = np.round(float(final.header.get('DataAcquisitionLongitude')), 5)
         print("Writing IAGA files ...")
+        print ("Lat", final.header.get('DataAcquisitionLatitude') )
         print("Header info on IAGA code:", final.header.get('StationIAGAcode'), final.header.get('StationID'))
         # IAGA: (only minute data)cd
         final.write(os.path.join(outpath, 'IAGA', 'minute'), filenamebegins=final.header.get('StationIAGAcode'),
@@ -1378,13 +1383,14 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
     if 'IMAGCDF' in outputformats:
         print("Writing IMAGCDF minute files ...")
         # ImagCDF:
+        final.header = copy.deepcopy(backup)
         final.write(os.path.join(outpath, 'ImagCDF'), coverage='year', format_type='IMAGCDF')
 
     if 'IAF' in outputformats and 'MagPyK' in outputformats:
         print("Writing IAF minute files ...")
         # IAF:  # Changing institution name as only first 4 digits are used in IAF
         ##### Remove DKA file if you rewrite IAF
-        final.header['StationInstitution'] = ' GSA - GeoSphere Austria'
+        final.header = copy.deepcopy(backup)
         final.write(os.path.join(outpath, 'IAF'), coverage='month', format_type='IAF', kvals=kvals, debug=True)
         final.write(os.path.join(outpath, 'IAF'), kind='A', format_type='IYFV')
 
