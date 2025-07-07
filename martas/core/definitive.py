@@ -513,6 +513,7 @@ def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, ru
     outpath = config.get('outpath',"/tmp")
     db = config.get('primaryDB')
     year = int(config.get('year'))
+    addflags = config.get("addflags", False)
 
     outputformats = config.get('outputformats')
     # pierlist = config.get('pierlist')
@@ -616,7 +617,7 @@ def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, ru
         if 'IMAGCDF' in outputformats:
             # savedata to IMAGCDF onesecond standard
             print("Writing ImagCDF second")
-            merge.write(os.path.join(outpath, 'ImagCDF'), coverage='month', format_type='IMAGCDF')
+            merge.write(os.path.join(outpath, 'ImagCDF'), coverage='month', format_type='IMAGCDF', addflags=addflags)
 
         if 'IAGA' in outputformats:
             # savedata to IAGA02 onesecond standard

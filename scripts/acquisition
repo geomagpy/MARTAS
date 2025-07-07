@@ -180,7 +180,7 @@ def active_thread(confdict,sensordict, mqttclient, activeconnections):
     log.msg("  -> Importing protocol {}".format(protocolname))
 
     protlst = [activeconnections[key] for key in activeconnections]
-    amount = protlst.count(protocolname) + 1 # Load existing connections (new amount is len(exist)+1)
+    amount = protlst.count(protocolname) + 1 # LoadTEST_1234 existing connections (new amount is len(exist)+1)
     if protocolname in SUPPORTED_PROTOCOLS:
         module = "martas.lib.{}protocol".format(protocolname.lower())
         cls = "{}Protocol".format(protocolname)
@@ -199,11 +199,11 @@ def active_thread(confdict,sensordict, mqttclient, activeconnections):
     log.msg("  -> Starting active thread ...")
 
     try:
-        rate = int(sensordict.get('rate'))
+        rate = float(sensordict.get('rate'))
         log.msg("  -> using provided sampling rate of {} sec".format(rate))
     except:
         log.msg("  -> did not find appropriate sampling rate - using 30 sec")
-        rate = 30
+        rate = 30.
 
     do_every(rate, protocol.sendRequest)
 
@@ -391,7 +391,7 @@ def main(argv):
     ##  ----------------------------
     sensorlist = mm.get_sensors(conf.get('sensorsconf',""))
     if test:
-        sensorlist = [{'sensorid': 'TEST_1234_0001', 'port': 'USB0', 'baudrate': '57600', 'bytesize': '8', 'stopbits': '1', 'parity': 'N', 'mode': 'active', 'init': '', 'rate': '-', 'stack': '1', 'protocol': 'Test', 'name': 'Test', 'serialnumber': '1234', 'revision': '0001', 'path': '-', 'pierid': 'MyPier', 'ptime': 'NTP', 'sensorgroup': 'Test environment'}]
+        sensorlist = [{'sensorid': 'TEST_1234_0001', 'port': 'USB0', 'baudrate': '57600', 'bytesize': '8', 'stopbits': '1', 'parity': 'N', 'mode': 'active', 'init': '', 'rate': '2', 'stack': '1', 'protocol': 'Test', 'name': 'TEST', 'serialnumber': '1234', 'revision': '0001', 'path': '-', 'pierid': 'MyPier', 'ptime': 'NTP', 'sensorgroup': 'Test environment'}]
 
     if debug:
         print ("Sensor data:", sensorlist)

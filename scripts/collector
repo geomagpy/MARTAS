@@ -323,7 +323,7 @@ def merge_two_dicts(x, y):
         z.update(y)    # modifies z with y's keys and values & returns None
         return z
 
-def on_connect(client, userdata, flags, rc, properties):
+def on_connect(client, userdata, flags, rc, properties=None):
     global concount
     global debug
     if debug or not concount:
