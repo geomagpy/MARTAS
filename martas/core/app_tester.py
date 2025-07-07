@@ -157,6 +157,7 @@ class TestBasevalue(unittest.TestCase):
         config['obscode'] = "WIC"
         config['didatapath'] = os.path.abspath("../test/archive/WIC/DI/analyze")
         config['blvabb'] = "BLV"
+        config['writeblv2file'] = True
         print (config)
         runmode = "firstrun"
         basevalue.basevalue_recalc(runmode, config=config, startdate=None, enddate=None, debug=False)

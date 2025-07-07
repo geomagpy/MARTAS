@@ -1732,7 +1732,7 @@ class TestDefinitive(unittest.TestCase):
         config['obscode'] = "WIC"
         variocomb(runmode, config=config, debug=True)
         t = False
-        if os.path.isfile("/tmp/magpy/CobsV_min_firstrun_.cdf"):
+        if os.path.isfile("/tmp/magpy/CobsV_min_firstrun.cdf"):
             t = True
         self.assertTrue(t)
 
