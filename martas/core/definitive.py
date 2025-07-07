@@ -378,11 +378,14 @@ def create_rotation_sql(rotangledict, config=None, debug=False):
     return sqlstatement
 
 
-def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
+def definitivefiles_min(config=None, results=None, runmode="thirdrun", headdict=None):
     if not config:
         config = {}
     if not results:
         results = {}
+    if not headdict:
+        headdict = {'DataSensorOrientation' : 'hdz', 'StationInstitution' : ' GSA - GeoSphere Austria'}
+
     vainstlist = config.get('vainstlist')
     scinstlist = config.get('scinstlist')
     outpath = config.get('outpath',"/tmp")
@@ -429,9 +432,8 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
     # For IMAGCDF
     merge.header['DataPublicationLevel'] = 4  # 4 corresponds to definitive
     # TODO remove - they are just here because I forgot them in the database
-    # " GSA" will be used for IAF
-    merge.header['StationInstitution'] = " GSA - GeoSphere Austria"
-    merge.header['DataSensorOrientation'] = "hdz"
+    for el in headdict:
+        merge.header[el] = headdict.get(el)
 
     merge = merge._convertstream('hdz2xyz')
     merge.header['col-f'] = 'F'
@@ -493,7 +495,7 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun"):
     return results
 
 
-def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, runmode="thirdrun"):
+def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, runmode="thirdrun", headdict=None):
     # Create monthly one second imagcdf files
     # Add characteristics to a results dictionary
     print(" ------------------------------------------------ ")
@@ -503,6 +505,9 @@ def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, ru
         config = {}
     if not results:
         results = {}
+    if not headdict:
+        headdict = {'DataReferences' : 'cobs.geosphere.at', 'StationInstitution' : 'GeoSphere Austria', 'DataStandardLevel' : 'Full'}
+
     vainstlist = config.get('vainstlist')
     scinstlist = config.get('scinstlist')
     outpath = config.get('outpath',"/tmp")
@@ -601,8 +606,8 @@ def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, ru
         merge = merge.get_gaps()
         # For IMAGCDF
         merge.header['DataPublicationLevel'] = 4  # 4 corresponds to definitive
-        merge.header['DataReferences'] = 'cobs.geosphere.at'
-        merge.header['StationInstitution'] = "GeoSphere Austria"
+        for el in headdict:
+            merge.header[el] = headdict.get(el)
 
         # Site Location
         print(" Checking Location information and eventually update this information to A2")

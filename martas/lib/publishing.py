@@ -37,8 +37,7 @@ def martas(pubdict=None, topic="", data="", head="", count=0, changecount=10, im
     if not pubdict:
         pubdict = {}
 
-    topic = topic + "/data"
-    pubdict[topic] = data
+    pubdict[topic + "/data"] = data
     if count == 0:
         ## 'Add' is a string containing dict info like:
         ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,...
