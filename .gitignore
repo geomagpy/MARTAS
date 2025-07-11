@@ -5,7 +5,7 @@
 build
 dist
 dist/*.egg
-GeomagPy.egg-info
+martas.egg-info
 oldstuff
 .idea
 .DS_Store
