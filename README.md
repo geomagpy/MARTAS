@@ -148,17 +148,19 @@ For quickly enabling authentication you can also use the following instructions 
 
     Then use command
 
-        $ sudo nano /etc/mosquitto/conf.d/default.conf
+        $ sudo nano /etc/mosquitto/conf.d/listener.conf
 
     to open an empty file.
 
     Paste in the following:
+        listener 1883
         allow_anonymous false
         password_file /etc/mosquitto/passwd
 
     Restart mosquitto
 
-Thats it. How to use credentials in MARTAS is described in section 7.x.
+Thats it. How to use credentials in MARTAS is described in section 7.x. If you have problems restarting mosquitto you 
+might want to check the read permissions of the /etc/mosquitto/passwd file.
 
 In order to access such protected MQTT data streams you can use the addcred tool in order to avoid plain passwords in 
 your configuration files. Please note, that this method does not encrypt passwords. It just obsfucate it and store it 
@@ -811,15 +813,11 @@ A **realtime** job will then check whether recent data recordings exist, which b
 A **archive** job will use the dayrange parameter, default is 2, and option endtime, default is UTC-now. Endtime can 
 only be modified using the general option -e.
 
-        python filter.py -c ~/myconfig.cfg -j archive -e LEMI036_123_0001
+        python filter.py -c ~/myconfig.cfg -j archive -e 2024-11-22
 
 The output will be stored within the defined destination. Please note: if a database is your destination then DATAINFO
-is NOT updated by default. Data sets are stored within the data table ending with the provided revision, default 
-"0002". If you want to update DATAINFO you need to provide the SensorID in option -s.
-
-        python filter.py -c ~/myconfig.cfg -j realtime -s LEMI036_123_0001
-
-Other general optins are -l to define a loggernamse, which is useful if you have several filter jobs running on one
+is updated. Data sets are stored within the data table ending with the provided revision, default 
+"0002". Other general options are -l to define a loggernamse, which is useful if you have several filter jobs running on one
 machine. The option -x will enable sending of logging information to the defined notification system. By default 
 this is switched of because database contents are usually monitored, which also would report failures with 
 specific data sets. 

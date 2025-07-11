@@ -245,6 +245,8 @@ def main(argv):
 
     print (" ------------------------------------------- ")
     print (" Please insert the address of the MQTT broker:")
+    print (" MARTAS: the broker on which you are publishing")
+    print (" MARCOS: the broker from which you are subscribing")
     print (" (press return for accepting default: {})".format(mqttbroker))
     newmqttbroker = input()
     if newmqttbroker:
@@ -645,7 +647,7 @@ def main(argv):
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  *)")
-        runscript.append("    echo \"Usage: $BOT {start|stop|restart|status}\"")
+        runscript.append("    echo \"Usage: $BOT {update|start|stop|restart|status}\"")
         runscript.append("    ;;")
         runscript.append("esac")
         runscript.append("exit 0")

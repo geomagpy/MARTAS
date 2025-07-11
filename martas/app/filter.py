@@ -196,6 +196,13 @@ def get_sensors(db=None,groupdict=None,samprate=None,recent=False,recentthreshol
                         if samprate*0.98 <= sr and sr <= samprate*1.02:
                             validsensors1.append(sensor)
                             srlist.append(sr)
+                    # update data of these sensors in db
+                    if debug:
+                        print("new header of sensor without samplingrate:", lastdata.header)
+                    if db and not debug:
+                        # This will only be done once for a new sensor without sampling rate in DATAINFO
+                        print("updating header with determined sampling rate:", lastdata.header)
+                        db.write(lastdata)
             sensorlist = validsensors1
             if debug:
                 print (" -> got {} sensors".format(len(sensorlist)))
@@ -237,7 +244,6 @@ def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=N
         jobtype  : 'realtime' or 'archive'
         destination : 'db' or 'disk' -> if db (for realtime), disk archiving is done by archive; disk should only be used to convert old files 
     """
-    ## TODO
     # Allow to define groups in highreslist (e.g. LEMI036*)
     # Then firstly extract all instruments which fit to the appropriate group
     # and assign the parameters to each instrument.
@@ -374,7 +380,8 @@ def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=N
                     # Write to database
                     try:
                         if not debug:
-                            if not inst in dbinputsensors:
+                            if newtab in dbinputsensors:
+                                # if the sensor is already contained in DATAINFO then solely write data contents
                                 db.write(filtstream,tablename=newtab)
                             else:
                                 #print ("   Sensor contained in DBlist - adding Metainformation to DATAINFO")
@@ -439,7 +446,7 @@ def main(argv):
     endtime = datetime.now(timezone.utc).replace(tzinfo=None)
 
     try:
-        opts, args = getopt.getopt(argv,"hc:j:e:d:s:p:l:xD",["config=","joblist=","endtime=","dayrange=","sensors=","path=","loggername","sendlog","debug=",])
+        opts, args = getopt.getopt(argv,"hc:j:e:d:p:l:xD",["config=","joblist=","endtime=","dayrange=","path=","loggername","sendlog","debug=",])
     except getopt.GetoptError:
         print ('filter.py -c <config>')
         sys.exit(2)
@@ -461,7 +468,6 @@ def main(argv):
             print ('-j            : define jobtype i.e. realtime or archive')
             print ('-e            : endtime, default is now')
             print ('-d            : (int) dayrange, amount of days to analyze before endtime')
-            print ('-s            : sensors for which meta data is added to DATAINFO')
             print ('-p            : basepath - default is in config file')
             print ('-l            : loggername')
             print ('-------------------------------------')
@@ -485,8 +491,6 @@ def main(argv):
             except:
                 print (" Endtime could not be interpreted")
                 endtime = datetime.now(timezone.utc).replace(tzinfo=None)
-        elif opt in ("-s", "--sensors"):
-            sensorlist = arg.split(',')
         elif opt in ("-p", "--path"):
             basepath = os.path.abspath(arg)
         elif opt in ("-l", "--loggername"):
@@ -553,6 +557,8 @@ def main(argv):
         db = mm.connect_db(credentials)
         print ("... success")
         statusmsg[name] = 'DB on {} connected'.format(sn)
+        # get existing Data IDs from data base
+        sensorlist = db.select("DataID","DATAINFO")
     except:
         print ("... failed")
         statusmsg[name] = '{}: DB connection failed'.format(sn)

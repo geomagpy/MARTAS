@@ -382,7 +382,7 @@ def main(argv):
 
                 if af and sr > 0.9:
                     print ("You selected to apply flags and save them along with the cdf archive.")
-                    flaglist = db.flaglist_from_db(sensorid=stream.header['SensorID'],begin=tup[0],end=tup[1])
+                    flaglist = db.flags_from_db(sensorid=stream.header['SensorID'],begin=tup[0],end=tup[1])
                     if len(flaglist) > 0:
                         print ("  Found {} flags in database for the selected time range - adding them to the archive file".format(len(flaglist)))
                         stream = stream.flag(flaglist)
