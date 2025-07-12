@@ -8,8 +8,9 @@ from magpy.opt import cred as cred
 import os
 import sys
 import glob
-from datetime import datetime
-import dateutil.parser as dparser
+from datetime import datetime, timezone, timedelta
+from dateutil.parser import parse
+#import dateutil.parser as dparser
 import paho.mqtt.client as mqtt
 import json
 import socket
@@ -36,6 +37,7 @@ Methods:
 |  martaslog      |  receiveroption  |  2.0.0 |  yes |                                | -      |          |
 |  martaslog      |  updatelog |  2.0.0 |      yes |                                  | -      |          |
 |                 |  add_sensor  |  2.0.0 |      - |                               | -       | mysql,ow,arduino libs |
+|                 |  check_conf  |  2.0.0 |      - |                                  | -      | basevalue, flags  |
 |                 |  connect_db  |  2.0.0 |    yes |                                  | -      | archive  |
 |                 |  datetime_to_array  |  2.0.0 |  yes |                             | -      | libs     |
 |                 |  data_to_file  |  2.0.0 |  yes |                                  | -      | libs     |
@@ -128,6 +130,118 @@ def add_sensors(path, dictionary, block=None):
         f.write(''.join(sensordata))
 
     return True
+
+
+def check_conf(config, startdate=None, enddate='now', varios=None, scalars=None, piers=None, debug=False):
+    """
+    DESCRIPTION
+        this method will extend/modify the configuration data with basevalue analysis specific parameters
+    """
+
+    if varios == None:
+        varios = []
+    if scalars == None:
+        scalars = []
+    if piers == None:
+        piers = []
+    if enddate == 'now' or config.get('enddate') == 'now':
+        endtime = datetime.now(timezone.utc).replace(tzinfo=None)
+        config['enddate'] = endtime.strftime("%Y-%m-%d")
+        if not startdate:
+            starttime = endtime - timedelta(days=380)
+            config['startdate'] = starttime.strftime("%Y-%m-%d")
+    elif enddate == 'file':
+        # determine startdate and enddate from the available files in the directory
+        pass
+    elif enddate:
+        endtime = parse(enddate)
+        config['enddate'] = endtime.strftime("%Y-%m-%d")
+        if not startdate:
+            starttime = endtime - timedelta(days=380)
+            config['startdate'] = starttime.strftime("%Y-%m-%d")
+    else:
+        enddate = config.get('enddate', None)
+        if enddate in ['None', 'False', None, 0]:
+            config['enddate'] = None
+    if startdate:
+        starttime = parse(startdate)
+        config['startdate'] = starttime.strftime("%Y-%m-%d")
+    else:
+        startdate = config.get('startdate', None)
+        if startdate in ['None', 'False', None, 0]:
+            config['startdate'] = None
+
+    if varios and len(varios) > 0:
+        print(" Setting variometers to {}".format(varios))
+        config['vainstlist'] = varios
+    if scalars and len(scalars) > 0:
+        print(" Setting scalars to {}".format(scalars))
+        config['scinstlist'] = scalars
+    if piers and len(piers) > 0:
+        print(" Setting piers to {}".format(piers))
+        config['pierlist'] = piers
+    pl = config.get('pierlist')
+    if not isinstance(pl, (list, tuple)):
+        config['pierlist'] = [pl]
+    if not config.get('primarypier'):
+        if len(config.get('pierlist')) > 0:
+            config['primarypier'] = config.get('pierlist')[0]
+
+    if config.get('year') in ['None', 'False', None, 0]:
+        config['year'] = None
+    elif config.get('year') in ['current', 'now']:
+        config['year'] = datetime.now(timezone.utc).replace(tzinfo=None).year
+
+    if config.get('blvdatapath', '') in ['None', 'False', '', None]:
+        config['blvdatapath'] = os.path.join(config.get('base', ''), 'archive', config.get('obscode', ''), 'DI', 'data')
+
+    if not isinstance(config.get('dbcredentials'), list):
+        config['dbcredentials'] = [config.get('dbcredentials')]
+    if not isinstance(config.get('vainstlist'), list):
+        config['vainstlist'] = [config.get('vainstlist')]
+    if not isinstance(config.get('scinstlist'), list):
+        config['scinstlist'] = [config.get('scinstlist')]
+    if not isinstance(config.get('pierlist'), list):
+        config['pierlist'] = [config.get('pierlist')]
+
+    credentials = config.get('dbcredentials')
+    credential = None
+    connectdict = {}
+    if len(credentials) > 0:
+        credential = credentials[0]
+        # connecting all databases and store it
+        for credel in credentials:
+            connectdict[credel] = connect_db(credential)
+    config['conncetedDB'] = connectdict
+
+    if debug:
+        print("- Connecting to primary database {}".format(credential))
+    try:
+        db = connect_db(credential)
+        if debug:
+            print (" ... success")
+        config['primaryDB'] = db
+    except:
+        config['primaryDB'] = None
+
+    sourcepath = os.path.join(config.get('base', ''), 'archive', config.get('obscode', ''))
+
+    if config.get('didatapath') == 'raw':
+        config['didatapath'] = os.path.join(sourcepath, 'DI', 'raw')
+    elif config.get('didatapath') == 'analyze':
+        config['didatapath'] = os.path.join(sourcepath, 'DI', 'analyze')
+        if config.get('movetoarchive') in ['True', 'true', True]:
+            config['movetoarchive'] = os.path.join(sourcepath, 'DI', 'raw')
+    elif config.get('didatapath') == '':
+        config['didatapath'] = os.path.join(sourcepath, 'DI', 'raw')
+
+    for key in config:
+        if config.get(key) in ['False', 'false']:
+            config[key] = False
+        if config.get(key) in ['True', 'true']:
+            config[key] = True
+
+    return config
 
 
 def connect_db(mcred, exitonfailure=True, report=True):

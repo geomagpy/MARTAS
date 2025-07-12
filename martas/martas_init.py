@@ -245,6 +245,8 @@ def main(argv):
 
     print (" ------------------------------------------- ")
     print (" Please insert the address of the MQTT broker:")
+    print ("  MARTAS: the brocker on which you publish data")
+    print ("  MARCOS: the broker to which you subscribe")
     print (" (press return for accepting default: {})".format(mqttbroker))
     newmqttbroker = input()
     if newmqttbroker:
