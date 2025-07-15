@@ -66,6 +66,7 @@ import sys, os
 #             Methods
 # ################################################
 
+# deprecated - replace already by mm.get_json
 def getcurrentdata(path):
     """
     usage: getcurrentdata(currentvaluepath)
@@ -85,6 +86,7 @@ def getcurrentdata(path):
         print ("path not found")
     return fulldict
 
+# deprecated - replace already by mm.put_json
 def writecurrentdata(path,dic):
     """
     usage: writecurrentdata(currentvaluepath,fulldict)
@@ -571,7 +573,7 @@ def main(argv):
                         del alldic[nfile]
 
         fulldict[key] = alldic
-        writecurrentdata(sendlogpath, fulldict)
+        mm.put_json(sendlogpath, fulldict)
       statusmsg[name] = "uploading data successful"
     except:
       statusmsg[name] = "error when uploading files - please check"

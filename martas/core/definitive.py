@@ -1303,10 +1303,16 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
     DEFININTION:
         calculate variometer files with baseline and flagging information
     PARAMETER:
+        flagfile: a file containing flagging information for the variometer
+        basefile: use basevalue data from this file, otherwise use MagPys default paths to find basevalue data
         runmode:  firstrun  -> xxx
                   secondrun ->
                   thidrun   ->
+                  adjusted -> use the last two days, read and write from DB
+                  quasidefinitive -> use time range since last run put that to config
         skipsec: do not write second data files
+    APPLICATION:
+        adjusted:  config[
 
     """
     if not config:
@@ -1314,9 +1320,23 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
         print ("No configuartion data existing")
         return
 
-    sourcepath = os.path.join(config.get('base'), 'archive', config.get('obscode'))
+    base = config.get('base','')
     db = config.get('primaryDB')
     outpath = config.get('outpath',"/tmp")
+    ppier = config.get('primarypier', 'A2')
+    blvabb = config.get('blvabb')
+    stationid = config.get('obscode','') # TODO cleanup configuration files and use same notoation in all
+    if not stationid:
+        stationid = config.get('station', '')
+    diflagfile= config.get('diflagfile', '')
+    vainstlist = config.get('vainstlist',[])
+    year = config.get('year')
+    testdate = config.get('testdate',None)
+    scinstlist = config.get('scinstlist')
+
+    sourcepath = os.path.join(base, 'archive', stationid)
+    prf = scinstlist[0] # Required to load the correct basevalue file
+    rotangledict = {}
 
     if debug:
         print ("##########################################################")
@@ -1340,12 +1360,11 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                     val = '{}_{}'.format(year,beta)
                 stream.header['DataRotationBeta'] = val
 
-    vainstlist = config.get('vainstlist',[])
-    year = config.get('year')
-    testdate = config.get('testdate',None)
-    scinstlist = config.get('scinstlist')
-    prf = scinstlist[0]
-    rotangledict = {}
+
+    if runmode in ['adjusted','quasidefinitive']:
+        startmonth = datetime.now(timezone.utc).month-1
+        endmonth = datetime.now(timezone.utc).month
+        year = datetime.now(timezone.utc).year
 
     #### If a testdate is provided (single day)
     tdate = None
@@ -1370,10 +1389,18 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
         for absidx,inst in enumerate(vainstlist):
             if debug:
                 print ("-------------------------------------")
-                print ("Running analysis for {}".format(inst))
-                print ("  Using Variometer data from path: {}".format(os.path.join(sourcepath, inst[:-5], inst, '*')))
+                print ("Running analysis for {} with runmode {}".format(inst,runmode))
+                if not runmode in ['adjusted']:
+                    print ("  Using Variometer data from path: {}".format(os.path.join(sourcepath, inst[:-5], inst, '*')))
 
-            if not tdate:
+            if runmode in ['adjusted']:
+                dendtime = datetime.now(timezone.utc).replace(tzinfo=None)
+                dstarttime = dendtime - timedelta(days=2)
+            elif runmode in ['quasidefinitive']:
+                # TODO get start and enddate from config
+                dendtime = datetime.now(timezone.utc).replace(tzinfo=None)
+                dstarttime = dendtime - timedelta(days=2)
+            elif not tdate: #definitive
                 dstarttime=datetime.strptime(str(year)+'-'+month+'-01',"%Y-%m-%d")
                 dendtime=datetime.strptime(str(nextyear)+'-'+nextmonth+'-01',"%Y-%m-%d")
             else:
@@ -1385,7 +1412,11 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 print ("  Dealing with data between {} and {}".format(dstarttime,dendtime))
 
             try:
-                va = read(os.path.join(sourcepath, inst[:-5], inst, '*'),starttime=dstarttime,endtime=dendtime)
+                if not runmode in ['adjusted']:
+                    va = read(os.path.join(sourcepath, inst[:-5], inst, '*'),starttime=dstarttime,endtime=dendtime)
+                else:
+                    #read DB
+                    va = db.read(inst,starttime=dstarttime,endtime=dendtime)
                 # raw data
             except:
                 va = DataStream()
@@ -1495,11 +1526,9 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 # ---------------------
                 # requirement: base value data has been cleaned up
                 basename = ""
-                ppier = config.get('primarypier','A2')
-                blvabb = config.get('blvabb')
                 if debug:
                     print ("Getting basevalue data now (primary pier only):", basefile, inst, prf, ppier)
-                if runmode in  ['firstrun']:
+                if runmode in  ['firstrun','adjusted','quasidefinitive']:
                     scalar = prf[:-5]
                     basename = "{}_{}_{}_{}_{}.txt".format(blvabb, inst[:-5], scalar, ppier, year)
                 elif runmode in ['secondrun','thirdrun']:
@@ -1529,8 +1558,8 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                     if blvflaglist:
                         absr = blvflaglist.apply_flags(absr, mode='drop')
                     if debug:
-                        print ("   -- Dropping basedata flags from file: {}".format(config.get('diflagfile')))
-                    fiflaglist = flagging.load( config.get('diflagfile',''),sensorid=absr.header.get('SensorID'))
+                        print ("   -- Dropping basedata flags from file: {}".format(diflagfile))
+                    fiflaglist = flagging.load( diflagfile, sensorid=absr.header.get('SensorID'))
                     if debug:
                         print ("   -> {} flags".format(len(fiflaglist)))
                     if fiflaglist:
@@ -1538,7 +1567,7 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
 
                     # Checkpoint
                     #mp.plot(absr)
-                    if runmode == 'firstrun':
+                    if runmode in ['firstrun','adjusted']:
                         if vaflaglist and not vaflagsdropped:
                             print("  Baseline adoption: dropping flagged data")
                             va = vaflaglist.apply_flags(va, mode='drop')
@@ -1617,14 +1646,24 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                     if debug:
                         print("   MEANS: {},{},{}".format(va.mean("x"), va.mean("y"), va.mean("z")))
 
-                    if runmode in ['secondrun','thirdrun'] and not skipsec: # Save high res data when finishing
+                    if runmode in ['secondrun','thirdrun','adjusted','quasidefinitve'] and not skipsec: # Save high res data when finishing
                         hva = va.copy()
-                        print ("  Updating rotation information...")
-                        update_rot(hva,year,rotangle, beta) ## new 2017
+                        if not runmode in ['adjusted']:
+                            print ("  Updating rotation information...")
+                            update_rot(hva,year,rotangle, beta) ## new 2017
                         #hva = hva.resample(keys=['x','y','z','t1','t2','var2','flag','comment'], period=1)
                         print ("  Write monthly high resolution file with full info")
-                        fname = '{}_vario_sec_{}_'.format(inst,runmode)
-                        hva.write(os.path.join(outpath,'magpy'),filenamebegins=fname,dateformat='%Y%m',coverage='month',mode='replace',format_type='PYCDF')
+                        if runmode in ['adjusted','quasidefinitve']:
+                            # write to DB (destination)
+                            if vaflaglist and not vaflagsdropped:
+                                hva = vaflaglist.apply_flags(hva, mode='drop')
+                                vaflagsdropped = True
+                            hva.header['DataID'] = "{}adjusted_VARIO_0001_0001".format()
+                            hva.header['SensorID'] = "{}adjusted_VARIO_0001".format()
+                            db.write(hva)
+                        else:
+                            fname = '{}_vario_sec_{}_'.format(inst,runmode)
+                            hva.write(os.path.join(outpath,'magpy'),filenamebegins=fname,dateformat='%Y%m',coverage='month',mode='replace',format_type='PYCDF')
                     print("  remove, gaps and filter:", va.length()[0])
                     if vaflaglist and not vaflagsdropped:
                         va = vaflaglist.apply_flags(va, mode='drop')
@@ -1654,7 +1693,12 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                     if debug:
                         print("   MEANS: {},{},{}".format(va.mean("x"), va.mean("y"), va.mean("z")))
                     if va.length()[0] > 0:
-                        va.write(os.path.join(outpath,'magpy'), filenamebegins=inst+'_vario_'+bl+'_'+str(year),dateformat='%Y',mode='replace',coverage='all',format_type='PYCDF')
+                        if runmode in ['adjusted','quasidefinitve']:
+                            va.header['DataID'] = "{}adjusted_VARIO_0001_0002".format()
+                            va.header['SensorID'] = "{}adjusted_VARIO_0001".format()
+                            db.write(va)
+                        else:
+                            va.write(os.path.join(outpath,'magpy'), filenamebegins=inst+'_vario_'+bl+'_'+str(year),dateformat='%Y',mode='replace',coverage='all',format_type='PYCDF')
                 else:
                     print (" !!! Basevalue file not existing")
 

@@ -43,7 +43,9 @@ Methods:
 |                 |  data_to_file  |  2.0.0 |  yes |                                  | -      | libs     |
 |                 |  get_bool  |  2.0.0 |      yes |                                  | -      | archive,filter |
 |                 |  get_conf  |  2.0.0 |      yes |                                  | -      | marcosscripts |
+|                 |  get_json  |  2.0.0 |      yes |                                  | -      | file_upload |
 |                 |  get_sensors  |  2.0.0 |   yes |                                  | -      | marcosscripts |
+|                 |  put_json  |  2.0.0 |      yes |                                  | -      | file_upload |
 |                 |  scptransfer  |  2.0.0 |    -  |                                  | -      | up/download |
 |                 |  sendmail  |  2.0.0 |      yes |  identical method in imbot       | -      | imbot    |
 |                 |  sendtelegram |  2.0.0  |  yes |  identical method in imbot       | -      | marcosscripts, imbot |
@@ -379,6 +381,27 @@ def get_conf(path, confdict=None):
 
     return confdict
 
+def get_json(path):
+    """
+    DESCRIPTION
+        replaces getcurrentdata
+    usage: get_json(currentvaluepath)
+    example: update kvalue
+    fulldict = getcurrentdata(currentvaluepath)
+    valdict = fulldict.get('magnetism',{})
+    valdict['k'] = [kval,'']
+    valdict['k-time'] = [kvaltime,'']
+    fulldict[u'magnetism'] = valdict
+    writecurrentdata(path, fulldict)
+    """
+    fulldict = {}
+    if os.path.isfile(path):
+        with open(path, 'r') as file:
+            fulldict = json.load(file)
+    else:
+        print ("path not found")
+    return fulldict
+
 
 def get_sensors(path, identifier=None, secondidentifier=None):
     """
@@ -471,6 +494,19 @@ def get_sensors(path, identifier=None, secondidentifier=None):
                     sensorlist.append(sensordict)
 
     return sensorlist
+
+
+def put_json(path,dic):
+    """
+    DESCRIPTION
+        replaces writecurrentdata
+    usage: writecurrentdata(currentvaluepath,fulldict)
+    example: update kvalue
+    see getcurrentdata
+    """
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(dic, f, ensure_ascii=False, indent=4)
+    return True
 
 
 def scptransfer(src,dest,passwd,**kwargs):
@@ -770,6 +806,12 @@ class TestMethods(unittest.TestCase):
     def test_get_conf(self):
         cfg = get_conf("../conf/martas.cfg")
         self.assertEqual(cfg.get("station"),"myhome")
+
+    def test_get_put_json(self):
+        cfg = get_conf("../conf/martas.cfg")
+        put_json("/tmp/test_martas_methods.json", cfg)
+        cfgnew = get_json("/tmp/test_martas_methods.json")
+        self.assertEqual(cfg.get("station"),cfgnew.get("station"))
 
     def test_get_sensors(self):
         recent = True
