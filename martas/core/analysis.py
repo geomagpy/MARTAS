@@ -16,6 +16,9 @@ Methods of this module
 |  MartasAnalysis |  get_primary       |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  get_baseline_functions | 2.0.0 |    yes |                                  | -      |          |
 |  MartasAnalysis |  adjust_scalar     |  2.0.0   |      yes |                                  | -      |          |
+|  MartasAnalysis |  adjust_vario      |  2.0.0   |      yes |                                  | -      |          |
+|  MartasAnalysis |  magnetism_products |  2.0.0  |          |                                  | -      |          |
+|  MartasStatus   |  __init__          |  2.0.0   |          |                                  | -      |          |
 
 
 PREREQUISITES
@@ -1053,6 +1056,218 @@ class MartasAnalysis(object):
         return result
 
 
+class MartasStatus(object):
+    def __init__(self, config=None, statusdict=None, tablename='COBSSTATUS'):
+        if not config:
+            config = {'dbcredentials' : 'cobsdb'}
+        if not statusdict:
+            statusdict = {"Average field X": {
+                                "source": "TEST001_1234_0001_0001",
+                                "key": "x",
+                                "type": "temperature",
+                                "group": "tunnel condition",
+                                "field": "environment",
+                                "location": "gmo",
+                                "pierid": "",
+                                "range": 30,
+                                "mode": "mean",
+                                "value_unit": "°C",
+                                "warning_high": 10,
+                                "critical_high": 20
+                                }
+                        }
+
+        self.config = mm.check_conf(config, debug=True)
+        self.statusdict = statusdict
+        self.tablename = tablename
+
+        self.logpath = self.config.get('logpath')
+        self.receiver = self.config.get('notification')
+        self.receiverconf = self.config.get('notificationconf')
+        self.db = self.config.get('primaryDB')
+
+
+    def read_data(self, statuselem=None, endtime=None, debug=False):
+        """
+        DESCRIPTION
+            Read date for a certain table, a given key and timerange from the database.
+            Calculate the parameter as defined by mode.
+        PARAMETER:
+            source
+        RETURN
+            Returns the calculated parameter and an active bool (0: no data available or problem with calc; 1: everything fine)
+        """
+        if not statuselem:
+            statuselem = {}
+        if not endtime:
+            endtime = datetime.now(timezone.utc).replace(tzinfo=None)
+        ndata = DataStream()
+        source = statuselem.get('source','')
+        key = statuselem.get('key','x')
+        trange = statuselem.get('trange', 30)
+        mode = statuselem.get('mode',"mean")
+        result = {}
+        active = 0
+        value = 0
+        value_min = 0
+        value_max = 0
+        uncert = 0
+        starttime = endtime - timedelta(minutes=trange)
+        newendtime = endtime  # will be changes for mode "last"
+        ok = True
+        if ok:
+            # check what happens if no data is present or no valid data is found
+            if source.find('/') > -1:
+                if debug:
+                    print("Reading data: found path or url:", source, starttime, endtime)
+                try:
+                    fdata = read(source, starttime=starttime, endtime=endtime)
+                except:
+                    if debug:
+                        print("Just try to load at least the current day")
+                    fbdate = endtime.strftime("%Y-%m-%d")
+                    source = source.replace("*", "*" + fbdate)
+                    fdata = read(source)
+                if debug:
+                    print(" - found {} datapoints".format(fdata.length()[0]))
+                ndata = fdata._drop_nans(key)
+                if debug:
+                    print(" - dropped nans -> remaining datapoints: {}".format(ndata.length()[0]))
+                cleandata = ndata._get_column(key)
+                if debug:
+                    print(" - got key", key)
+                    # print (fdata.ndarray[0])
+                if debug:
+                    print(" - Done")
+            else:
+                if debug:
+                    print("Reading data: accessing database table")
+                ddata = self.db.read(source, starttime=starttime, endtime=endtime)
+                if debug and len(ddata) > 0:
+                    print(" -> reading done: got {} datapoints for {}".format(len(ddata), key))
+                ndata = ddata._drop_nans(key)
+                cleandata = ndata._get_column(key)
+            newendtime = ndata.end()
+            if debug:
+                print(" -> {} datapoints remaining after cleaning NaN".format(len(cleandata)))
+                #print("Cleandata", cleandata)
+            if len(cleandata) > 0 and not isnan(cleandata[0]):
+                value_min = np.min(cleandata)
+                value_max = np.max(cleandata)
+                uncert = np.std(cleandata)
+                if mode == "median":
+                    value = np.median(cleandata)
+                elif mode == "min":
+                    value = value_min
+                elif mode == "max":
+                    value = value_max
+                elif mode == "std":
+                    value = np.std(cleandata)
+                elif mode == "last":  # if mode.startswith(last) allow last1, last2 etc
+                    value = cleandata[-1]
+                    endtime = newendtime
+                else:  # mode == mean
+                    value = np.mean(cleandata)
+                active = 1
+
+        result['mode'] = mode
+        result['value'] = value
+        result['min'] = value_min
+        result['max'] = value_max
+        result['uncert'] = uncert
+        result['starttime'] = starttime
+        result['endtime'] = endtime
+        result['longitude'] = ndata.header.get('DataLocationLongitude',0.0)
+        result['latitude'] = ndata.header.get('DataLocationLongitude',0.0)
+        result['altitude'] = ndata.header.get('DataElevation',0.0)
+        result['active'] = active
+        if debug:
+            print("DEBUG: returning value={}, starttime={}, endtime={} and active={}".format(value, starttime, endtime,
+                                                                                             active))
+
+        return result
+
+
+    def check_highs(self, value, statuselem=None):
+        """
+        DESCRIPTION
+            test value for warning levels
+        """
+        if not statuselem:
+            statuselem = {}
+        value_unit = statuselem.get('value_unit','')
+        warning_high = statuselem.get('warning_high',0)
+        critical_high = statuselem.get('critical_high',0)
+        warning_low = statuselem.get('warning_low',0)
+        critical_low = statuselem.get('critical_low',0)
+        msg = ''
+        if value:
+            if critical_high and value >= critical_high:
+                msg = "CRITCAL STATUS: value exceeding {} {}".format(critical_high, value_unit)
+            elif warning_high and value >= warning_high:
+                msg = "WARNING: value exceeding {} {}".format(warning_high, value_unit)
+            elif critical_low and value <= critical_low:
+                msg = "CRITICAL STATUS: value below {} {}".format(critical_low, value_unit)
+            elif warning_low and value <= warning_low:
+                msg = "WARNING: value below {} {}".format(warning_low, value_unit)
+        return msg
+
+
+    def create_sql(self, notation, res=None, statuselem=None):
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if not statuselem:
+            statuselem = {}
+        if not res:
+            res = {}
+        value = res.get('value')
+        value_min = res.get('min')
+        value_max = res.get('max')
+        uncert = res.get('uncert'),
+        start = res.get('starttime'),
+        end = res.get('endtime')
+        active = res.get('active')
+        long = res.get('lonitude')
+        lat = res.get('latitude')
+        alt = res.get('altitude')
+        stype = statuselem.get("type")
+        group = statuselem.get("group", "")
+        field = statuselem.get("field", ""),
+        value_unit = statuselem.get("value_unit", "")
+        warning_high = statuselem.get("warning_high", 0)
+        critical_high = statuselem.get("critical_high", 0),
+        warning_low = statuselem.get("warning_low", 0)
+        critical_low = statuselem.get("critical_low", 0)
+        source = statuselem.get("source", ""),
+        location = statuselem.get("location", "")
+        comment = statuselem.get("comment", "")
+        sql = "INSERT INTO {} (status_notation,status_type,status_group,status_field,status_value,value_min,value_max,value_std,value_unit,warning_high,critical_high,warning_low,critical_low,validity_start,validity_end,source,location,longitude,latitude,altitude,comment,date_added,active) VALUES ('{}','{}','{}','{}',{},{},{},{},'{}',{},{},{},{},'{}','{}','{}','{}',{},{},{},'{}','{}',{}) ON DUPLICATE KEY UPDATE status_type = '{}',status_group = '{}',status_field = '{}',status_value = {},value_min = {},value_max = {},value_std = {},value_unit = '{}',warning_high = {},critical_high = {},warning_low = {},critical_low = {},validity_start = '{}',validity_end = '{}',source = '{}',location = '{}',longitude = {},latitude = {},altitude = {},comment='{}',date_added = '{}',active = {} ".format(
+            self.tablename, notation, stype, group, field, value, value_min, value_max, uncert, value_unit, warning_high, critical_high,
+            warning_low, critical_low, start, end, source, location, long, lat, alt, comment, now, active, stype, group, field, value,
+            value_min, value_max, uncert, value_unit, warning_high, critical_high, warning_low, critical_low, start,
+            end, source, location, long, lat, alt, comment, now, active)
+        return [sql]
+
+
+    def statustableinit(self, debug=False):
+        """
+        DESCRIPTION
+            creating a STATUS Database table
+        """
+        columns = ['status_notation', 'status_type', 'status_group', 'status_field', 'status_value', 'value_min',
+                   'value_max', 'value_std', 'value_unit', 'warning_high', 'critical_high', 'warning_low',
+                   'critical_low', 'validity_start', 'validity_end', 'location', 'latitude', 'longitude', 'altitude', 'source',
+                   'comment', 'date_added', 'active']
+        coldef = ['CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'FLOAT', 'FLOAT',
+                  'FLOAT', 'FLOAT', 'DATETIME', 'DATETIME', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'TEXT', 'DATETIME', 'INT']
+        fulllist = []
+        for i, elem in enumerate(columns):
+            newelem = '{} {}'.format(elem, coldef[i])
+            fulllist.append(newelem)
+        sqlstr = ', '.join(fulllist)
+        sqlstr = sqlstr.replace('status_notation CHAR(100)', 'status_notation CHAR(100) NOT NULL UNIQUE PRIMARY KEY')
+        createtablesql = "CREATE TABLE IF NOT EXISTS {} ({})".format(self.tablename, sqlstr)
+        return createtablesql
+
 
 class TestAnalysis(unittest.TestCase):
 
@@ -1138,6 +1353,32 @@ class TestAnalysis(unittest.TestCase):
         self.assertGreater(len(func), 0)
         print("   MEANS: {},{},{}".format(vario.mean("x"), vario.mean("y"), vario.mean("z")))
         self.assertLess(vario.mean("y"),5)
+
+
+class TestStatus(unittest.TestCase):
+
+    def test_read_data(self):
+        #statusdict = mm.get_json(statusfile)
+        #ms = MartasStatus(config=config, statusdict=statusdict,tablename='COBSSTATUS')
+        ms = MartasStatus(tablename='COBSSTATUS')
+        sqllist = []
+        for elem in ms.statusdict:
+            statuselem = ms.statusdict.get(elem)
+            res = ms.read_data(statuselem=statuselem,debug=True)
+            warnmsg = ms.check_highs(res.get('value'), statuselem=statuselem)
+            newsql = ms.create_sql(elem, res, statuselem)
+            print (warnmsg, newsql)
+            sqllist.extend(newsql)
+        initsql = ms.statustableinit(debug=True)
+        print(initsql)
+
+        md = ms.db
+        cursor = ms.db.db.cursor()
+        headsql = 'SHOW Tables'
+        message = md._executesql(cursor, headsql)
+        print (message)
+
+        self.assertGreater(len(sqllist), 0)
 
 
 if __name__ == "__main__":
