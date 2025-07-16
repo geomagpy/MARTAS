@@ -36,6 +36,7 @@ defaultdepth    :      2
 archiveformat   :      PYCDF
 
 writearchive    :      True
+subdirectory    :      Y
 
 applyflags      :      False
 
@@ -280,7 +281,7 @@ def main(argv):
     logpath = config.get('logpath')
     receiver = config.get('notification')
     receiverconf = config.get('notificationconf')
-
+    subdirectory = config.get('subdirectory',None)
 
     db = mm.connect_db(config.get('credentials'))
 
@@ -388,7 +389,7 @@ def main(argv):
                         stream = stream.flag(flaglist)
 
                 if not debug and wa and archivepath:
-                    stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=fo,mode=writemode)
+                    stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=fo,mode=writemode,subdirectory=subdirectory)
                 else:
                     print ("   Debug: skip writing")
                     print ("    -> without debug a file with {} inputs would be written to {}".format(stream.length()[0],archivepath))
