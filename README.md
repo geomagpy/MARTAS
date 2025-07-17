@@ -617,6 +617,21 @@ blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
 
 Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands
 
+### 6.4 backup
+
+The backup routine will be scheduled automatically within the martas_init routine. *backup* creates a 
+backup of all configuration files and settings. These backups can be used to recover a MARTAS/MARCOS system quickly.
+Recovery is widely independent of hardware and software versions. To recover a broken MARTAS system you would perform
+the following steps:
+
+1) Perform all installations steps of section 2
+2) Then run: python ...app/backup.py -r /path/to/backup_mymachine_DATE.zip
+
+Thats it... You can also use this routine to clone existing MARTAS installations to new machines.
+
+Backups are created by default on a weekly basis and you might want to store them on a different storage device. 
+Eventually use file_upload for this purpose.
+
 
 ### 6.4 basevalue
 
@@ -1188,20 +1203,127 @@ Go to your channel overview and add (i.e. MyFirstBot) as administrator to your c
 
 ## 8. Additional tools
 
-### 8.1 martas_backup
+### 8.1 analysis.py for continuous flagging, adjusted/quasidefinitive data products and status information 
 
-The martas_backup routine will be scheduled automatically within the martas_init routine. martas_backup creates a 
-backup of all configuration files and settings. These backups can be used to recover a MARTAS/MARCOS system quickly.
-Recovery is widely independent of hardware and software versions. To recover a broken MARTAS system you would perform
-the following steps:
+#### 8.1.1 MartasAnalysis
 
-1) Perform all installations steps of section 2
-2) Then run: martas_backup -r /path/to/backup_mymachine_DATE.zip
+For continuous flagging of data in a MARCOS environment you can use the MartasAnalysis class as follows. Flagging 
+configurations need to be supplied to the method in form of json data. An example of such flagging configuration 
+information is given here
 
-Thats it... You can also use this routine to clone existing MARTAS installations to new machines.
+```
+flagdict = {'TEST': {"coverage": 86400,
+                     "keys": ['x','y','z'],
+                     "mode": ['outlier'],  # outlier, range, ultra, ai,
+                     "samplingrate": 1,
+                     "min": -59000,
+                     "max": 50000,
+                     "addflag": True,
+                     "threshold": 4,
+                     "window": 60,
+                     "markall": True,
+                     },
+                     ...
+            }
+```
 
-Backups are created by default on a weekly basis and you might want to store them on a different storage device. 
-Eventually use file_upload for this purpose.
+This dictionary provides details on the Sensor or SensorGroup and the applied flagging method. The "TEST" refers to 
+the SensorID of datasets to be flagged. All SensorIDs containing TEST in their name will be flagged with the given
+parameters (i.e. TEST_1234_0001, TEST001_XXX_0002, AWSOME_TEST_0001). The last 86400 datapoint will be read and 
+outlier flagging (despiking) be performed using threshold and window.
+
+IMPORTANT: the methods of the analysis module are designed to work with a MagPy/MARTAS database. Using the methods on
+non-DB architectures will need some work to adjust the methods. Methods and Classes of the analysis module are typically
+scheduled using cron.
+
+Typical application for continuous flagging looks as follows. The periodically method will read data, remove already 
+existing flags and then apply the flagging method on remaining data.
+
+        from martas.core import methods as mm
+        from martas.core.analysis import MartasAnalysis
+        config = mm.get_conf('Configuration file like basevalue.cfg')
+        config = mm.check_conf()
+        flagdict = mm.get_json('Flagdict file like shown above')
+        mf = MartasAnalysis(config=config, flagdict=flagdict)
+        fl = mf.periodically(debug=False)
+        suc = mf.update_flags_db(fl, debug=True)
+
+Other flagging related methods are upload, archive, cleanup.
+
+In order to obtain adjusted or quasidefinitive data, the MartasAnalysis class contains methods specifically designed for 
+geomagnetic data analysis. Adjusted data can be obtained hereby.
+
+
+        from martas.core import methods as mm
+        from martas.core.analysis import MartasAnalysis
+        config = mm.get_conf('Configuration file like basevalue.cfg')
+        config = mm.check_conf()
+        mf = MartasAnalysis(config=config)
+        primary_vario = mf.get_primary(variometer DataID list)
+        primary_scalar = mf.get_primary(scalar DataID list)
+        merged = mf.magnetism_data_products('adjusted', primary_vario, primary_scalar)
+        results = merged.get('merge')
+        for samplingrate in results:
+            export_data res.get(samplingrate)
+
+If you have multiple variometers on your site the get_primary method investigates supplied variometer data sets and
+selects the first one of the list which contains valid data. The method *magnetim_data_products* will then read data,
+eventually remove flags, apply offsets as defined in the database, perform a baseline correction and construct merged 
+data sets. If one-second data is supplied it will also create a filtered one-minute record. 
+
+
+#### 8.1.2 MartasStatus
+
+MartasStatus is used to extract specific values from the data sets. This method can be used to supply status information
+and current values to webpages and services. The kind of status information is defined in a dictionary which might be
+stored as json file on your system. 
+
+```
+statusdict = {"Average Temperature of TEST001": {
+                                "source": "TEST001_1234_0001_0001",
+                                "key": "x",
+                                "type": "temperature",
+                                "group": "tunnel condition",
+                                "field": "environment",
+                                "location": "gmo",
+                                "pierid": "",
+                                "range": 30,
+                                "mode": "mean",
+                                "value_unit": "°C",
+                                "warning_high": 10,
+                                "critical_high": 20
+                                },
+                     ...
+            }
+```
+
+The key values of the status dictionary need to be unique and are ideally human readable. The subdictionary defines 
+parameters of the data set to be extracted. Typically recent data covering the last "range" minutes are extracted and
+the value as defined by mode (mean, median, max, min, uncert) is obtained. If no data is found the "active" value of 
+the return dictionary is set to 0. 
+
+As all other methods, the MartasStatus class methods are designed for data base usage. You can extend your MagPy data
+base with a status information tables using the following command:
+
+        from martas.core import methods as mm
+        from martas.core.analysis import MartasStatus
+        config = mm.get_conf('Configuration file like basevalue.cfg')
+        config = mm.check_conf()
+        statusdict = mm.get_json('Statusdict file like shown above')
+        ms = MartasStatus(config=config, statusdict=statusdict,tablename='COBSSTATUS')
+
+        initsql = ms.statustableinit(debug=True)
+
+Status messages in this table can then be updated by scheduling a job like the following
+
+        ms = MartasStatus(config=config, statusdict=statusdict,tablename='COBSSTATUS')
+        sqllist = []
+        for elem in ms.statusdict:
+            statuselem = ms.statusdict.get(elem)
+            res = ms.read_data(statuselem=statuselem,debug=True)
+            warnmsg = ms.check_highs(res.get('value'), statuselem=statuselem)
+            newsql = ms.create_sql(elem, res, statuselem)
+            sqllist.extend(newsql)
 
 
 ### 8.2 definitive.py for geomagnetic definitive data production

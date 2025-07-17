@@ -18,7 +18,12 @@ Methods of this module
 |  MartasAnalysis |  adjust_scalar     |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  adjust_vario      |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  magnetism_products |  2.0.0  |          |                                  | -      |          |
-|  MartasStatus   |  __init__          |  2.0.0   |          |                                  | -      |          |
+|  MartasStatus   |  __init__          |  2.0.0   |      yes |                                  | -      |          |
+|  MartasStatus   |  read_data         |  2.0.0   |      yes |                                  | -      |          |
+|  MartasStatus   |  check_highs       |  2.0.0   |      yes |                                  | -      |          |
+|  MartasStatus   |  create_sql        |  2.0.0   |      yes |                                  | -      |          |
+|  MartasStatus   |  statustableinit   |  2.0.0   |      yes |                                  | -      |          |
+
 
 
 PREREQUISITES
@@ -28,8 +33,6 @@ PREREQUISITES
 
 APPICATION
    used by the cobsanalysis package, which contains the Observatory specific application
-
-
 
 PARAMETERS
     flagdict          :  dict       :  currently hardcoded into the method
@@ -1226,7 +1229,7 @@ class MartasStatus(object):
         start = res.get('starttime'),
         end = res.get('endtime')
         active = res.get('active')
-        long = res.get('lonitude')
+        long = res.get('longitude')
         lat = res.get('latitude')
         alt = res.get('altitude')
         stype = statuselem.get("type")
