@@ -67,16 +67,26 @@ Currently supported systems are:
 and basically all I2C Sensors and others connectable to Microcontroller boards like [Arduino]()
 (requiring a specific serial output format in the microcontroller program - appendix)
 
+A typical installation of a MARTAS data acquisition system with a supported sensor is finished within minutes, the
+setup of a MARCOS collection system strongly depends on its complexity and amount of data sources. For both setups 
+a single command will guide you through the initialization routine. After installation issue
+
+         $ martas_init
+
+and answer the questions. Then modify the requested configurations and you are done. Nevertheless, please carefully 
+read the sections on installation and MARTAS/MARCOS specifics. I also spend some time on describing the basic idea,
+additional tools and analysis packages, which might be helpful for one or the other.
+
 Note: in the following examples we use "USER" as username and "USERS" as group. Replace these names with your 
 user:group names. All instructions assume that you have a profound knowledge of debian like linux systems, as such a 
 system is the only prerequisite to run MARTAS.
 
-## 1.1 The MARTAS/MARCOS naming conventions and data model
+### 1.1 The MARTAS/MARCOS naming conventions and data model
 
 MARTAS is focusing on instrument level. Each instrument is characterized by its human readable name and its serial 
 number. This information provides an unique reference i.e. a LEMI025 sensor with serial number 56 is typically 
 denoted as LEMI025_25. To each instrument a revision number is assigned, providing the possibility to track upgrades,
-repairs and maintainance. The combination of instrument name, serial number and revision number is referred to as 
+repairs and maintenance. The combination of instrument name, serial number and revision number is referred to as 
 **SensorID**, i.e. LEMI025_56_0001. If you are using a MARCOS collection system with database support, the table SENSORS
 will contain all relevant information regarding each SensorID. An instrument like the LEMI025 might record several 
 different signals, like three components of geomagnetic field variation, temperatures of electronics and sensor, 
@@ -95,8 +105,10 @@ collected in table STATION, defined by a **StationID** i.e. an observatory defin
 information might by collected in table PIERS, referring to a specific **PierID**.
  
 ![1.1.0](./martas/doc/namingconvention.png "Naming convention and database organization")
-Figure 1.1.0: Gives an overview about the naming convention and the shows the relation of information contents in 
-derived tables of a MARCOS database table.
+Figure 1.1.0: An overview about the naming convention. The naming convention is directly used for structuring the 
+MARCOS database. Each bold name corresponds to a table within the database. It is strongly recommended to keep the
+general structure of the naming convention ( SensorName_SerialNumber_SensorRevision_DataRevision ) even if not using data
+base support.
 
 ## 2. Installation
 
@@ -1327,10 +1339,35 @@ statusdict = {"Average Temperature of TEST001": {
             }
 ```
 
-The key values of the status dictionary need to be unique and are ideally human readable. The subdictionary defines 
-parameters of the data set to be extracted. Typically recent data covering the last "range" minutes are extracted and
-the value as defined by mode (mean, median, max, min, uncert) is obtained. If no data is found the "active" value of 
-the return dictionary is set to 0. 
+THe keys of each status element refer to the following inputs:
+
+| key           | description                          | default                  | example     |
+|---------------|--------------------------------------|--------------------------|-------------|
+| source        | DataID                               | -                        | -           |
+| key           | column of DataID                     | x                        | t1          |
+| field         | physical property contained in key   | -                        | temperature |
+| group         | primary purpose of Instrument/Sensor | SensorGroup              | magnetism   |
+| type          | specific primary sensor type         | SensorType               | fluxgate    |
+| pierid        | reference to pier                    | PierID                   | A2          |
+| station       | reference to StationID               | StationID                | WIC         |
+| longitude     |                                      | DataAcquisitionLongitude | -           |
+| latitude      |                                      | DataAcquisitionLatitude  | -           |
+| altitude      |                                      | DataElevation            | -           |
+| range         | timerange in minutes                 | 30                       | 30          |
+| mode          | mean,median,max,min,uncert           | mean                     | fluxgate    |
+| value_unit    | unit of key                          | unit-col-KEY             | -           |
+| warning_low   | lower warning level                  | 0                        | -5          |
+| warning_high  | upper warning level                  | 0                        | 10          |
+| critical_low  | lower critical level                 | 0                        | -20         |
+| critical_high | upper critical level                 | 0                        | 20          |
+
+
+The key values of each status element contained in the status dictionary need to be unique and are ideally human 
+readable. The subdictionary defines parameters of the data set to be extracted. Typically recent data covering the 
+last "range" minutes are extracted and the value as defined by mode (mean, median, max, min, uncert) is obtained. If 
+no data is found the "active" value of the return dictionary is set to 0. Most properties are obtained from existing
+tables in the database. You can override database contents by providing the corresponding inputs within the status
+elements. Please note: the physical property "field" is not contained in the database and can only be supplied here.
 
 As all other methods, the MartasStatus class methods are designed for data base usage. You can extend your MagPy data
 base with a status information tables using the following command:
