@@ -2,15 +2,19 @@
 
 **MagPys Automated Real Time Acquisition System**
 
+
+
 MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
-and analysis in heterogeneous sensor environments. MARTAS is designed to support professional observatory networks. 
+and analysis in heterogeneous sensor environments. MARTAS is designed to support professional observatory networks and
+data sources consisting of timeseries measurements from locally fixed instruments. 
 Data acquisition makes use of an instrument library which currently includes many sensors typically used in
 observatories around the globe and some development platforms. Basically, incoming sensor data is converted to a 
-general purpose data/meta information object which is directly streamed via MQTT (message queue transport) to a data 
-broker. Such data broker, called MARCOS (MagPys Automated Realtime Collector and Organization System), can be setup 
-within the MARTAS environment. MARCOS collection routines can access MQTT data stream and store/organize such data and 
-meta information in files, data banks or forward them to web sockets. All data can directly be analysed using MagPy 
-which contains many time domain and frequency domain time series analysis methods.
+general purpose data/meta information object which is directly streamed via IOT protocols, namely MQTT 
+(message queue transport) to a data broker. A data collection system, called MARCOS (MagPys Automated Realtime 
+Collector and Organization System), can be setup within the MARTAS environment. MARCOS collection routines can access
+MQTT data stream and store/organize such data and meta information in files, data banks or forward them to web sockets.
+All data can directly be analysed using [MagPy]() which contains many time domain and frequency domain time series analysis
+methods.
 
 Developers: R. Leonhardt, R. Mandl, R. Bailey (GeoSphere Austria)
 
@@ -63,11 +67,36 @@ Currently supported systems are:
 and basically all I2C Sensors and others connectable to Microcontroller boards like [Arduino]()
 (requiring a specific serial output format in the microcontroller program - appendix)
 
-
 Note: in the following examples we use "USER" as username and "USERS" as group. Replace these names with your 
 user:group names. All instructions assume that you have a profound knowledge of debian like linux systems, as such a 
 system is the only prerequisite to run MARTAS.
 
+## 1.1 The MARTAS/MARCOS naming conventions and data model
+
+MARTAS is focusing on instrument level. Each instrument is characterized by its human readable name and its serial 
+number. This information provides an unique reference i.e. a LEMI025 sensor with serial number 56 is typically 
+denoted as LEMI025_25. To each instrument a revision number is assigned, providing the possibility to track upgrades,
+repairs and maintainance. The combination of instrument name, serial number and revision number is referred to as 
+**SensorID**, i.e. LEMI025_56_0001. If you are using a MARCOS collection system with database support, the table SENSORS
+will contain all relevant information regarding each SensorID. An instrument like the LEMI025 might record several 
+different signals, like three components of geomagnetic field variation, temperatures of electronics and sensor, 
+support voltages. These components are referred to as **SensorElements**. For better searchability of the data base it 
+is also useful to assign each sensor to a **SensorGroup** (i.e. magnetism), which denotes the primary purpose of the 
+instrument and a **SensorType**, which describes the primary physical measurement technique (i.e. fluxgate). The 
+individual **SensorElements** however can perform measurements outside the primary group, so each **SensorElement** will
+refer to a specific **Field** i.e. temperature probes of LEMI025 will be connected to the field "temperature". An 
+instrument is typically setup at a specific location, characterized by its geographical position, a specific 
+station name i.e. the observatory, and eventually a specific pier within the station. At this location data is acquired
+with the instrument and such data sets are described by the SensorID and a data revision code, referred to as **DataID**
+i.e. LEMI025_56_0001_0001. Specific information on each data set is summarized in table DATAINFO referring to the
+DataID's. The database will contain pure data tables named by DataID and all acquisition relevant information in 
+DATAINFO, including location coordinates and references to station and eventually pier. The station information is 
+collected in table STATION, defined by a **StationID** i.e. an observatory defined by its observatory code. Pier 
+information might by collected in table PIERS, referring to a specific **PierID**.
+ 
+![1.1.0](./martas/doc/namingconvention.png "Naming convention and database organization")
+Figure 1.1.0: Gives an overview about the naming convention and the shows the relation of information contents in 
+derived tables of a MARCOS database table.
 
 ## 2. Installation
 
@@ -1232,7 +1261,8 @@ the SensorID of datasets to be flagged. All SensorIDs containing TEST in their n
 parameters (i.e. TEST_1234_0001, TEST001_XXX_0002, AWSOME_TEST_0001). The last 86400 datapoint will be read and 
 outlier flagging (despiking) be performed using threshold and window.
 
-IMPORTANT: the methods of the analysis module are designed to work with a MagPy/MARTAS database. Using the methods on
+> [!IMPORTANT]  
+> the methods of the analysis module are designed to work with a MagPy/MARTAS database. Using the methods on
 non-DB architectures will need some work to adjust the methods. Methods and Classes of the analysis module are typically
 scheduled using cron.
 
