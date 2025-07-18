@@ -815,8 +815,8 @@ def main(argv):
                 destination=conf.get('destination')
             if not conf.get('filepath','') in ['','-']:
                 location=conf.get('filepath').strip()
-            if not conf.get('databasecredentials','') in ['','-']:
-                dbcred=conf.get('databasecredentials').strip()
+            if not conf.get('dbcredentials','') in ['','-']:
+                dbcred=conf.get('dbcredentials').strip()
             if not conf.get('revision','') in ['','-']:
                 destination=conf.get('revision').strip()
             if not conf.get('offset','') in ['','-']:

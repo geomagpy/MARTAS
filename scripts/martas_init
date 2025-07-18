@@ -106,7 +106,6 @@ def main(argv):
         shutil.rmtree(os.path.join(homedir, dir, "conf"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "init"),ignore_errors=True)
-        shutil.rmtree(os.path.join(homedir, dir, "install"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "logrotate"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "telegram"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "web"),ignore_errors=True)
@@ -120,8 +119,6 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "doc"), os.path.join(homedir, dir, "doc"))
     if not os.path.isdir(os.path.join(homedir,dir,"init")):
         shutil.copytree(os.path.join(file_path, "init"), os.path.join(homedir, dir, "init"))
-    if not os.path.isdir(os.path.join(homedir,dir,"install")):
-        shutil.copytree(os.path.join(file_path, "install"), os.path.join(homedir, dir, "install"))
     if not os.path.isdir(os.path.join(homedir,dir,"logrotate")):
         shutil.copytree(os.path.join(file_path, "logrotate"), os.path.join(homedir, dir, "logrotate"))
     if not os.path.isdir(os.path.join(homedir,dir,"scripts")):
@@ -145,7 +142,7 @@ def main(argv):
     mqttcred = ""
     backuppath = os.path.join(homedir, "backups")
     bufferpath = os.path.join(homedir, "MARTAS", "mqtt")
-    archivepath = os.path.join(homedir, "MARCOS", "archive")
+    archivepath = os.path.join(homedir, "MARCOS", "archive") # i.e. /home/USER/MARCOS/archive
     archivelog = "/tmp/archivestatus.log"
     monitorlog = "/tmp/monitorstatus.log"
     thresholdlog = "/tmp/thresholdstatus.log"
@@ -156,7 +153,7 @@ def main(argv):
     payloadformat = "martas"
     noti = "telegram"
     mailcred = "mymailcred"
-    mainpath = os.path.join(homedir,dir)
+    mainpath = os.path.join(homedir,dir) # i.e. /home/USER/.martas
 
     cronlist = []
     print (" ------------------------------------------- ")
@@ -205,6 +202,7 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "sensors.cfg"), os.path.join(confpath, "sensors.bak"))
     shutil.copyfile(os.path.join(confpath, "telegram.cfg"), os.path.join(confpath, "telegram.bak"))
     shutil.copyfile(os.path.join(confpath, "threshold.cfg"), os.path.join(confpath, "threshold.bak"))
+    shutil.copyfile(os.path.join(confpath, "telegrambot.cfg"), os.path.join(confpath, "telegrambot.bak"))
     shutil.copyfile(os.path.join(homedir, dir, "scripts", "cleanup.sh"), os.path.join(homedir, dir, "scripts", "cleanup.bak"))
 
     print (" ------------------------------------------- ")
@@ -576,11 +574,11 @@ def main(argv):
         runscript.append("")
         runscript.append('check_process()')
         runscript.append("{")
-        runscript.append("    result=`ps aux | grep \"$BOT\" | grep -v grep | wc -l`")
+        runscript.append("    result=`ps aux | grep \"$BOT $OPT\" | grep -v grep | wc -l`")
         runscript.append("}")
         runscript.append('get_pid()')
         runscript.append("{")
-        runscript.append("    pid=`ps -ef | awk -v pattern=\"$BOT\" \"$0 ~ pattern{print $2}\"`")
+        runscript.append("    pid=`ps -ef | awk -v pattern=\"$BOT $OPT\" \"$0 ~ pattern{print $2}\"`")
         runscript.append("}")
         runscript.append("")
         runscript.append("check_process")
@@ -588,7 +586,7 @@ def main(argv):
         runscript.append("# ######")
         runscript.append("case \"$1\" in")
         runscript.append("  start)")
-        runscript.append("    echo \"Starting $BOT ...\" ")
+        runscript.append("    echo \"Starting $BOT $OPT ...\" ")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"0\" ]; then")
         runscript.append("        echo \" $BOT is not running\" ")
@@ -602,22 +600,24 @@ def main(argv):
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  stop)")
-        runscript.append("    echo \"Stopping $BOT ...\" ")
+        runscript.append("    echo \"Stopping $BOT $OPT ...\" ")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"0\" ]; then")
         runscript.append("        echo \" $BOT is not running\" ")
         runscript.append("    else")
         runscript.append("        echo \" Stopping $BOT\"")
         runscript.append("        echo \" --------------------\"")
-        runscript.append("        pkill -f $BOT")
+        runscript.append("        get_pid")
+        runscript.append("        kill -9 $pid")
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  restart)")
-        runscript.append("    echo \"Restarting $BOT ...\" ")
+        runscript.append("    echo \"Restarting $BOT $OPT ...\" ")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"1\" ]; then")
         runscript.append("        echo \" Stopping $BOT\" ")
-        runscript.append("        pkill -f $BOT")
+        runscript.append("        get_pid")
+        runscript.append("        kill -9 $pid")
         runscript.append("    fi")
         runscript.append("    echo \" Starting $BOT\"")
         runscript.append("    echo \"--------------------\"")
@@ -626,11 +626,12 @@ def main(argv):
         runscript.append("    $BOT $OPT")
         runscript.append("    ;;")
         runscript.append("  update)")
-        runscript.append("    echo \"Starting $BOT with meta information update...\" ")
+        runscript.append("    echo \"Starting $BOT $OPT with meta information update...\" ")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"1\" ]; then")
         runscript.append("        echo \" Stopping $BOT\" ")
-        runscript.append("        pkill -f $BOT")
+        runscript.append("        get_pid")
+        runscript.append("        kill -9 $pid")
         runscript.append("    fi")
         runscript.append("    echo \" Starting $BOT\"")
         runscript.append("    echo \"--------------------\"")
@@ -641,9 +642,9 @@ def main(argv):
         runscript.append("  status)")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"0\" ]; then")
-        runscript.append("        echo \"$BOT is dead\" ")
+        runscript.append("        echo \"$BOT $OPT is dead\" ")
         runscript.append("    else")
-        runscript.append("        echo \"$BOT is running\" ")
+        runscript.append("        echo \"$BOT $OPT is running\" ")
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  *)")
@@ -703,7 +704,7 @@ def main(argv):
 
         if backuppath:
             comment6 = "Backup of MARTAS"
-            line6 = "martas_backup -b {} -d {} > {} 2>&1".format(os.path.join(homedir, dir), backuppath, os.path.join(logpath,"backup.log"))
+            line6 = "{} {} -b {} -d {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","backup.py"), os.path.join(homedir, dir), backuppath, os.path.join(logpath,"backup.log"))
             if not list(cron.find_comment(comment6)):
                 job6 = cron.new(command=line6, comment=comment6)
                 job6.setall('7 0 * * 1')
@@ -729,7 +730,7 @@ def main(argv):
                     "myhome" : stationname,
                     "outputdestination" : destination,
                     "filepath  :  /tmp" : "filepath  :  {}".format(filepath),
-                    "archivepath" : archivepath,
+                    "/archivepath" : archivepath,
                     "archivelog" : archivelog,
                     "monitorlog" : monitorlog,
                     "thresholdlog" : os.path.join(logpath,"thresholdstatus.log"),
@@ -787,6 +788,8 @@ def main(argv):
                         "dest": os.path.join(confpath, "gamma.cfg")}
     files_to_change["cleanup"] = {"source": os.path.join(homedir, dir, "scripts", "cleanup.bak"),
                         "dest": os.path.join(homedir, dir, "scripts", "cleanup.sh")}
+    files_to_change["telegrambot"] = {"source": os.path.join(confpath, "telegrambot.bak"),
+                        "dest": os.path.join(confpath, "telegrambot.cfg")}
 
     for f in files_to_change:
         d = files_to_change.get(f)
@@ -809,6 +812,9 @@ def main(argv):
     if initjob == "MARCOS":
         print("- update filter.cfg and activate filter job in crontab in case of > 1Hz data")
         print("- read the manual (again) for monitoring and threshold - activate/configure")
+        print("- your collector job will be started tonight. Please start manually with upload option:")
+        print("  bash collect-{}.sh update".format())
+        print("  keep running for a few minutes. This will update the meta information in your database.")
 
 if __name__ == "__main__":
    main(sys.argv[1:])

@@ -106,7 +106,6 @@ def main(argv):
         shutil.rmtree(os.path.join(homedir, dir, "conf"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "init"),ignore_errors=True)
-        shutil.rmtree(os.path.join(homedir, dir, "install"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "logrotate"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "telegram"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "web"),ignore_errors=True)
@@ -120,8 +119,6 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "doc"), os.path.join(homedir, dir, "doc"))
     if not os.path.isdir(os.path.join(homedir,dir,"init")):
         shutil.copytree(os.path.join(file_path, "init"), os.path.join(homedir, dir, "init"))
-    if not os.path.isdir(os.path.join(homedir,dir,"install")):
-        shutil.copytree(os.path.join(file_path, "install"), os.path.join(homedir, dir, "install"))
     if not os.path.isdir(os.path.join(homedir,dir,"logrotate")):
         shutil.copytree(os.path.join(file_path, "logrotate"), os.path.join(homedir, dir, "logrotate"))
     if not os.path.isdir(os.path.join(homedir,dir,"scripts")):
@@ -811,12 +808,15 @@ def main(argv):
     # end of init
     print("")  # used for monitoring of logfile
     print("Things to do:")
+    if initjob == "MARTAS":
+        print("- update sensors.cfg and add your connected sensors in {}".format(os.path.join(homedir,dir,"conf")))
+        print("- eventually update your sensors initialization script if required")
     print("- check configuration files in {}".format(os.path.join(homedir,dir,"conf")))
     if initjob == "MARCOS":
         print("- update filter.cfg and activate filter job in crontab in case of > 1Hz data")
         print("- read the manual (again) for monitoring and threshold - activate/configure")
         print("- your collector job will be started tonight. Please start manually with upload option:")
-        print("  bash collect-{}.sh update".format())
+        print("  bash collect-{}.sh update".format(jobname))
         print("  keep running for a few minutes. This will update the meta information in your database.")
 
 if __name__ == "__main__":
