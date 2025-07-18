@@ -323,7 +323,8 @@ def apply_filter(db, statusmsg=None, groupdict=None, permanent=None, blacklist=N
                 stationid = db.select('StationID', 'DATAINFO', 'DataID LIKE "{}"'.format(inst))[0]
                 sensor = "_".join(inst.split('_')[:-1])
                 datapath = os.path.join(basepath,stationid,sensor,inst,'*')
-                print (datapath)
+                if debug:
+                    print ("Datapath", datapath)
                 begin = endtime-timedelta(days=dayrange)
                 if debug:
                     print ("    Reading data between {} and {}".format(begin, endtime))
@@ -537,14 +538,14 @@ def main(argv):
     except:
         recentthreshold=7200
     destination = basics.get('destination')
-    basepath = basics.get('basepath', "/srv/archive")
+    basepath = basics.get('archivepath', "/srv/archive")
     receiver  = basics.get('notification',"")
     notificationcfg  = basics.get('notificationcfg',"")
     logpath = basics.get('logpath',"/tmp/filterstatus.log")
     if newloggername:
         logpath = os.path.join(os.path.dirname(logpath),newloggername)
     outputformat = basics.get('outputformat')
-    credentials = basics.get('credentials',"cobsdb")
+    credentials = basics.get('dbcredentials',"cobsdb")
 
     print ("2. Activate logging scheme as selected in config")
     #sn = 'ALDEBARAN' # servername  get name from machine ...

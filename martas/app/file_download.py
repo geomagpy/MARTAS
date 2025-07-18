@@ -139,15 +139,15 @@ walksubdirs     :      False
 
 # Collecting server
 # -----------------
-# Rawdatapath:
+# Archivepath:
 # two subdirectories will be created if not existing - based on stationID and sensorID
 # e.g. WIC/LEMI025_22_0003
-rawpath            :      /srv/archive
-# setting datedirectory will lead to date related subdirectories within raw data folder
-# supported are "year" i.e. /raw/2024/* or "month" i.e. /raw/2024/03/*
-#datedirectory      :      month
+archivepath            :      /srv/archive
+# setting subdirectory will lead to date related subdirectories within raw data folder
+# supported are year "Y" i.e. /raw/2024/* or "Ym" i.e. /raw/2024/03/*
+#subdirectory    :      Y
 
-# If forcedirectory, then rawpath is used for saving data
+# If forcedirectory, then archivepath is used for saving data
 forcedirectory     :      False
 
 
@@ -401,18 +401,18 @@ def check_configuration(config=None,debug=False):
 
     creddb =  config.get('dbcredentials','')
 
-    if config.get('rawpath') == '' and creddb == '':
+    if config.get('archivepath') == '' and creddb == '':
         print('Specify either a shortcut to the credential information of the database or a local path:')
         print('-- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
-    if config.get('rawpath') == '':
+    if config.get('archivepath') == '':
         destination = tempfile.gettempdir()
     else:
-        if not os.path.isdir(config.get('rawpath')):
-            print ("Destination directory {} not existing. Creating it".format(config.get('rawpath'))) 
-            os.makedirs(config.get('rawpath'))
-        destination = config.get('rawpath')
+        if not os.path.isdir(config.get('archivepath')):
+            print ("Destination directory {} not existing. Creating it".format(config.get('archivepath')))
+            os.makedirs(config.get('archivepath'))
+        destination = config.get('archivepath')
     config['destination'] = destination
 
     credtransfer = config.get('sourcecredentials')
@@ -678,11 +678,11 @@ def obtain_data_files(config=None,filelist=None,debug=False):
     stationid = config.get('stationid')
     # if sensorid is not provided it will be extracted from the filelist
     sensorid = config.get('sensorid')
-    localpath = config.get('rawpath')
+    localpath = config.get('archivepath')
     protocol = config.get('protocol')
     source = config.get('source')
     destination = config.get('destination')
-    usedatedir = config.get('datedirectory','')
+    usedatedir = config.get('subdirectory','')
     deleteremote = config.get('deleteremote',False)
     user = config.get('rmuser')
     password = config.get('rmpassword')
@@ -738,16 +738,20 @@ def obtain_data_files(config=None,filelist=None,debug=False):
             datedir = ''
             if debug:
                 print ("   Accessing file {}".format(f))
-            if usedatedir in ['year','month']:
+            if usedatedir in ['Y','Ym','Yj']:
                 # get year from filename or ctime/mtime
                 tcheck = datetime.fromtimestamp(os.path.getmtime(f))
                 fyear = tcheck.year
                 fmonth = tcheck.month
-                if usedatedir == 'year':
+                dirdoy = tcheck.strftime('%j')
+
+                if usedatedir == 'Y':
                     # get year from filename or ctime/mtime
                     datedir = fyear
-                elif usedatedir == 'month':
+                elif usedatedir == 'Ym':
                     datedir = '{}/{:02d}'.format(fyear,fmonth)
+                elif usedatedir == 'Yj':
+                    datedir = '{}/{:03d}'.format(fyear,dirdoy)
                 if debug:
                     print ("date related subdirectory:", datedir)
             path = os.path.normpath(f)
@@ -992,7 +996,7 @@ def write_data(config=None,localpathlist=None,debug=False):
             # Writing data
             if not debug and get_bool(config.get('writearchive')):
                 if force:
-                    archivepath = os.path.join(config.get('rawpath'),stationid.upper(),fixsensorid,datainfoid)
+                    archivepath = os.path.join(config.get('archivepath'),stationid.upper(),fixsensorid,datainfoid)
 
                     if config.get('archiveformat'):
                         print("  {}: Writing {} data points archive".format(data.header.get('SensorID'), data.length()[0]))
@@ -1000,7 +1004,7 @@ def write_data(config=None,localpathlist=None,debug=False):
                             # LEMI bin files contains str1 column which cannot be written to PYCDF (TODO) - column contains GPS state
                             data = data._drop_column('str1')
                         if archivepath:
-                            data.write(archivepath,filenamebegins=datainfoid+'_',format_type=config.get('archiveformat'),mode=writemode)
+                            data.write(archivepath,filenamebegins=datainfoid+'_',format_type=config.get('archiveformat'),mode=writemode,subdirectory=subdirectory)
                 else:
                     print ("  Writing to archive requires forcerevision")
             elif debug:

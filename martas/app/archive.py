@@ -26,9 +26,9 @@ import socket
 """
 #configuration:
 
-credentials     :      cobsdb
+dbcredentials     :      cobsdb
 
-path            :      /srv/archive
+archivepath            :      /srv/archive
 
 # By default all sensors in path will be used with default criteria
 defaultdepth    :      2
@@ -283,7 +283,7 @@ def main(argv):
     receiverconf = config.get('notificationconf')
     subdirectory = config.get('subdirectory',None)
 
-    db = mm.connect_db(config.get('credentials'))
+    db = mm.connect_db(config.get('dbcredentials'))
 
     sql = create_data_selectionlist(blacklist=config.get('blacklist',[]), debug=debug)
 
@@ -306,7 +306,7 @@ def main(argv):
 
         if not db: # check whether db is still connected
             print ("    Lost DB - reconnecting ...")
-            db = mm.connect_db(config.get('credentials'), exitonfailure=False, report=False)
+            db = mm.connect_db(config.get('dbcredentials'), exitonfailure=False, report=False)
 
         para = [config.get('defaultdepth'), config.get('archiveformat'),config.get('writearchive'),config.get('applyflags'), config.get('cleandb'),config.get('cleanratio')]
         # Get default parameter from config
@@ -366,7 +366,7 @@ def main(argv):
                     print ("Please take care - could not extract sampling rate - will assume 60 seconds")
                     sr = 60
 
-                path = config.get('path')
+                path = config.get('archivepath')
                 archivepath = None
 
                 if path:

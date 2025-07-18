@@ -145,7 +145,7 @@ def main(argv):
     mqttcred = ""
     backuppath = os.path.join(homedir, "backups")
     bufferpath = os.path.join(homedir, "MARTAS", "mqtt")
-    archivepath = os.path.join(homedir, "MARCOS", "archive")
+    archivepath = os.path.join(homedir, "MARCOS", "archive") # i.e. /home/USER/MARCOS/archive
     archivelog = "/tmp/archivestatus.log"
     monitorlog = "/tmp/monitorstatus.log"
     thresholdlog = "/tmp/thresholdstatus.log"
@@ -156,7 +156,7 @@ def main(argv):
     payloadformat = "martas"
     noti = "telegram"
     mailcred = "mymailcred"
-    mainpath = os.path.join(homedir,dir)
+    mainpath = os.path.join(homedir,dir) # i.e. /home/USER/.martas
 
     cronlist = []
     print (" ------------------------------------------- ")
@@ -205,6 +205,7 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "sensors.cfg"), os.path.join(confpath, "sensors.bak"))
     shutil.copyfile(os.path.join(confpath, "telegram.cfg"), os.path.join(confpath, "telegram.bak"))
     shutil.copyfile(os.path.join(confpath, "threshold.cfg"), os.path.join(confpath, "threshold.bak"))
+    shutil.copyfile(os.path.join(confpath, "telegrambot.cfg"), os.path.join(confpath, "telegrambot.bak"))
     shutil.copyfile(os.path.join(homedir, dir, "scripts", "cleanup.sh"), os.path.join(homedir, dir, "scripts", "cleanup.bak"))
 
     print (" ------------------------------------------- ")
@@ -732,7 +733,7 @@ def main(argv):
                     "myhome" : stationname,
                     "outputdestination" : destination,
                     "filepath  :  /tmp" : "filepath  :  {}".format(filepath),
-                    "archivepath" : archivepath,
+                    "/archivepath" : archivepath,
                     "archivelog" : archivelog,
                     "monitorlog" : monitorlog,
                     "thresholdlog" : os.path.join(logpath,"thresholdstatus.log"),
@@ -790,6 +791,8 @@ def main(argv):
                         "dest": os.path.join(confpath, "gamma.cfg")}
     files_to_change["cleanup"] = {"source": os.path.join(homedir, dir, "scripts", "cleanup.bak"),
                         "dest": os.path.join(homedir, dir, "scripts", "cleanup.sh")}
+    files_to_change["telegrambot"] = {"source": os.path.join(confpath, "telegrambot.bak"),
+                        "dest": os.path.join(confpath, "telegrambot.cfg")}
 
     for f in files_to_change:
         d = files_to_change.get(f)
