@@ -1502,6 +1502,8 @@ data files/ database  written
 
 ### 9.1 Libraries
 
+Principally all libraries should work in version 2.0.0 although only tested libraries contain the new version number.
+
 | Instrument          | versions | Inst-type   | Library                  | mode     | init           | requires         |
 |---------------------|----------|-------------|--------------------------|----------|----------------|------------------|
 | Arduino             |          | multiple    | activearduinoprotocol.py | active   |                |                  |
@@ -1510,24 +1512,24 @@ data files/ database  written
 | BM35-pressure       |          | pressure    | bm35protocol.py          | passive  | bm35init.sh    |                  |
 | BME280              |          | pressure    | bme280i2cprotocol.py     | passive  |                | adafruit_bme280  |
 | CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active   |                | pycampbellcr1000 |
-| Cesium G823         |          | mag-scalar  | csprotocol.py            | passive  |                |                  |
+| Cesium G823         |          | opt.pumped  | csprotocol.py            | passive  |                |                  |
 | Thies LNM           |          | laserdisdro | disdroprotocol.py        | active   |                |                  |
-| DSP Ultrasonic wind |          | 2D wind     | dspprotocol.py           | active   |                |                  |
-| ENV05               |          | temp-humid  | envprotocol.py           | passive  |                |                  |
+| DSP Ultrasonic wind |          | wind        | dspprotocol.py           | active   |                |                  |
+| ENV05               | 2.0.0    | temperature | envprotocol.py           | passive  |                |                  |
 | 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active   |                |                  |
 | GIC                 |          | special     | gicprotocol.py           | active   |                |                  |
-| GP20S3              |          | mag-scalar  | gp20s3protocol.py        | passive  |                |                  |
-| GSM19               |          | mag-scalar  | gsm19protocol.py         |          |                |                  |
-| GSM90               |          | mag-scalar  | gsm90protocol.py         | passive  | gsm90v?init.sh |                  |
+| GP20S3              |          | opt.pumped  | gp20s3protocol.py        | passive  |                |                  |
+| GSM19               |          | overhauser  | gsm19protocol.py         |          |                |                  |
+| GSM90               |          | overhauser  | gsm90protocol.py         | passive  | gsm90v?init.sh |                  |
 | DataFiles           |          | multiple    | imfileprotocol.py        | active   |                |                  |
-| LEMI025             |          | mag-vario   | lemiprotocol.py          | passive  |                |                  |
-| LEMI036             |          | mag-vario   | lemiprotocol.py          | passive  |                |                  |
+| LEMI025             |          | fluxgate    | lemiprotocol.py          | passive  |                |                  |
+| LEMI036             |          | fluxgate    | lemiprotocol.py          | passive  |                |                  |
 | Tilt Lippmann       | develop  | tilt        | lmprotocol.py            | active   |                |                  |
 | LORAWAN             | develop  | multiple    | lorawanprotocol.py       |          |                |                  |
-| MySQL               |          | multiple    | mysqlprotocol.py         | active   |                |                  |
+| MySQL               | 2.0.0    | multiple    | mysqlprotocol.py         | active   |                |                  |
 | ObsDaq              |          | multiple    | obsdaqprotocol.py        | active   | obsdaqinit.sh  |                  |
 | OneWire             |          | multiple    | owprotocol.py            | passive  |                |                  |
-| POS1                |          | mag-scalar  | pos1protocol.py          | passive  | pos1init.sh    |                  |
+| POS1                |          | overhauser  | pos1protocol.py          | passive  | pos1init.sh    |                  |
 | Test                | 2.0.0    | special     | testprotocol.py          |          |                |                  |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
