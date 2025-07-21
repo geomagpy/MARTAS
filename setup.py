@@ -20,6 +20,10 @@ install_requires=[
             "requests",
             "python-crontab",
             "twisted",
+            "plotly",
+            "dash",
+            "dash_daq",
+            "twisted",
             "setuptools >= 61.0.0"
           ]
 
