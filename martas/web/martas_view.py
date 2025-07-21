@@ -16,7 +16,7 @@ plotly
 pip install dash_daq
 """
 # Configuration information
-configpath = "/home/leon/.martas/conf/martas.cfg"
+configpath = "../conf/martas.cfg"
 
 
 def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):

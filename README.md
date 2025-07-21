@@ -2,6 +2,7 @@
 
 **MagPys Automated Real Time Acquisition System**
 
+![0.0.0](./martas/web/assets/header.png "MARTAS")
 
 
 MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
@@ -268,7 +269,7 @@ the martas python package, these apps remain unaffected. In order to update the 
 with the -u option. If you want to replace an existing martas/marcos installation and reset the contents of all 
 configuration files then run the martas_init command with the -r option. By default martaa_init will create a .martas
 folder in the uses home directory for storing its data and configurations. You can change this directory by providing
-another path (reltive to the users homedirectory) using -d. I.e. -d MARTAS will use /home/user/MARTAS as default 
+another path (relative to the users homedirectory) using -d. I.e. -d MARTAS will use /home/user/MARTAS as default 
 directory.
 
 ### 3.2 Inputs during setup
@@ -290,7 +291,34 @@ crontab -l for the exact name) as listed in section 4.2 or 5.2.
 
 ## 4. MARTAS
 
-### 4.1 Defining and configuring sensors
+### 4.1. Quick instructions
+
+Setting up a MARTAS acuisition system can be accomplished very quickly, if you already have some experience.
+
+**Step 1**: initialize MARTAS using martas_init (details on [martas_init](#3-initialization-of-martasmarcos)) 
+
+        (martas)$ martas_init
+
+**Step 2**: update/insert sensor information in sensors.cfg (details in [section 4.2](#42-defining-and-configuring-sensors)) 
+ 
+        (martas)$ nano ~/.martas/conf/sensors.cfg
+
+**Step 3**: start MARTAS (details in [section 4.5](#45-running-the-acquisition-system)). Actually MARTAS will be 
+started automatically after some time.
+
+        (martas)$ cd ~/.martas
+        (martas)$ bash -i runmartas.sh start
+
+**Step 4**: view MARTAS acquisition (details in [section 4.6](#46-the-martas-viewer)) 
+
+        (martas)$ cd ~/.martas
+        (martas)$ bash martas_view
+
+Open webpage http://127.0.0.1:8050
+
+### 4.2 Defining and configuring sensors
+
+#### 4.2.1 The sensors.cfg configuration file
 
 When initialization is finished there is only one further step to do in case of a MARTAS acquisition machine. You need 
 to specify the sensors. For this you will have to edit the sensors configuration file.
@@ -327,15 +355,32 @@ order:
 | sensorgroup  |  Diszipline or group  | magnetism |
 | sensordesc   |  Description of sensor details | GEM Overhauzer v7.0 |
 
-
 IMPORTANT:
 - sensorids should only contain basic characters like 0,1,2,..9,a,b,...,z,A,B,...,Z (no special characters, no underscors, no minus etc)
 - sensorids should not contain the phrases "data", "meta" or "dict"
+- sensorids should follow the [naming](#11-the-martasmarcos-naming-conventions-and-data-model) convention
 
 Further details and descriptions are found in the commentary section of the sensors.cfg configuration file.
 
+#### 4.2.2 Obtaining parameters for sensors.cfg
 
-### 4.2 Sensors requiring initialization
+Sensors.cfg requires a number of parameters for proper communication. Please consult the sensor specific article in
+[section 4.4](#44-examples-for-sensor-definitions-in-sensorscfg) for supported systems and the manual of your sensor.
+In addition you will need to provide connection details, in particular the port of the device. The following linux
+commands will help you to identify the ports. If you connect you system to a real serial port, the number should be 
+written next to the port. In case of USB connections, also when using serial-to-usb converters, you will find out the 
+connection as follows. 
+
+The command *lsusb* will give you an overview about USB connections. When issuing this command before and after you 
+attach a serial-to-usb device you will find out the name and type of this device.
+
+        $ lsusb
+
+In order to get the corresponding device port (i.e.ttyUSB0) you can use the following command.
+
+        $ dmesg | grep usb
+
+### 4.3 Sensors requiring initialization
 
 Several sensors currently supported by MARTAS require an initialization. The initialization process defines e.g. 
 sampling rates, filters, etc. in a way that the sensor systems is automatically sending data to the serial port 
@@ -350,7 +395,7 @@ martas config directory)
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
 
-### 4.3. Examples for sensor definitions in sensors.cfg
+### 4.4 Examples for sensor definitions in sensors.cfg
 
 #### Geomagetic GSM90 Overhauzer Sensors (GEM Systems)
 
@@ -419,75 +464,94 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
          WICadjusted,/home/leon/Cloud/Daten,-,-,-,-,active,None,30,1,IMfile,*.min,-,0001,-,-,-,magnetism,-
 
 
-### 4.4 Running the acquisition system
+### 4.5 Running the acquisition system
 
 Please note: the steps described within this section have already been preconfigured during martas_init. You can 
 manually change and re-configure anytime.
 
-#### 4.2.1 When installation is finished you can start the system as follows:
+#### 4.5.1 Manual start
 
-        $ sudo /etc/init.d/martas start
+        (martas)$ cd ~/.martas
+        (martas)$ bash -i runmartas.sh start
 
-    - The following options are now available:
-        $ sudo /etc/init.d/martas status
-        $ sudo /etc/init.d/martas start
-        $ sudo /etc/init.d/martas restart
-        $ sudo /etc/init.d/martas stop
+The following options are now available:
 
-#### 4.4.2 Command line
+        (martas)$ bash -i runmartas.sh status
+        (martas)$ bash -i runmartas.sh start
+        (martas)$ bash -i runmartas.sh stop
+        (martas)$ bash -i runmartas.sh restart
 
-        $ python acquisition.py -m /home/user/martas.cfg
+#### 4.5.2 Automatic schedule
 
-#### 4.4.3 Adding a cleanup for the bufferdirectory
+The MARTAS start command is included into the users crontab during the initialization process of martas_init. Therefore
+the acquistion job will be started automatically depending on the schedule of the crontab (default is around midnight,
+once a day). The process will only be started in case it is not yet running.
 
-   Principally, all data is buffered in binary files, by default within the /home/USER/MARTAS/mqtt directory.
-   You can mount a SD card or external memory as such a bufferdirectory.
-   In order to prevent an overflow of the local file system you can also activate a cleanup job
-   to remove old files from the buffer directory.
+### 4.6 The MARTAS viewer
 
-   Add the following line to /etc/crontab
+Since MARTAS version 2.0 a MARTAS viewer is included. The viewer will create a local webpage giving you some information
+about the MARTAS system, its connected sensors and data. You can start and open the MARTAS viewer as follows: 
 
-	15 0 * * * root sh /home/user/MARTAS/scripts/cleanup.sh
+        (martas)$ cd ~/.martas
+        (martas)$ bash martas_view
 
-   Edit cleanup.sh to fit your needs. By default it reads (deleting all files older than 100 days):
+Open webpage http://127.0.0.1:8050 will give you something like:
 
-	find /home/USER/MARTAS/mqtt -name "*.bin" -ctime +100 -exec rm {} \;
+![4.6.1](./martas/doc/martas_viewer.png "The MARTAS viewer")
+Figure 4.6.1: The MARTAS viewer provides a quick overview about live data, connected sensors, and some configuration
+information. In this example two sensors are connected, one of which is a testing device. The available recorded 
+elements are shown on the left side, a "live" image of acquired data is shown on the right side. On the upper right
+you can modify the live display.
 
-#### 4.4.4 Adding a start option to crontab
+### 4.7 Additional setups
 
-   In case that the MARTAS acquisition process hangs up or gets terminated by an unkown reason
-   it is advisable to add a start option to crontab, which starts MARTAS in case it is not
-   running any more. You can also schedule a restart using similar inputs
+The initialization process will also schedule a number of additional jobs for your MARTAS maschine, which you can 
+modify and/or disable. It also some applications for you eventually might want to enable.
 
-   Add the following line to /etc/crontab
+#### 4.7.1 Cleanup of buffer memory
 
-       10  0  *  *  *  root    /etc/init.d/martas start
+Principally, all data is buffered in binary files, by default within the /home/USER/MARTAS/mqtt directory. 
+You can also mount any external storage medium like a SD card or external memory to be used as bufferdirectory. By 
+default the buffer memory is handled as some kind of ring-buffer, which only contains data covering a certain timerange. 
+Old data is continuously replaced by new data, preventing a buffer overflow. This is done by the configurable cleanup
+routine, which has been automatically added and activated in your crontab by the initialization process. 
 
-### 4.4.4 Regular backups of all MARTAS configurations
+By default, the cleanup routine will remove local buffer files older than 100 days and local MARTAS backups older then
+60 days. You might want to change these values, but at least consider them for remote backups. 
 
-MARTAS comes with a small backup application to be scheduled using cron, which saves basically all MARTAS configuration
+
+#### 4.7.2 Regular backups of all MARTAS configurations
+
+MARTAS comes with a small [backup application](#64-backup) to be scheduled using cron, which saves basically all MARTAS configuration
 files within a zipped archive. The aim of this application is to save all essential information within one single data
 file so that in case of a system crash (hardware problem, SD card defect, etc) you can easily and quickly setup an 
 identical "new" system. You might also use the backups to setup similar copies of a specific system.
+A backup of your MARTAS configuration is automatically scheduled once a week during initialization.
 
-A backup can be created by issuing the following command:
+#### 4.7.3 Monitoring MARTAS acquisition
 
-          $ martas_backup -b /home/USER/.martas -d ~/backups
+Also scheduled during automatic initialization is a basic [monitoring routine](#612-monitor), which makes use of the given 
+notification method, provided that this method is properly configured. The basic monitoring process will watch 
+your disk sizes for buffer memory, the martas logfile for errors and the actuality of the buffer files. Changing states
+or critical remaining disk sizes will issue messages. The martas logfile, typically to be found in ~/.martas/log, will
+be subject to logrotate, in order to prevent an overflow. 
 
-Schedule the script using cron.
+#### 4.7.4 Warning messages with threshold tester
 
-          $ crontab -e
+The [threshold](#621-threshold) testing routine is prepared and preconfigured but NOT enabled. In order to do so, adept the parameters
+of the configuration file and activate it in crontab.
 
-Insert the following line to create backups every 1 day per month.
+### 4.8 Troubleshooting
 
-          10 0   1 * *   martas_backup -b /home/USER/.martas -d /home/USER/backups
+A few hints in order to test for proper recording and data publication.
 
-You might want to save the backup on a different storage device using the destination option -d. 
+1) Check the log files, typically to be found in ~/.martas/log/martas.log
 
-In order to recover a system from an existing backup, call 
+2) Check the buffer file actuality, i.e. ls -al ~/MARTAS/mqtt/YOURSENSORID/
 
-          $ martas_backup -r /home/USER/backups/backup_NAME_DATE.zip 
+3) Check MQTT publication
 
+           mosquiito_sub -h BROKER -t STATIONID/#
 
 ## 5. MARCOS
 
@@ -606,23 +670,24 @@ find subsections with detailed instructions and example applications for all of 
 |------------------|------------------------------------------------------|---------------|---------|---------|
 | archive.py       | Read database tables and create archive files        | archive.cfg   | 2.0.0*  | 6.2     |
 | ardcomm.py       | Communicating with arduino microcontroller           |               | 1.0.0   | 6.3     |
-| basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg | 2.0.0   | 6.4     |
-| checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0*  | 6.5     |
-| db_truncate.py   | Delete data from all data tables                     | truncate.cfg  | 2.0.0*  | 6.6     |
-| file_download.py | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.7     |
-| file_upload.py   | Upload files                                         | upload.json   | 2.0.0*  | 6.8     |
-| filter.py        | filter data                                          | filter.cfg    | 2.0.0   | 6.9     |
-| gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.10    |
-| monitor.py       | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0*  | 6.11    |
-| obsdaq.py        | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.12    |
-| optimzetables.py | Optimize table disk usages (requires ROOT)           |               | 2.0.0*  | 6,13    |
-| palmacq.py       | Communicate with PalmAcq datalogger                  | obsdaq.cfg    | 2.0.0*  | 6.12    |
-| serialinit.py    | Sensor initialization uses this method               |               | 2.0.0*  | 6.14    |
-| speedtest.py     | Test bandwidth of the internet connection            |               | 2.0.0*  | 6.15    |
-| statemachine.py  | Currently under development - will replace threshold |               | 1.0.0   | 6.16    |
-| testnote.py      | Send a quick message by mail or telegram             |               | 2.0.0*  | 6.17    |
-| testserial.py    | test script for serial comm - development tool       |               | 1.0.0   | 6.18    |
-| threshold.py     | Tests values and send reports                        | threshold.cfg | 2.0.0   | 6.19    |
+| backup.py        | Backup configuration                                 |               | 2.0.0   | 6.4     |
+| basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg | 2.0.0   | 6.5     |
+| checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0*  | 6.6     |
+| db_truncate.py   | Delete data from all data tables                     | truncate.cfg  | 2.0.0*  | 6.7     |
+| file_download.py | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.8     |
+| file_upload.py   | Upload files                                         | upload.json   | 2.0.0*  | 6.9     |
+| filter.py        | filter data                                          | filter.cfg    | 2.0.0   | 6.10    |
+| gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.11    |
+| monitor.py       | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0*  | 6.12    |
+| obsdaq.py        | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.13    |
+| optimzetables.py | Optimize table disk usages (requires ROOT)           |               | 2.0.0*  | 6,14    |
+| palmacq.py       | Communicate with PalmAcq datalogger                  | obsdaq.cfg    | 2.0.0*  | 6.15    |
+| serialinit.py    | Sensor initialization uses this method               |               | 2.0.0*  | 6.16    |
+| speedtest.py     | Test bandwidth of the internet connection            |               | 2.0.0*  | 6.17    |
+| statemachine.py  | Currently under development - will replace threshold |               | 1.0.0   | 6.18    |
+| testnote.py      | Send a quick message by mail or telegram             |               | 2.0.0*  | 6.19    |
+| testserial.py    | test script for serial comm - development tool       |               | 1.0.0   | 6.20    |
+| threshold.py     | Tests values and send reports                        | threshold.cfg | 2.0.0   | 6.21    |
 
 Version 2.0.0* means it still needs to be tested
 
@@ -674,7 +739,7 @@ Backups are created by default on a weekly basis and you might want to store the
 Eventually use file_upload for this purpose.
 
 
-### 6.4 basevalue
+### 6.5 basevalue
 
 Basevalue.py (re)calculates basevalues from DI measurements and provided variation and scalar data. The method can use 
 multiple data sources and piers as defined in the configuration file. It further supports different run modes defining
@@ -695,7 +760,7 @@ Instructions will be added gradually here. Meanwhile contact the Conrad Observat
 The basevalue application, in particular its overview plotting method, currently has some limitations as it was developed
 for DHZ baselines and might not display XYZ data correctly. 
 
-### 6.5 checkdatainfo
+### 6.6 checkdatainfo
 
 checkdatainfo.py checks for all data tables which are missing in DATAINFO  and SENOSRS. This method helps to 
 identify any data tables which are continuously filled, but not available in XMagPy and which are not treated by
@@ -713,7 +778,7 @@ Example:
         python checkdatainfo.py -c cobsdb -d -s
 
 
-### 6.6 db_truncate
+### 6.7 db_truncate
 
 db_truncate.py truncates contents of timesseries in a MagPy database. Whereas "archive" also allows for truncating 
 the database (based on DATAINO) "db\_truncate" removes contents from all tables of xxx\_xxx\_xxxx\_xxxx structure.
@@ -728,7 +793,7 @@ Application:
 
 
 
-### 6.7 file_download
+### 6.8 file_download
 
 Downloads data by default in to an archive "raw" structure like /srv/archive/STATIONID/SENSORID/raw
 Adds data into a MagPy database (if writedatabase is True)
@@ -771,7 +836,7 @@ The application requires credentials of remote source and local database created
              forcerevision     :      0001
 
       
-### 6.8 file_upload
+### 6.9 file_upload
 
 Upload data to a destination using various different protocols supported are FTP, SFTP, RSYNC, SCP. Jobs are listed in 
 a json structure and read by the upload process. You can have multiple jobs. Each job refers to a local path. Each job
@@ -801,7 +866,7 @@ Solution:
  - this error is typically related to an empty memory file
 
 
-### 6.9 filter
+### 6.10 filter
 
 Use the filter application to smooth and resample data sets. The methods uses the MagPy filter method and allows
 for the application of all included filter methods (https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#5-timeseries-methods).
@@ -882,7 +947,7 @@ The filter method should be applied in an overlapping way, as the beginning and 
 removed in dependency of the filter width. 
 
  
-### 6.10 gamma
+### 6.11 gamma
 
 Working with Spectral radiometric data: The gamma script can be used to extract spectral measurements, reorganize the 
 data and to analyze such spectral data as obtained by a DIGIBASE RH.
@@ -913,7 +978,7 @@ Prerequisites are a DIGIBASE MCA and the appropriate linux software to run it.
         30 6   *  *  *  root  $PYTHON /home/pi/SCRIPTS/gamma.py -p /srv/mqtt/DIGIBASE_16272059_0001/raw/ -j load,analyze -c /home/pi/SCRIPTS/gamma.cfg  > /var/log/magpy/digianalyse.log 2>&1
 
 
-### 6.11 monitor
+### 6.12 monitor
 
 It is possible to monitor most essential aspects of data acquisition and storage. Monitor allows for testing data 
 actuality, get changes in log files, and/or get warnings if disk space is getting small. Besides, monitor.py can
@@ -933,12 +998,12 @@ Application:
 
         python3 monitor.py -c ~/.martas/conf/monitor.cfg
 
-### 6.12 obsdaq and palmacq
+### 6.13 obsdaq and palmacq
 
 Richard, please...
 
 
-### 6.13 optimizetables
+### 6.14 optimizetables
 
 Optimizing tables and free space, the unblocking version. Please note, executing this job requires root privileges
 
@@ -947,12 +1012,12 @@ REQUIREMENTS:
  - sudo apt install percona-toolkit
  - main user (user/cobs) needs to be able to use sudo without passwd (add to /etc/sudoers)
 
-### 6.14 serialinit
+### 6.16 serialinit
 
 Serialinit is used by all initialization jobs. See init folder...  
 
 
-### 6.15 speedtest
+### 6.17 speedtest
 
 Perform a speedtest based on speedtest-cli (https://www.speedtest.net/de/apps/cli)
 
@@ -965,12 +1030,12 @@ If you want to run it periodically then add to crontab:
 
         */5  *  *  *  *  /usr/bin/python3 /path/to/speedtest.py -c /path/to/conf.cfg -n speed_starlink01_0001  > /dev/NULL 2&>1
 
-### 6.16 statemachine
+### 6.18 statemachine
 
 See threshold. Statemaschine is currently developed and may replace threshold in a future version.
 
 
-### 6.17 testnote
+### 6.19 testnote
 
 Send notifications via email and telegram. testnote.py will create a log file with a message. Whenever, the logfile 
 content (message) is changing, a notification will be send out to the defined receiver. In order to use notifications, 
@@ -991,11 +1056,11 @@ APPLICATION:
         python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
 
 
-### 6.18 testserial
+### 6.20 testserial
 
 Simple test code for serial communication. Not for any productive purpose.
 
-### 6.19 threshold
+### 6.21 threshold
 
 The threshold application can be used to check your data in realtime and trigger certain action in case a defined 
 threshold is met. Among the possible actions are notifications by mail or messenger, switching command to a connected

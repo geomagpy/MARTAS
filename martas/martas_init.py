@@ -467,6 +467,21 @@ def main(argv):
             for line in runscript:
                 fout.write(line+"\n")
 
+        print(" ------------------------------------------- ")
+        print(" Creating the MARTAS viewer")
+        viewscript = []
+        viewscript.append("#! /bin/bash")
+        viewscript.append("# MARTAS viewer")
+        viewscript.append("")
+        viewscript.append('cd {}'.format(os.path.join(homedir,dir,"web")))
+        viewscript.append('PYTHON={}'.format(sys.executable))
+        viewscript.append('VIEW="{}"'.format(os.path.join(homedir,dir,"web","martas_view.py")))
+        viewscript.append("$PYTHON $VIEW")
+        viewscript.append("xdg-open http://127.0.0.1:8050")
+        with open(os.path.join(homedir, dir, "martas_view"), "wt") as fout:
+            for line in viewscript:
+                fout.write(line+"\n")
+
         cronlist.append("# Running MARTAS ")
         cronlist.append("15  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
         cronlist.append("# Monitoring {} - hourly".format(jobname)) # jobname only for MARTAS
