@@ -7,11 +7,13 @@
 
 MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
 and analysis in heterogeneous sensor environments. MARTAS is designed to support professional observatory networks and
-data sources consisting of timeseries measurements from locally fixed instruments. 
-Data acquisition makes use of an instrument library which currently includes many sensors typically used in
+data sources consisting of timeseries measurements from locally fixed instruments. The package contains two main 
+modules: MARTAS for data acquisition and MARCOS for data collection.
+**MARTAS**: Data acquisition makes use of an instrument library which currently includes many sensors typically used in
 observatories around the globe and some development platforms. Basically, incoming sensor data is converted to a 
 general purpose data/meta information object which is directly streamed via IOT protocols, namely MQTT 
-(message queue transport) to a data broker. A data collection system, called MARCOS (MagPys Automated Realtime 
+(message queue transport) to a data broker. 
+**MAROCS**: A data collection system, called MARCOS (MagPys Automated Realtime 
 Collector and Organization System), can be setup within the MARTAS environment. MARCOS collection routines can access
 MQTT data stream and store/organize such data and meta information in files, data banks or forward them to web sockets.
 All data can directly be analysed using [MagPy]() which contains many time domain and frequency domain time series analysis
@@ -293,7 +295,7 @@ crontab -l for the exact name) as listed in section 4.2 or 5.2.
 
 ### 4.1. Quick instructions
 
-Setting up a MARTAS acuisition system can be accomplished very quickly, if you already have some experience.
+Setting up a MARTAS data acquisition system can be accomplished very quickly, if you already have some experience.
 
 **Step 1**: initialize MARTAS using martas_init (details on [martas_init](#3-initialization-of-martasmarcos)) 
 
@@ -541,7 +543,7 @@ be subject to logrotate, in order to prevent an overflow.
 The [threshold](#621-threshold) testing routine is prepared and preconfigured but NOT enabled. In order to do so, adept the parameters
 of the configuration file and activate it in crontab.
 
-### 4.8 Troubleshooting
+### 4.8 Checking runtime performance and/or troubleshooting
 
 A few hints in order to test for proper recording and data publication.
 
@@ -555,12 +557,39 @@ A few hints in order to test for proper recording and data publication.
 
 ## 5. MARCOS
 
+### 5.1. Quick instructions
+
 In the following we are setting up MARCOS to collect measurement data from a broker. MARCOS subscribes to the broker 
 and receives any new data published there. All three systems, MARTAS, BROKER, and MARCOS can run on the same machine 
 as different processes. You can also have several MARCOS collectors accessing the 
 same broker independently.
 
-### 5.1 MARCOS specific configurations
+**Step 1**: Setup database, create paths for archives and add credentials depending on your projected detsination ([section 5.4](#54-data-destinations))
+
+**Step 2**: initialize a MARCOS collector using martas_init (details on [martas_init](#3-initialization-of-martasmarcos)) 
+
+        (martas)$ martas_init
+
+You will have to provide a name for the collection job. I recommend to use the hostname of the broker/acquisition 
+machine. In the following I use MYJOB1 as an example name.
+
+**Step 3**: eventually review/update configurations (details in [section 5.2](#52-marcos-specific-configurations))
+
+The initialization routine will setup a number of scheduled jobs for backup, monitoring, database management, and 
+archiving. It will prepare jobs for filtering and threshold testing.
+
+**Step 4**: Run the collection job (details in [section 5.3](#53-running-a-collection-job)) 
+ 
+        $ bash collect-MYJOB1.sh update #(important for first time usage with database - see below)
+
+The collection job will also start automatically around midnight.
+
+**Step 5**: For adding further collection jobs repeat steps 2 and 4
+
+**Step 6**: Eventually setup schedules analyses like flagging, adjusted data preparation and DI analysis ([section 8.1](#81-analysispy-for-continuous-flagging-adjustedquasidefinitive-data-products-and-status-information-))
+
+
+### 5.2 MARCOS specific configurations
 
 MARCOS subscribes to the data broker and obtains published data depending on the selected "topic". You can select 
 whether this data is then stored into files (binary buffer files, supported by MagPy), into a data base (mariadb, mysql)
@@ -568,37 +597,61 @@ and/or published on a webserver. You can also select multiple destinations. Thes
 initialization. As outlines above it is important to know these destinations already before initializing MARCOS 
 and provide credentials using MagPys addcred method. No further configurations are necessary.
 
-### 5.2 Running a collection job
+#### 5.2.1 archive
+
+see [section 6.10](#610-filter)
+
+#### 5.2.2 monitoring
+
+see [section 6.12](#612-monitor)
+
+#### 5.2.3 database management
+
+see [section 6.7](#67-db_truncate) and [section 6.14](#614-optimizetables) 
+
+#### 5.2.4 backup
+
+see [section 6.4](#64-backup)
+
+#### 5.2.5 optional filter
+
+see [section 6.10](#610-filter)
+
+#### 5.2.6 optional threshold
+
+see [section 6.21](#621-threshold)
+
+### 5.3 Running a collection job
 
 After initialization you will find a bash job with the selected name (i.e. myjon) within your .martas directory.  You 
 can start this job manually as follows.:
 
-        $ bash collect-myjob.sh start 
+        $ bash collect-MYJOB1.sh start 
 
 The following options are now available:
 
-        $ bash collect-myjob.sh start 
-        $ bash collect-myjob.sh stop 
-        $ bash collect-myjob.sh restart 
-        $ bash collect-myjob.sh status
-        $ bash collect-myjob.sh update #(important for first time usage with database - see below)
+        $ bash collect-MYJOB1.sh start 
+        $ bash collect-MYJOB1.sh stop 
+        $ bash collect-MYJOB1.sh restart 
+        $ bash collect-MYJOB1.sh status
+        $ bash collect-MYJOB1.sh update #(important for first time usage with database - see below)
 
 Please note: if database output is selected then by default only the data table will be written. If you want to 
 create/update DATAINFO and SENSOR information, which usually is the case when running the sensor collection job for the
 first time then run the collector with the "update" option, at least for a few seconds/minutes.
 
-        $ bash collect-myjob.sh update 
+        $ bash collect-MYJOB1.sh update 
 
-### 5.3 Data destinations
+### 5.4 Data destinations
 
-#### 5.3.1 Saving incoming data as files
+#### 5.4.1 Saving incoming data as files
 
 Select destination "file" during initialization. You will also have to provide a file path then. Within this file path
 a directory named with the SensorID will be created and within this directory daily binary files will be created 
 again with SensorId and date as file name. The binary files have a single, ASCII readable header line describing its 
 packing formats. These binary files can be read with MagPy and transformed into any MagPy supported format.
 
-#### 5.3.2 Streaming to a database
+#### 5.4.2 Streaming to a database
 
 Checkout the MagPy instructions to setup and initialize a MagPy data base
 (see [section 9](https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#9-sql-databases)). 
@@ -611,7 +664,7 @@ database. You can create such credentials using addcred. Use addcred -h for all 
 Please use the "update" option when running a job with a new sensor for the first time to create default inputs into the
 database (and not only the data table).
 
-#### 5.3.3 Streaming to a web interface
+#### 5.4.3 Streaming to a web interface
 
 Select destination "websocket"
 
@@ -646,12 +699,12 @@ c) Customizing the WEB interface/ports of MARCOS
         $ nano ~/MARTAS/web/smoothiesettings.js
 
 
-#### 5.3.4 Writing to stdout
+#### 5.4.4 Writing to stdout
 
 When selecting destination "stdout" the ASCII output will be written to the destination defined by logging. This can 
 either be sys.stdout or the given log file. 
 
-#### 5.3.5 Selecting diff as destination
+#### 5.4.5 Selecting diff as destination
 
 Calculates real-time differences between sensors attached to the same MARTAS. This is useful if you want to 
 visualize gradients directly.
@@ -698,9 +751,12 @@ exceeding a defined age can be deleted in dependency of data resolution. Archive
 format. The databank size is automatically restricted in dependency of the sampling rate of the input data. A 
 cleanratio of 12  will only keep the last 12 days of second data, the last 720 days of minute data and approximately 
 118 years of hourly data are kept. Settings are given in a configuration file.
-IMPORTANT: data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained 
+> [!IMPORTANT]  
+> data bank entries are solely identified from DATAINFO table. Make sure that your data tables are contained 
 there.
-IMPORTANT: take care about depth - needs to be large enough to find data. Any older data set (i.e. you uploaded data 
+
+> [!IMPORTANT]  
+> take care about depth - needs to be large enough to find data. Any older data set (i.e. you uploaded data 
 from a year ago) will NOT be archive and also not be cleaned. Use db_truncate to clean the db in such cases.
 
         # Automatic application
@@ -844,17 +900,29 @@ can also have multiple destinations.
 
 Examples:
 1. FTP Upload from a directory using files not older than 2 days
+```
 {"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
+```
 2. FTP Upload a single file
+```
 {"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
+```
 3. FTP Upload all files with extensions
+```
 {"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
+```
 4. Test environment
+```
 {"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
+```
 5. RSYNC upload
+```
 {"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
+```
 6. JOB on BROKER
+```
 {"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
+```
 
 Application:
 
@@ -1055,6 +1123,8 @@ APPLICATION:
         python3 testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
         python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/user/test.log
 
+> [!IMPORTANT]  
+> A message is only created if contents are changing. So typically you have to call testnote twice. First, send a message like "Wold", then send "Hello World". This technique is used to report changing states only.
 
 ### 6.20 testserial
 
@@ -1091,7 +1161,8 @@ Statusmessage:  default is replaced by "Current 'function' 'state' 'value', e.g.
                  "minute" looks like 2019-11-22 13:10
                  -> "date" changes the statusmessage every day and thus a daily notification is triggered as long a alarm condition is active
 
-IMPORTANT: statusmessage should not contain semicolons, colons and commas; generally avoid special characters
+> [!IMPORTANT]  
+> statusmessage should not contain semicolons, colons and commas; generally avoid special characters
 
 
 1) Testing whether 1Hz data from column x of sensor "MYSENS_1234_0001" exceeded a certain threshold of 123 in the last 
@@ -1116,9 +1187,73 @@ command to a connected microcontroller if this state is reached.
 4  :  MYSENS_1234_0001;600;x;123;median;above;default;swP:1:4
 
 
-## 7. Visualization and monitoring
+## 7. Notifications and advanced monitoring
 
-### 7.1 Visualization
+### 7.1 Setting up e-mail notifications
+
+
+In order to setup e-mail notifications two steps need to be performed. Firstly, ideally done before running 
+martas_init, you should add the credentials for the outgoing mail server using MagPys *addcred* method. For this 
+purpose you will need the smtp mailserver details and its port. Supported by MARTAS are the often used ports 25, 465 
+and 587.
+
+        addcred -t mail -c webmail -u info@mailservice.at -p secret -s smtp.mailservice.at -l 25
+
+Then you will need to update the mail.cfg configuration file.
+
+        nano ~/.martas/conf/mail.cfg
+
+The mail credential reference has already been updated during configuration. You might want to update the mail 
+receivers however. 
+
+Testing your configuration is possible with the application [testnote.py](#619-testnote).
+
+        python ~/.martas/app/testnote.py -n email -m "Hello" -c ~/.martas/conf/mail.cfg -l TestMessage -p /home/user/test.log
+
+Please note: calling testnote the first time will create the log file but don't send anything. From then on, a message
+will be send whenever you change the message content.
+
+        python ~/.martas/app/testnote.py -n email -m "Hello World" -c ~/.martas/conf/mail.cfg -l TestMessage -p /home/user/test.log
+
+
+### 7.2 Setting up Telegram notifications
+
+Notification send with the [Telegram] messenger are supported by MARTAS. For this purpose you will need to setup a 
+Telegram BOT and link it to a private message channel, then add the BOTs token and a chat_id into the telegram.cfg 
+configuration file. 
+
+Step-by-step instructions:
+
+1) Create a bot: Use BotFather to create a new bot and obtain its token. 
+
+2) Add the bot to your channel: Add your newly created bot as an administrator to the Telegram channel or group. 
+
+3) Send a message: Send a message to the channel from any user. 
+
+4) Get the chat ID:
+Open the getUpdates URL in your browser, replacing <YOUR_BOT_TOKEN> with your bot's token: https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates. 
+
+The JSON response will contain an array of updates. Find the update related to your message.
+Within that update, locate the chat object. The id field within the chat object is your channel's chat ID. 
+Note the chat ID: Remember that for channel chat IDs, you'll often see a negative number, often starting with -100. For
+example, the chat ID might look like -1001234567890. 
+
+5) Insert token and chat_id into the telegram.cfg file.
+
+
+Then you can use [testnote.py](#619-testnote) for testing whether its working (you must run this command two times with 
+a different message).
+
+        python ~/.martas/app/testnote.py -n email -m "Hello" -c ~/.martas/conf/mail.cfg -l TestMessage -p /home/user/test.log
+        python ~/.martas/app/testnote.py -n email -m "Hello World" -c ~/.martas/conf/mail.cfg -l TestMessage -p /home/user/test.log
+
+
+### 7.3 Permanent real time visualization
+
+The [martas_viewer](#46-the-martas-viewer) is a nice tool to get a quick picture of data streams. It is however not 
+build for permanent realtime visualization. For memory efficient,  long term "real-time" 
+graphs, a couple of additional tools is available. These tools require the setup of a MARCOS machine and websocket
+communication.
 
 | Content                 | Description                                                      |
 | -------------------------|------------------------------------------------------------------|
@@ -1129,101 +1264,25 @@ command to a connected microcontroller if this state is reached.
 |  web/smoothiesettings.js | define settings for real time plots                              |
 
 
-### 7.2 Monitoring MARTAS and MARCOS process with monitor.py
+### 7.4 Monitoring MARTAS and MARCOS
 
-The martas monitoring routine allows for testing data actuality and in MARTAS and MARCOS systems, can check available buffer memory and allows you to trigger bash scripts if a certain condition is found.
-For basic initialization, please use the install.addapps.sh script. This will preconfigure the configuration data for you. Monitoring is performend periodically using a crontab input.
+#### 7.4.1. monitor.py
 
-The following jobtypes are supported by the monitoring app: martas, marcos, space, logfile
+After setup of the communication/notification scheme you can refer to [section 6.x](#612-monitor) for a MARTAS 
+monitoring setup. 
 
-#### 7.2.1 Installation
+### 7.4.2 Support for NAGIOS/ICINGA
 
-Use the installation script "install.addapps.sh" to install monitoring support. This script will also create a default monitor configuration file.
+Beside the internal monitoring routines you might want to include your MARTAS/MARCOS environment into a high end 
+monitoring network. Please checkout Icinga and/or NAGIOS for this purpose. MARTAS can be easily included into such
+networks and instructions are available upon request.
 
-#### 7.2.2 logfile monitoring
+### 7.5 Two-way communication with MARTAS
 
-To apply monitoring to watch contents of specfic log files change the following lines within the monitor.cfg configuration file:
-
-        logfile   :   /var/log/magpy/archive.log
-        logtesttype   :   last
-        logsearchmessage   :   SUCCESS
-
-The above example will scan the archive.log file for a string "SUCCESS" in the last line.
-
-To schedule such monitoring use crontab e.g.
-        5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/archivemonitor.cfg -n ARCHIVEMONITOR -j logfile  > /dev/NULL 2&>1
-
-#### 7.2.3 file date monitoring
-
-To apply monitoring to watch for recent files in a directory change the following lines within the monitor.cfg configuration file:
-
-        basedirectory      :   /home/user/datadirectory/*.cdf
-        defaultthreshold   :   600
-
-The above example will scan the directory '/home/user/datadirectory' and check if a file '*.cdf' younger then '600' seconds is present. (Ignorelist is not yet working properly as it is not applied to overall file selection)
-
-To schedule such monitoring use crontab e.g.
-        5  *  *  *  *  /usr/bin/python3 /home/cobs/MARTAS/app/monitor.py -c /etc/martas/uploadmonitor.cfg -n UPLOADMONITOR -j datafile  > /dev/NULL 2&>1
-
-
-### 7.3 Sending notifications
-
-### 7.3.1 e-mail notifications
-
-
-In order to setup e-mail notifications the following steps need to be performed. Firstly, you should use the provided installer to generally setup monitoring and all necessary configuration files:
-
-        cd MARTAS/install
-        sudo bash install.addapps.sh
-
-This command will create a number of configuration files for notifications within the default folder /etc/martas.
-Secondly, it is necessary to locally save obsfuscated smtp server information on the MARTAS/MARCOS machine:
-
-        addcred -t mail -c mymailservice -u info@mailservice.at -p secret -s smtp.mailservice.at -l 25
-
-Now we will need to update the configuration files accordingly.
-
-        sudo nano /etc/martas/mail.cfg
-
-You only need to change the input for mailcred, and enter the shortcut for the mailservice defined with option c in the command above. Please also enter the other information as listed below with your correct data:
-
-        mailcred    :     mymailservice
-
-        From        :  info@mailservice.at
-        To          :  defaultreceiver@example.com
-        smtpserver  :  smtp.mailservice.at
-        porrt       :  25
-
-
-Finally, use the application testnote.py for testing the validity of your configuration (please update the following line with your paths):
-
-        python3 MARTAS/app/testnote.py -n email -m "Hello World" -c /etc/martas/mail.cfg -l TestMessage -p /home/user/test.log
-
-Pleasenote: calling testnote the first time will create the log file but don't send anything. From then on, a message will be send whenever you change the message content.
-
-### 7.3.1 telegram notifications
-
-MARTAS can send notifications directly to the [Telegram] messenger. You need either a TelegramBot or a TelegramChannel plus a user id to setup simple notifications. If you just want to receive notificatins you will find some instruction in 7.5.2 on how to use a private TelegramChannel. See section 7.5.1 for some hints of setting up an environment with the possibility of even interacting with your machine.
-
-For sending notifications you then just need to edit the basic configuration files:
-
-        # if not done install addapps
-        cd MARTAS/install
-        sudo bash install.addapps.sh
-
-        sudo nano /etc/martas/telegram.cfg
-
-Insert your bot_id (token) and the user_id. Thats it. Then you can use testnote.py to for testing whether its working (eventually you must run this command two times with a different message).
-
-        python3 MARTAS/app/testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/user/test.log
-
-
-### 7.4 Support for NAGIOS/ICINGA
-
-
-### 7.5 Communicating with MARTAS
-
-MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot, referring to your MARTAS.
+MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can
+chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication
+routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot,
+referring to your MARTAS.
 
 #### 7.5.1 interactive communication with TelegramBot
 
@@ -1563,9 +1622,9 @@ data files/ database  written
           ls -al /my/file/destination/
 
 
-## 9. Appendix
+## 9. Instruments and library 
 
-### 9.1 Libraries
+### 9.1 Sensor communication libraries
 
 Principally all libraries should work in version 2.0.0 although only tested libraries contain the new version number.
 
@@ -1702,10 +1761,12 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
 
+## 10. Appendix
 
-### 9.3. Full installation guide of a MARTAS box
 
-#### 9.3.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
+### 10.1. Full installation guide of a MARTAS box
+
+#### 10.1.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
 
 Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian 
 like system. Please follow the installation instructions given for the specific operating system. In the following we
@@ -1719,7 +1780,7 @@ Afterwards you might want to change hostname (Raspberry PI configuration or upda
 partitions on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry
 enable ssh (raspberry PI configuration).
 
-#### 9.3.2 Step 1: Install necessary packages for all MARTAS applications
+#### 10.1.2 Step 1: Install necessary packages for all MARTAS applications
 
 Packages for MARTAS (including support for all modules including icinga/nagios monitoring):
 
@@ -1749,7 +1810,7 @@ Restart and check the status of the mosquitto broker
         sudo systemctl restart mosquitto.service
         sudo systemctl status mosquitto.service
 
-#### 9.3.3 Step 2: Install MARTAS
+#### 10.1.3 Step 2: Install MARTAS
 
 Open a terminal and create a virtual environment:
 
@@ -1788,7 +1849,7 @@ Useful commands to check ports for sensor definitions are i.e.
         dmesg | grep usb
 
 
-#### 9.3.4 quick steps to run a new MARTAS with a new sensor for the first time (needs to be updated)
+#### 10.1.4 quick steps to run a new MARTAS with a new sensor for the first time (needs to be updated)
 
 In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
 
@@ -1838,7 +1899,7 @@ B. MARTAS
 
 
 
-#### 9.3.5 quick steps to setup a fully configured MARTAS with the respective sensor(s) (needs to be updated)
+#### 10.1.5 quick steps to setup a fully configured MARTAS with the respective sensor(s) (needs to be updated)
 
 In this example we use a MARTAS with a GSM19 Overhauzer sensor:
 
@@ -1854,17 +1915,17 @@ Check whether everything is running. On MARTAS you should check whether the buff
 Please note: data is written as soon as all sensor specific information is available. When attaching a micro controller (i.e. arduino)
 you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sampling rate) until data is written to the buffer.
 
-#### 9.3.6 enable remote terminal access (TODO)
+#### 10.1.6 enable remote terminal access (TODO)
 
 tmate instructions
 
-### 9.4 Full installation guide of a MARCOS box
+### 10.2 Full installation guide of a MARCOS box
 
 
 The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios 
 monitoring control, Webinterface, and an archive on an external harddrive.
 
-#### 9.4.1  Installation script (needs to be updated)
+#### 10.2.1  Installation script (needs to be updated)
 
 ```
 sudo apt-get install curl wget g++ zlibc gv imagemagick gedit gedit-plugins gparted ntp arduino ssh openssl libssl-dev gfortran  libproj-dev proj-data proj-bin git owfs mosquitto mosquitto-clients libncurses-dev build-essential nagios-nrpe-server nagios-plugins apache2 mariadb-server php php-mysql phpmyadmin netcdf-bin curlftpfs fswebcam
@@ -2013,9 +2074,9 @@ sudo mount -a
 
 ```
 
-### 9.5 Development tools
+### 10.3 Development tools
 
-#### 9.5.1 Testing modules
+#### 10.3.1 Testing modules
 
 Unittest are included in the following modules. app_tester will perform a unittest on applications in the app folder:
 
@@ -2023,13 +2084,13 @@ Unittest are included in the following modules. app_tester will perform a unitte
        python core/methods.py
        python core/definitive.py
 
-#### 9.5.2 Testing acquisition
+#### 10.3.2 Testing acquisition
 
 The main program contains a testing option -T which will create an artificial/random data set published on topic "tst":
 
        python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
-#### 9.5.3 Testing MARTAS and MARCOS
+#### 10.3.3 Testing MARTAS and MARCOS
 
 Run a test acquisition as shown in 9.5.2 to simulate a sensor
 
@@ -2046,7 +2107,7 @@ two libraries. Please configure sensors.cfg accordingly and use a stationID diff
        python acquisition.py -m ~/.martas/conf/martas.cfg
 
 
-## 10. Issues and TODO
+### 10.4 Issues and TODO
 
 in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
 delete the daily file and restart the recoding process. The next daily file will be OK in any case.
@@ -2055,7 +2116,105 @@ delete the daily file and restart the recoding process. The next daily file will
 - update scp_log to use protected creds
 
 
+### 10.5 Example configurations - Conrad Observatory
 
-[Telegram] : <https://telegram.org/>
-[Telegram Botfather] :  <https://core.telegram.org/bots>
-[Arduino Microcontroller] : <http://www.arduino.cc/>
+#### 10.5.1 continuous, automatic DI anaylsis 
+
+The automatic DI analysis makes use of the basevalue application.
+```
+#!/bin/sh
+
+### New analysis script
+### ###############################
+##  Script to download and analyze di data
+##  The following sources are accessed:
+##  - mounted AUTODIF folder
+##  - the /DI/all folder
+##    -> file_download -c collect-di-from-broker obtains conrad-observatory homepage: zamg/phocadowload/
+##    -> file_download -c collect-di-from-gonggong obtains data from Irene
+##    => data ending with WIC.txt is automatically moved into the analysis folder
+##       remaining data is kept within "all"
+##  Data is downloaded to analysis folder in /srv/archive/WIC/DI
+##  Reults are stored in BLVcomp files (not DB) (-f option, no -n option)
+##  analyzed data is not moved (no -r option)
+
+
+# copy files from les from autodif to analyze if they are not yet listed in raw
+PYTHON="/usr/bin/python3"
+DATE1=$(date +%Y%m%d --date='1 day ago')
+DATE2=$(date +%Y%m%d --date='2 days ago')
+
+AUTODIF1="/media/autodif/data/$DATE1.txt"
+AUTODIF2="/media/autodif/data/$DATE2.txt"
+ARCHIVE1="/srv/archive/WIC/DI/analyze/$DATE1"
+ARCHIVE2="/srv/archive/WIC/DI/analyze/$DATE2"
+PIER="A16"
+STATION="WIC.txt"
+
+ALLDI="/srv/archive/WIC/DI/all/"
+ANALYZEDI="/srv/archive/WIC/DI/analyze/"
+
+# activate if AutoDIf data is going to be analyzed
+{
+  cp $AUTODIF1 ${ARCHIVE1}_${PIER}_${STATION}
+  cp $AUTODIF2 ${ARCHIVE2}_${PIER}_${STATION}
+} || {
+  echo "Could not access AUTODIF"
+}
+
+# activate to use new file transmission from broker
+{
+  find $ALLDI -name "*WIC.txt" -exec mv '{}' $ANALYZEDI \;
+} || {
+  echo "Could not access ALLDI data from BROKER"
+}
+
+
+echo " ##################################################################"
+echo " Running without compensation and rotation - for merritt coil"
+echo " ##################################################################"
+# ANALYSE WITHOUT ROTATION and Compensation, only ADD BLV TO DB - ONLY A2
+$PYTHON /home/cobs/SCRIPTS/basevalue.py -c /home/cobs/CONF/auto-collect/basevalue_blv_merritt.cfg
+
+echo " ##################################################################"
+echo " Running without rotation"
+echo " ##################################################################"
+# ANALYSE WITHOUT ROTATION and ADD TO DB - ONLY A2,A16
+$PYTHON /home/cobs/SCRIPTS/basevalue.py -c /home/cobs/CONF/auto-collect/basevalue_blv.cfg
+
+echo " ##################################################################"
+echo " Primary piers"
+echo " ##################################################################"
+# ANALYSE DI data with ROTATION, ADD TO DB, ONLY A2 and move to archive
+$PYTHON /home/cobs/SCRIPTS/basevalue.py -c /home/cobs/CONF/auto-collect/basevalue_blvcomp_main.cfg -p A2
+
+echo " ##################################################################"
+echo " All other piers"
+echo " ##################################################################"
+# ANALYSE ALL OTHER DATA FOR ALL PIERS, DI data to DB, movetoarchive
+$PYTHON /home/cobs/SCRIPTS/basevalue.py -c /home/cobs/CONF/auto-collect/basevalue_blvcomp.cfg
+
+echo " ##################################################################"
+echo " AutoDIF"
+echo " ##################################################################"
+
+#Do AUTODIF separate  and check whether data is available and analsis successful
+# REASON: If incomplete AutoDIF files are provided then the job might stop
+$PYTHON /home/cobs/SCRIPTS/basevalue.py -c /home/cobs/CONF/auto-collect/basevalue_blvcomp.cfg -p A16
+
+echo " ##################################################################"
+echo $DATE
+
+# synchronize analysis folder mit remaining, faulty analysis to gonggong
+rsync -ave ssh --delete /srv/archive/WIC/DI/analyze/ cobs@138.22.188.192:/home/irene/DIdata/
+echo "Success"
+```
+
+
+
+### References
+
+   [magpy-git]: <https://github.com/geomagpy/magpy>
+   [Telegram]: <https://telegram.org/>
+   [Telegram Botfather]:  <https://core.telegram.org/bots>
+   [Arduino Microcontroller]: <http://www.arduino.cc/>

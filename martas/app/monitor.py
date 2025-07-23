@@ -457,7 +457,7 @@ def main(argv):
     joblist = []
     changes = []
     configpath = ''
-    jobname = 'MARTASMONITOR'
+    jobname = 'M{}'.format(version)
     hostname = socket.gethostname().upper()
     allowedjobs = ['martas','space','marcos','logfile','datafile']
     debug = False
@@ -566,7 +566,7 @@ def main(argv):
             sys.exit()
     if jobname == '':
         print ('An empty jobname is not allowed - using MARTASMONITOR')
-        jobname = 'MARTASMONITOR'
+        jobname = 'M'
     else:
         jobname = str(jobname)
 
@@ -592,7 +592,7 @@ def main(argv):
     receiver = monitorconf.get('notification')
     receiverconf = monitorconf.get('notificationconf')
     basedirectory = monitorconf.get('basedirectory')
-    defaultthreshold = int(monitorconf.get('defaultthreshold'))
+    defaultthreshold = int(monitorconf.get('defaultthreshold',600))
     ignorelist = monitorconf.get('ignorelist')
     thresholddict = monitorconf.get('thresholds')
     dbcred = monitorconf.get('dbcredentials')
@@ -633,27 +633,27 @@ def main(argv):
         if 'martas' in joblist:
             if debug:
                 print ("Running martas job")
-            statusmsg = check_martas(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            statusmsg = check_martas(testpath=basedirectory, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
         elif 'datafile' in joblist:
             if debug:
                 print ("Running datafile job on {}".format(basedirectory))
-            statusmsg = check_datafile(testpath=basedirectory, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            statusmsg = check_datafile(testpath=basedirectory, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
         if 'marcos' in joblist:
             if debug:
                 print ("Running marcos job")
             db = mm.connect_db(dbcred)
-            statusmsg = check_marcos(db, threshold=defaultthreshold, jobname=jobname, statusdict=statusmsg, excludelist=ignorelist,acceptedoffsets=thresholddict, debug=debug)
+            statusmsg = check_marcos(db, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, excludelist=ignorelist,acceptedoffsets=thresholddict, debug=debug)
         if 'logfile' in joblist:
             if debug:
                 print ("Running logfile job on {}".format(logfile))
-            statusmsg = check_logfile(logfile, tmpdir=tmpdir, jobname=jobname, statusdict=statusmsg, testtype=logtesttype, logsearchmessage=logsearchmessage, tolerance=testamount, debug=debug)
+            statusmsg = check_logfile(logfile, tmpdir=tmpdir, jobname=testname, statusdict=statusmsg, testtype=logtesttype, logsearchmessage=logsearchmessage, tolerance=testamount, debug=debug)
         if execute:
             # scan statusmessages for execute call
             if any([statusmsg.get(stat).find('CRITICAL: execute script')>-1 for stat in statusmsg]):
                 # Found a critical execution message
                 if debug:
                     print ("Running execute job")
-                statusmsg = execute_script(execute,jobname=jobname, statusdict=statusmsg)
+                statusmsg = execute_script(execute,jobname=testname, statusdict=statusmsg)
 
         statusmsg[testname] = "monitoring application running successful"
     except:
