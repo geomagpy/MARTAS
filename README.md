@@ -135,8 +135,8 @@ independent, it is currently only tested and supported on debian-like LINUX syst
 
     Optional python packages:
     - pyownet  (one wire support)
-        sudo pip install pyownet
         sudo apt-get install owserver
+        pip install pyownet
 
 
 ### 2.2 Installing MARTAS/MARCOS
@@ -145,7 +145,8 @@ Please make sure that packages as listed in 2.1 are installed. Then create a pyt
 
         $ virtualenv ~/env/martas
 
-Activate the environement:
+or virtualenv -p /usr/bin/python3 ~/env/martas 
+Then activate the environment:
 
         $ source ~/env/martas/bin/activate
 
@@ -1286,7 +1287,7 @@ referring to your MARTAS.
 
 #### 7.5.1 interactive communication with TelegramBot
 
-To setup [Telegram] communication use the following steps:
+To setup 2-way [Telegram] communication use the following steps:
 
   a) Use [Telegram Botfather] to create a new BOT
 
@@ -1294,7 +1295,7 @@ To setup [Telegram] communication use the following steps:
 
         /setuserpic
 
-  b) Install Telegram support for MARTAS
+  b) Install Telegram support for MARTAS (TODO: needs an update)
 
         $ cd MARATS/install
         $ sudo bash install.telegram.sh
@@ -1305,7 +1306,7 @@ To setup [Telegram] communication use the following steps:
         $ sudo apt-get install fswebcam  # optional - transferring webcam pictures
 
 
-  c) Update /etc/martas/telegrambot.cfg
+  c) Update /etc/martas/telegrambot.cfg (TODO: needs an update)
 
         $ nano /etc/martas/telegrambot.cfg
 
@@ -1763,8 +1764,17 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 ## 10. Appendix
 
-
 ### 10.1. Full installation guide of a MARTAS box
+
+The installation is usually straightforward as described in section 2. For some systems you might however require some
+additional packages to fulfill required dependencies. Here we summarise some system specific issues and solutions, as
+well as a full installation cookbook.
+
+#### Beaglebone Black
+
+Problems with scipy installation in environment:
+
+       sudo apt install gfortran libopenblas-dev pkg-config
 
 #### 10.1.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
 
@@ -1897,8 +1907,7 @@ B. MARTAS
               $ cat /var/log/magpy/martas.log (check log file)
               $ ls -al /srv/mqtt/SENSORID  (check buffermemory for new data)
 
-
-
+       
 #### 10.1.5 quick steps to setup a fully configured MARTAS with the respective sensor(s) (needs to be updated)
 
 In this example we use a MARTAS with a GSM19 Overhauzer sensor:
@@ -1920,7 +1929,6 @@ you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sam
 tmate instructions
 
 ### 10.2 Full installation guide of a MARCOS box
-
 
 The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios 
 monitoring control, Webinterface, and an archive on an external harddrive.
@@ -2115,10 +2123,21 @@ delete the daily file and restart the recoding process. The next daily file will
 - add trigger mode for GSM90 (sending f)
 - update scp_log to use protected creds
 
+#### Problem: pip install behind a proxy
+
+       export https_proxy=http://YOUR-PROXY-IP:PORT
+       pip install martas
+
+#### Problem pip install - packages do not match the hashes
+
+       pip install --no-cache-dir martas
+
+
+
 
 ### 10.5 Example configurations - Conrad Observatory
 
-#### 10.5.1 continuous, automatic DI anaylsis 
+#### 10.5.1 continuous, automatic DI analysis 
 
 The automatic DI analysis makes use of the basevalue application.
 ```

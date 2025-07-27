@@ -13,7 +13,7 @@ shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
 install_requires=[
             "geomagpy > 1.1.9",
             "numpy >= 1.21.0",
-            "scipy >= 1.7.3",
+            "scipy >= 1.7.1",
             "paramiko",
             "pexpect",
             "pyserial",
