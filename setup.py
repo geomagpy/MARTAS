@@ -23,6 +23,7 @@ install_requires=[
             "plotly",
             "dash",
             "dash_daq",
+            "psutil",
             "twisted",
             "setuptools >= 61.0.0"
           ]

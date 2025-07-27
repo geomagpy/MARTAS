@@ -3,3 +3,7 @@ pyserial
 geomagpy
 twisted
 psutil
+plotly
+dash
+dash_daq
+

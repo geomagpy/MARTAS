@@ -9,7 +9,8 @@ from plotly.subplots import make_subplots
 from martas.app.monitor import _latestfile
 import random
 from crontab import CronTab
-from subprocess import check_output
+import psutil
+from pathlib import Path
 import numpy as np
 
 """
@@ -53,7 +54,7 @@ def get_datainfo_from_db(cred='cobsdb', debug=False):
         dictionary with DataID, SensorID, datatable ok, DATAINFO ok, last input, first input, StationID, PierID
     """
 
-    db = mm.connect_db(cred, False, True)
+    db = mm.connect_db(cred, False, False)
     if db:
         dbd = statusdict.get('database')
         dbd['active'] = True
@@ -91,7 +92,6 @@ def get_datainfo_from_db(cred='cobsdb', debug=False):
     missingdatainfo = []
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-
     if db:
         output = db.select('DataID,SensorID,StationID,ColumnContents,ColumnUnits', 'DATAINFO')
         for elem in output:
@@ -118,7 +118,8 @@ def get_datainfo_from_db(cred='cobsdb', debug=False):
             if len(keys) > 0:
                 result[elem] = {"SensorID":elem[:-5],"StationID":"","PierID":"","DataKeys":keys,"TableExists":True,"DataInfoExists":False,"FirstInput":None,"LastInput":None,"Actual":0}
             else:
-                print("ERROR with table {}: no data keys".format(elem))
+                if debug:
+                    print("ERROR with table {}: no data keys".format(elem))
 
         # Update start and enddate for all DataID
         for elem in result:
@@ -136,7 +137,8 @@ def get_datainfo_from_db(cred='cobsdb', debug=False):
                     cont['TimeDiff'] = diff
                     result[elem] = cont
                 except:
-                    print ("ERROR with get_lines in table {}".format(elem))
+                    if debug:
+                        print ("ERROR with get_lines in table {}".format(elem))
                     pass
 
         if debug:
@@ -172,10 +174,30 @@ def convert_datainfo_to_datatable(result, debug=False):
     dcols = ["SensorID", "Actual", "DataIDs", "StationID"]
     return dtable, dcols
 
-def get_graph_options(result, actualcrit=0):
+
+def convert_datainfo_to_idtable(result, debug=False):
     """
     DESCRIPTION
-        get a list of actual sensors fro dropdown and available keys/elements for plotting
+        converts results dictionary into a Table for display
+    """
+    dtable = []
+    for elem in result:
+        cont = result.get(elem)
+        comps = cont.get("DataElements",[])
+        if len(comps) > 8:
+            comps = comps[:8]
+            comps.append("...")
+        comps = ",".join(comps)
+        dtable.append({"DataID" : elem, "in DATAINFO" : str(cont.get("DataInfoExists")), "Data table" : str(cont.get("TableExists")), "Actual" : cont.get("Actual"), "Components" : comps})
+    dcols = ["DataID", "in DATAINFO", "Data table", "Actual", "Components"]
+    return dtable, dcols
+
+
+
+def get_graph_options(result, actualcrit=1):
+    """
+    DESCRIPTION
+        get a list of actual sensors for dropdown and available keys/elements for plotting
     """
     dataoptions = []
     datavalue = None
@@ -220,8 +242,9 @@ def get_graph_keys(tablename, result):
 def get_data(datatable, keys, result, duration=60, cred="cobsdb"):
     mydata = {}
     names = []
-    db = mm.connect_db(cred, False, True)
+    db = mm.connect_db(cred, False, False)
     stream = db.get_lines(datatable, 3600)
+    #print ("Obtained data stream with ", len(stream))
     endtime = stream.timerange()[1]
     stream = stream.trim(starttime=endtime-timedelta(minutes=duration), endtime=endtime)
     mydata['time'] = stream.ndarray[0]
@@ -250,7 +273,7 @@ def get_storage_usage(statusdict=None, cred="cobsdb", archivepath="", logpath=""
     if not statusdict:
         statusdict = {}
     dbused = 0
-    db = mm.connect_db(cred, False, True)
+    db = mm.connect_db(cred, False, False)
     txt = db.info(destination='stdout', level='full')
     if txt:
         dbused = txt.split()[-1]
@@ -279,14 +302,16 @@ def get_storage_usage(statusdict=None, cred="cobsdb", archivepath="", logpath=""
     return statusdict
 
 
-def get_marcos_jobs(path="/home/leon/.martas", debug=False):
-    """
-    DESCRIPTION
-        read SensorIDs from sensors
-    """
-    sl = []
-    # get all files with collect...
-    return sl
+def get_pid(name):
+    pid = 0
+    for proc in psutil.process_iter(attrs=["pid", "name", "exe", "cmdline"]):
+        for cmd in proc.info.get('cmdline'):
+            if name in cmd:
+                pid = proc.pid
+                break
+        if pid:
+            break
+    return pid
 
 
 def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debug=False):
@@ -296,11 +321,6 @@ def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debu
     """
     if not statusdict:
         statusdict = {}
-    def get_pid(name):
-        try:
-            return int(check_output(["pidof", "-s", name]))
-        except:
-            return 0
 
     statusdict = get_storage_usage(statusdict, cred=cred, archivepath=archivepath, logpath=logpath, debug=False)
     crontable = []
@@ -318,17 +338,25 @@ def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debu
             logstatus = False
             active = False
             k = comm.replace("Running MARCOS process ","")
-            p = get_pid(cl[2])
+            pidname = Path(cl[2]).stem
+            if debug:
+                print ("Testing pid", pidname)
+            p = get_pid(pidname)
+            if debug:
+                print (" - got pid", p)
             if p > 0:
                 active = True
             for el in cl:
                 if el.find(".log") >= 0:
                     te = el.split("/")
-                    print ("te", te)
-                    ctime = os.path.getctime(el)
-                    ctime = datetime.fromtimestamp(ctime)
-                    print ("time", ctime)
-                    logstatus = True
+                    if debug:
+                        print ("Found MARCOS job", te)
+                    try:
+                        ctime = os.path.getctime(el)
+                        ctime = datetime.fromtimestamp(ctime)
+                        logstatus = True
+                    except:
+                        pass
             statusdict[k] = {"cronenabled": en, "active": active, "logstatus": logstatus}
             marcoslist.append(k)
         else:
@@ -343,7 +371,8 @@ def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debu
             for el in cl:
                 if el.find(".log") >= 0:
                     te = el.split("/")
-                    print (el)
+                    if debug:
+                        print ("Found basic cron job", te)
                     try:
                         ctime = os.path.getctime(el)
                         ctime = datetime.fromtimestamp(ctime)
@@ -354,7 +383,7 @@ def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debu
                     except:
                         pass
                     lf = te[-1]
-            resd = {"job" : jc, "enabled":en, "logfile":lf, "last log":ctime}
+            resd = {"job" : jc, "enabled":str(en), "logfile":lf, "last log":ctime}
             crontable.append(resd)
     croncols = ["job", "enabled", "logfile", "last log"]
 
@@ -413,7 +442,6 @@ keyoptions, keyvalue = get_graph_keys(datavalue, result)
 crontable, croncols, marcoslist = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath, logpath=logpath,debug=False)
 
 app = Dash(__name__, assets_ignore='martas.css')
-
 
 app.layout = (html.Div(
                  className="mwrap",
@@ -500,7 +528,8 @@ app.layout = (html.Div(
                                   children=html.Div([
                                       daq.Gauge(
                                           id='db-gauge',
-                                          size=100,
+                                          units="GB",
+                                          size=120,
                                           color={"gradient": True,
                                                  "ranges": {"green": [0, statusdict['database'].get('space')*0.6], "yellow": [statusdict['database'].get('space')*0.6, statusdict['database'].get('space')*0.8], "red": [statusdict['database'].get('space')*0.8, statusdict['database'].get('space')]}},
                                           value=statusdict['database'].get('used'),
@@ -520,7 +549,7 @@ app.layout = (html.Div(
                                   children=html.Div([
                                     daq.Gauge(
                                         id='base-gauge',
-                                        size=100,
+                                        size=120,
                                         color={"gradient": True,
                                                "ranges": {"green": [0, statusdict['monitor'].get('space') * 0.8],
                                                           "yellow": [statusdict['monitor'].get('space') * 0.8,
@@ -539,7 +568,7 @@ app.layout = (html.Div(
                                   children=html.Div([
                                       daq.Gauge(
                                           id='archive-gauge',
-                                          size=100,
+                                          size=120,
                                           color={"gradient": True,
                                                  "ranges": {"green": [0, statusdict['archive'].get('space') * 0.8],
                                                             "yellow": [statusdict['archive'].get('space') * 0.8,
@@ -572,6 +601,7 @@ app.layout = (html.Div(
                                       html.H4('Crontab'),
                                       dash_table.DataTable(crontable,
                                                            columns=[{'id': c, 'name': c} for c in croncols],
+                                                           sort_action='native',
                                                            style_cell_conditional=[
                                                                {
                                                                    'if': {'column_id': c},
@@ -594,11 +624,11 @@ app.layout = (html.Div(
                                                                },
                                                                {
                                                                    'if': {
-                                                                       'filter_query': '{enabled} = false',
+                                                                       'filter_query': '{enabled} = False',
                                                                        'column_id': 'enabled'
                                                                    },
-                                                                   'backgroundColor': 'tomato',
-                                                                   'color': 'white'
+                                                                   'backgroundColor': '#eaf044',
+                                                                   'color': 'black'
                                                                },
                                                            ],
                                                            ),
@@ -608,14 +638,16 @@ app.layout = (html.Div(
                              html.Div(
                                  className="mbox mr",
                                  children=html.Div([
-                                     dcc.Dropdown(['Sensors', 'Active sensors'], 'Sensors', id='sensor-dropdown' , style={"width": "100%"}),
-                                     dash_table.DataTable(dtable,
+                                     dcc.Dropdown(['Sensors', 'Data records'], 'Sensors', id='sensor-dropdown' , style={"width": "50%"}),
+                                     dash_table.DataTable(data=dtable,
+                                                          id='sensors-table',
+                                                          sort_action='native',
                                                           columns=[{'id': c, 'name': c} for c in dcols],
                                                           style_cell_conditional=[
                                                                 {
                                                                     'if': {'column_id': c},
                                                                     'textAlign': 'left'
-                                                                } for c in ['SensorID', 'Actual']
+                                                                } for c in ['DataID', 'SensorID', 'Actual']
                                                           ],
                                                           style_header={
                                                               'backgroundColor': 'rgb(30, 30, 30)',
@@ -639,14 +671,24 @@ app.layout = (html.Div(
                                                                 'backgroundColor': 'tomato',
                                                                 'color': 'white'
                                                             },
+                                                              {
+                                                                  'if': {
+                                                                      'filter_query': '{in DATAINFO} = False',
+                                                                      'column_id': 'in DATAINFO'
+                                                                  },
+                                                                  'backgroundColor': 'tomato',
+                                                                  'color': 'white'
+                                                              },
+                                                              {
+                                                                  'if': {
+                                                                      'filter_query': '{Data table} = False',
+                                                                      'column_id': 'Data table'
+                                                                  },
+                                                                  'backgroundColor': '#eaf044',
+                                                                  'color': 'black'
+                                                              },
                                                           ],
                                                           ),
-                                 ])
-                             ),
-                             html.Div(
-                                 className="mbox ms",
-                                 children=html.Div([
-                                     html.H4('Coming soon'),
                                  ])
                              ),
                              html.Div(
@@ -684,8 +726,7 @@ def update_config(n):
     #print (cfg)
     htmllist.append(html.P(['Amount of MARCOS jobs: {}'.format(len(marcoslist))]))
     htmllist.append(html.P(['Archivepath: {}'.format(archivepath)]))
-    htmllist.append(html.P(['Buffer directory: {}'.format(cfg.get('bufferdirectory'))]))
-    htmllist.append(html.P(['MQTT broker: {}'.format(cfg.get('broker'))]))
+    htmllist.append(html.P(['Download jobs: ']))
     return htmllist
 
 
@@ -874,6 +915,17 @@ def update_keydrop(datavalue):
     return keyoptions, keyvalue
 
 
+@app.callback(Output('sensors-table', 'data'),Output('sensors-table', 'columns'),
+              Input('sensor-dropdown', 'value'))
+def update_table_update(datavalue):
+    if datavalue.startswith("Sensor"):
+        dtable, dcols = convert_datainfo_to_datatable(result)
+    else:
+        dtable, dcols = convert_datainfo_to_idtable(result)
+    cols = [{'id': c, 'name': c} for c in dcols]
+    return dtable, cols
+
+
 @app.callback(
     Output('live-graph', 'figure'),
     Input('graph-update', 'n_intervals'),
@@ -885,9 +937,8 @@ def update_keydrop(datavalue):
 )
 def update_graph(n, hvalue, duration, datavalue, keyvalue):
     # read data
-    print ("Get available data sets")
+    #print ("Get available data sets")
     result = get_datainfo_from_db(cred='cobsdb')
-    print ("HERRE", datavalue, keyvalue, duration)
 
     data, names = get_data(datavalue, [keyvalue], result, duration, cred='cobsdb')
     fig = make_subplots(rows=len(names), cols=1, vertical_spacing=0.1)
