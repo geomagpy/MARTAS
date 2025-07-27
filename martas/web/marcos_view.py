@@ -421,13 +421,13 @@ def get_marcos_html(marcos,i):
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
-print (cfg)
 archivepath = cfg.get('archivepath')
 logpath = cfg.get('logpath')
 dbcred = cfg.get('dbcredentials')
 
-test = True
+test = False
 if test:
+    print(cfg)
     archivepath = "/srv"
     logpath = "/home/leon/.martas/log"
     dbcred = 'cobsdb'
