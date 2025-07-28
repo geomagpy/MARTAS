@@ -33,7 +33,10 @@ def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
     return sl
 
 def get_new_data(path="/home/leon/MARTAS/mqtt", duration=600, debug=False):
-# Get all current data files from mqtt path
+    """
+    DESCRIPTION
+        Get all current data files from mqtt path
+    """
     data2show = []
     dirs=[x[0] for x in os.walk(path)]
     if debug:
@@ -47,7 +50,7 @@ def get_new_data(path="/home/leon/MARTAS/mqtt", duration=600, debug=False):
             now = datetime.now(timezone.utc).replace(tzinfo=None)
             diff = (now-ld).total_seconds()
             if debug:
-                print ("File and time diff from now:", lf, diff)
+                print ("File and time diff from now:", lf, diff, duration)
             if diff < duration:
                 data2show.append(lf)
     return data2show
@@ -72,7 +75,7 @@ def extract_data(f, duration=600, debug=False):
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
-sensorpath = cfg.get('sensorpath')
+sensorpath = cfg.get('sensorsconf')
 bufferpath = cfg.get('bufferdirectory')
 data2show = get_new_data(path=bufferpath)
 nd={}
@@ -172,7 +175,7 @@ def update_metrics(n):
     style = {'padding': '5px', 'fontSize': '16px'}
     pos = {}
     htmllist = []
-    sl = get_sensors(debug=False)
+    sl = get_sensors(path=sensorpath, debug=False)
     data2show = get_new_data(path=bufferpath, duration=600)
     for s in sl:
         options=[]
@@ -260,4 +263,4 @@ def update_graph(n, hvalue, duration):
     return fig
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=False)

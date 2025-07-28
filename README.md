@@ -1797,11 +1797,14 @@ consider search engines to find solutions for that. Alternatively you can also s
 As you still require some pip packages this method is not recommended. In order to minimize a potential negative 
 influence on system stability it is recommended to install most packages based on apt.
 
-      sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-plotly
+      sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-plotly python3-numba python3-pandas
 
 Then install the remaining dependencies using pip.
 
-      sudo pip install --force martas
+      sudo pip install --break-system-packages martas
+
+You likely will need to update the path variable then in the "runmartas.sh" job. Replace "acquisition" by the full path
+"/usr/local/bin/acquisition" to make it available from cron.
 
 
 

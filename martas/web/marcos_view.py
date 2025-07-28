@@ -93,11 +93,11 @@ def get_datainfo_from_db(cred='cobsdb', debug=False):
     now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     if db:
-        output = db.select('DataID,SensorID,StationID,ColumnContents,ColumnUnits', 'DATAINFO')
+        output = db.select('DataID,SensorID,StationID,ColumnContents,ColumnUnits,DataPier', 'DATAINFO')
         for elem in output:
             #print ("Columns", elem[3],elem[4])
             usedkeys, components, units = _analyse_columns(elem[3],elem[4])
-            result[elem[0]] = {"SensorID":elem[1],"StationID":elem[2],"DataKeys":usedkeys,"DataElements":components,"DataUnits":units,"TableExists":False,"DataInfoExists":True,"FirstInput":None,"LastInput":None,"Actual":0}
+            result[elem[0]] = {"SensorID":elem[1],"StationID":elem[2],"PierID":elem[5],"DataKeys":usedkeys,"DataElements":components,"DataUnits":units,"TableExists":False,"DataInfoExists":True,"FirstInput":None,"LastInput":None,"Actual":0}
         sql = "SHOW TABLES"
         cursor = db.db.cursor()
         msg = db._executesql(cursor, sql)
@@ -166,12 +166,12 @@ def convert_datainfo_to_datatable(result, debug=False):
                 line[1] = cont.get("Actual")
             line[2].append(did)
         else:
-            table.append([sid, cont.get("Actual"), [did], cont.get("StationID")])
+            table.append([sid, cont.get("Actual"), [did], cont.get("StationID"), cont.get("PierID")])
         sidtab.append(sid)
 
     for line in table:
-        dtable.append({"SensorID" : line[0], "Actual" : line[1], "DataIDs" : ",".join(line[2]), "StationID" : line[3]})
-    dcols = ["SensorID", "Actual", "DataIDs", "StationID"]
+        dtable.append({"SensorID" : line[0], "Actual" : line[1], "DataIDs" : ",".join(line[2]), "StationID" : line[3], "PierID" : line[4]})
+    dcols = ["SensorID", "Actual", "DataIDs", "StationID", "PierID"]
     return dtable, dcols
 
 
@@ -308,12 +308,13 @@ def get_storage_usage(statusdict=None, cred="cobsdb", archivepath="", logpath=""
 def get_pid(name):
     pid = 0
     for proc in psutil.process_iter(attrs=["pid", "name", "exe", "cmdline"]):
-        for cmd in proc.info.get('cmdline'):
-            if name in cmd:
-                pid = proc.pid
+        if isinstance(proc.info.get('cmdline'), (list,tuple)):
+            for cmd in proc.info.get('cmdline'):
+                if name in cmd:
+                    pid = proc.pid
+                    break
+            if pid:
                 break
-        if pid:
-            break
     return pid
 
 
@@ -383,6 +384,18 @@ def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debu
                         if ctime > datetime.now()-timedelta(days=8):
                             active = True
                         ctime = ctime.strftime("%Y-%m-%dT%H:%M:%S")
+                        jn = jc.split(".")[0]
+                        if jn in ["archive", "monitor"]:
+                            jnstat = statusdict.get(jn,{})
+                            jnstat["cronenabled"] = en
+                            jnstat["active"] = active
+                            jnstat["logstatus"] = logstatus
+                            statusdict[jn] = jnstat
+                        elif jn in ["db_truncate"]:
+                            dbstat = statusdict.get("database",{})
+                            dbstat["cronenabled"] = en
+                            dbstat["logstatus"] = logstatus
+                            statusdict["database"] = dbstat
                     except:
                         pass
                     lf = te[-1]
@@ -983,4 +996,4 @@ def update_graph(n, hvalue, duration, datavalue, keyvalue):
     return fig
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=True)

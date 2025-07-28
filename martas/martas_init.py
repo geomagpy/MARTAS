@@ -670,7 +670,7 @@ def main(argv):
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  *)")
-        runscript.append("    echo \"Usage: $BOT {start|stop|restart|status}\"")
+        runscript.append("    echo \"Usage: $BOT {start|stop|restart|status|update}\"")
         runscript.append("    ;;")
         runscript.append("esac")
         runscript.append("exit 0")
