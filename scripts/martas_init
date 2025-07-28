@@ -678,6 +678,22 @@ def main(argv):
             for line in runscript:
                 fout.write(line+"\n")
 
+        print(" ------------------------------------------- ")
+        print(" Creating the MARCOS viewer")
+        viewscript = []
+        viewscript.append("#! /bin/bash")
+        viewscript.append("# MARCOS viewer")
+        viewscript.append("")
+        viewscript.append('cd {}'.format(os.path.join(homedir,dir,"web")))
+        viewscript.append('PYTHON={}'.format(sys.executable))
+        viewscript.append('VIEW="{}"'.format(os.path.join(homedir,dir,"web","marcos_view.py")))
+        viewscript.append("$PYTHON $VIEW")
+        viewscript.append("xdg-open http://127.0.0.1:8050")
+        with open(os.path.join(homedir, dir, "marcos_view"), "wt") as fout:
+            for line in viewscript:
+                fout.write(line+"\n")
+
+
         with CronTab(user=True) as cron:
             comment1 = "Running MARCOS process {}".format(jobname)
             line1 = "/usr/bin/bash -i {} start > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(logpath, marcosjob+".log"))

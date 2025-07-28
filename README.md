@@ -490,6 +490,7 @@ The MARTAS start command is included into the users crontab during the initializ
 the acquistion job will be started automatically depending on the schedule of the crontab (default is around midnight,
 once a day). The process will only be started in case it is not yet running.
 
+
 ### 4.6 The MARTAS viewer
 
 Since MARTAS version 2.0 a MARTAS viewer is included. The viewer will create a local webpage giving you some information
@@ -709,6 +710,25 @@ either be sys.stdout or the given log file.
 
 Calculates real-time differences between sensors attached to the same MARTAS. This is useful if you want to 
 visualize gradients directly.
+
+
+
+### 5.5 The MARCOS viewer
+
+Since MARTAS version 2.0 a MARCOS viewer is included. The viewer will create a local webpage giving you some information
+about the MARCOS collection system. Please note that this viewer is specifically developed for a datbase based collection
+system. You can start and open the MARCOS viewer as follows: 
+
+        (martas)$ cd ~/.martas
+        (martas)$ bash marcos_view
+
+Open webpage http://127.0.0.1:8050 will give you something like:
+
+![5.5.1](./martas/doc/marcos_viewer.png "The MARCOS viewer")
+Figure 5.5.1: The MARCOS viewer provides a quick overview about collection jobs (top), live data (center right), 
+database, archive and monitoring state plus storage consumption (center left), as well as scheduled jobs (bottom left) and
+sensors, data records in the database (table right). 
+
 
 ## 6. Applications
 
@@ -1764,17 +1784,26 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 ## 10. Appendix
 
-### 10.1. Full installation guide of a MARTAS box
+### 10.1. Installation issues and examples
 
 The installation is usually straightforward as described in section 2. For some systems you might however require some
 additional packages to fulfill required dependencies. Here we summarise some system specific issues and solutions, as
 well as a full installation cookbook.
 
-#### Beaglebone Black
+#### 10.1.1 Installation problems with virtualenv
 
-Problems with scipy installation in environment:
+Such problems might occur and have been experienced while installing scipy on beaglebone blacks. You might want to 
+consider search engines to find solutions for that. Alternatively you can also switch to system python for running MARTAS.
+As you still require some pip packages this method is not recommended. In order to minimize a potential negative 
+influence on system stability it is recommended to install most packages based on apt.
 
-       sudo apt install gfortran libopenblas-dev pkg-config
+      sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-plotly
+
+Then install the remaining dependencies using pip.
+
+      sudo pip install --force martas
+
+
 
 #### 10.1.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
 

@@ -281,9 +281,12 @@ def get_storage_usage(statusdict=None, cred="cobsdb", archivepath="", logpath=""
     atotal, aused = 0, 0
     mtotal, mused = 0, 0
     if archivepath:
-        atotal, aused = getspace(path=archivepath)
+        if os.path.exists(archivepath):
+            atotal, aused = getspace(path=archivepath)
     if logpath:
-        mtotal, mused = getspace(path=logpath)
+        logpath = os.path.dirname(logpath)
+        if os.path.exists(logpath):
+            mtotal, mused = getspace(path=logpath)
     ad = statusdict.get('archive',{})
     if ad:
         ad["space"] = np.round(atotal/1000.,0)
