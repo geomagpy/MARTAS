@@ -367,7 +367,7 @@ class MartasAnalysis(object):
                     if len(ofl) > 0:
                         print ("  - found ", len(ofl))
                         newfl = newfl.join(ofl)
-                if 'range' in flagmode and len(keys) == 1:
+                if 'range' in flagmode:
                     # validity range
                     rfl = flagging.flag_range(data,group.get('keys',['x','y','z']),above=group.get('min',-100000),below=group.get('max',100000), labelid='060', operator='MARTAS')
                     if len(rfl) > 0:
@@ -588,16 +588,16 @@ class MartasAnalysis(object):
             variosource = {'db' : prim_v}
             scalarsource = {'db' : prim_s}
             vario = self.adjust_vario(variosource, basemode='constant', flagfile=None, drop_flagged=True, bc=True,
-                                      basefile=basefile, basestart=basestart, baseend=baseend)
-            scalar = self.adjust_scalar(scalarsource, flagfile=None )
+                                      basefile=basefile, basestart=basestart, baseend=baseend, debug=debug)
+            scalar = self.adjust_scalar(scalarsource, flagfile=None, debug=debug)
         elif runmode == 'quasidefinitive':
             # Check if new flags are available since last run (or whether data has been checked by an observer)
             publevel = 3
             variosource = {'file' : os.path.join(base,prim_v[:-5],prim_v)}
             scalarsource = {'file' : os.path.join(base,prim_s[:-5],prim_s)}
             vario = self.adjust_vario(variosource, basemode='function', starttime=starttime, endtime=endtime, flagfile=None, drop_flagged=True, bc=True,
-                                      basefile=basefile, basestart=basestart, baseend=baseend)
-            scalar = self.adjust_scalar(scalarsource, starttime=starttime, endtime=endtime, flagfile=None )
+                                      basefile=basefile, basestart=basestart, baseend=baseend, debug=debug)
+            scalar = self.adjust_scalar(scalarsource, starttime=starttime, endtime=endtime, flagfile=None, debug=debug)
         elif runmode == 'firstrun':
             # Maybe for the future
             publevel = 4

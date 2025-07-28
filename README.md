@@ -1429,7 +1429,7 @@ existing flags and then apply the flagging method on remaining data.
         from martas.core import methods as mm
         from martas.core.analysis import MartasAnalysis
         config = mm.get_conf('Configuration file like basevalue.cfg')
-        config = mm.check_conf()
+        config = mm.check_conf(config)
         flagdict = mm.get_json('Flagdict file like shown above')
         mf = MartasAnalysis(config=config, flagdict=flagdict)
         fl = mf.periodically(debug=False)
@@ -1444,11 +1444,11 @@ geomagnetic data analysis. Adjusted data can be obtained hereby.
         from martas.core import methods as mm
         from martas.core.analysis import MartasAnalysis
         config = mm.get_conf('Configuration file like basevalue.cfg')
-        config = mm.check_conf()
+        config = mm.check_conf(config)
         mf = MartasAnalysis(config=config)
         primary_vario = mf.get_primary(variometer DataID list)
         primary_scalar = mf.get_primary(scalar DataID list)
-        merged = mf.magnetism_data_products('adjusted', primary_vario, primary_scalar)
+        merged = mf.magnetism_data_product('adjusted', primary_vario, primary_scalar)
         results = merged.get('merge')
         for samplingrate in results:
             export_data res.get(samplingrate)
