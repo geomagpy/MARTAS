@@ -151,6 +151,8 @@ def convert_datainfo_to_datatable(result, debug=False):
     DESCRIPTION
         converts results dictionary into a Table for display
     """
+    if not result:
+        result = {}
     table = []
     dtable = []
     sidtab = []
@@ -199,6 +201,8 @@ def get_graph_options(result, actualcrit=1):
     DESCRIPTION
         get a list of actual sensors for dropdown and available keys/elements for plotting
     """
+    if not result:
+        result = {}
     dataoptions = []
     datavalue = None
     for elem in result:
@@ -272,9 +276,11 @@ def getspace(path="/srv"): # path = '/srv'
 def get_storage_usage(statusdict=None, cred="cobsdb", archivepath="", logpath="", debug=False):
     if not statusdict:
         statusdict = {}
+    txt = ""
     dbused = 0
     db = mm.connect_db(cred, False, False)
-    txt = db.info(destination='stdout', level='full')
+    if db:
+        txt = db.info(destination='stdout', level='full')
     if txt:
         dbused = txt.split()[-1]
     dbmax = 30.0 # should be smaller than 30GB

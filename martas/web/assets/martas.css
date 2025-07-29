@@ -6,7 +6,7 @@ body {
 .wrapper {
 	display: grid;
 	grid-gap: 10px;
-	grid-template-columns: 33% 33% 33%;
+	grid-template-columns: 1fr 1fr 1fr;
 	background-color: #fff;
 	color: #EDE9E8;
 	}
@@ -52,7 +52,7 @@ body {
 	body {
 		margin: 2px;
 	}
-	.wrapper { grid-template-columns: 50% 50% }
+	.wrapper { grid-template-columns: 1fr 1fr }
 	.box {
 	border-radius: 2px;
 	padding: 5px;

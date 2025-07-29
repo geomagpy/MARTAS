@@ -5,7 +5,7 @@ body {
 .mwrap {
 	display: grid;
 	grid-gap: 10px;
-	grid-template-columns: 11% 11% 11% 11% 11% 11% 11% 11% 11%;
+	grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
 	background-color: #fff;
 	color: #EDE9E8;
 	}
@@ -101,7 +101,7 @@ body {
 	body {
 		margin: 2px;
 	}
-	.mwrap { grid-template-columns: 11% 11% 11% 11% 11% 11% 11% 11% 11% }
+	.mwrap { grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr }
 	.mbox {
 	border-radius: 2px;
 	padding: 5px;
@@ -194,7 +194,7 @@ body {
 	body {
 		margin: 10px;
 	}
-	.mwrap { grid-template-columns: 11% 11% 11% 11% 11% 11% 11% 11% 11% }
+	.mwrap { grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr }
 	.mbox {
 	border-radius: 1px;
 	padding: 5px;
