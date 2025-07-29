@@ -9,6 +9,8 @@ exec(open('martas/version.py').read())
 shutil.copyfile('martas/acquisition.py','scripts/acquisition')
 shutil.copyfile('martas/collector.py','scripts/collector')
 shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
+shutil.copyfile('martas/web/martas_view.py', 'scripts/martas_view')
+shutil.copyfile('martas/web/marcos_view.py', 'scripts/marcos_view')
 
 install_requires=[
             "geomagpy > 1.1.9",
@@ -24,7 +26,6 @@ install_requires=[
             "dash",
             "dash_daq",
             "psutil",
-            "twisted",
             "setuptools >= 61.0.0"
           ]
 
@@ -34,7 +35,7 @@ setup(
     author='R. Leonhardt, R. Bailey, R. Mandl',
     author_email='roman.leonhardt@geosphere.at',
     packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.lib', 'martas.logrotate', 'martas.scripts', 'martas.telegram', 'martas.web', 'martas.web.assets'],
-    scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init'],
+    scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init', 'scripts/martas_view', 'scripts/marcos_view'],
     url='',
     license='LICENSE.txt',
     description='MARTAS',

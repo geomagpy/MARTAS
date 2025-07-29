@@ -1,9 +1,16 @@
 paho-mqtt
 pyserial
+numpy
+scipy
 geomagpy
 twisted
 psutil
 plotly
 dash
 dash_daq
+paramiko
+pexpect
+requests
+python-crontab
+numba
 

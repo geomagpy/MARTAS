@@ -576,7 +576,7 @@ class MartasAnalysis(object):
         basetype =  self.config.get('blvabb','BLV')
         basename = "{}_{}_{}_{}.txt".format(basetype,prim_v[:-5],prim_s[:-5],prim_p)
         print (" - suggested name of the basevalue file:", basename)
-        basefile = os.path.join(os.path.join(base,'DI','data',basename))
+        basefile = os.path.join(os.path.join(base,'archive',station.upper(),'DI','data',basename))
         publevel = 1
         # Obtain pat to baseline data, always use one year of baseline data
         baseend = datetime.now(timezone.utc).replace(tzinfo=None)

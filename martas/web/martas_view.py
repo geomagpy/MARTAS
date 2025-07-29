@@ -83,7 +83,7 @@ for d in data2show:
     data, names = extract_data(d)
     nd[d] = {'names': names }
 
-app = Dash(__name__)
+app = Dash(__name__, assets_ignore='marcos.css')
 
 
 app.layout = (html.Div(
@@ -168,7 +168,7 @@ def update_config(n):
     htmllist.append(html.P(['MQTT broker: {}'.format(cfg.get('broker'))]))
     return htmllist
 
-
+1
 @app.callback(Output('live-update-text', 'children'),
               Input('graph-update', 'n_intervals'))
 def update_metrics(n):
