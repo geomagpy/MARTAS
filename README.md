@@ -1807,6 +1807,13 @@ You likely will need to update the path variable then in the "runmartas.sh" job.
 "/usr/local/bin/acquisition" to make it available from cron.
 
 
+#### 10.1.2 Installation behind a proxy server
+
+Reconfigure pip to use the proxy server (if necessary)
+
+      pip config set global.proxy http://{host}/{port}
+
+
 
 #### 10.1.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
 

@@ -729,7 +729,7 @@ class MartasAnalysis(object):
                 va = read(source.get(key,''), starttime=starttime, endtime=endtime)
 
         if debug:
-            print(" - using {} scalar data from {}".format(len(va), va.header.get("DataID")))
+            print(" - using {} variometer data from {}".format(len(va), va.header.get("DataID")))
             print(" - dealing with data between {} and {}".format(starttime, endtime))
         if not va or not len(va) > 0:
             print(" - no data found - skipping vario")

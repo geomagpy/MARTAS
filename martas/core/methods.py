@@ -617,7 +617,7 @@ def sendmail(dic, credentials="webmail", debug=False):
     smtp.close()
 
 
-def sendtelegram(message, configpath="", debug=True):
+def sendtelegram(message, configpath="", proxies=None, debug=True):
     """
     DESCRIPTION
         Sending a telegram message provided that token and chat_id are provided
@@ -626,9 +626,15 @@ def sendtelegram(message, configpath="", debug=True):
     VARIABLES
         message : string
         configpath  :
+        proxies   :  should look similar to { "http" : "http://10.10.10.10:3128",
+                                        "https" : "https://10.10.10.10:3128",
+                                        }
     """
 
-    print("Running telegram send:", configpath, message)
+    if not proxies:
+        proxies = {}
+
+    print("Running telegram send:", configpath, message, proxies)
     if not message or not configpath or not os.path.isfile(configpath):
         return False
     # telegram notifications - replace and cut
@@ -640,7 +646,7 @@ def sendtelegram(message, configpath="", debug=True):
     token = config.get('telegram', 'token')
     chat_id = config.get('telegram', 'chat_id')
     url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={rep}"
-    print(requests.get(url).json())  # this sends the message
+    print(requests.get(url, proxies=proxies).json())  # this sends the message
     return True
 
 
@@ -678,11 +684,15 @@ class martaslog(object):
     of acquisition and analysis states
     """
 
-    def __init__(self, logfile='/var/log/magpy/martasstatus.log', receiver='mqtt'):
+    def __init__(self, logfile='/var/log/magpy/martasstatus.log', receiver='mqtt', proxies=None):
         self.mqtt = {'broker': 'localhost', 'delay': 60, 'port': 1883, 'stationid': 'wic', 'client': 'P1', 'user': None,
                      'password': None}
         self.telegram = {'config': "/home/leon/telegramtest.conf"}
         self.email = {'config': "/home/leon/mail.cfg"}
+        if not proxies:
+            self.proxies = {}
+        else:
+            self.proxies = proxies
 
         self.logfile = logfile
         self.receiver = receiver
@@ -763,7 +773,7 @@ class martaslog(object):
             teleconfig = self.telegram.get('config')
             for elem in dictionary:
                 tgmsg += "{}: {}\n".format(elem, dictionary[elem])
-            sendtelegram(tgmsg, configpath=teleconfig, debug=False)
+            sendtelegram(tgmsg, configpath=teleconfig, proxies=self.proxies, debug=False)
             print('Update sent to telegram')
         elif self.receiver == 'email':
             msg = ''
