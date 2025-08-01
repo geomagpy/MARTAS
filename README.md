@@ -582,6 +582,28 @@ A few hints in order to test for proper recording and data publication.
 
            mosquiito_sub -h BROKER -t STATIONID/#
 
+### 4.8. Using MARTAS to publish geomagnetic data on INTERMAGNET
+
+MARTAS can be used to transfer geomagnetic data to the MQTT receivers if INTERMAGNET directly. This data transport is 
+supported for MagPY databases continuously filled by MARCOS jobs (ideal way if you use MARTAS/MagPy for data production)
+and also by periodically accessing local data files and transforming them into delivery packages (if you are using 
+traditional data production methods and just want to deliver data quickly and secure). Both ways are described in detail 
+below.
+
+#### 4.8.1 Getting access to the MQTT Broker and local configurations
+
+xxx
+
+#### 4.8.2 Delivering data from a MARCOS/MagPy data base
+
+This technique supports realtime transmission of variation data and very near time delivery of adjusted data products. 
+
+#### 4.8.3 Delivering data from local data files
+
+The technique can be applied to all data sets which are readable by MagPy2.0. Before continuing make sure that this is
+working. 
+
+
 ## 5. MARCOS
 
 ### 5.1. Quick instructions
@@ -591,7 +613,7 @@ and receives any new data published there. All three systems, MARTAS, BROKER, an
 as different processes. You can also have several MARCOS collectors accessing the 
 same broker independently.
 
-**Step 1**: Setup database, create paths for archives and add credentials depending on your projected detsination ([section 5.4](#54-data-destinations))
+**Step 1**: Setup database, create paths for archives and add credentials depending on your projected destination ([section 5.4](#54-data-destinations))
 
 **Step 2**: initialize a MARCOS collector using martas_init (details on [martas_init](#3-initialization-of-martasmarcos)) 
 
@@ -1379,9 +1401,9 @@ platform. For webcam support you shoudl install fswebcam.
         sudo apt install fswebcam  # optional - transferring webcam pictures
 
 
-#####  c) Update /etc/martas/telegrambot.cfg (TODO: needs an update)
+#####  c) Update ~/.martas/conf/telegrambot.cfg
 
-        nano /etc/martas/telegrambot.cfg
+        nano ~/.martas/conf/telegrambot.cfg
 
 - you need the BotID, which you obtained when creating the new BOT
 - you need at least one UserID. Your UserID

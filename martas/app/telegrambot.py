@@ -109,6 +109,7 @@ def handle(msg):
     tglogger.info("Bot -> ContentType: {}; ChatType: {}".format(content_type, chat_type))
     firstname = msg['from']['first_name']
     userid = msg['from']['id']
+    ah.messageconfig['firstname'] = firstname
 
     chat_id = msg['chat']['id']
     command = msg['text'].replace('/','')

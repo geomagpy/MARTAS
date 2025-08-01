@@ -483,7 +483,7 @@ def main(argv):
                 fout.write(line+"\n")
 
         cronlist.append("# Running MARTAS ")
-        cronlist.append("15  0,6,12,18  * * *    /usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
+        cronlist.append("15  0,6,12,18  * * *    /usr/bin/bash -i {} start > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
         cronlist.append("# Monitoring {} - hourly".format(jobname)) # jobname only for MARTAS
 
         with CronTab(user=True) as cron:

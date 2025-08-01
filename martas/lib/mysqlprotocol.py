@@ -75,7 +75,7 @@ class MySQLProtocol(object):
         log.msg("  -> IMPORTANT: MySQL assumes that database credentials ")
         log.msg("     are saved locally using magpy.opt.cred with the same name as database")
         try:
-            self.db = database.DataBank(host=mpcred.lc(self.sensor,'host'),user=mpcred.lc(self.sensor,'user'),passwd=mpcred.lc(self.sensor,'passwd'),db=self.sensor)
+            self.db = database.DataBank(host=mpcred.lc(self.sensor,'host'),user=mpcred.lc(self.sensor,'user'),password=mpcred.lc(self.sensor,'passwd'),database=self.sensor)
             self.connectionMade(self.sensor)
         except:
             self.connectionLost(self.sensor,"Database could not be connected - check existance/credentials")
