@@ -1353,39 +1353,42 @@ health status, and information on connected sensors. You can check data acquisit
 Provided a appropriate sensor configurations it is also possible to use the system as a remote switch, you can attach
 a cameras and trigger messaging events.
 
-TelegramBot is a background service permanently running on your machine. 
+TelegramBot is a background service permanently running on your machine. You will need to install the following 
+additional package which is not on the default requirement list.
+
+      pip install telepot
+
 
 #### 7.5.2 Installation and interactive communication with TelegramBot
 
 To setup 2-way [Telegram] communication use the following steps:
 
-  a) Use [Telegram Botfather] to create a new BOT
+##### a) Use [Telegram Botfather] to create a new BOT
 
         /newbot
 
         /setuserpic
 
-  b) Install Telegram support for MARTAS (TODO: needs an update)
+##### b) Install Telegram support for MARTAS
 
-        $ cd MARATS/install
-        $ sudo bash install.telegram.sh
+        pip install telepot
 
-      The installer will eventually add the following apckages: telepot, psutil and
-      platform. For webcam support you shoudl install fswebcam.
+The installer will eventually add the following apckages: telepot, psutil and
+platform. For webcam support you shoudl install fswebcam.
 
-        $ sudo apt-get install fswebcam  # optional - transferring webcam pictures
+        sudo apt install fswebcam  # optional - transferring webcam pictures
 
 
-  c) Update /etc/martas/telegrambot.cfg (TODO: needs an update)
+#####  c) Update /etc/martas/telegrambot.cfg (TODO: needs an update)
 
-        $ nano /etc/martas/telegrambot.cfg
+        nano /etc/martas/telegrambot.cfg
 
-      -> you need the BotID, which you obtained when creating the new BOT
-      -> you need at least one UserID. Your UserID
+- you need the BotID, which you obtained when creating the new BOT
+- you need at least one UserID. Your UserID
 
-  d) Open Telegram on your Mobile/Webclient and access the TelegramBot Channel.
+#####  d) Open Telegram on your Mobile/Webclient and access the TelegramBot Channel.
 
-      You can can now talk to your BOT (here are some examples):
+You can can now talk to your BOT (here are some examples):
 
         hello bot
 
@@ -1411,7 +1414,7 @@ To setup 2-way [Telegram] communication use the following steps:
 
         plot data from DS18B20_28616411B2648B6D_0001 between 2020-10-24 and 2020-10-26
 
-      If you have a microcontroller connected programmed with MARTAS specifications (e.g. arduino) you can also send switching commands:
+If you have a microcontroller connected programmed with MARTAS specifications (e.g. arduino) you can also send switching commands:
 
         switch heating on
 

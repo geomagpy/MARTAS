@@ -642,7 +642,7 @@ class ActionHandler(object):
             print("-----------------------")
         mainjob = "{}".format(os.path.join(self.configuration.get('base'),'runmartas.sh'))
         if not os.path.isfile(mainjob):
-            mesg = "martas: could not find martas call"
+            mesg = "martas: could not find martas call\n"
             return mesg
         command = ""
 
@@ -658,7 +658,7 @@ class ActionHandler(object):
 
         call = 'bash {} {} &'.format(mainjob, command)
         message['call'] = [call]
-        message['text'] = "Sending MARTAS call:".format(command)
+        message['text'] = "Sending MARTAS call: {}\n".format(command)
         return message
 
 
@@ -718,7 +718,7 @@ class ActionHandler(object):
         """
         message = {}
         message['call'] = ["/sbin/reboot"]
-        message['text'] = "rebooting..."
+        message['text'] = "rebooting...\n"
         return message
 
 
@@ -729,7 +729,7 @@ class ActionHandler(object):
         """
         message = {}
         message['call'] = ["pip install -U martas"]
-        message['text'] = "rebooting..."
+        message['text'] = "updating martas...\n"
         return message
 
 
@@ -749,9 +749,9 @@ class ActionHandler(object):
             usedcamport = self._getcam(camport)
 
         if not usedcamport:
-            mesg = "No camport identified"
+            mesg = "No camport identified\n"
         else:
-            mesg = "Taking snapshot using fswebcam"
+            mesg = "Taking snapshot using fswebcam\n"
             if debug:
                 print("Creating image...")
                 print("Selected cam port: {} and temporary path {}".format(usedcamport, tmppath))
@@ -832,7 +832,7 @@ class ActionHandler(object):
                 print("Checking logfile {}".format(logpath))
             mesg = self._tail(logpath, lines=N)
         else:
-            mesg = "getlog:\nlogfile not existing"
+            mesg = "getlog:\nlogfile not existing\n"
 
         return mesg
 
@@ -854,9 +854,9 @@ class ActionHandler(object):
                 print("tpath: {}".format(path))
             option = '-c'
             call = "{} {} {} {}".format(python,path,option,command)
-            mesg = "Running command {}".format(command)
+            mesg = "Running command {}\n".format(command)
         except:
-            mesg = "martas: check_call problem"
+            mesg = "martas: check_call problem\n"
         message['call'] = [call]
         message['text'] = mesg
         return mesg
@@ -943,7 +943,7 @@ class ActionHandler(object):
             call = "/usr/bin/python3 {a} -m {c}/second/sec_analysis2020.json -l {d}/second/2020/level".format(
                 a=imbotoverview, c=imbotmemory, d=imbotarchive)
         message['call'] = [call]
-        message["text"] = "Requesting IMBOT report..."
+        message["text"] = "Requesting IMBOT report...\n"
         return message
 
 
@@ -964,7 +964,7 @@ class ActionHandler(object):
             call = "{} {} {} {} {} {}".format(python,path,optioncfg,configpath,optionmem,memorypath)
             calls.append(call)
         message['call'] = calls
-        message['text'] = "Requesting upload..."
+        message['text'] = "Requesting upload...\n"
         return message
 
 
@@ -990,7 +990,7 @@ class ActionHandler(object):
                 interface, "{3}")
             calls.append(call)
         message['call'] = calls
-        message['text'] = "Requesting IP..."
+        message['text'] = "Requesting IP...\n"
         return message
 
 
@@ -1041,7 +1041,7 @@ class ActionHandler(object):
             matplotlib.use('Agg')
             f, a = mp.tsplot(data)
             f.savefig(os.path.join(tmppath,'tmp.png'))
-            mesg = "Plotting {}".format(sensorid)
+            mesg = "Plotting {}\n".format(sensorid)
             message['pictures'] = [os.path.join(tmppath,'tmp.png')]
 
         message['text'] = mesg
@@ -1284,7 +1284,6 @@ class TestActionHandler(unittest.TestCase):
                 msg = "\n".join(lines)
             if msg:
                 print ("Result for {}: Obtained {}".format(comm,msg))
-
 
 
 if __name__ == "__main__":
