@@ -38,8 +38,6 @@ Commands: cobs:              - checkDB, get nagios infi
 
 telegrambot.cfg needs to be in the same directory as the bot
 
-
-
 CHANGES:
 Vers 1.0.2:
 
@@ -60,153 +58,67 @@ Improvements:
 
 """
 
-from __future__ import print_function
-from __future__ import unicode_literals
-
-# Define packges to be used (local refers to test environment)
-# ------------------------------------------------------------
+import unittest
+from martas.core import methods as mm
+from martas.version import __version__
 from magpy.stream import *
-from magpy.database import *
-import magpy.mpplot as mp
-import magpy.opt.cred as mpcred
-from pickle import load as pload
+from magpy.core import database
+from magpy.core import plot as mp
 import re
 import os
-from os import listdir
-from os.path import isfile, join
-import glob
 import subprocess
-from subprocess import check_call
-import telepot
-from telepot.loop import MessageLoop
+#import telepot
+#from telepot.loop import MessageLoop
 import sys, getopt
 import glob
 
-# Relative import of core methods as long as martas is not configured as package
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-import acquisitionsupport as acs
 
-# Default configuration path - modified using options
-telegramcfg = os.path.join(os.path.dirname(scriptpath),"telegrambot.cfg")
-
-
-def GetConf(path, confdict={}):
-    """
-    Version 2020-10-28
-    DESCRIPTION:
-       can read a text configuration file and extract lists and dictionaries
-    VARIBALES:
-       path             Obvious
-       confdict         provide default values
-    SUPPORTED:
-       key   :    stringvalue                                 # extracted as { key: str(value) }
-       key   :    intvalue                                    # extracted as { key: int(value) }
-       key   :    item1,item2,it                       'martasupdate': {'commands': ['martasupdate'],
-                                   'combination' : 'any',
-                                   'priority' : 1,
-                                   'availability': ['hidden'],
-                                   'description': 'update MARTAS'}
-em3                           # extracted as { key: [item1,item2,item3] }
-       key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
-       key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
-    """
-    exceptionlist = ['bot_id']
-
-    def is_number(s):
-        try:
-            float(s)
-            return True
-        except ValueError:
-            return False
-
-    try:
-        config = open(path,'r')
-        confs = config.readlines()
-        for conf in confs:
-            conflst = conf.split(':')
-            if conflst[0].strip() in exceptionlist or is_number(conflst[0].strip()):
-                # define a list where : occurs in the value and is not a dictionary indicator
-                conflst = conf.split(':',1)
-            if conf.startswith('#'):
-                continue
-            elif conf.isspace():
-                continue
-            elif len(conflst) == 2:
-                conflst = conf.split(':',1)
-                key = conflst[0].strip()
-                value = conflst[1].strip()
-                # Lists
-                if value.find(',') > -1:
-                    value = value.split(',')
-                    value = [el.strip() for el  in value]
-                try:
-                    confdict[key] = int(value)
-                except:
-                    confdict[key] = value
-            elif len(conflst) > 2:
-                # Dictionaries
-                if conf.find(';') > -1 or len(conflst) == 3:
-                    ele = conf.split(';')
-                    main = ele[0].split(':')[0].strip()
-                    cont = {}
-                    for el in ele:
-                        pair = el.split(':')
-                        # Lists
-                        subvalue = pair[-1].strip()
-                        if subvalue.find(',') > -1:
-                            subvalue = subvalue.split(',')
-                            subvalue = [el.strip() for el  in subvalue]
-                        try:
-                            cont[pair[-2].strip()] = int(subvalue)
-                        except:
-                            cont[pair[-2].strip()] = subvalue
-                    confdict[main] = cont
-                else:
-                    print ("Subdictionary expected - but no ; as element divider found")
-    except:
-        print ("Problems when loading conf data from file. Using defaults")
-
-    return confdict
-
-
-class telegrambot(object):
+class ActionHandler(object):
     """
     DESCRIPTION
-        telegrambot class
+        Action handler contains a command dictionary and will perform actions according to this
+         dictionary dependend on any received command.
+         In order to generate specific options, the Action handler needs also access to data and
+         configurations of MARTAS/MARCOS
     METHODS
 
     APPLICATION
     """
 
-    def __init__(self, configsource=None, commandsource=None, debug=False):
+    def __init__(self, configpath=None, commands=None, debug=False):
         # set some general parameters
         # read a "interpretation" dictionary from a file
-        commanddict = self.set_default_commands()
-        configuration = self.set_default_configuration()
+        if not commands:
+            commands = self.set_default_commands()
+        else:
+            # TODO eventually add new commands and replace defaults
+            pass
         self.debug = debug
         # Now combine defauls with constructors provided
-        if configsource:
+        if configpath:
             if debug:
-                 print ("Reading configuration")
-            configuration = GetConf(configsource, confdict=configuration)
+                 print ("TelegramBot: Reading configuration")
+            config = mm.get_conf(configpath)
+        else:
+            config = self.set_default_configuration()
+
         if debug:
             print ("Configuration:")
-            print (configuration)
+            print (config)
         # PLEASE NOTE: CONFIG should replace or extend contents of default dictionaries, not the whole dic
-        self.configuration = configuration
-        self.commanddict = commanddict
-        self.logger = self.logger_setup(name==configuration.get('logname','telegrambot'),loglevel=configuration.get('loglevel','INFO'),path=configuration.get('logging','stdout'))
+        self.configuration = config
+        self.commanddict = commands
+        self.logger = self.logger_setup(name=config.get('logname','telegrambot'),loglevel=config.get('loglevel','INFO'),path=config.get('logging','stdout'))
         self.inputcounter = 0
         self.quest = False
         self.cvals = {}
+        # parameters will be filled by data and configuartion specific parameters for the requested actions
+        self.parameters = {}
 
         #if configuration.get('purpose') in ['martas','Martas','MARTAS']:
         #    configuration = self.init_martas(configuration)
 
-
-    def set_default_configuration():
+    def set_default_configuration(self):
         """
         DESCRIPTION
             some defaults for configuration parameters
@@ -223,14 +135,14 @@ class telegrambot(object):
 
         config['bot_id'] = ''
         config['tmppath'] = '/tmp'
-        config['martasfile'] = '/home/cobs/martas.cfg'
+        config['martasfile'] = '/home/cobs/.martas/conf/martas.cfg'
         config['martaspath'] = '/home/cobs/MARTAS'
         config['allowed_users'] = ''
         config['camport'] = 'None'
         config['logname'] = 'telegrambot'
         config['logging'] = 'stdout'
         config['loglevel'] = 'INFO'
-        config['travistestrun' = False
+        config['travistestrun'] = False
         return config
 
     def set_default_commands(self):
@@ -290,7 +202,7 @@ class telegrambot(object):
                                    'priority' : 1,
                                    'availability': ['all'],
                                    'description': 'get information on disk space, memory, and martas-marcos processes'},
-                       'getlog' : {'commands': ['getlog','get log','get the log', 'print log', 'print the log'],
+                       'getlog' : {'commands': ['getlog','get log','get the log', 'print log', 'print the log', ' log'],
                                    'combination' : 'any',
                                    'priority' : 1,
                                    'options' : {'logfile':True},
@@ -315,7 +227,7 @@ class telegrambot(object):
                                    'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] },
                                    'description': 'otional: turn on/off remote switches if supported by the hardware (work in progress)'},
                        'badwords':{'commands': ['fuck','asshole'],
-                                   'combination' : 'any'
+                                   'combination' : 'any',
                                    'priority' : 1,
                                    'availability': ['hidden'],
                                    'description': ''},
@@ -323,7 +235,7 @@ class telegrambot(object):
                                    'combination' : 'any',
                                    'priority' : 1,
                                    'availability': ['all'],
-                                   'description': 'open a preconfigured figure'}
+                                   'description': 'open a preconfigured figure'},
                        'figure2': {'commands': ['figure2','Figure2','fig2','Fig2'],
                                    'combination' : 'any',
                                    'priority' : 1,
@@ -343,99 +255,42 @@ class telegrambot(object):
         return commanddict
 
 
-    def init_martas(self, config={}):
+    def interprete(self, input, exclude=None):
         """
         DESCRIPTION
-            special init for martas machine
-            -> reads martas config files (martas.cfg and sensors.cfg)
-        APPLICATION:
-            at the end of general init (after logger)
-        """
-        #if tgpar.purpose in ['martas','Martas','MARTAS']:
-        # requires the GetConf function 
-        try:
-            conf = acs.GetConf(martasconfig)
-            logpath = '/var/log/syslog'
-            if not conf.get('logging').strip() in ['sys.stdout','stdout']:
-                logpath = conf.get('logging').strip()
-            tgpar.logpath = logpath
-            # assume marcoslogpath to be in the same directory
-            tgpar.marcoslogpath = os.path.join(os.path.dirname(logpath),'marcos.log')
-            sensorlist = acs.GetSensors(conf.get('sensorsconf'))
-            ardlist = acs.GetSensors(conf.get('sensorsconf'),identifier='?')
-            sensorlist.extend(ardlist)
-            owlist = acs.GetSensors(conf.get('sensorsconf'),identifier='!')
-            sensorlist.extend(owlist)
-            sqllist = acs.GetSensors(conf.get('sensorsconf'),identifier='$')
-            sensorlist.extend(sqllist)
-            mqttpath = conf.get('bufferdirectory')
-            #apppath = conf.get('initdir').replace('init','app')
-            tglogger.debug("Successfully obtained parameters from martas.cfg")
-            #TODO
-            # add sensorlist and paths to confiuration dic
-        except:
-            #print ("Configuration (martas.cfg) could not be extracted - aborting")
-        if not travistestrun:
-            tglogger.warning("Configuration (martas.cfg) could not be extracted - aborting")
-            sys.exit()
-        return configuration
-    
-
-    def read_interpreter(self, path):
-        """
-        DESCRIPTION
-            reads a interpretation dictionary from file
-        """
-        pass
-
-    def logger_setup(self, name='telegrambot', loglevel='DEBUG', path='stdout'):
-
-        logpath = None
-        try:
-            level = eval("logging.{}".format(loglevel))
-        except:
-            level = logging.DEBUG
-
-        if not path in ['sys.stdout', 'stdout']:
-            logpath = path
-        # create formatter
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s',
-                                      "%Y-%m-%d %H:%M:%S")
-
-        logger = logging.getLogger(name)
-        logger.setLevel(level)
-        if logpath:
-            print("telegrambot: Creating log file")
-            # create file handler which logs even debug messages
-            fh = logging.FileHandler(logpath)
-            fh.setLevel(level)
-            # create console handler with a higher log level
-            ch = logging.StreamHandler()
-            ch.setLevel(logging.ERROR)
-            fh.setFormatter(formatter)
-            ch.setFormatter(formatter)
-            logger.addHandler(fh)
-            logger.addHandler(ch)
-        else:
-            print("telegrambot: logging to stdout")
-            ch = logging.StreamHandler()
-            ch.setLevel(level)
-            ch.setFormatter(formatter)
-            logger.addHandler(ch)
-
-        return logger
-
-    def command(self, bot, command, chat_id, firstname=None):
-        """
-        DESCRIPTION
-            send a command to the bot and return a message
+            Receive any text and identify existing commands and priorities within a command dictionary. Select the
+            appropriate command(s) and return them as action dictionary.
+        PARAMETERS:
+            input : any input request
+            exclude :
         REQUIRES
             self.configuration
             self.interpreter
         APPLICATION
             the main program just
         """
-        # identify command in command-dict and obtain possible options
+        actiondict = {}
+        if not exclude:
+            exclude = []
+        # Identify words, amount and positions of commandlist in input.
+        for elem in self.commanddict:
+            jobdic = self.commanddict.get(elem)
+            jobname = elem
+            jobpriority = jobdic.get('priority', 0)
+            jobcommands = jobdic.get('commands', [jobname])
+            availability = jobdic.get('availability', [])
+            print (jobcommands)
+            for jc in jobcommands:
+                if jc in input and not any(x in exclude for x in availability):
+                    ad = actiondict.get(jobname)
+                    count = ad.get("count",0)
+                    count += 1
+                    ad[count] = count
+                    ad['priority'] = jobpriority
+                    actiondict[jobname] = ad
+
+        """
+
         joblist = []
         message = ''
         if self.debug:
@@ -498,6 +353,7 @@ class telegrambot(object):
         # obtain the result in form of a dictionary
 
         return message
+        """
 
     def run_command(self, name, activedic):
         message = {}
@@ -509,17 +365,43 @@ class telegrambot(object):
             message = self.statistics(activedic)
         return message
 
-    def help(self, comdic={}):
+
+    def init_martas(self, martasconfig="", debug=False):
+        """
+        DESCRIPTION
+            special initialization for martas machine
+            -> reads martas config files (martas.cfg and sensors.cfg)
+        APPLICATION:
+            at the end of general init (after logger)
+        """
+        conf = mm.get_conf(martasconfig)
+
+        sensorlist = mm.get_sensors(conf.get('sensorsconf'))
+        ardlist = mm.get_sensors(conf.get('sensorsconf'),identifier='?')
+        sensorlist.extend(ardlist)
+        owlist = mm.get_sensors(conf.get('sensorsconf'),identifier='!')
+        sensorlist.extend(owlist)
+        sqllist = mm.get_sensors(conf.get('sensorsconf'),identifier='$')
+        sensorlist.extend(sqllist)
+        mqttpath = conf.get('bufferdirectory',"")
+        self.parameters['mqttpath'] = mqttpath
+        #self.logger("Successfully obtained parameters from martas.cfg")
+        return conf
+
+
+
+    def help(self, printhidden=False):
         """
         DESCRIPTION
             print dictionary of commands
         """
         printall = False
-        printhidden = False
+        message = {}
         mesg = ''
 
-        for com in comdict:
-            cd = comdict.get(com)
+        for com in self.commanddict:
+            cd = self.commanddict.get(com)
+            print (cd)
             if 'all' in cd.get('availability') or printall:
                 mesg += "COMMAND: *{}*\n".format(com)
                 mesg += "{}\n\n".format(cd.get('description'))
@@ -528,22 +410,22 @@ class telegrambot(object):
         message['text'] = mesg
         return message
 
-
-    def plot(sensor, starttime, endtime, keys=None):
+    def plot(self, sensor, starttime, endtime, keys=None):
         """
         DESCRIPTION
            plotting subroutine
         """
-        try:
+        mqttpath = self.telegramparameters.get('mqttpath',"")
+        tmppath = self.telegramparameters.get('tmppath',"")
+        if mqttpath and tmppath:
             data = read(os.path.join(mqttpath,sensor,'*'),starttime=starttime, endtime=endtime)
-            matplotlib.use('Agg')
-            mp.plot(data, confinex=True, outfile=os.path.join(tmppath,'tmp.png'))
-            return True
-        except:
-            return False
+            if len(data) > 0:
+                matplotlib.use('Agg')
+                p,a = mp.tsplot(data)
+                # p.save
 
 
-    def getspace():
+    def getspace(self):
         """
         DESCRIPTION
             get some memory information and process status reports
@@ -564,7 +446,8 @@ class telegrambot(object):
 
         return mesg
 
-    def jobprocess(typ='MARTAS'):
+
+    def jobprocess(self, typ='MARTAS'):
         # Status of MARTAS MARCOS jobs
         lines = []
         print (" -checking {}".format(typ))
@@ -589,18 +472,52 @@ class telegrambot(object):
         else:
             mesg = "{} process(es):\n----------".format(typ)
             lines = ['Requested job type','is not yet supported']
-        try:
-            if vers=='3':
-               lines = [line.decode() for line in lines]
-        except:
-            pass
+        lines = [line.decode() for line in lines]
 
         mesg += "\n{}".format(''.join(lines))
 
         return mesg
 
+    def logger_setup(self, name='telegrambot', loglevel='DEBUG', path='stdout'):
 
-    def system():
+        logpath = None
+        try:
+            level = eval("logging.{}".format(loglevel))
+        except:
+            level = logging.DEBUG
+
+        if not path in ['sys.stdout', 'stdout']:
+            logpath = path
+        # create formatter
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s : %(message)s',
+                                      "%Y-%m-%d %H:%M:%S")
+
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+        if logpath:
+            print("telegrambot: Creating log file")
+            # create file handler which logs even debug messages
+            fh = logging.FileHandler(logpath)
+            fh.setLevel(level)
+            # create console handler with a higher log level
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.ERROR)
+            fh.setFormatter(formatter)
+            ch.setFormatter(formatter)
+            logger.addHandler(fh)
+            logger.addHandler(ch)
+        else:
+            print("telegrambot: logging to stdout")
+            ch = logging.StreamHandler()
+            ch.setLevel(level)
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
+
+        return logger
+
+
+
+    def system(self):
         """
         DESCRIPTION
             get system information on hardware and software versions
@@ -635,10 +552,11 @@ class telegrambot(object):
         except:
             pass
 
+
         return mesg
 
 
-    def tail(f, n=1):
+    def tail(self, f, n=1):
         """
         DESCRIPTION:
             Obtain the last n line of a file f
@@ -650,8 +568,7 @@ class telegrambot(object):
                 n = num_lines
             proc = subprocess.Popen(['/usr/bin/tail', '-n', str(n), f], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             lines = proc.stdout.readlines()
-            if vers=='3':
-                lines = [line.decode() for line in lines]
+            lines = [line.decode() for line in lines]
             mesg += ''.join(lines)
         except:
             mesg += "An error occured - logfile existing?"
@@ -897,19 +814,6 @@ class telegrambot(object):
         return dt
 
 
-    def _latestfile(self, path, date=False, latest=True):
-        list_of_files = glob.glob(path) # * means all if need specific format then *.csv
-        if latest:
-            latest_file = max(list_of_files, key=os.path.getctime)
-        else:
-            latest_file = min(list_of_files, key=os.path.getctime)
-        ctime = os.path.getctime(latest_file)
-        if date:
-            return datetime.fromtimestamp(ctime)
-        else:
-            return latest_file
-
-
 
     def getdata(starttime=None,sensorid=None,interval=60, mean='mean'):
         """
@@ -971,6 +875,15 @@ class telegrambot(object):
 
         return returndict
 
+
+    def read_interpreter(self, path):
+        """
+        DESCRIPTION
+            reads a interpretation dictionary from file
+        """
+        pass
+
+"""
 class hconf(object):
     bot = None
     lwb = None
@@ -1014,71 +927,20 @@ def handle(msg):
             message = lwbot.command(bot, command, chat_id)
             print (message)
             #tg.send_message(message)
+"""
 
 
-def main(argv):
-    conf = ''
-    debug=False
-    try:
-        opts, args = getopt.getopt(argv,"hc:D",["config=","debug=",])
-    except getopt.GetoptError:
-        print ('telegrambot.py -c <config>')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print ('-------------------------------------')
-            print ('Description:')
-            print ('-------------------------------------')
-            print ('Usage:')
-            print ('telegrambot.py -c <config>')
-            print ('-------------------------------------')
-            print ('Options:')
-            print ('-c (required) : provide a path to a configuartion file')
-            print ('-------------------------------------')
-            print ('Example:')
-            sys.exit()
-        elif opt in ("-c", "--config"):
-            conf = os.path.abspath(arg)
-        elif opt in ("-D", "--debug"):
-            debug = True
+class TestActionHandler(unittest.TestCase):
+    """
+    Test environment for all methods
+    """
 
-    # get configuration data
-    lwbot = tbot(configsource=conf, debug=debug)
-    hconf.lwb = lwbot
-    hconf.debug = debug
-    bot = telepot.Bot(lwbot.configuration.get('bot_id'))
-    au = lwbot.configuration.get('allowed_users')
-    # Get chat id from users configuration file
-    if isinstance(au, list):
-        chat_id = au[0]
-    else:
-        chat_id = au
-    hconf.bot = bot
-    MessageLoop(bot, handle).run_as_thread()
-    lwbot.logger.info('Listening ...')
+    def test_interprete(self):
+        act = ActionHandler()
+        test = act.interprete("an incredibly long cry for help")
+        self.assertTrue(db)
 
-    # Keep the program running.
-    while 1:
-        try:
-            time.sleep(5)
-            t = datetime.now()
-            wd = t.weekday()
-            h = t.hour
-            m = t.minute
-            s = t.second
-            if h == 7 and m == 30 and s >= 2 and s < 7:
-                lwbot.command(bot,'dailyquestionary',chat_id)
-            if h == 20 and m == 0 and s >= 2 and s < 7:
-                ad = int(self.configuration.get('weightday',2))
-                if ad == wd:
-                    lwbot.command(bot,'summary',chat_id)
-        except KeyboardInterrupt:
-            lwbot.logger.info('\n Program interrupted')
-            exit()
-        except:
-            lwbot.logger.error('Other error or exception occured!')
-            sys.exit()
+
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
-
+    unittest.main(verbosity=2)

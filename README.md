@@ -175,6 +175,13 @@ Create this file if not existing and add the following lines:
          listener 1883
          allow_anonymous true
 
+You might also want to increase the message queu. When using the following line within listener.conf Up to 3000 
+messages are stored locally in case of network connection issues, and send after reestablishing the connection.
+
+        max_queued_messages 3000
+
+
+
 #### 2.3.2 Enabling authentication
 
 Authentication and secure data communication are supported by MARTAS. In order to enable
@@ -428,6 +435,8 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
 
 #### General Adruino microcontroller (Arduino)  
 
+Please read section [9.2.7](#927--communicating-with-an-arduino-uno-microcontroller).
+
          ARDUINO1,ACM0,9600,8,1,N,active,None,60,1,ActiveArduino,ARDUINO,-,0001,-,Home,NTP,environment,getO-getU
 
 #### MariaDB/MySQL database access  
@@ -435,6 +444,13 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
          cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
 
 #### Onewire Senors (Dallas)  
+
+The following additional packages need to be installed:
+
+         sudo apt install owfs 
+         pip install pyownet
+
+Please also read section [9.2.6](#926-dallas-ow-one-wire-support) for configuration details.
 
          OW,-,-,-,-,-,active,None,10,1,Ow,OW,-,0001,-,A2,NTP,environment,environment: dallas one wire sensors
 
@@ -451,6 +467,15 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
          POS1_N432_0001,S0,9600,8,1,N,passive,pos1init.sh,-,1,POS1,POS1,N432,0001,-,AS-W-36,GPS,magnetism,Quantum magnetics POS1 Overhauzer sensor
 
 #### Datalogger CR1000/CR800 (Campbell Scientific)
+
+You need to install a Campbell python library in order to use this datalogger:
+
+         cd ~/Downloads/
+         git clone git://github.com/SalemHarrache/PyCampbellCR1000.git
+         cd PyCamp*
+         python setup.py install
+
+Then you can use the following line in sensors.cfg
 
          CR1000JC_1_0002,USB0,38400,8,1,N,active,None,2,1,cr1000jc,CR1000JC,02367,0002,-,TEST,NTP,meteorological,snow height
 
@@ -1298,14 +1323,39 @@ Beside the internal monitoring routines you might want to include your MARTAS/MA
 monitoring network. Please checkout Icinga and/or NAGIOS for this purpose. MARTAS can be easily included into such
 networks and instructions are available upon request.
 
+```
+#NAGIOS
+sudo nano /etc/nagios/nrpe.cfg
+# MARTAS/MagPy commands:
+# -----------------
+command[check_procs_martas]=/usr/lib/nagios/plugins/check_procs -c 1:1 -C python -a acquisition
+command[check_all_disks]=/usr/lib/nagios/plugins/check_disk -w 20% -c 10% -e -A -i '.gvfs'
+command[check_log]=/usr/lib/nagios/plugins/check_log -F /home/USER/.martas/log/martas.log -O /tmp/martas.log -q ?
+
+# NTP check (optional)
+#command[check_ntp_time]=/usr/lib/nagios/plugins/check_ntp_time -H your.ntp.server -w 1 -c 2
+```
+
+
 ### 7.5 Two-way communication with MARTAS
 
-MARTAS comes with a small communication routine, which allows interaction with the MARTAS server. In principle, you can
-chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many more. Communication
-routines are available for the [Telegram] messenger. In order to use these routines you need to setup a Telegram bot,
-referring to your MARTAS.
+#### 7.5.1 The TelegramBot
 
-#### 7.5.1 interactive communication with TelegramBot
+MARTAS comes with a small communication routine, the TelegramBot, which allows interaction with the MARTAS server. 
+In principle, you can chat with MARTAS and certain keywords will trigger reports, health stats, data requests, and many
+more. Communication routines are available for the [Telegram] messenger. In order to use these routines you need to
+setup a Telegram bot, referring to your MARTAS.
+
+TelegramBot provides a communicaton tool with remote computers through the messenger app "Telegram". This tool is 
+specifically designed for communication with data acquisition computers, based on MagPy's Automatic Real Time 
+Acquisition System (MARTAS). This bot allows for interacting with those machines, obtain important system information, 
+health status, and information on connected sensors. You can check data acquisition, plot timeseries and more.
+Provided a appropriate sensor configurations it is also possible to use the system as a remote switch, you can attach
+a cameras and trigger messaging events.
+
+TelegramBot is a background service permanently running on your machine. 
+
+#### 7.5.2 Installation and interactive communication with TelegramBot
 
 To setup 2-way [Telegram] communication use the following steps:
 
@@ -1365,26 +1415,6 @@ To setup 2-way [Telegram] communication use the following steps:
 
         switch heating on
 
-#### 7.5.2 Receiving Telegram notification via TelegramChannel
-
-  a) Preliminary work
-
-Again you need TelegramBotFather to setup a telegram bot (see section 7.5.1) or you are using an existing one (i.e. MyFirstBot).
-
-Then you need to setup a new private TelegramChannel using your Telegram App. Lets asume you the name of your new TelegramChannel is "MyFirstChannel".
-
-Go to your channel overview and add (i.e. MyFirstBot) as administrator to your channel.
-
-  c) Update /etc/martas/telegram.cfg
-
-        $ nano /etc/martas/telegrambot.cfg
-
-      -> you need the BotID, which you obtained when creating the new BOT - put that into "token"
-
-      -> user_id should point to your channel . i.e. @MyFirstChannel for public channels
-      -> for private channels send any message within the channel. Then copy the link of this message:
-      i.e. https://t.me/c/1123456789/31
-      add a preciding -100 and you got your id: "-1001123456789"
 
 
 ## 8. Additional tools
@@ -1451,7 +1481,7 @@ geomagnetic data analysis. Adjusted data can be obtained hereby.
         merged = mf.magnetism_data_product('adjusted', primary_vario, primary_scalar)
         results = merged.get('merge')
         for samplingrate in results:
-            export_data res.get(samplingrate)
+            mf.db.write(results.get(samplingrate))
 
 If you have multiple variometers on your site the get_primary method investigates supplied variometer data sets and
 selects the first one of the list which contains valid data. The method *magnetim_data_products* will then read data,
@@ -1721,21 +1751,24 @@ To be added
 
 #### 9.2.6 Dallas OW (One wire) support
 
-a) modify owfs,conf
+Modify owfs,conf
+
         $ sudo nano /etc/owfs.conf
 
-      Modify the following parts as shown below:
+Insert and modify the following lines:
+
         #This part must be changed on real installation
         #server: FAKE = DS18S20,DS2405
 
         # USB device: DS9490
         server: usb = all
 
-b) start the owserver
+Then start the owserver
+
         $ sudo etc/init.d/owserver start
 
 
-#### 9.2.6  Communicating with an Arduino Uno Microcontroller
+#### 9.2.7  Communicating with an Arduino Uno Microcontroller
 
 An [Arduino Microcontroller] has to be programmed properly with serial outputs, which are interpretable from MARTAS. Such Arduino programs are called sketch.
 MARTAS contains a few example scripts, which show, how these sketches need to work, in order to be used with MARTAS. In principle, two basic acquisition modes are supported
@@ -1781,7 +1814,6 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
-
 ## 10. Appendix
 
 ### 10.1. Installation issues and examples
@@ -1790,21 +1822,24 @@ The installation is usually straightforward as described in section 2. For some 
 additional packages to fulfill required dependencies. Here we summarise some system specific issues and solutions, as
 well as a full installation cookbook.
 
-#### 10.1.1 Installation problems with virtualenv
+#### 10.1.1 Installing MARTAS with system python
 
-Such problems might occur and have been experienced while installing scipy on beaglebone blacks. You might want to 
-consider search engines to find solutions for that. Alternatively you can also switch to system python for running MARTAS.
-As you still require some pip packages this method is not recommended. In order to minimize a potential negative 
-influence on system stability it is recommended to install most packages based on apt.
+For some hardware systems, particularly ARM processors (Beaglebone, Raspberry, etc) problems might occur during the 
+setup of virtual python environments. Such problems have been experienced while installing scipy inside a virtual
+environment on beaglebone blacks. You might want to consider search engines to find solutions for that. Alternatively 
+you can also switch to system python for running MARTAS. This is working without problems on beaglebone blacks but 
+we would like to emphasize that this method is not recommended as there is some probability to break system stability. 
+In order to minimize a potential negative influence on system stability it is recommended to primarly use pre-compiled
+packages for your specific system based on apt.
 
-      sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-plotly python3-numba python3-pandas
+      sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-numba python3-pandas
 
 Then install the remaining dependencies using pip.
 
       sudo pip install --break-system-packages martas
 
-You likely will need to update the path variable then in the "runmartas.sh" job. Replace "acquisition" by the full path
-"/usr/local/bin/acquisition" to make it available from cron.
+You likely will need to update the path variable then in the "runmartas.sh" job within "~\.martas". Replace
+"acquisition" by the full path "/usr/local/bin/acquisition" to make it available from cron.
 
 
 #### 10.1.2 Installation behind a proxy server
@@ -1815,13 +1850,13 @@ Reconfigure pip to use the proxy server (if necessary)
 
 
 
-#### 10.1.1 Step 0: Get you Debian system ready (install Ubuntu, Raspberry, Beaglebone, etc)
+#### 10.1.3 Full installation examples for specific systems
 
 Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian 
 like system. Please follow the installation instructions given for the specific operating system. In the following we
 will give a quick example of such preparations for a Raspberry installation using debian bullseye:
 
-Install the operating system (i.e. debian bullseye) on a SD card using i.e. Balena Etcher. Do that on your linux 
+Install the operating system (i.e. most recent debian) on a SD card using i.e. Balena Etcher. Do that on your linux 
 working PC, which is NOT the single board computer. Afterwards insert the SD card into the single board computer and
 boot it. Finish the initial configurations as requested during the boot process. 
 
@@ -1829,7 +1864,9 @@ Afterwards you might want to change hostname (Raspberry PI configuration or upda
 partitions on SD card (sudo apt install gparted), proxy configurations (/etc/environment) and in case of raspberry
 enable ssh (raspberry PI configuration).
 
-#### 10.1.2 Step 1: Install necessary packages for all MARTAS applications
+
+##### install necessary packages for all MARTAS applications:
+
 
 Packages for MARTAS (including support for all modules including icinga/nagios monitoring):
 
@@ -1859,7 +1896,10 @@ Restart and check the status of the mosquitto broker
         sudo systemctl restart mosquitto.service
         sudo systemctl status mosquitto.service
 
-#### 10.1.3 Step 2: Install MARTAS
+#####  install MARTAS
+
+Download MARTAS here from github: https://github.com/geomagpy/MARTAS . Click on the green "code" button in the upper 
+right and choose "Download zip". A file called MARTAS-master.zip will be downloaded.
 
 Open a terminal and create a virtual environment:
 
@@ -1870,15 +1910,15 @@ Activate the environment
 
         source ~/env/martas/bin/activate
 
-Download and install MARTAS:
+Install MARTAS:
 
-        pip install martas
+        pip install ~/Downloads/MARTAS-master.zip
 
 Create a bufferdircetory
 
         mkdir ~/MARTAS
 
-Add credentials for notifications by e-mail (skip this one if not used)
+Eventually add credentials for notifications by e-mail (skip this one if not used)
 
         addcred -t email -c email -u USER -p PASSWD -h -p 
 
@@ -1896,6 +1936,27 @@ configurations from a martas_backup (see 8.1).
 Useful commands to check ports for sensor definitions are i.e.
 
         dmesg | grep usb
+
+##### in case of MARCOS: initialize a database
+
+Install database support
+
+       sudo apt install mariadb-server php php-mysql phpmyadmin
+
+The setup a database:
+
+       sudo mysql -u root
+       > CREATE DATABASE magpydb;
+       > GRANT ALL PRIVILEGES ON magpydb.* TO 'magpy'@'%' IDENTIFIED BY 'magpy' WITH GRANT OPTION;
+       > FLUSH PRIVILEGES;
+
+and finally initialize the database:
+
+       python
+       >>> from magpy.database import *
+       >>> db=mysql.connect(host="localhost",user="magpy",passwd="magpy",db="magpydb")
+       >>> dbinit(db)
+       >>> exit()
 
 
 #### 10.1.4 quick steps to run a new MARTAS with a new sensor for the first time (needs to be updated)
@@ -1923,15 +1984,14 @@ B. MARTAS - beaglebone (BB)
    3. connect to BB via ssh:
       defaultuser: debian
    4. stop MARTAS:
-              $ sudo su
-              $ /etc/init.d/martas stop
+              $ bash ~/.martas/runmartas stop
    5. connect your sensor to the usb serial port using a usb to rs232 converter
    6. check "lsusb" to see the name of the converter (e.g. pl2303)
    7. check "dmesg | grep usb" to get the connections port like ttyUSB0
-   8. edit /etc/martas/sensors.cfg
+   8. edit ~/.martas/conf/sensors.cfg
       make use of the SENSORID, the parameters of A4 and the port info of B7
       (SENSORID should contain serial number of the system  i.e. GSM19\_123456\_0001)
-   9. save /etc/martas/sensors.cfg
+   9. save ~/.martas/conf/sensors.cfg
 
 A. GSM19 Sensor
    10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter)
@@ -1939,191 +1999,20 @@ A. GSM19 Sensor
 
 B. MARTAS
    10. start recording:
-              $ sudo su
-              $ /etc/init.d/martas start
+              $ bash ~/.martas/runmartas start &
               $ exit
    11. check recording:
-              $ cat /var/log/magpy/martas.log (check log file)
-              $ ls -al /srv/mqtt/SENSORID  (check buffermemory for new data)
+              $ cat ~/.martas/log/martas.log (check log file)
+              $ ls -al ~/MARTAS/mqtt/SENSORID  (check buffermemory for new data)
 
-       
-#### 10.1.5 quick steps to setup a fully configured MARTAS with the respective sensor(s) (needs to be updated)
-
-In this example we use a MARTAS with a GSM19 Overhauzer sensor:
-
-A. Sensor (GSM19)
-
-   1. Connect the sensor to power and MARTAS
-   2. Switch on the sensor and start recoding (all A steps in 12.6.1)
-
-B. MARTAS
-   1. Connect MARTAS to power
-
-Check whether everything is running. On MARTAS you should check whether the buffer file is increasing and eventually the log file.
-Please note: data is written as soon as all sensor specific information is available. When attaching a micro controller (i.e. arduino)
-you might need to wait about 10 times the sampling rate (i.e. 10min for 1min sampling rate) until data is written to the buffer.
-
-#### 10.1.6 enable remote terminal access (TODO)
+#### 10.1.5 enable remote terminal access
 
 tmate instructions
 
-### 10.2 Full installation guide of a MARCOS box
 
-The following example contains a full installation of MARTAS, MARCOS with full database support, XMagPy, Nagios 
-monitoring control, Webinterface, and an archive on an external harddrive.
+### 10.2 Development tools
 
-#### 10.2.1  Installation script (needs to be updated)
-
-```
-sudo apt-get install curl wget g++ zlibc gv imagemagick gedit gedit-plugins gparted ntp arduino ssh openssl libssl-dev gfortran  libproj-dev proj-data proj-bin git owfs mosquitto mosquitto-clients libncurses-dev build-essential nagios-nrpe-server nagios-plugins apache2 mariadb-server php php-mysql phpmyadmin netcdf-bin curlftpfs fswebcam
-
-# alternative - system python
-sudo apt-get install python3-matplotlib python3-scipy cython3 python3-h5py python3-twisted python3-wxgtk4.0 python3-pip
-
-sudo pip3 install pymysql
-sudo pip3 install pyproj
-sudo pip3 install paho-mqtt
-sudo pip3 install pyserial
-sudo pip3 install pexpect
-sudo pip3 install service_identity
-sudo pip3 install pyownet
-sudo pip3 install geomagpy
-
-
-cd ~/Downloads/
-git clone git://github.com/SalemHarrache/PyCampbellCR1000.git
-cd PyCamp*
-sudo python3 setup.py install
-
-####
-#### Optional: Setup MARTAS
-####
-
-cd ~
-git clone https://github.com/geomagpy/MARTAS.git
-
-
-
-#Create a desktop entry for MagPy
-# -------
-#[Desktop Entry]
-#Type=Application
-#Name=XMagPy
-#GenericName=GeoMagPy User Interface
-#Exec=xmagpy
-#Icon=/usr/local/lib/python3.8/dist-packages/magpy/gui/magpy128.xpm
-#Terminal=false
-#Categories=Application;Development;
-
-cd ~/Downloads/
-sudo cp xmagpy.desktop /usr/share/applications/
-
-
-
-### Create a Database: magpy
-# -------
-# Firstly create a super user
-sudo mysql -u root
-> CREATE DATABASE magpydb;
-> GRANT ALL PRIVILEGES ON magpydb.* TO 'magpy'@'%' IDENTIFIED BY 'magpy' WITH GRANT OPTION;
-> FLUSH PRIVILEGES;
-
-# Initialize magpy DB
-# -------
-python
->>> from magpy.database import *
->>> db=mysql.connect(host="localhost",user="magpy",passwd="magpy",db="magpydb")
->>> dbinit(db)
->>> exit()
-
-# install martas and marcos  (StationName: box)
-# -------
-cd ~/MARTAS/app
-addcred -t db -c magpydb -u magpy -p magpy -d magpydb -o localhost
-sudo addcred -t db -c magpydb -u magpy -p magpy -d magpydb -o localhost
-cd ~/MARTAS/install
-which python
-# Station = box
-sudo bash install.martas.sh
-sudo bash install.marcos.sh
-
-# set background picture of Cobs
-# -------
-sudo cp ~/Downloads/magpybox.jpg /usr/share/rpd-wallpaper/
-
-# Links to phpmyadmin and Cobs in Browser
-# -------
-->manual
-
-# Configuration and cleanup
-# -------
-
-# telegram and addaps
-sudo bash install.telegram.bot
-sudo bash install.addapps.sh
-#-> us bot farther to create a new bot for the machine, update keys und user_ids
-
-# timeserver
-sudo dpkg-reconfigure tzdata
-
-# remote access
-anydesk, teamviewer or tmate
-
-# CRONTAB
-# check all crontab for $PYTHON and other vaiables
-
-# OWFS
-$ sudo nano /etc/owfs.conf
-
-#Modify the following parts as shown below:
-#This part must be changed on real installation
-#server: FAKE = DS18S20,DS2405
-
-# USB device: DS9490
-server: usb = all
-
-#NAGIOS
-sudo nano /etc/nagios/nrpe.cfg
-# MARTAS/MagPy commands:
-# -----------------
-command[check_procs_martas]=/usr/lib/nagios/plugins/check_procs -c 1:1 -C python -a acquisition.py
-command[check_all_disks]=/usr/lib/nagios/plugins/check_disk -w 20% -c 10% -e -A -i '.gvfs'
-command[check_log]=/usr/lib/nagios/plugins/check_log -F /var/log/magpy/martas.log -O /tmp/martas.log -q ?
-
-# NTP check (optional)
-#command[check_ntp_time]=/usr/lib/nagios/plugins/check_ntp_time -H your.ntp.server -w 1 -c 2
-
-
-# CRONTAB
-crontab -e
-PYTHON=/usr/bin/python3
-BASH=/usr/bin/bash
-
-#MARTAS - delete old buffer files
-15 0 * * * $BASH /home/pi/MARTAS/app/cleanup.sh
-#MARCOS - archive database contents
-30 0 * * * $PYTHON /home/pi/MARTAS/app/archive.py -c magpydb -p /srv/archive
-
-
-# MOUNT external disks
-#Get UUID
-sudo blkid
-sudo nano /etc/fstab
-
-#add a line like
-UUID=d46...   /srv   ext4  defaults,auto,users,rw,nofail  0  0
-
-#activate
-sudo mount -a
-
-
-## FINALLY TEST IT!
-
-```
-
-### 10.3 Development tools
-
-#### 10.3.1 Testing modules
+#### 10.2.1 Testing modules
 
 Unittest are included in the following modules. app_tester will perform a unittest on applications in the app folder:
 
@@ -2131,13 +2020,13 @@ Unittest are included in the following modules. app_tester will perform a unitte
        python core/methods.py
        python core/definitive.py
 
-#### 10.3.2 Testing acquisition
+#### 10.2.2 Testing acquisition
 
 The main program contains a testing option -T which will create an artificial/random data set published on topic "tst":
 
        python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
-#### 10.3.3 Testing MARTAS and MARCOS
+#### 10.2.3 Testing MARTAS and MARCOS
 
 Run a test acquisition as shown in 9.5.2 to simulate a sensor
 
@@ -2154,7 +2043,7 @@ two libraries. Please configure sensors.cfg accordingly and use a stationID diff
        python acquisition.py -m ~/.martas/conf/martas.cfg
 
 
-### 10.4 Issues and TODO
+### 10.3 Issues and TODO
 
 in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
 delete the daily file and restart the recoding process. The next daily file will be OK in any case.
