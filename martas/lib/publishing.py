@@ -278,4 +278,4 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
     datajson = dumps(datablock, cls=NanConverter)
     pubdict[topic] = datajson
 
-    return pubdict, 0
+    return pubdict

@@ -441,6 +441,10 @@ Please read section [9.2.7](#927--communicating-with-an-arduino-uno-microcontrol
 
 #### MariaDB/MySQL database access  
 
+A database link needs to be created using **addcred**. This shortcut, *cobsdb* in belows example, is used to connect
+the database. Data is obtained with the given sampling rate (10 seconds below). Only tables belonging to SensorGroup
+"magnetism" are listed.
+
          cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
 
 #### Onewire Senors (Dallas)  

@@ -14,6 +14,7 @@ from martas.core import methods as mm
 from martas.lib import publishing
 import magpy.opt.cred as mpcred
 from magpy.core import database
+from magpy.core.methods import testtime
 
 
 ## MySQL protocol
@@ -140,10 +141,10 @@ class MySQLProtocol(object):
             datatable = sens + "_" + self.sensordict.get('revision','')
             lasttime = self.db.select('time',datatable,expert="ORDER BY time DESC LIMIT 1")
             try:
-                lt = datetime.strptime(lasttime[0],"%Y-%m-%d %H:%M:%S.%f")
+                lt = testtime(lasttime[0])
                 delta = now-lt
                 if self.debug:
-                    log.msg("  -> DEBUG - Sensor {}: Timediff = {} sec from now".format(sens, delta.total_seconds()))
+                    log.msg("  -> DEBUG - Sensor {}: Timediff = {} sec from now, threshold={}".format(sens, delta.total_seconds(),self.deltathreshold))
                 if delta.total_seconds() < float(self.deltathreshold):
                     senslist3.append(sens)
             except:
@@ -300,7 +301,7 @@ class MySQLProtocol(object):
                     data_bin = None
                     datearray = ''
                     try:
-                        datearray = mm.time_to_array(timestamp)
+                        datearray = mm.datetime_to_array(timestamp)
                         for i,para in enumerate(keystab):
                             try:
                                 val=int(float(dataline[i+1])*10000)

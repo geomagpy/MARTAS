@@ -41,6 +41,6 @@ setup(
     description='MARTAS',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    package_data={'martas': ['conf/*.cfg', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'scripts/*.sh', 'web/*.js', 'web/*.html', 'web/*.py', 'web/assets/*']  },
+    package_data={'martas': ['conf/*.cfg', 'doc/*.png', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'scripts/*.sh', 'web/*.js', 'web/*.html', 'web/*.py', 'web/assets/*']  },
     install_requires=install_requires,
 )
