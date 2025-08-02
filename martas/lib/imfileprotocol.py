@@ -175,7 +175,7 @@ class IMfileProtocol(object):
                 log.msg("  -> DEBUG - no new data at {} - file covers until {}".format(now,te))
             return
         if self.debug:
-            log.msg("  -> DEBUG - triming data from {}".format(tlow))
+            log.msg("  -> DEBUG - trimming data from {}".format(tlow))
         data = data.trim(starttime=self.lastt)
         self.lastt = te
 

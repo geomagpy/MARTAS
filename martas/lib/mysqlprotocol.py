@@ -2,7 +2,7 @@
 # ###################################################################
 # Import packages
 # ###################################################################
-
+import unittest
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
@@ -93,10 +93,6 @@ class MySQLProtocol(object):
 
         self.lastt = [None]*len(self.sensorlist)
 
-        #print ("Existinglist")
-        #print ("----------------------------------------------------------------")
-        #print (self.sensorlist)
-
 
     def connectionMade(self, dbname):
         log.msg('  -> Database {} connected.'.format(dbname))
@@ -184,7 +180,7 @@ class MySQLProtocol(object):
         """
         t1 = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(t1, "%Y-%m-%d")
-        filename = outdate
+        bufferfilename = outdate
 
         if self.debug:
             log.msg("  -> DEBUG - Sending periodic request ...")
@@ -230,7 +226,7 @@ class MySQLProtocol(object):
                 if self.debug:
                     log.msg("  -> DEBUG - requesting header {}".format(sensorid))
                 sql1 = 'SELECT SensorElements FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
-                sql2 = 'SELECT Sensorkeys FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
+                sql2 = 'SELECT SensorKeys FROM SENSORS WHERE SensorID LIKE "{}"'.format(sensorid)
                 sql3 = 'SELECT ColumnUnits FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
                 sql4 = 'SELECT ColumnContents FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
                 try:
@@ -268,6 +264,8 @@ class MySQLProtocol(object):
                 packcode = '6HL'+''.join(['q']*len(keystab))
                 header = ("# MagPyBin {} {} {} {} {} {} {}".format(sensorid, '['+','.join(keystab)+']', '['+','.join(elems)+']', '['+','.join(units)+']', multplier, packcode, struct.calcsize('<'+packcode)))
 
+                print ("DATA header", header)
+
                 # 2. Getting dict
                 sql = 'SELECT DataSamplingRate FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
                 sr = float(getList(sql)[0])
@@ -276,11 +274,49 @@ class MySQLProtocol(object):
                 # 3. Getting data
                 # get data and create typical message topic
                 # based on sampling rate and collection rate -> define coverage
+                data = self.db.get_lines(dataid, coverage)
+                print ("DATA content", len(data))
 
-                li = sorted(self.db.select('time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
+                #li = sorted(self.db.select('time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
                 if not self.lastt[index]:
-                    self.lastt[index]=li[0][0]
+                    self.lastt[index]=data.ndarray[0][0]
 
+                data = data.trim(starttime=self.lastt[index])
+                print ("DATA content", len(data), self.lastt[index])
+
+                # transpose
+                dataarray = data.ndarray
+                orglist = [col for col in dataarray if len(col) == len(dataarray[0])]
+                newli = np.transpose(orglist)
+
+                for dataline in newli:
+                    timestamp = dataline[0]
+                    data_bin = None
+                    datearray = ''
+                    try:
+                        datearray = mm.datetime_to_array(timestamp)
+                        for i, para in enumerate(keystab):
+                            try:
+                                val = int(float(dataline[i + 1]) * 10000)
+                            except:
+                                val = 999990000
+                            datearray.append(val)
+                        data_bin = struct.pack('<' + packcode, *datearray)  # little endian
+                    except:
+                        log.msg('Error while packing binary data')
+
+                    if not self.confdict.get('bufferdirectory', '') == '' and data_bin:
+                        mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, bufferfilename, data_bin,
+                                        header)
+                    if self.debug:
+                        log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str, datearray))), header))
+                    self.sendData(sensorid, ','.join(list(map(str, datearray))), header, len(newli) - 1,
+                                  fullhead=data.header)
+
+                self.lastt[index] = newli[-1][0]
+                print ("NEW STARTTIME", self.lastt[index])
+
+                """
                 # drop
                 newdat = False
                 newli = []
@@ -319,6 +355,7 @@ class MySQLProtocol(object):
                     self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
 
                 self.lastt[index]=li[-1][0]
+                """
 
         t2 = datetime.now(timezone.utc).replace(tzinfo=None)
         if self.debug:
@@ -361,3 +398,27 @@ class MySQLProtocol(object):
                         print ("Publishing", topic, pubdict.get(topic))
                     self.client.publish(topic, pubdict.get(topic), qos=self.qos)
 
+
+class TestMySQLProtocol(unittest.TestCase):
+    """
+    Test environment for all methods
+    """
+
+    def test_init(self):
+        sensordict = {'sensorid': 'cobsdb', 'port': '-', 'baudrate': '-', 'bytesize': '-', 'stopbits': '-',
+                      'parity': '-', 'mode': 'active', 'init': 'None', 'rate': '120', 'stack': '1', 'protocol': 'MySQL',
+                      'name': 'MySQL', 'serialnumber': '-', 'revision': '0001', 'path': '-', 'pierid': '-', 'ptime': '-',
+                      'sensorgroup': 'magnetism', 'sensordesc': '-\n'}
+        confdict = {'station': 'wic', 'sensorsconf': '/home/leon/.martas/conf/sensors.cfg',
+                    'initdir': '/home/leon/.martas/init/', 'bufferdirectory': '/home/leon/MARTAS/mqtt',
+                    'serialport': '/dev/tty', 'timeout': '1800.0', 'broker': 'localhost', 'mqttport': 1883,
+                    'mqttdelay': 60, 'mqttqos': 1, 'mqttversion': 2, 'payloadformat': 'martas', 'owport': 4304,
+                    'owhost': 'localhost', 'timedelta': 100, 'logging': '/home/leon/.martas/log/martas.log',
+                    'debug': 'True'}
+        my = MySQLProtocol(None,sensordict,confdict)
+        print (my.sensorlist)
+
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

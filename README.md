@@ -443,7 +443,8 @@ Please read section [9.2.7](#927--communicating-with-an-arduino-uno-microcontrol
 
 A database link needs to be created using **addcred**. This shortcut, *cobsdb* in belows example, is used to connect
 the database. Data is obtained with the given sampling rate (10 seconds below). Only tables belonging to SensorGroup
-"magnetism" are listed.
+"magnetism" are listed. Please note that you also should update **timedelta** in *martas.cfg*, as this parameter is
+defining how old data is allowed to be considered.
 
          cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
 
