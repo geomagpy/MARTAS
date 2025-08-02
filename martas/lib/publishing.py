@@ -151,7 +151,8 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
     # get the following info from file header
     if debug:
         print ("HEADER", head, meta)
-    samplingperiod = meta.get("DataSamplingRate",1.0)
+    multilist = list(map(float, head.split()[6].strip('[').strip(']').split(',')))
+    samplingperiod = float(meta.get("DataSamplingRate",1.0))
     publevel = meta.get("DataPublicationLevel", 1)
     components = _get_components(head,meta)
     # fill in header info
@@ -247,6 +248,12 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
             # Limit the amount of components to 4
             components = components[:4]
             for idx,el in enumerate(components):
+                mu = 1.0
+                if len(multilist) >= idx:
+                   mu = multilist[idx]
+                   if not is_number(mu):
+                       mu = 1.0
+                   mu = float(mu)
                 val = dat[idx]
                 blockname = f"geomagneticField{el.upper()}"
                 if debug:
@@ -254,7 +261,7 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
                 l = datablock.get(blockname, [])
                 if is_number(val) and np.isnan(float(val)):
                     val = None
-                l.append(float(val))
+                l.append(float(val)/mu)
                 datablock[blockname] = l
         else:
             # no data
