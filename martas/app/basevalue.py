@@ -310,13 +310,14 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
         skipscalardb = True
     else:
         skipscalardb = False
-    movetoarchive = config.get('movetoarchive', False)
-    if movetoarchive in ['True','true']:
-        movetoarchive = True
-    else:
-        movetoarchive = False
+    movetoarchive = config.get('movetoarchive', '')
+    # check_conf determines the archive path
+    if not os.path.isdir(movetoarchive):
+        if movetoarchive:
+            print (" movetoarchive is set but does not seem to be a valid directory")
+        movetoarchive = ""
+    movetoarchivenow = "" # will be set to path if archiving conditions are found
     contflagfile = config.get('contflagfile', False) # flagging data for vario and scalar from file
-    movetoarchivenow = movetoarchive
 
     sourcepath = os.path.join(config.get('base'), 'archive', obscode)
 
@@ -444,7 +445,6 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                 # contains a path
                 print("MOVETOARCHIVE looks like ", movetoarchive)
             if movetoarchive:
-                # movetoarchive = True
                 # only activate for last vario and last secular
                 lastsc = scinstlist[-1]
                 lastva = vainstlist[-1]
@@ -454,7 +454,7 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                     print(" -> activating movetoarchive")
                     movetoarchivenow = movetoarchive
                 else:
-                    movetoarchivenow = None
+                    movetoarchivenow = ""
 
             for pier in pierlist:
                 if debug:
