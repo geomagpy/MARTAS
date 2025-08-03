@@ -1075,8 +1075,8 @@ def main(argv):
     print ("Running file_download - version {}".format(version))
     print ("-------------------------------")
 
-    name = "{}-collectfile-{}".format(hostname, os.path.split(conf)[1].split('.')[0])
-    statusmsg[name] = 'collectfile successfully finished'
+    name = "{}-file-download-{}".format(hostname, os.path.split(conf)[1].split('.')[0])
+    statusmsg[name] = 'file_download successfully finished'
 
     if conf == '':
         print ('Specify a path to a configuration file using the  -c option:')
