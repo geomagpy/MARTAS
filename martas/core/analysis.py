@@ -145,6 +145,7 @@ class MartasAnalysis(object):
                                  #"mode": ['outlier'],  # outlier, range, ultra, ai,
                                  "mode": ['outlier'],  # outlier, range, ultra, ai,, mode ultra requires 86402 data points
                                  "samplingrate": 1,
+                                 "groups": {"T001" : ['x','y'], "T002" : ['f']},
                                  "min": -59000,
                                  "max": 50000,
                                  "addflag": True,
@@ -176,8 +177,9 @@ class MartasAnalysis(object):
                         'GP20S3NS_': {"coverage": 7200,
                                  "keys": ['x,y,z,dx,dy,dz'],
                                  "mode": ['outlier'],  # outlier, range, ultra, ai,
-                                      "samplingrate": 1,
-                                      "addflag": True,
+                                 "samplingrate": 1,
+                                 "addflag": True,
+                                 "groups": {"GP20S3NSS1" : ['f'], "GP20S3NSS2" : ['f'], "GP20S3NSS3" : ['f']},
                                  "threshold": 5,
                                  "window": 60,
                                  "markall": False,
@@ -340,6 +342,7 @@ class MartasAnalysis(object):
             group = self.flagdict.get(elem)
             flagmode = group.get('mode')
             coverage = group.get('coverage',7200)
+            flaggroup = group.get('groups',{})
             endtime = datetime.now(timezone.utc).replace(tzinfo=None)
             starttime= endtime-timedelta(seconds=coverage)
             # select the corresponding data sources
@@ -363,20 +366,20 @@ class MartasAnalysis(object):
                 if 'outlier' in flagmode:
                     # simple despiking
                     print (" Running outlier flagging")
-                    ofl = flagging.flag_outlier(data, keys=group.get('keys',['x','y','z']),threshold=group.get('threshold',4),timerange=group.get('window',60), markall=group.get('markall',False))
+                    ofl = flagging.flag_outlier(data, keys=group.get('keys',['x','y','z']),threshold=group.get('threshold',4),timerange=group.get('window',60), markall=group.get('markall',False), groups=flaggroup)
                     if len(ofl) > 0:
                         print ("  - found ", len(ofl))
                         newfl = newfl.join(ofl)
                 if 'range' in flagmode:
                     # validity range
-                    rfl = flagging.flag_range(data,group.get('keys',['x','y','z']),above=group.get('min',-100000),below=group.get('max',100000), labelid='060', operator='MARTAS')
+                    rfl = flagging.flag_range(data,group.get('keys',['x','y','z']),above=group.get('min',-100000),below=group.get('max',100000), labelid='060', operator='MARTAS', groups=flaggroup)
                     if len(rfl) > 0:
                         print ("  - found ", len(rfl))
                         newfl = newfl.join(rfl)
                 if 'ultra' in flagmode:
                     print (" Running ultra flagging")
                     # probability flags
-                    ufl = flagging.flag_ultra(data,keys=group.get('keys',['x','y','z'])) #), factordict={}, mode="xxx")
+                    ufl = flagging.flag_ultra(data,keys=group.get('keys',['x','y','z'])) #), factordict={}, mode="xxx", group=flaggroup)
                     if len(ufl) > 0:
                         print ("  - found ", len(ufl))
                         newfl = newfl.join(ufl)

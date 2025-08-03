@@ -62,8 +62,11 @@ def get_datainfo_from_db(cred='cobsdb', debug=False):
 
     def _analyse_columns(colsstr,unitsstr):
         usedkeys, components, counits = [],[],[]
-        cols = colsstr.split(",")
-        units = unitsstr.split(",")
+        cols, units = [], []
+        if colsstr:
+            cols = colsstr.split(",")
+        if unitsstr:
+            units = unitsstr.split(",")
         allkeys = DataStream().KEYLIST
         for i,co in enumerate(cols):
             if co:
