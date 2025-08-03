@@ -775,6 +775,7 @@ def main(argv):
                     "collectlog" : os.path.join(logpath,"download-source.log"),
                     "filterlog" : os.path.join(logpath,"filterstatus.log"),
                     "basevaluelog" : os.path.join(logpath,"basevaluestatus.log"),
+                    "/telegrambot.log" : os.path.join(logpath,"telegrambot.log"),
                     "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
                     "notificationcfg" : notipath,

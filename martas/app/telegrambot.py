@@ -124,9 +124,9 @@ def handle(msg):
             tglogger.info('Received command "{}" from ChatID {} (User: {})'.format(command,chat_id,firstname))
             al = ah.interprete(command)
             message = ah.execute_action(al, input=command, debug=True)
-            print (message)
             for com in message:
-                comcontent = message.get(com)
+                cc = message.get(com)
+                comcontent = cc.get('message')
                 text = comcontent.get("text","")
                 calls = comcontent.get("call",[])
                 pics = comcontent.get("pictures",[])

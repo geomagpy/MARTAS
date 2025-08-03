@@ -71,6 +71,10 @@ class ActionHandler(object):
 
 * all action_ methods are tested by execute_command
     APPLICATION
+
+    RETURN
+        will create a dictionary with
+        {call :  {'message' : {'text': xxx, 'pic...
     """
 
     def __init__(self, configpath=None, commands=None, debug=False):
@@ -134,7 +138,7 @@ class ActionHandler(object):
             cpu = psutil.cpu_percent(interval=1)
             avail = mem.available / (1024*1024)
             total = mem.total / (1024*1024)
-            mesg += "\nMemory total: {}MB\nMemory available: {}MB\nCPU usage: {}%".format(total,avail,cpu)
+            mesg += "\nMemory total: {}MB\nMemory available: {}MB\nCPU usage: {}%\n".format(total,avail,cpu)
         except:
             pass
 
