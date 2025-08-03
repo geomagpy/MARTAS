@@ -618,6 +618,9 @@ class MartasAnalysis(object):
             va = vario.get(sr)
             sc = scalar.get(sr)
             me = merge_streams(va,sc)
+            #Rotate into XYZ
+            if not va.header.get("DataComponents").startswith("XYZ") and not va.header.get("DataComponents").startswith("xyz"):
+                me = me.hdz2xyz()
             me.header['SensorID'] = '{}_{}{}_0001'.format(station.upper(),runmode,ref)
             me.header['DataID'] = '{}_{}{}_0001_0001'.format(station.upper(),runmode,ref)
             me.header['DataPublicationLevel'] = publevel
@@ -802,14 +805,30 @@ class MartasAnalysis(object):
                 rotangle = alpha
                 print ("    Determined rotation angle alpha for {}: {}".format(va.header.get('SensorID'),rotangle))
                 print ("    !!! Please note: These  new rotation angles are not yet applied.")
-                print ("    !!! Please note: They are used for secondrun onwards.")
-                print ("    !!! Please note: update DB with correct rotation angles. ")
-            else:
-                rotangle = float(rotdict.get(str(year),'0.0'))
-                beta = float(betadict.get(str(year),'0.0'))
-                print("  Applying rotation (after firstrun): Using rotation angles alpha= {} and beta={}".format(rotangle, beta))
+                print ("                     update DB in order to consider those ")
+            ### IMPORTTANT: if BLVcomp is found in BLV file then rotate wit the last existing rotation angles
+            if "BLVcomp_" in basefile:
+                alpha = 0
+                beta = 0
+                gamma = 0
+                if rotdict:
+                    yl = [y for y in rotdict]
+                    if len(yl) > 0:
+                        maxyear = max(yl)
+                        alpha = float(rotdict.get(maxyear, '0.0'))
+                        print("  Found BLVcomp in baseline: Using rotation angle alpha={} from last determination in {}".format(alpha, maxyear))
+                if betadict:
+                    yl = [y for y in betadict]
+                    if len(yl) > 0:
+                        maxyear = max(yl)
+                        beta = float(betadict.get(maxyear,'0.0'))
+                        print("  Found BLVcomp in baseline: Using rotation angle beta={} from last determination in {}".format(beta, maxyear))
+                if debug:
+                    print("  Applying rotation now - please note: gamma is currently ignored")
                 # Only apply full year values - as baseline calc uses them as well
-                va = va.rotation(alpha=rotangle, beta=beta)
+                va = va.rotation(alpha=alpha, beta=beta, gamma=gamma)
+                if debug:
+                    print("  -> Done")
             orgva = va.copy()
 
             if debug:

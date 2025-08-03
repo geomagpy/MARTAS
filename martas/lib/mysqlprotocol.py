@@ -196,6 +196,7 @@ class MySQLProtocol(object):
                 return keys
             head = cursor.fetchall()
             keys = list(np.transpose(np.asarray(head))[0])
+            cursor.close()
             return keys
 
         # get self.sensorlist
@@ -276,6 +277,7 @@ class MySQLProtocol(object):
                 # based on sampling rate and collection rate -> define coverage
                 data = self.db.get_lines(dataid, coverage)
                 print ("DATA content", len(data))
+                self.db.db.commit()
 
                 #li = sorted(self.db.select('time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
                 if not self.lastt[index]:
