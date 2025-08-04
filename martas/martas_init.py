@@ -488,11 +488,19 @@ def main(argv):
 
         with CronTab(user=True) as cron:
             comment = 'Running MARTAS'
-            line = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "runmartas.sh"),
+            line = "/usr/bin/bash -i {} start > {} 2>&1".format(os.path.join(homedir, dir, "runmartas.sh"),
                                                           os.path.join(logpath, "runmartas.log"))
             if not list(cron.find_comment(comment)):
                 job = cron.new(command=line, comment=comment)
                 job.setall('15 0 * * *')
+            macomment2 = "Start MARTAS viewer"
+            maline2 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "martas_view"),
+                                                          os.path.join(logpath, "martas_view.log"))
+            if not list(cron.find_comment(macomment2)):
+                job2 = cron.new(command=maline2, comment=macomment2)
+                job2.setall('16 0 * * *')
+                job2.enable(False)
+
         #print('cron.write() was just executed')
 
     elif initjob == "MARCOS":
@@ -793,7 +801,7 @@ def main(argv):
     if backuppath:
         replacedict["/backuppath"] = backuppath
 
-        files_to_change = {}
+    files_to_change = {}
     if initjob == "MARTAS":
         replacedict["/mybasedir"] = bufferpath
         replacedict["space,martas,marcos,logfile"] = "space,martas,logpfile"
@@ -829,6 +837,7 @@ def main(argv):
                         "dest": os.path.join(homedir, dir, "scripts", "cleanup.sh")}
     files_to_change["telegrambot"] = {"source": os.path.join(confpath, "telegrambot.bak"),
                         "dest": os.path.join(confpath, "telegrambot.cfg")}
+
 
     for f in files_to_change:
         d = files_to_change.get(f)

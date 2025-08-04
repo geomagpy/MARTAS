@@ -38,7 +38,8 @@ plotly
 pip install dash_daq
 """
 # Configuration information
-configpath = "../conf/archive.cfg"
+mainpath = os.path.dirname(os.path.realpath(__file__))
+configpath = os.path.join(mainpath,"..","conf","archive.cfg")
 
 statusdict = {"archive" : {"space" : 400, "used": 150, "cronenabled": False, "active": False, "logstatus":False },
               "monitor" : {"space" : 100, "used": 100, "cronenabled": False, "active": False, "logstatus":False },
