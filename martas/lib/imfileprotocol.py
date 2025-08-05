@@ -246,9 +246,11 @@ class IMfileProtocol(object):
             senddata = True
 
         if senddata:
-                if self.payloadformat in ["intermagnet","immqtt"]:
+                if self.payloadformat in ["intermagnet","immqtt","bgsmqtt"]:
                     if self.debug:
                         print ("Publishing INTERMAGNET", topic, data, head)
+                        topic = "impf/wic/test"
+                        print ("TESTTOPIC:", topic)
                     pubdict = publishing.intermagnet(None, topic=topic, data=data, head=head,
                                             imo=self.confdict.get('station', ''), meta=fullhead)
                     if self.debug:
