@@ -162,15 +162,22 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
         datablock["decbas"] = meta.get("decbas")
     # "latitude": (IMF, IAGA-2002, ImagCDF)
     if meta.get("DataAcquisitionLatitude", None):
-        datablock["latitude"] = meta.get("DataAcquisitionLatitude")
+        if is_number(meta.get("DataAcquisitionLatitude")):
+            datablock["latitude"] = float(meta.get("DataAcquisitionLatitude"))
+        else:
+            datablock["latitude"] = meta.get("DataAcquisitionLatitude")
     # "longitude": (IMF, IAGA-2002, ImagCDF)
     if meta.get("DataAcquisitionLongitude", None):
-        datablock["longitude"] = meta.get("DataAcquisitionLongitude")
+        if is_number(meta.get("DataAcquisitionLongitude")):
+            datablock["longitude"] = float(meta.get("DataAcquisitionLongitude"))
+        else:
+            datablock["longitude"] = meta.get("DataAcquisitionLongitude")
     # "elevation": (IAGA-2002, ImagCDF)
     if meta.get("DataElevation", None):
-        datablock["elevation"] = meta.get("DataElevation")
-    if meta.get("DataElevation", None):
-        datablock["elevation"] = meta.get("DataElevation")
+        if is_number(meta.get("DataElevation")):
+            datablock["elevation"] = float(meta.get("DataElevation"))
+        else:
+            datablock["elevation"] = meta.get("DataElevation")
     if meta.get('StationInstitution'):
         datablock["institute"] = meta.get("StationInstitution")
     # "institute": (IAGA-2002, ImagCDF - called "Source of data" in IAGA-2002)
@@ -187,7 +194,7 @@ def intermagnet(pubdict=None, topic="", data="", head="", imo="TST", meta=None):
         datablock["dataIntervalType"] = meta.get("DataSamplingFilter")
     # "dataIntervalType": (IAGA-2002)
     if meta.get('DataPublicationDate'):
-        datablock["publicationDate"] = meta.get("DataPublicationDate")
+        datablock["publicationDate"] = str(meta.get("DataPublicationDate"))
     # "publicationDate": (IAGA-2002, ImagCDF)
     if meta.get('DataStandardLevel'):
         datablock["standardLevel"] = meta.get("DataStandardLevel")

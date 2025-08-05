@@ -592,24 +592,92 @@ A few hints in order to test for proper recording and data publication.
 
 ### 4.8. Using MARTAS to publish geomagnetic data on INTERMAGNET
 
-MARTAS can be used to transfer geomagnetic data to the MQTT receivers if INTERMAGNET directly. This data transport is 
-supported for MagPY databases continuously filled by MARCOS jobs (ideal way if you use MARTAS/MagPy for data production)
-and also by periodically accessing local data files and transforming them into delivery packages (if you are using 
-traditional data production methods and just want to deliver data quickly and secure). Both ways are described in detail 
-below.
+MARTAS can be used to transfer geomagnetic data to the MQTT receivers of INTERMAGNET directly. This service is hosted 
+at BGS and an overview can be found [here](). MQTT real-time data transport is 
+supported (1) for MagPY databases continuously filled by MARCOS jobs (ideal way if you use MARTAS/MagPy for data production)
+and also (2) by periodically accessing local data files and transforming them into delivery packages (if you are using 
+traditional data production methods and just want to deliver data quickly and secure). This is done by implementing a 
+virtual sensor in sensors.cfg pointing either to a database or a file-directory. Both ways are described in detail 
+below. Setting up such data delivery is very simple and quickly accomplished. Section 4.8.1 will summarize the all steps
+required to setup and configure data delivery to the BGS. Section 4.8.2 will outline specific virtual sensor details 
+for database usage, 4.8.3 will describe the usage of a file directory structure.
 
 #### 4.8.1 Getting access to the MQTT Broker and local configurations
 
-xxx
+Before setting up a MQTT - IMTERMAGNET delivery system please carefully read the manual provided by the BGS. 
+Then install martas as outlined in section 2. Do not run martas_init yet. Request your authentication credentials from
+the BGS personnel. You will need a username, which usually is your observatory code, and a password and specify the 
+publication channel. This channel should be pne of the following:
+
+INTERMAGNET observtory:    gin-mqtt.bgs.ac.uk
+Test observatory:  gin-mqtt-staging.bgs.ac.uk
+
+After acquiring this information create an credential input on your MARTAS computer:
+
+        addcred -t transfer -c bgsmqtt -u XXX -p PASSWD -a 
+
+Replace XXX with your lower case observatory code and replace PASSWD with the password you obtained from BGS.
+Then run
+
+        martas_init
+
+The following questions need to be answered with the bold inputs. For all other inputs you can choose the default 
+values. 
+
+MQTT port: **8883**
+MQTT authentication: **bgsmqtt**
+
 
 #### 4.8.2 Delivering data from a MARCOS/MagPy data base
 
 This technique supports realtime transmission of variation data and very near time delivery of adjusted data products. 
+Basically two steps are required. (1) produce the submission files within your database i.e. following the adjusted 
+data in section 8. (2) assign the SensorGroup "service" to these data sets within table SENSORS.
+
+Then you modify sensors.cfg by activating the data base as virtual sensor. Assuming a database name "mydatabase" your 
+input into sensors.cfg would look like:
+
+        mydatabase,-,-,-,-,-,active,None,120,1,MySQL,MySQL,-,0001,-,-,-,service,-
+
+Using this command, all tables beloning to the SensorGroup "service" will be tested for new data every 120 seconds. New
+data will be send via MQTT to INTERMAGNET. If you have i.e. two tables, one with one-minute and one with one-second data,
+both assigned to group "service" contents of both tables will be send with the correct topics.
 
 #### 4.8.3 Delivering data from local data files
 
-The technique can be applied to all data sets which are readable by MagPy2.0. Before continuing make sure that this is
-working. 
+The technique can be applied to all data sets which are readable by MagPy2.0. The only thing to do is to specify 
+the directory, file name structure and upload rate within sensors.cfg. The upload rate, 120 seconds in the example below, 
+hereby defines the time period at which the file structure is tested for new data. If no new data is found it will just
+send the last existing value. Otherwise it will send all new data since the last upload. The first field, SensorID,
+should contain a unique name like XXXadjustedmin, the second field needs to specify the directory, where to find
+data files. The protocol is "IMfile" and the field after the protocol need to contain the file extension, *.min in the
+example below. 
+
+        XXXadjustedmin,/home/USER/Cloud/Data,-,-,-,-,active,None,120,1,IMfile,*.min,-,0001,-,-,-,magnetism,-
+
+In case you are using a subdirectory structure like /toplevel/year/month/*.min then please insert '/toplevel' within 
+the directory field and a file identifier like '**/*.min'. For an additional data source like one-second *.sec data you 
+will have to add a separate line into sensors.cfg. Please note: this technique always reads the last two files within
+the directory structure according to their creation data. Then it extracts data related to the expected coverage of 
+the upload rate. 
+
+#### 4.8.4 Running and testing MQTT publication on the BGS INTERMAGNET server
+
+After finishing the martas_init command, a starting script is generated and scheduled to be started in crontab. You can 
+now start it manually for testing:
+
+       cd ~/.martas
+       bash runmartas.sh start
+
+Using basic mosquitto commands you can test the data transmission. In the following example we are testing submissions
+to the Test Observatory channel. Please again replace the three occurrences of XXX with you lower case observatory code
+i.e. wic  and replace PASSWD with the password you git from BGS.
+
+        mosquitto_sub -h gin-mqtt-staging.bgs.ac.uk -t impf/XXX/# -u XXX_r -P PASSWD -p 8883 -v -d -i XXX
+
+When you are finished with that you can start data submission as outlined in 4.8.2 or 4.8.3. You will receive the data 
+structure you send in std.out. You might also want to activate debug : True within the martas.cfg file for more detailed
+information on delivery.
 
 
 ## 5. MARCOS

@@ -11,7 +11,7 @@ from twisted.python import log
 
 from martas.core import methods as mm
 from martas.lib import publishing
-from magpy.stream import read
+from magpy.stream import read, DataStream, join_streams
 import glob
 import os
 
@@ -101,13 +101,14 @@ class IMfileProtocol(object):
         # implement counter and add three reconnection events here
 
     def get_latest_file(self,path,source):
-        latest = ""
+        latest = []
         fullpath = os.path.join(path,source)
         if self.debug:
             log.msg("  -> DEBUG - checking for files: {}".format(fullpath))
-        filelist = glob.glob(fullpath)
-        print (filelist)
-        latest = max(filelist,key=os.path.getctime)
+        filelist = glob.glob(fullpath, recursive=True)
+        filelist.sort(key=os.path.getctime)
+        #TODO files = glob.glob('/ParentDirectory/**/*.csv', recursive=True)
+        latest = filelist[-2:]
         return latest
 
     def get_headline_info(self,data):
@@ -133,12 +134,13 @@ class IMfileProtocol(object):
         t1 = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(t1, "%Y-%m-%d")
         bufferfilename = outdate
+        data = DataStream()
 
         if self.debug:
             log.msg("  -> DEBUG - Sending periodic request ...")
 
         # get source and identify latest filepath
-        filepath = self.get_latest_file(self.pathname,self.filewildcard)
+        filepaths = self.get_latest_file(self.pathname,self.filewildcard)
         if self.revision:
             sensorid = self.sensor+"_"+self.revision
         else:
@@ -147,22 +149,26 @@ class IMfileProtocol(object):
             log.msg("  -> DEBUG - dealing with sensor {}".format(sensorid))
 
         if self.debug:
-            log.msg("  -> DEBUG - reading {}".format(filepath))
+            log.msg("  -> DEBUG - reading {}".format(filepaths))
         try:
-            data = read(filepath)
+            for filepath in filepaths:
+                tmp = read(filepath)
+                data = join_streams(data, tmp)
+            if len(data) > 0:
+                data = data.sorting()
             if self.debug:
-                log.msg("  -> DEBUG - read {}, with {}".format(filepath,data.length()[0]))
+                log.msg("  -> DEBUG - read {}, with {}".format(filepaths,len(data)))
         except:
             log.msg("  -> ERROR - accessing file at {}".format(filepath))
 
-        if not data.length()[0] > 0:
+        if not len(data) > 0:
             if self.debug:
                 log.msg("  -> DEBUG - obtained empty file structure")
             return
 
         # Trim data set and only work with most recent data dependend on request
         # get sampling rate
-        ts,te = data._find_t_limits()
+        ts,te = data.timerange()
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         # always deal with a timerange twice of the request rate - why?
         tlow = now-timedelta(seconds=self.requestrate*2)
@@ -249,8 +255,6 @@ class IMfileProtocol(object):
                 if self.payloadformat in ["intermagnet","immqtt","bgsmqtt"]:
                     if self.debug:
                         print ("Publishing INTERMAGNET", topic, data, head)
-                        topic = "impf/wic/test"
-                        print ("TESTTOPIC:", topic)
                     pubdict = publishing.intermagnet(None, topic=topic, data=data, head=head,
                                             imo=self.confdict.get('station', ''), meta=fullhead)
                     if self.debug:
