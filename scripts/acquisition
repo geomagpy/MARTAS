@@ -74,6 +74,7 @@ from martas.version import __version__
 ## -----------------------------------------------------------
 import paho.mqtt.client as mqtt
 import paho.mqtt
+import ssl
 
 ## Import twisted for serial port communication and web server
 ## -----------------------------------------------------------
@@ -430,7 +431,12 @@ def main(argv):
 
     if cred:
         # Should have two possibilities:
+        print ("MQTT: password authentication")
         client.username_pw_set(username=creduser,password=pwd)
+    if int(mqttport) == 8883:
+        print ("MQTT: TLS encryption")
+        client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS,
+                ciphers=None)
 
     ##  Start Twisted logging system
     ##  ----------------------------

@@ -106,6 +106,7 @@ class IMfileProtocol(object):
         if self.debug:
             log.msg("  -> DEBUG - checking for files: {}".format(fullpath))
         filelist = glob.glob(fullpath)
+        print (filelist)
         latest = max(filelist,key=os.path.getctime)
         return latest
 
@@ -248,7 +249,7 @@ class IMfileProtocol(object):
                 if self.payloadformat in ["intermagnet","immqtt"]:
                     if self.debug:
                         print ("Publishing INTERMAGNET", topic, data, head)
-                    pubdict, count = publishing.intermagnet(None, topic=topic, data=data, head=head,
+                    pubdict = publishing.intermagnet(None, topic=topic, data=data, head=head,
                                             imo=self.confdict.get('station', ''), meta=fullhead)
                     if self.debug:
                         print("Pubdict ", pubdict)
