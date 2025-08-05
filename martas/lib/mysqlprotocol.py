@@ -265,7 +265,8 @@ class MySQLProtocol(object):
                 packcode = '6HL'+''.join(['q']*len(keystab))
                 header = ("# MagPyBin {} {} {} {} {} {} {}".format(sensorid, '['+','.join(keystab)+']', '['+','.join(elems)+']', '['+','.join(units)+']', multplier, packcode, struct.calcsize('<'+packcode)))
 
-                print ("DATA header", header)
+                if self.debug:
+                    print ("DATA header", header)
 
                 # 2. Getting dict
                 sql = 'SELECT DataSamplingRate FROM DATAINFO WHERE SensorID LIKE "{}"'.format(sensorid)
@@ -276,7 +277,6 @@ class MySQLProtocol(object):
                 # get data and create typical message topic
                 # based on sampling rate and collection rate -> define coverage
                 data = self.db.get_lines(dataid, coverage)
-                print ("DATA content", len(data))
                 self.db.db.commit()
 
                 #li = sorted(self.db.select('time,'+keys, dataid, expert='ORDER BY time DESC LIMIT {}'.format(int(coverage))))
@@ -284,7 +284,8 @@ class MySQLProtocol(object):
                     self.lastt[index]=data.ndarray[0][0]
 
                 data = data.trim(starttime=self.lastt[index])
-                print ("DATA content", len(data), self.lastt[index])
+                if self.debug:
+                    print ("DATA content", len(data), self.lastt[index])
 
                 # transpose
                 dataarray = data.ndarray
@@ -316,48 +317,9 @@ class MySQLProtocol(object):
                                   fullhead=data.header)
 
                 self.lastt[index] = newli[-1][0]
-                print ("NEW STARTTIME", self.lastt[index])
+                if self.debug:
+                    print ("NEW STARTTIME", self.lastt[index])
 
-                """
-                # drop
-                newdat = False
-                newli = []
-                for elem in li:
-                    if elem[0] == self.lastt[index]:
-                        newdat = True
-                    if newdat:
-                        newli.append(elem)
-
-                if not len(newli) > 0:
-                    # if last time not included in li then newli will be empty
-                    # in this case just add the list
-                    for elem in li:
-                        newli.append(elem)
-
-                for dataline in newli:
-                    timestamp = dataline[0]
-                    data_bin = None
-                    datearray = ''
-                    try:
-                        datearray = mm.datetime_to_array(timestamp)
-                        for i,para in enumerate(keystab):
-                            try:
-                                val=int(float(dataline[i+1])*10000)
-                            except:
-                                val=999990000
-                            datearray.append(val)
-                        data_bin = struct.pack('<'+packcode,*datearray)  # little endian
-                    except:
-                        log.msg('Error while packing binary data')
-
-                    if not self.confdict.get('bufferdirectory','') == '' and data_bin:
-                        mm.data_to_file(self.confdict.get('bufferdirectory'), sensorid, filename, data_bin, header)
-                    if self.debug:
-                        log.msg("  -> DEBUG - sending ... {}".format(','.join(list(map(str,datearray))), header))
-                    self.sendData(sensorid,','.join(list(map(str,datearray))),header,len(newli)-1)
-
-                self.lastt[index]=li[-1][0]
-                """
 
         t2 = datetime.now(timezone.utc).replace(tzinfo=None)
         if self.debug:

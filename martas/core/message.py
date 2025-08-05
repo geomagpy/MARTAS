@@ -522,7 +522,7 @@ class ActionHandler(object):
             adict = {}
             msg = {}
             if action == "help":
-                msg = self.action_help(self.messageconfig.get('printhidden',False))
+                msg = self.action_help(input)
             elif action == "hello":
                 msg['text'] = "Hello {}, nice to talk to you.".format(self.messageconfig.get('firstname',''))
             elif action == 'sensor':
@@ -566,6 +566,8 @@ class ActionHandler(object):
                 msg = self.action_reboot(debug=debug)
             elif action == 'martasupdate':
                 msg = self.action_martasupdate(debug=debug)
+            elif action == 'version':
+                msg['text'] = self.commanddict['version'].get('description','')
 
             adict['message'] = msg
             messagedict[action] = adict
@@ -585,6 +587,18 @@ class ActionHandler(object):
         for com in self.commanddict:
             cd = self.commanddict.get(com)
             if 'all' in cd.get('availability') or printall:
+                mesg += "COMMAND: *{}*\n".format(com)
+                mesg += "{}\n\n".format(cd.get('description'))
+                # options = self.extract_options(comdic.get('options'))
+            if 'MARTAS' in cd.get('availability') and 'MARTAS' in self.configuration.get('purpose'):
+                mesg += "COMMAND: *{}*\n".format(com)
+                mesg += "{}\n\n".format(cd.get('description'))
+                # options = self.extract_options(comdic.get('options'))
+            if 'MARCOS' in cd.get('availability') and 'MARCOS' in self.configuration.get('purpose'):
+                mesg += "COMMAND: *{}*\n".format(com)
+                mesg += "{}\n\n".format(cd.get('description'))
+                # options = self.extract_options(comdic.get('options'))
+            if 'IMBOT' in cd.get('availability') and 'IMBOT' in self.configuration.get('purpose'):
                 mesg += "COMMAND: *{}*\n".format(com)
                 mesg += "{}\n\n".format(cd.get('description'))
                 # options = self.extract_options(comdic.get('options'))
@@ -814,6 +828,7 @@ class ActionHandler(object):
 
         martaslogfiles = glob.glob(os.path.join(martaslog, '*.log'))
         martaslogfiles = [os.path.basename(ma) for ma in martaslogfiles]
+        tmppath = os.path.join(martaslog, "martas.log")
 
         if debug:
             print ("Logging command looks like", cmd, martaslogfiles)

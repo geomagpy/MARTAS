@@ -86,7 +86,8 @@ def setuplogger(name='telegrambot',loglevel='DEBUG',path='stdout'):
     return logger
 
 
-telegramcfgpath = "../conf/telegrambot.cfg"
+mainpath = os.path.dirname(os.path.realpath(__file__))
+telegramcfgpath = os.path.join(mainpath,"..","conf","telegrambot.cfg")
 ah = ActionHandler(configpath=telegramcfgpath, commands=None)
 
 tglogger = setuplogger(name='telegrambot',loglevel=ah.configuration.get('loglevel'),path=ah.configuration.get('bot_logging').strip())

@@ -1434,7 +1434,7 @@ You can can now talk to your BOT (here are some examples):
 
         i would like to get some system information
 
-        get the log of martas, last 20 lines
+        get the log of the telegrambot, last 20 lines
 
         please restart the martas process
 
@@ -1447,6 +1447,17 @@ You can can now talk to your BOT (here are some examples):
 If you have a microcontroller connected programmed with MARTAS specifications (e.g. arduino) you can also send switching commands:
 
         switch heating on
+
+There are further options which require additional system settings. If you want the remote user be able to reboot the 
+system you will need to enable this for the MARTAS user. You will need to modify /etc/sudoers and insert the MARTAS USER.
+Replace USER by your MARTAS user.
+```
+# user is allowed to execute reboot 
+USER ALL=NOPASSWD: /sbin/reboot
+```
+You also might need to add the following line to your .bashrc
+
+         export PATH=$PATH:/sbin
 
 
 
