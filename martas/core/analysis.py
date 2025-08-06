@@ -324,6 +324,45 @@ class MartasAnalysis(object):
         return success
 
 
+    def cleanup(self, splitter=None, part=2, level=0, debug=False):
+        """
+        DESCRIPTION
+            Method which should be called periodically to union the flagging data base.
+            This will load all data from the database, split the database by the the given date,
+            apply union to one part, recombine, delete all data from the db and upload the new recombined
+            data set.
+        PARAMETERS:
+            splitter : date like "2025-07-01"
+            part : which part should be unified, default is the latter
+        APPLICATION:
+            flag_union()
+        """
+        success = True
+        if not splitter:
+            splitter = datetime.strftime(datetime.now(timezone.utc)-timedelta(days=10), "%Y-%m-%d")
+        connectdict = self.config.get('conncetedDB')
+        if debug:
+            print ("Splitting database at ", splitter)
+        for dbel in connectdict:
+            dbt = connectdict[dbel]
+            fl1 = dbt.flags_from_db(endtime=splitter)
+            fl2 = dbt.flags_from_db(starttime=splitter)
+            if part == 1:
+                fl1 = fl1.union(level=level)
+            else:
+                fl2 = fl2.union(level=level)
+            fl = fl1.join(fl2)
+            if fl and len(fl)>0:
+                dbt.flags_to_delete('all')
+                dbt.flags_to_db(fl)
+                if debug:
+                    out = fl.stats(level=0, intensive=True, output=None)
+                    print(out)
+            else:
+                success = False
+        return success
+
+
     def periodically(self, debug=False):
         """
         DESCRIPTION
@@ -398,33 +437,6 @@ class MartasAnalysis(object):
                     newflags = newflags.join(newfl)
 
         return newflags
-
-
-    def cleanup(self, level=0, debug=False):
-        """
-        DESCRIPTION
-            Read all flags and clean them up
-            - extract all flags
-            - apply union
-            - remove all flags from db
-            - write cleaned data set
-        """
-        print(" Cleaning up all records")
-        cumflag = []
-        stream = DataStream()
-        flaglist = self.db.flags_from_db()
-        if debug:
-            print("   -> Found {} flags in database".format(len(flaglist)))
-            print(" --------------------------------------")
-            flaglist.stats(intensive=True)
-            print(" --------------------------------------")
-        flaglist = flaglist.union(level=level)
-        if debug:
-            print("   -> cleaned record contains {} flags".format(len(flaglist)))
-            print(" --------------------------------------")
-            flaglist.stats(intensive=True)
-            print(" --------------------------------------")
-        return flaglist
 
 
     def archive(self):
