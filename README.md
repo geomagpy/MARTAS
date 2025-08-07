@@ -592,13 +592,14 @@ A few hints in order to test for proper recording and data publication.
 
 ### 4.8. Using MARTAS to publish geomagnetic data on INTERMAGNET
 
-MARTAS can be used to transfer geomagnetic data to the MQTT receivers of INTERMAGNET directly. This service is hosted 
-at BGS and an overview can be found [here](). MQTT real-time data transport is 
-supported (1) for MagPY databases continuously filled by MARCOS jobs (ideal way if you use MARTAS/MagPy for data production)
-and also (2) by periodically accessing local data files and transforming them into delivery packages (if you are using 
-traditional data production methods and just want to deliver data quickly and secure). This is done by implementing a 
+MARTAS can be used to transfer geomagnetic data to the MQTT receivers of INTERMAGNET directly. The MQTT service is hosted 
+at BGS and an overview can be found [here](https://github.com/INTERMAGNET/wg-www-gins-data-formats/tree/master/ImagMQTT). 
+MARTAS supports an INTERMAGNET style MQTT real-time data transport for (1) for MagPY databases continuously filled by 
+MARCOS jobs (ideal way if you use MARTAS/MagPy for data production)
+and (2) by periodically accessing local data files, which are readable by MagPy. This applies to basically all data formats
+used in geomagnetism. File contents are transformed into delivery packages. This is done by implementing a 
 virtual sensor in sensors.cfg pointing either to a database or a file-directory. Both ways are described in detail 
-below. Setting up such data delivery is very simple and quickly accomplished. Section 4.8.1 will summarize the all steps
+below. Setting up such data delivery is very simple and quickly accomplished. Section 4.8.1 will summarize all steps
 required to setup and configure data delivery to the BGS. Section 4.8.2 will outline specific virtual sensor details 
 for database usage, 4.8.3 will describe the usage of a file directory structure.
 
