@@ -118,7 +118,8 @@ SUPPORTED_PROTOCOLS = {'Env' : {"name" : "Envrionement 05 sensor", "type" : "pas
                        'ActiveArduino' : {"name" : "One wire sensors"},
                        'DSP' : {"name" : "Wind speed"},
                        'Disdro' : {"name" : ""},
-                       'ad7714' : {"name" : "24bit AD77"},
+                       'ad7714' : {"name" : "24bit ADC AD7714"},
+                       'fluke289' : {"name" : "Fluke 289 Multimeter"},
                        'cr1000jc' : {"name" : ""},
                        'GIC' : {"name" : "GIC Webservice Austria TU Graz"},
                        'obsdaq' : {"name" : "Mingeo Obsdaq 24bit"},
@@ -127,7 +128,7 @@ SUPPORTED_PROTOCOLS = {'Env' : {"name" : "Envrionement 05 sensor", "type" : "pas
                        'BME280I2C' : {"name" : "BME280 T/P/rh probe on I2C", "status" : "productive"},
                        }
 
-#SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C'] # should be provided by MagPy
+#SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','fluke289','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C'] # should be provided by MagPy
 
 """
 Protocol types:
