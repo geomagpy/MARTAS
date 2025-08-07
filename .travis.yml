@@ -8,12 +8,5 @@ before_install:
 install:
   - pip install -r requirements.txt
 script:
-  - python app/monitor.py -D -T
-  - python telegram/telegrambot.py -T
-  - python app/threshold.py -D -T
-  - python app/file_upload.py -j conf/fileuploadjobs.json
-  - python core/acquisitionsupport.py
-  - python core/martas.py
-  - python app/archive.py -c conf/archive.cfg -D
-  - python app/testnote.py -D
- 
+  - python core/app_tester.py
+

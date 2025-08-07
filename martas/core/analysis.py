@@ -9,8 +9,8 @@ Methods of this module
 |  MartasAnalysis |  _get_data_from_db |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  update_flags_db   |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  periodically      |  2.0.0   |      yes |                                  | -      |          |
-|  MartasAnalysis |  cleanup           |  2.0.0   |          |                                  | -      |          |
-|  MartasAnalysis |  archive           |  2.0.0   |          |                                  | -      |          |
+|  MartasAnalysis |  cleanup           |  2.0.0   |      yes |                                  | -      |          |
+|  MartasAnalysis |  archive           |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  create_test_set   |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  upload            |  2.0.0   |          |                                  | -      |          |
 |  MartasAnalysis |  get_primary       |  2.0.0   |      yes |                                  | -      |          |
@@ -334,8 +334,9 @@ class MartasAnalysis(object):
         PARAMETERS:
             splitter : date like "2025-07-01"
             part : which part should be unified, default is the latter
+            debug : database will not be altered if True
         APPLICATION:
-            flag_union()
+            cleanup()
         """
         success = True
         if not splitter:
@@ -353,8 +354,9 @@ class MartasAnalysis(object):
                 fl2 = fl2.union(level=level)
             fl = fl1.join(fl2)
             if fl and len(fl)>0:
-                dbt.flags_to_delete('all')
-                dbt.flags_to_db(fl)
+                if not debug:
+                    dbt.flags_to_delete('all')
+                    dbt.flags_to_db(fl)
                 if debug:
                     out = fl.stats(level=0, intensive=True, output=None)
                     print(out)
@@ -439,8 +441,58 @@ class MartasAnalysis(object):
         return newflags
 
 
-    def archive(self):
-        pass
+    def archive(self, archivepath=None, keepyears=3, debug=False):
+        """
+        DESCRIPTION
+            Save old flags from database to a archive file and then delete them from the database.
+            Should be called once a year to keep the DB as small as possible.
+        PARAMETERS:
+            archivepath : data path for the archive. Name will be flags_YEAR.json
+            keepyears : integer : amount of years to keep in db. If command is issued on 2025-02-01 and
+                                  keepyears = 3, then 2025,2024 and 2023 remain in the database. Older data is saved
+                                  to flags_2022.json.
+            debug : database will not be altered if True
+        APPLICATION:
+            archive(archivepath = "/my/flaggging/archive")
+        """
+        success = True
+        cont = False
+        if not archivepath:
+            return False
+        if not keepyears and not is_number(keepyears) and not keepyears >= 1:
+            return False
+        if not os.path.isdir(archivepath):
+            return False
+
+        splitter = datetime(datetime.now().year - (keepyears-1), 1,1)
+        connectdict = self.config.get('conncetedDB')
+        if debug:
+            print ("Splitting database at ", splitter)
+        for dbel in connectdict:
+            dbt = connectdict[dbel]
+            fl1 = dbt.flags_from_db(endtime=splitter)
+            fl2 = dbt.flags_from_db(starttime=splitter)
+            if fl1 and len(fl1) > 0:
+                cont = True
+                fy = datetime.now().year - keepyears
+                archivename = os.path.join(archivepath,"flags_{}.json".format(fy))
+                if os.path.isfile(archivename):
+                    print ("archivefile {} already existing - skipping archiving")
+                    cont = False
+                    success = False
+                else:
+                    success = fl1.save(archivename)
+            if fl2 and len(fl2)>0 and cont:
+                if not debug:
+                    dbt.flags_to_delete('all')
+                    dbt.flags_to_db(fl2)
+                if debug:
+                    print (" remaining flagging contents in DB:")
+                    out = fl2.stats(level=0, intensive=True, output=None)
+                    print(out)
+            else:
+                success = False
+        return success
 
 
     def upload(self, flagfilepath):
@@ -1336,6 +1388,16 @@ class TestAnalysis(unittest.TestCase):
         fl = mf.periodically(debug=True)
         self.assertGreater(len(fl),1)
 
+    def test_cleanup(self):
+        mf = MartasAnalysis()
+        success = mf.cleanup(debug=True)
+        self.assertTrue(success)
+
+    def test_zarchive(self):
+        mf = MartasAnalysis()
+        success = mf.archive(archivepath="/tmp", debug=True)
+        self.assertFalse(success)
+
     def test_update_flags_db(self):
         mf = MartasAnalysis()
         fl = mf.periodically(debug=False)
@@ -1343,11 +1405,6 @@ class TestAnalysis(unittest.TestCase):
         suc = mf.update_flags_db(fl, debug=True)
         #print(fl.flagdict)
         self.assertTrue(suc)
-
-    def test_zcleanup(self):
-        mf = MartasAnalysis()
-        fl = mf.cleanup(debug=True)
-        self.assertGreater(len(fl),1)
 
     def test_get_primary(self):
         mf = MartasAnalysis()

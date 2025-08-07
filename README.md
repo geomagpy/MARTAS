@@ -19,7 +19,7 @@ MQTT data stream and store/organize such data and meta information in files, dat
 All data can directly be analysed using [MagPy]() which contains many time domain and frequency domain time series analysis
 methods.
 
-Developers: R. Leonhardt, R. Mandl, R. Bailey (GeoSphere Austria)
+Developers: R. Leonhardt, R. Mandl, R. Bailey, V. Haberle (GeoSphere Austria)
 
 ### Table of Contents
 
