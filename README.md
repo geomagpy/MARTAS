@@ -59,6 +59,7 @@ Currently supported systems are:
 - Thiess LaserNiederschlagsMessgerät - Disdrometer
 - Ultrasonic Anemometer
 - AD7714 general ADC
+- Fluke 289 Multimeter
 - Campbell Scientific CR800, CR1000 Data logger
 - ENV05 Environment sensors
 - MySQL/MariaDB databases
@@ -490,6 +491,10 @@ Then you can use the following line in sensors.cfg
 #### Datalogger AD7714 24bit ()
 
          AD7714_0001_0001,-,-,-,-,-,autonomous,None,-,10,ad7714,AD7714,-,0001,-,-,NTP,environment,24bit analog digital converter
+
+#### Multimeter Fluke 289
+
+         FLUKE289_24580003_0001,USB0,115200,8,1,N,active,None,0.1,10,fluke289,FLUKE289,24580003,0001,-,TEST,NTP,electric,voltage
 
 #### Geomagnetic Obsdaq/Palmdaq datalogger together FGE Magnetometer (MINGEO, DTU)
 
@@ -1803,6 +1808,7 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | Thies LNM           |          | laserdisdro | disdroprotocol.py        | active   |                |                  |
 | DSP Ultrasonic wind |          | wind        | dspprotocol.py           | active   |                |                  |
 | ENV05               | 2.0.0    | temperature | envprotocol.py           | passive  |                |                  |
+| FLUKE 289           |          | multiple    | fluke289protocol.py      | active   |                |                  |
 | 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active   |                |                  |
 | GIC                 |          | special     | gicprotocol.py           | active   |                |                  |
 | GP20S3              |          | opt.pumped  | gp20s3protocol.py        | passive  |                |                  |
