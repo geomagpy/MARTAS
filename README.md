@@ -226,6 +226,9 @@ in a different, independent file. To add such information into the credentials l
 
 Provide the shortcut (mqtt) and username during the installation process.
 
+In the appendix you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
+official mosquitto installation instructions when setting up a secure TLS broker.
+
 #### 2.3.3 Testing MQTT data transfer
 
 Issue the following subscription command:
@@ -240,6 +243,10 @@ In case you are using a different MQTT broker: change 'localhost' and 'IPADDRESS
 In case you are using authenticated access use the following additional options:
 
         mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -d
+
+In case you are using secure TLS access (OS encrypted) use the following additional options:
+
+        mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 -d
 
 As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription
 command. Checkout the official mosquitto pages for more information.
@@ -668,6 +675,9 @@ the directory structure according to their creation data. Then it extracts data 
 the upload rate. 
 
 #### 4.8.4 Running and testing MQTT publication on the BGS INTERMAGNET server
+
+Check the martas.cfg file within the config directory. The payload format should be *intermnagnet*, the mqtt parameters
+need to be correct.
 
 After finishing the martas_init command, a starting script is generated and scheduled to be started in crontab. You can 
 now start it manually for testing:
@@ -2126,7 +2136,7 @@ B. MARTAS
 
 #### 10.1.5 enable remote terminal access
 
-tmate instructions
+tmate is not supported any more. instructions
 
 
 ### 10.2 Development tools
@@ -2182,7 +2192,85 @@ delete the daily file and restart the recoding process. The next daily file will
 
 
 
-### 10.5 Example configurations - Conrad Observatory
+### 10.5 Example configurations
+
+#### 10.5.1 Setting up a secure mosquitto broker
+
+1. Generate a Certificate Authority (CA) Key Pair and Certificate: 
+Create a CA key: Use openssl to generate a private key for the CA. You can use encryption (e.g., -aes256) for added 
+security. For example: Code
+
+       openssl genrsa -aes256 -out ca.key 2048
+
+2. Create a CA certificate: Use the CA key to generate a self-signed certificate. This certificate will be used to 
+sign other certificates. Common name should be IP or qualified domain name i.e mymacine.example.com. For example:
+
+       openssl req -new -x509 -days 365 -key ca.key -out ca.crt
+
+2. Generate a Server Key Pair and Certificate Request: 
+Generate a server key: Use openssl to create a private key for the Mosquitto broker. 
+Code
+
+       openssl genrsa -out server.key 2048
+
+Create a certificate signing request (CSR): Use the server key and information about your broker (e.g., common name, organization) to generate a CSR. 
+Code
+
+       openssl req -new -key server.key -out server.csr
+
+3. Sign the Server Certificate Request:
+Sign the CSR: Use the CA certificate and key to sign the server certificate request. This creates the server certificate. 
+Code
+
+       openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 365
+
+4. Configure Mosquitto Broker:
+Update mosquitto.conf: Locate the mosquitto.conf file and modify it to enable TLS. Add or uncomment lines similar to these: 
+Code
+
+    tls_version tlsv1.2
+    ca_file /path/to/ca.crt
+    cert_file /path/to/server.crt
+    key_file /path/to/server.key
+    require_certificate false  # Set to true for client certificate authentication
+
+Specify the port: The default port for MQTT over TLS is 8883. You might need to adjust this in your configuration.
+You also might need to make the server.key file readable by chmod 644.
+
+5. Configure Clients:
+Client Configuration: Clients need to be configured to use the CA certificate for verification. You can either:
+Provide the CA certificate file using the --cafile option in mosquitto_pub or mosquitto_sub.
+Enable TLS with the -p 8883 option and the OS-provided certificates (if applicable).
+Use TLS-PSK (Pre-Shared Key) authentication if desired. 
+6. Test the Setup:
+Publish and Subscribe:
+Use mosquitto_pub and mosquitto_sub to test the connection. Ensure you are using the correct port (8883 for TLS) and have configured the client with the necessary certificates.
+Verify:
+Check the logs of both the broker and the clients to confirm the TLS handshake was successful and messages are being exchanged securely. 
+
+7. Important Considerations:
+Self-Signed Certificates:
+Self-signed certificates are suitable for testing but not recommended for production environments. For production, use certificates issued by a trusted Certificate Authority.
+
+
+```
+per_listener_settings true
+connection_messages true
+log_timestamp true
+
+listener 1883 127.0.0.1
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+
+listener 8883
+tls_version tlsv1.2
+require_certificate false
+cafile /etc/mosquitto/ca_certificates/ca.crt
+keyfile /etc/mosquitto/certs/server.key
+certfile /etc/mosquitto/certs/server.crt
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+```
 
 #### 10.5.1 continuous, automatic DI analysis 
 
