@@ -1958,9 +1958,10 @@ setup of virtual python environments. Such problems have been experienced while 
 environment on beaglebone blacks. You might want to consider search engines to find solutions for that. Alternatively 
 you can also switch to system python for running MARTAS. This is working without problems on beaglebone blacks but 
 we would like to emphasize that this method is not recommended as there is some probability to break system stability. 
-In order to minimize a potential negative influence on system stability it is recommended to primarly use pre-compiled
+In order to minimize a potential negative influence on system stability it is recommended to primarily use pre-compiled
 packages for your specific system based on apt.
 
+      sudo apt update
       sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-numba python3-pandas
 
 Then install the remaining dependencies using pip.
