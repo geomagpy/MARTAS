@@ -1947,29 +1947,53 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 ### 10.1. Installation issues and examples
 
-The installation is usually straightforward as described in section 2. For some systems you might however require some
-additional packages to fulfill required dependencies. Here we summarise some system specific issues and solutions, as
-well as a full installation cookbook.
+The installation is usually straightforward as described in section 2. For some systems, especially ARM systems, you 
+might however require very specific or some additional packages to fulfill required dependencies. Here we summarise 
+some system specific issues and solutions, as well as a full installation cookbook.
 
-#### 10.1.1 Installing MARTAS with system python
+#### 10.1.1 BeagleBone Black Rev C with system python
 
 For some hardware systems, particularly ARM processors (Beaglebone, Raspberry, etc) problems might occur during the 
 setup of virtual python environments. Such problems have been experienced while installing scipy inside a virtual
 environment on beaglebone blacks. You might want to consider search engines to find solutions for that. Alternatively 
-you can also switch to system python for running MARTAS. This is working without problems on beaglebone blacks but 
+you can also switch to system python for running MARTAS. 
+
+This is working without problems on beaglebone blacks but 
 we would like to emphasize that this method is not recommended as there is some probability to break system stability. 
 In order to minimize a potential negative influence on system stability it is recommended to primarily use pre-compiled
 packages for your specific system based on apt.
 
+      # BEAGLE BONE BLACK REV C
+      # install am335x-debian-12.11-base-vscode-v6.15-armhf-2025-06-30-4gb.img.xz
+      # change name and reboot
+      # check size (SD card should be recognized) 
+      # seems as if only SD <= 32 GB are working
       sudo apt update
+      sudo apt upgrade
+      sudo apt install mosquitto mosquitto-clients
+      # configure mosquitto
       sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-numba python3-pandas
+      sudo pip install --break-system-packages pywavelets==1.8.0
+      sudo pip install --break-system-packages pymysql==1.1.1
+      sudo pip install --break-system-packages geomagpy
+      # Test MagPy
+      sudo pip install --break-system-packages plotly==6.2.0
+      sudo pip install --break-system-packages dash==3.1.1
+      # there might be an error message related to uninstall blinker: ignore
+      # Test MagPy
+      sudo pip install --break-system-packages MARTAS-develop.zip
+      # eventually hash errors occur - just retry
+      # Test MagPy
+      sudo mkdir /srv/mqtt
+      sudo chown debian:debian /srv/mqtt
+      martas_init
+      # add PATH to crontab: PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
+      # add reboot command: @reboot sleep 60 && /usr/bin/bash -i /home/debian/.martas/runmartas.sh start > /home/debian/.martas/log/runmartas.log 2>&1
+      # activate TEST
 
-Then install the remaining dependencies using pip.
-
-      sudo pip install --break-system-packages martas
-
-You likely will need to update the path variable then in the "runmartas.sh" job within "~\.martas". Replace
-"acquisition" by the full path "/usr/local/bin/acquisition" to make it available from cron.
+If you do not specify an extended path variable in cron then you likely will need to update the path variable then in 
+the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full path "/usr/local/bin/acquisition" to make
+it available from cron.
 
 
 #### 10.1.2 Installation behind a proxy server
