@@ -34,7 +34,7 @@ setup(
     version=__version__,
     author='R. Leonhardt, R. Bailey, R. Mandl, V. Haberle',
     author_email='roman.leonhardt@geosphere.at',
-    packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.lib', 'martas.logrotate', 'martas.scripts', 'martas.telegram', 'martas.web', 'martas.web.assets'],
+    packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.lib', 'martas.logrotate', 'martas.scripts','martas.web', 'martas.web.assets'],
     scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init', 'scripts/martas_view', 'scripts/marcos_view'],
     url='',
     license='LICENSE.txt',
