@@ -2221,6 +2221,8 @@ delete the daily file and restart the recoding process. The next daily file will
 
 #### 10.5.1 Setting up a secure mosquitto broker
 
+https://www.onetransistor.eu/2021/04/self-signed-certificates-for-mqtt-server.html
+
 1. Generate a Certificate Authority (CA) Key Pair and Certificate: 
 Create a CA key: Use openssl to generate a private key for the CA. You can use encryption (e.g., -aes256) for added 
 security. For example: Code

@@ -987,6 +987,24 @@ class ActionHandler(object):
         return message
 
 
+    def action_upterm(self, command, debug=False):
+        """
+        DESCRIPTION
+           Open a ssh connection to a existing upterm terminal
+           This method is solely to be activated on remote sensor stations in mobile networks.
+        REQUIREMENTS
+           upterm host, which provides secure ssh link
+        """
+        #import paramiko
+
+        # ssh
+        #ssh = paramiko.SSHClient()
+        #ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # this will automatically add the keys
+        #ssh.connect(machineHostName, username=user, password=password)
+
+        pass
+
+
     def action_getip(self, input, debug=False):
         """
         DESCRIPTION

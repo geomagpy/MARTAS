@@ -388,6 +388,7 @@ def main(argv):
     broker = conf.get('broker',"")
     mqttport = int(conf.get('mqttport',1883))
     mqttdelay = int(conf.get('mqttdelay',60))
+    mqttcert = conf.get('mqttcert',"")
 
     ##  Get Sensor data
     ##  ----------------------------
@@ -434,10 +435,14 @@ def main(argv):
         # Should have two possibilities:
         print ("MQTT: password authentication")
         client.username_pw_set(username=creduser,password=pwd)
+
     if int(mqttport) == 8883:
         print ("MQTT: TLS encryption")
-        client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS,
-                ciphers=None)
+        if mqttcert:
+            client.tls_set(certfile=mqttcert)
+        else:
+            client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS,
+                    ciphers=None)
 
     ##  Start Twisted logging system
     ##  ----------------------------
