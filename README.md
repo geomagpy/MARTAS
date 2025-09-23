@@ -53,11 +53,12 @@ general purpose data/meta information object which is directly streamed via IOT 
 Collector and Organization System), can be setup within the MARTAS environment. MARCOS collection routines can access
 MQTT data stream and store/organize such data and meta information in files, data banks or forward them to web sockets.
 All data can directly be analysed using [MagPy]() which contains many time domain and frequency domain time series analysis
-methods.
-
-Each MARTAS process can run independently from the other on the same or different hardware systems. Examples of typical
+methods. Each MARTAS process can run independently from the other on the same or different hardware systems. Examples of typical
 MARTAS applications are summarized in Figure 1.1.0.
+
+
 ![1.1.0](./martas/doc/martas_concept.png "The MARTAS concept")
+
 Figure 1.1.0: MARTAS consists of up to three processes which can be separated on different hardwares or combined in all
 ways, even on a single machine. pMARTAS is performing data acquisition tasks, publishing data on a MQTT broker. pMARCOS is 
 subscribing to the broker, handles analysis, archiving and visualization. pMARCOS also provides tools to transfer data 
