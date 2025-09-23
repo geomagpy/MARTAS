@@ -5,21 +5,18 @@
 ![0.0.0](./martas/web/assets/header.png "MARTAS")
 
 
-MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
-and analysis in heterogeneous sensor environments. MARTAS is designed to support professional observatory networks and
-data sources consisting of timeseries measurements from locally fixed instruments. The package contains two main 
-modules: MARTAS for data acquisition and MARCOS for data collection.
-**MARTAS**: Data acquisition makes use of an instrument library which currently includes many sensors typically used in
-observatories around the globe and some development platforms. Basically, incoming sensor data is converted to a 
-general purpose data/meta information object which is directly streamed via IOT protocols, namely MQTT 
-(message queue transport) to a data broker. 
-**MAROCS**: A data collection system, called MARCOS (MagPys Automated Realtime 
-Collector and Organization System), can be setup within the MARTAS environment. MARCOS collection routines can access
-MQTT data stream and store/organize such data and meta information in files, data banks or forward them to web sockets.
-All data can directly be analysed using [MagPy]() which contains many time domain and frequency domain time series analysis
-methods.
+MARTAS is a python package to support uninterrupted realtime data acquisition, secure and reliable realtime data 
+transmission and a well organized data collection system, supporting realtime analysis and evaluation. The package 
+contains additional functionality for monitoring, data flagging, automated notification systems and archiving. The 
+MARTAS package has been specifically developed for high reliability in low-cost environments, making use of minimal 
+system requirements and the possibility to be tailored to any specific need. MARTAS has originally been developed to 
+support professional observatory networks and contains a number of tools specifically supporting geomagnetic 
+observatories. and data sources consisting of timeseries measurements from locally fixed instruments. It can, however, 
+also be used for many other sensor networks focusing on timeseries measurements from locally fixed instruments. MARTAS 
+is freely available under GNUv3 license. When using MARTAS please cite the software package.   
 
 Developers: R. Leonhardt, R. Mandl, R. Bailey, V. Haberle (GeoSphere Austria)
+
 
 ### Table of Contents
 
@@ -30,22 +27,49 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey, V. Haberle (GeoSphere Austria)
 5. [MARCOS](#5-marcos)
 6. [Applications](#6-applcations)
 7. [Logging and notifications](#7-logging-and-notifications)
-8. [Additional tools](#8-additional-tools)
+8. [Additional tools for flagging and analysis](#8-additional-tools)
+9. [Instruments and library](#9-instruments-and-library-)
+10. [Appendix](#10-appendix)
 
 
 ## 1. About
 
-MARTAS has originally been developed to support realtime geomagnetic data acquisition. The principle idea was providing
-a unique platform to obtain data from serial interfaces, and to stream and record this data within a generalized format
-to a data archive. Previously any system connected via serial interface to a recording computer was registered by its
-own software usually in a company specific format. Intercomparison of such data, extraction of meta information, 
+## 1.1 The MARTAS concept
+
+MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
+and analysis in heterogeneous sensor environments. The principle idea is providing a unique platform to obtain data 
+from sensor interfaces, to stream this data though the internet, and record it within a generalized and open format to 
+a data collection system. Previously any system connected via serial interface to a recording computer was registered 
+by its own software usually in a company specific format. Intercomparison of such data, extraction of meta information, 
 realtime data transport and basically any analysis requiring different sources is significantly hampered.
+
+The package can be initialized for two main processes: **pMARTAS** for data acquisition and **pMARCOS** for data 
+collection.
+**pMARTAS**: Data acquisition makes use of an instrument library which currently includes many sensors typically used in
+observatories around the globe and some development platforms. Basically, incoming sensor data is converted to a 
+general purpose data/meta information object which is directly streamed via IOT protocols, namely MQTT 
+(message queue transport) to a data broker. 
+**pMAROCS**: A data collection system, called MARCOS (MagPys Automated Realtime 
+Collector and Organization System), can be setup within the MARTAS environment. MARCOS collection routines can access
+MQTT data stream and store/organize such data and meta information in files, data banks or forward them to web sockets.
+All data can directly be analysed using [MagPy]() which contains many time domain and frequency domain time series analysis
+methods.
+
+Each MARTAS process can run independently from the other on the same or different hardware systems. Examples of typical
+MARTAS applications are summarized in Figure 1.1.0.
+![1.1.0](./martas/doc/martas_concept.png "The MARTAS concept")
+Figure 1.1.0: MARTAS consists of up to three processes which can be separated on different hardwares or combined in all
+ways, even on a single machine. pMARTAS is performing data acquisition tasks, publishing data on a MQTT broker. pMARCOS is 
+subscribing to the broker, handles analysis, archiving and visualization. pMARCOS also provides tools to transfer data 
+to data centers like the INTERMAGNET real time receiver.
+
+
 MARTAS contains a communication library which supports many commonly used instruments as listed below. With these 
-libraries, data AND meta information is obtained from connected sensors. This data is then converted to a data stream 
+libraries, data AND meta information is obtained from connected sensors. This data is then converted to a MQTT data stream 
 containing essential meta information. This data stream has a general format which can be used for basically every 
 imaginable timeseries. The data stream is broadcasted/published on a messaging queue transport type (MQTT) broker, a 
 state-of-the-art standard protocol of the Internet-of-Things (IOT). A receiver contained in the MARTAS package 
-(MARCOS - MagPy's Automated Realtime Collector and Organization System) subscribes to such data streams and allows to 
+(pMARCOS - MagPy's Automated Realtime Collector and Organization System) subscribes to such data streams and allows to 
 store this data in various different archiving types (files (like CDF, CSV, TXT, BIN), databases). Various logging 
 methods, comparison functions, threshold tickers, and process communication routines complement the MARTAS package.
 
@@ -69,29 +93,29 @@ Currently supported systems are:
 - all data files readable by MagPy
 
 and basically all I2C Sensors and others connectable to Microcontroller boards like [Arduino]()
-(requiring a specific serial output format in the microcontroller program - appendix)
+(requiring a specific serial output format in the microcontroller program - see [9.2.8](#928--communicating-with-an-arduino-uno-microcontroller))
 
-A typical installation of a MARTAS data acquisition system with a supported sensor is finished within minutes, the
-setup of a MARCOS collection system strongly depends on its complexity and amount of data sources. For both setups 
+A typical installation of a pMARTAS data acquisition system with a supported sensor is finished within minutes, the
+setup of a pMARCOS collection system strongly depends on its complexity and amount of data sources. For both setups 
 a single command will guide you through the initialization routine. After installation issue
 
          $ martas_init
 
 and answer the questions. Then modify the requested configurations and you are done. Nevertheless, please carefully 
-read the sections on installation and MARTAS/MARCOS specifics. I also spend some time on describing the basic idea,
+read the sections on installation and pMARTAS/pMARCOS specifics. I also spend some time on describing the basic idea,
 additional tools and analysis packages, which might be helpful for one or the other.
 
 Note: in the following examples we use "USER" as username and "USERS" as group. Replace these names with your 
 user:group names. All instructions assume that you have a profound knowledge of debian like linux systems, as such a 
 system is the only prerequisite to run MARTAS.
 
-### 1.1 The MARTAS/MARCOS naming conventions and data model
+### 1.2 The MARTAS naming conventions and data model
 
 MARTAS is focusing on instrument level. Each instrument is characterized by its human readable name and its serial 
 number. This information provides an unique reference i.e. a LEMI025 sensor with serial number 56 is typically 
 denoted as LEMI025_25. To each instrument a revision number is assigned, providing the possibility to track upgrades,
 repairs and maintenance. The combination of instrument name, serial number and revision number is referred to as 
-**SensorID**, i.e. LEMI025_56_0001. If you are using a MARCOS collection system with database support, the table SENSORS
+**SensorID**, i.e. LEMI025_56_0001. If you are using a pMARCOS collection system with database support, the table SENSORS
 will contain all relevant information regarding each SensorID. An instrument like the LEMI025 might record several 
 different signals, like three components of geomagnetic field variation, temperatures of electronics and sensor, 
 support voltages. These components are referred to as **SensorElements**. For better searchability of the data base it 
@@ -108,11 +132,24 @@ DATAINFO, including location coordinates and references to station and eventuall
 collected in table STATION, defined by a **StationID** i.e. an observatory defined by its observatory code. Pier 
 information might by collected in table PIERS, referring to a specific **PierID**.
  
-![1.1.0](./martas/doc/namingconvention.png "Naming convention and database organization")
-Figure 1.1.0: An overview about the naming convention. The naming convention is directly used for structuring the 
+![1.2.0](./martas/doc/namingconvention.png "Naming convention and database organization")
+Figure 1.2.0: An overview about the naming convention. The naming convention is directly used for structuring the 
 MARCOS database. Each bold name corresponds to a table within the database. It is strongly recommended to keep the
 general structure of the naming convention ( SensorName_SerialNumber_SensorRevision_DataRevision ) even if not using data
 base support.
+
+
+### 1.3 MARTAS users
+
+MARTAS is currently used by many organizations:
+
+Austria: GeoSphere Austria, Conrad Observatory and power grid monitoring networks
+Finnland: Image geomagnetic network stations
+Colombia: Fuquene geomagnetic observatory
+Bulgaria: PAG geomagnetic Observatory
+
+if you are also using MARTAS of any of its modules we would be happy to put yu on the list. 
+
 
 ## 2. Installation
 
@@ -140,7 +177,7 @@ independent, it is currently only tested and supported on debian-like LINUX syst
         pip install pyownet
 
 
-### 2.2 Installing MARTAS/MARCOS
+### 2.2 Installing MARTAS
 
 Please make sure that packages as listed in 2.1 are installed. Then create a python environment:
 
@@ -164,8 +201,19 @@ significant problems. Please follow the instructions in section [10.1.1](#1011-i
 
 ### 2.3 Configure MQTT
 
-In the following you will find some instructions on
-how to get MQTT running on your MARTAS/MAROCS machine.
+Before configuring MQTT it is necessary to ad a few words on how data communication is handled in MARTAS. For more 
+details please consult the MQTT literature and network resources. In principle, data communications make use of three
+nodes: 
+
+A) a data publisher: typically the pMARTAS acquisition system
+B) a broker
+C) a data subscriber: typically the pMARCOS collector system
+
+The data publisher (A) is publishing new data on the broker (B). The data subscriber (C) subscribes to the broker 
+(B) and receives any new incoming data. A, B and C are separate processes which can be run on a single hardware 
+component or on separate computers. By default, the installation of a MARTAS will also install the
+broker on the same machine. You can however change that behavior during initialization. 
+In the following you will find some instructions on how to get the MQTT broker running on your pMARTAS/pMAROCS machine.
 
 #### 2.3.1 Enable listener
 
@@ -179,57 +227,129 @@ Create this file if not existing and add the following lines:
          listener 1883
          allow_anonymous true
 
-You might also want to increase the message queu. When using the following line within listener.conf Up to 3000 
+You might also want to increase the message queue. When using the following line within listener.conf Up to 3000 
 messages are stored locally in case of network connection issues, and send after reestablishing the connection.
 
         max_queued_messages 3000
-
-
 
 #### 2.3.2 Enabling authentication
 
 Authentication and secure data communication are supported by MARTAS. In order to enable
 authentication and SSL encryption for accessing data streams from your acquisition machine please check mosquitto 
-instructions like the following web page:
-https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
+instructions to be found on many webpages. A good starting read is [Steves guide](http://www.steves-internet-guide.com/mqtt-security-mechanisms/).
 
-For quickly enabling authentication you can also use the following instructions (without ssl encryption of data transfer):
+For enabling authentication you firstly need to Add a USER and a password file to the MQTT broker. Replace USER with
+your desired username:
 
-    Adding user/password:
-    ---------------------
+        $ sudo mosquitto_passwd -c /etc/mosquitto/passwd USER
 
-    Add a user and a password file to the MQTT broker (is encrypted):
-
-        $ sudo mosquitto_passwd -c /etc/mosquitto/passwd user
-
-    Then use command
+You will be asked to provide a password for the USER. Having setup the credentials, you need to reconfigure the 
+listener, so that only authenticated requests are allowed. Use command
 
         $ sudo nano /etc/mosquitto/conf.d/listener.conf
 
-    to open an empty file.
+to open the listener configuration file of the broker and insert the following lines. 
 
-    Paste in the following:
         listener 1883
         allow_anonymous false
         password_file /etc/mosquitto/passwd
+        max_queued_messages 3000
 
-    Restart mosquitto
+Restart mosquitto 
 
-Thats it. How to use credentials in MARTAS is described in section 7.x. If you have problems restarting mosquitto you 
-might want to check the read permissions of the /etc/mosquitto/passwd file.
+        sudo systemctl restart mosquitto
 
-In order to access such protected MQTT data streams you can use the addcred tool in order to avoid plain passwords in 
-your configuration files. Please note, that this method does not encrypt passwords. It just obsfucate it and store it 
-in a different, independent file. To add such information into the credentials list use:
+This way you enabled authentication but keep in mind, communication is not yet encrypted. If you have problems 
+restarting mosquitto you might want to check the read permissions of the /etc/mosquitto/passwd file.
+In order to enable both pMARTAS and pMARCOS to access such protected MQTT data streams you have to use the addcred tool 
+in order to avoid plain passwords in your configuration files. To add the MQTT USER/PASSWD information into the 
+credentials list of a pMARTAS acquisition unit which also acts as broker use:
 
-        $ addcred -t transfer -c mqtt -u user -p mypasswd -a localhost
+        $ addcred -t transfer -c mqttuser -u USER -p MYPASSWD -a localhost
 
-Provide the shortcut (mqtt) and username during the installation process.
+#### 2.3.3 Enabling TLS encryption
 
-In the appendix you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
-official mosquitto installation instructions when setting up a secure TLS broker.
+In the following you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
+official mosquitto installation instructions when setting up a secure TLS broker. TLS encryption is recommended if you 
+are using an external broker. If your full setup (pMARTAS and pMARCOS are in the same network behind a Firewall) you might 
+want to skip TLS encryption.
 
-#### 2.3.3 Testing MQTT data transfer
+For our example we firstly create a certificate authority (CA). For SSL connections, the server and client's 
+certificates must be signed by a trusted CA. A copy of the CA is stored on the server and the clients. They check 
+received certificates against the CA before trusting another device.
+
+We generate a Certificate Authority (CA) Key Pair and Certificate using openssl:
+
+       openssl genrsa -des3 -out ca.key 2048
+
+This command will request a pass phrase. You will need this pass phrase everytime you generate certificates and you 
+want to sign them with this CA.
+
+Then we create the actual self-signed CA certificate. This certificate will be used to sign other certificates.
+
+       openssl req -new -x509 -days 3650 -key ca.key -out ca.crt
+
+> [!IMPORTANT]
+> Self-signed certificates are suitable for testing but not recommended for production environments. For production, use certificates issued by a trusted Certificate Authority.
+
+Please insert appropriate information into the requested fields. As it is a self-signed certificate I recommend to 
+insert the purpose (i.e. OBSCODE MARTAS service) as organization or unit. The Common name should be you full name and
+NOT the domain name. The validity is set to 10 years.
+The CA certificate is now generated and you should copy it to the dedicated folder of Mosquitto. You will need CA 
+certificate file (ca.crt) on pMARTAS, broker and pMARCOS.
+
+       sudo cp ca.crt /etc/mosquitto/ca_certificates/
+
+To generate client certificates on another device, the certificate file and pass phrase are needed.
+
+In a next step we use openssl to create certificates and private keys. One for the server and as many as needed for 
+each client. To generate a server key pair and certificate: 
+
+       openssl genrsa -out server.key 2048
+       openssl req -new -key server.key -out server.csr
+
+We are also creating a certificate signing request (CSR). Insert country, address, and email address. Note that here, 
+every piece of information is about the server, so common name is server domain (the dynamic DNS domain). If you don't 
+have one just enter the name of your server there. Then we have to sign the server certificate request:
+
+       openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
+
+Use the CA certificate and key to sign the server certificate request. This creates the server certificate. Then copy
+key and certificate to the mosquitto configuration of the server:
+
+       sudo cp server.crt /etc/mosquitto/certs/
+       sudo cp server.key /etc/mosquitto/certs/
+
+Clients need to be configured to use the CA certificate for verification. You should provide the CA certificate 
+file. In the martas configuration file use the option "mqttcert" and provide a valid path to the  using the "ca.crt" 
+file. Enable TLS with "mqttport" : 8883.
+
+An example file for configuring the mosquitto listener is show below:
+
+```
+# Global
+per_listener_settings true
+
+# Local listener
+listener 1883 127.0.0.1
+
+# Default listener
+listener 1883
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+
+# Certificate listener
+listener 8883
+cafile /etc/mosquitto/ca_certificates/ca.crt
+certfile /etc/mosquitto/certs/server.crt
+keyfile /etc/mosquitto/certs/server.key
+require_certificate false
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+```
+
+
+#### 2.3.4 Testing MQTT data transfer
 
 Issue the following subscription command:
 
@@ -251,7 +371,7 @@ In case you are using secure TLS access (OS encrypted) use the following additio
 As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription
 command. Checkout the official mosquitto pages for more information.
  
-#### 2.3.4 Understanding Quality-of-Service (QOS)
+#### 2.3.5 Understanding Quality-of-Service (QOS)
 
 The Quality-of-Service (qos) level is an agreement between the sender of a message and the receiver of a message that 
 defines the guarantee of delivery for a specific message. There are three qos levels in MQTT: (0) At most once, (1) At 
@@ -262,10 +382,10 @@ limited, with an upper limit defined by the brokers memory. When using a mosquit
 messages is 100. In order to change that modify the **max\_queued\_messages** count in mosquitto config.
 
 
-## 3. Initialization of MARTAS/MARCOS
+## 3. Initialization of pMARTAS and pMARCOS
 
 In the following we are setting up MARTAS to acquire measurement data from any connected system, to store it locally
-within a buffer directory and to permanenty stream it to a data broker. In the examples, we will use the same MARTAS 
+within a buffer directory and to permanenty stream it to a data broker. In the examples, we will use the same pMARTAS 
 system as data broker.
 
 ### 3.1 Initial setup
@@ -274,11 +394,11 @@ Activate the environment if not yet done:
 
         $ source ~/env/martas/bin/activate
 
-Start the MARTAS/MARCOS initialization routine
+Start the pMARTAS/pMARCOS initialization routine
 
         (martas)$ martas_init
 
-This routine will ask you a series of questions to configure the acquisition (MARTAS) or collector (MARCOS) to your 
+This routine will ask you a series of questions to configure the acquisition (pMARTAS) or collector (pMARCOS) to your 
 needs. In case you want to use e-mail, messenger notifications or database support, make sure that you setup these
 tools ideally before running martas_init, and provide credential information using [addcred](https://github.com), section 10.6. 
 You might want to checkout [section 6.1](#6-1) for details on notifications and [section 5.3.2](#5-3-2) for database 
@@ -300,23 +420,23 @@ initialization routine make sure that you know what to do, i.e. read the manual.
 restart/redo initialization anytime using option -r. You will need information about paths, storage directories,
 database, communication protocols etc. You can modify anything later by editing the configuration files.
 
-### 3.3 Running MARTAS/MAROCS after initialization
+### 3.3 Running pMARTAS/pMAROCS after initialization
 
 Martas_init will update your users crontab and schedule a number of jobs for running the respective module. Typically
 the main job will be started shortly after midnight. You might want to issue this command directly after initialization.
-Depending on which module (MARTAS or MARCOS) you are installing, you will have a series of scheduled applications.
+Depending on which module (pMARTAS or pMARCOS) you are installing, you will have a series of scheduled applications.
 Please checkout the module specific sections for details.
 
 In order to start your desired module directly after initialization use one of the commands (or check 
 crontab -l for the exact name) as listed in section 4.2 or 5.2.
 
-## 4. MARTAS
+## 4. pMARTAS
 
 ### 4.1. Quick instructions
 
-Setting up a MARTAS data acquisition system can be accomplished very quickly, if you already have some experience.
+Setting up a pMARTAS data acquisition system can be accomplished very quickly, if you already have some experience.
 
-**Step 1**: initialize MARTAS using martas_init (details on [martas_init](#3-initialization-of-martasmarcos)) 
+**Step 1**: initialize pMARTAS using martas_init (details on [martas_init](#3-initialization-of-martasmarcos)) 
 
         (martas)$ martas_init
 
@@ -324,13 +444,13 @@ Setting up a MARTAS data acquisition system can be accomplished very quickly, if
  
         (martas)$ nano ~/.martas/conf/sensors.cfg
 
-**Step 3**: start MARTAS (details in [section 4.5](#45-running-the-acquisition-system)). Actually MARTAS will be 
+**Step 3**: start pMARTAS (details in [section 4.5](#45-running-the-acquisition-system)). Actually MARTAS will be 
 started automatically after some time.
 
         (martas)$ cd ~/.martas
         (martas)$ bash -i runmartas.sh start
 
-**Step 4**: view MARTAS acquisition (details in [section 4.6](#46-the-martas-viewer)) 
+**Step 4**: view pMARTAS acquisition (details in [section 4.6](#46-the-martas-viewer)) 
 
         (martas)$ cd ~/.martas
         (martas)$ bash martas_view
@@ -341,12 +461,12 @@ Open webpage http://127.0.0.1:8050
 
 #### 4.2.1 The sensors.cfg configuration file
 
-When initialization is finished there is only one further step to do in case of a MARTAS acquisition machine. You need 
+When initialization is finished there is only one further step to do in case of a pMARTAS acquisition machine. You need 
 to specify the sensors. For this you will have to edit the sensors configuration file.
 
         $ nano ~/.martas/conf/sensors.cfg
 
-sensors.cfg is the basic configuration file for all sensors connected to the MARTAS system. It contains a line with a 
+sensors.cfg is the basic configuration file for all sensors connected to the pMARTAS system. It contains a line with a 
 comma separated list for each sensor which looks like:
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
@@ -376,10 +496,11 @@ order:
 | sensorgroup  |  Diszipline or group  | magnetism |
 | sensordesc   |  Description of sensor details | GEM Overhauzer v7.0 |
 
-IMPORTANT:
-- sensorids should only contain basic characters like 0,1,2,..9,a,b,...,z,A,B,...,Z (no special characters, no underscors, no minus etc)
-- sensorids should not contain the phrases "data", "meta" or "dict"
-- sensorids should follow the [naming](#11-the-martasmarcos-naming-conventions-and-data-model) convention
+
+> [!IMPORTANT]  
+> sensorids should only contain basic characters like 0,1,2,..9,a,b,...,z,A,B,...,Z (no special characters, no underscors, no minus etc)
+> sensorids should not contain the phrases "data", "meta" or "dict"
+> sensorids should follow the [naming](#11-the-martasmarcos-naming-conventions-and-data-model) convention
 
 Further details and descriptions are found in the commentary section of the sensors.cfg configuration file.
 
@@ -403,14 +524,14 @@ In order to get the corresponding device port (i.e.ttyUSB0) you can use the foll
 
 ### 4.3 Sensors requiring initialization
 
-Several sensors currently supported by MARTAS require an initialization. The initialization process defines e.g. 
+Several sensors currently supported by pMARTAS require an initialization. The initialization process defines e.g. 
 sampling rates, filters, etc. in a way that the sensor systems is automatically sending data to the serial port 
-afterwards. MARTAS supports such initialization routines by sending the respective and necessary command sequence to 
-the system. Initialization commands are stored within the MARTAS configuration directory (Default: /etc/martas/init).
+afterwards. pMARTAS supports such initialization routines by sending the respective and necessary command sequence to 
+the system. Initialization commands are stored within the pMARTAS configuration directory (Default: ~/.martas/init).
 The contents of the initialization files for supported instruments is outlined in Appendix 10.1. In order to use such
 initialization, you need to provide the path within the sensors configuration line in sensors.cfg:
 
-sensors.cfg: line for a GSM90 Overhauzr, the initialzation configuration is taken from gsm90v7init.sh (within the 
+sensors.cfg: line for a GSM90 Overhauser, the initialization configuration is taken from gsm90v7init.sh (within the 
 martas config directory)
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
@@ -418,21 +539,28 @@ martas config directory)
 
 ### 4.4 Examples for sensor definitions in sensors.cfg
 
-#### Geomagetic GSM90 Overhauzer Sensors (GEM Systems)
+#### Geomagnetic GSM90 Overhauser Sensors (GEM Systems)
 
          GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
-It is suggested to use the sensor name GSM90, the serial number of the electronics unit and a 4 digit revision number of your choice i.e. 0001. The revision number should be changed in case of electronic units maintainance etc. GSM90 sensors require initialization data provided in /etc/martas/init i.e. gsm90v7init.sh, to start continuous recording of the system. I strongly recommend passive recording i.e. at 0.5 Hz (GPS mode) and then filter to 1 Hz to obtain a record with readings centered on the second.
+It is suggested to use the sensor name GSM90, the serial number of the electronics unit and a 4 digit revision number 
+of your choice i.e. 0001. The revision number should be changed in case of electronic units maintainance etc. GSM90 
+sensors require initialization data provided in ~/.martas/init i.e. gsm90v7init.sh (see [9.2.1](#921-gem-systems-overhauser-gsm90), 
+to start continuous recording of the system. I strongly recommend passive recording i.e. at 0.5 Hz (GPS mode) and then
+filter to 1 Hz to obtain a record with readings centered on the second.
 
-#### Geomagetic GSM19 Overhauzer Sensors (GEM Systems)
+#### Geomagnetic GSM19 Overhauzer Sensors (GEM Systems)
 
         GSM19_7122568_0001,USB0,115200,8,1,N,passive,,-,1,GSM19,GSM19,7122568,0001,-,mobile,GPS,magnetism,GEM Overhauzer v7.0
+
+The GSM19 sensor needs to be configured so that it sends data to the serial port (see [9.2.2](#922-gem-systems-overhauser-gsm19)).
 
 #### Geoelectric 4point light 10W (Lippmann)  
 
         4PL_123_0001,ACM0,19200,8,1,N,active,None,60,1,FourPL,4PL,123,0001,-,Home,NTP,geoelectric,wenner-0.65-0-c-o
 
-Provide layout (wenner,schlumberger,half-schlumberger,dipole-dipole,), Distances A and L, as well as current and frequency within the comment part. For currents and frequencies please refer to the following codes:
+Provide layout (wenner,schlumberger,half-schlumberger,dipole-dipole,), Distances A and L, as well as current and 
+frequency within the comment part. For currents and frequencies please refer to the following codes:
 
 currdic = {"m":"1uA","n":"10uA","o":"100uA","p":"1mA","q":"5mA","r":"15mA","s":"50mA","t":"100mA"}
 freqdic = {"a":"0.26Hz","b":"0.52Hz","c":"1.04Hz","d":"2.08Hz","e":"4.16Hz","f":"8.33Hz","g":"12.5Hz","h":"25Hz"}
@@ -478,7 +606,7 @@ Please also read section [9.2.6](#926-dallas-ow-one-wire-support) for configurat
 
          LEMI036_3_0001,USB0,57600,8,1,N,passive,None,-,1,Lemi,LEMI036,3,0001,-,ABS-67,GPS,magnetism,magnetic variometer from Lviv
 
-#### Geomagnetism POS1/POS4 Overhauzer Sensor (Quantum magnetics)
+#### Geomagnetism POS1/POS4 Overhauser Sensor (Quantum magnetics)
 
          POS1_N432_0001,S0,9600,8,1,N,passive,pos1init.sh,-,1,POS1,POS1,N432,0001,-,AS-W-36,GPS,magnetism,Quantum magnetics POS1 Overhauzer sensor
 
@@ -532,29 +660,29 @@ The following options are now available:
 #### 4.5.2 Automatic schedule
 
 The MARTAS start command is included into the users crontab during the initialization process of martas_init. Therefore
-the acquistion job will be started automatically depending on the schedule of the crontab (default is around midnight,
+the acquisition job will be started automatically depending on the schedule of the crontab (default is around midnight,
 once a day). The process will only be started in case it is not yet running.
 
 
-### 4.6 The MARTAS viewer
+### 4.6 The pMARTAS viewer
 
-Since MARTAS version 2.0 a MARTAS viewer is included. The viewer will create a local webpage giving you some information
-about the MARTAS system, its connected sensors and data. You can start and open the MARTAS viewer as follows: 
+Since MARTAS version 2.0 a pMARTAS viewer is included. The viewer will create a local webpage giving you some information
+about the MARTAS system, its connected sensors and data. You can start and open the pMARTAS viewer as follows: 
 
         (martas)$ cd ~/.martas
         (martas)$ bash martas_view
 
 Open webpage http://127.0.0.1:8050 will give you something like:
 
-![4.6.1](./martas/doc/martas_viewer.png "The MARTAS viewer")
-Figure 4.6.1: The MARTAS viewer provides a quick overview about live data, connected sensors, and some configuration
+![4.6.1](./martas/doc/martas_viewer.png "The pMARTAS viewer")
+Figure 4.6.1: The pMARTAS viewer provides a quick overview about live data, connected sensors, and some configuration
 information. In this example two sensors are connected, one of which is a testing device. The available recorded 
 elements are shown on the left side, a "live" image of acquired data is shown on the right side. On the upper right
 you can modify the live display.
 
 ### 4.7 Additional setups
 
-The initialization process will also schedule a number of additional jobs for your MARTAS maschine, which you can 
+The initialization process will also schedule a number of additional jobs for your pMARTAS machine, which you can 
 modify and/or disable. It also some applications for you eventually might want to enable.
 
 #### 4.7.1 Cleanup of buffer memory
@@ -577,7 +705,7 @@ file so that in case of a system crash (hardware problem, SD card defect, etc) y
 identical "new" system. You might also use the backups to setup similar copies of a specific system.
 A backup of your MARTAS configuration is automatically scheduled once a week during initialization.
 
-#### 4.7.3 Monitoring MARTAS acquisition
+#### 4.7.3 Monitoring pMARTAS acquisition
 
 Also scheduled during automatic initialization is a basic [monitoring routine](#612-monitor), which makes use of the given 
 notification method, provided that this method is properly configured. The basic monitoring process will watch 
@@ -652,7 +780,7 @@ input into sensors.cfg would look like:
 
         mydatabase,-,-,-,-,-,active,None,120,1,MySQL,MySQL,-,0001,-,-,-,service,-
 
-Using this command, all tables beloning to the SensorGroup "service" will be tested for new data every 120 seconds. New
+Using this command, all tables belonging to the SensorGroup "service" will be tested for new data every 120 seconds. New
 data will be send via MQTT to INTERMAGNET. If you have i.e. two tables, one with one-minute and one with one-second data,
 both assigned to group "service" contents of both tables will be send with the correct topics.
 
@@ -1819,15 +1947,15 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | Thies LNM           |          | laserdisdro | disdroprotocol.py        | active   |                |                  |
 | DSP Ultrasonic wind |          | wind        | dspprotocol.py           | active   |                |                  |
 | ENV05               | 2.0.0    | temperature | envprotocol.py           | passive  |                |                  |
-| FLUKE 289           |          | multiple    | fluke289protocol.py      | active   |                |                  |
+| FLUKE 289           | 2.0.0    | multiple    | fluke289protocol.py      | active   |                |                  |
 | 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active   |                |                  |
 | GIC                 |          | special     | gicprotocol.py           | active   |                |                  |
 | GP20S3              |          | opt.pumped  | gp20s3protocol.py        | passive  |                |                  |
 | GSM19               |          | overhauser  | gsm19protocol.py         |          |                |                  |
-| GSM90               |          | overhauser  | gsm90protocol.py         | passive  | gsm90v?init.sh |                  |
-| DataFiles           |          | multiple    | imfileprotocol.py        | active   |                |                  |
-| LEMI025             |          | fluxgate    | lemiprotocol.py          | passive  |                |                  |
-| LEMI036             |          | fluxgate    | lemiprotocol.py          | passive  |                |                  |
+| GSM90               | 2.0.0    | overhauser  | gsm90protocol.py         | passive  | gsm90v?init.sh |                  |
+| DataFiles           | 2.0.0    | multiple    | imfileprotocol.py        | active   |                |                  |
+| LEMI025             | 2.0.0    | fluxgate    | lemiprotocol.py          | passive  |                |                  |
+| LEMI036             | 2.0.0    | fluxgate    | lemiprotocol.py          | passive  |                |                  |
 | Tilt Lippmann       | develop  | tilt        | lmprotocol.py            | active   |                |                  |
 | LORAWAN             | develop  | multiple    | lorawanprotocol.py       |          |                |                  |
 | MySQL               | 2.0.0    | multiple    | mysqlprotocol.py         | active   |                |                  |
@@ -1840,9 +1968,12 @@ The library folder further contains publishing.py defining different MQTT topic/
 
 ### 9.2 Sensor specific initialization files and settings
 
-#### 9.2.1 GEM Systems Overhauzr GSM90
+#### 9.2.1 GEM Systems Overhauser GSM90
 
-Using the initialization file of the GSM90 a command will be send towards the system in order to initialize passive data transfer. You need to edit the initialization file within the configuration directory (default is /etc/martas/init/gsm90...). Please adjust the connected serial port (e.g. S1, USB0 etc) and adept the following parameters:
+Using the initialization file of the GSM90 a command will be send towards the system in order to initialize passive 
+data transfer. You need to edit the initialization file within the configuration directory 
+(default is ~/.martas/init/gsm90...). Please adjust the connected serial port (e.g. S1, USB0 etc) and adept the 
+following parameters:
 
         -b (baudrate) : default is 115400
         -p (port)
@@ -1856,11 +1987,60 @@ Using the initialization file of the GSM90 a command will be send towards the sy
             D          -> sampling rate: D -> down, U -> up, leave out to keep sampling rate
             R          -> Run
 
-#### 9.2.2 Quantum POS1
+#### 9.2.2 GEM Systems Overhauser GSM19
 
-#### 9.2.3 Meteolabs BM35 pressure
+A GSM19 sensors does not need a initialization file. You need to configure the GSM19 to send data continuously to 
+the serial port however. Please note that the data transmission will stop as soon as the internal memory of the GSM19 
+is full.
 
-#### 9.2.4 ObsDAQ / PalmAcq
+A. GSM19 Sensor
+
+   1. Power on by pressing "B"
+   2. go to "C - Info"
+   3. go to "B - RS232"
+   4. note parameters and then "F - Ok"
+   5. switch real-time transfer to yes and then "F - Ok"
+   6. "F - Ok"
+   7. press "1" and "C" for main menu
+   8. start recording - press "A"
+   9. if GPS is set to yes wait until GPS is found
+
+B. MARTAS - here on a beaglebone (BB)
+   1. connect BB to a DHCP network (if not possible connect a usbhub and screen+keyboard, then login and continue with 4.)
+   2. find out its IP
+      - option (1): with fully installed telegrambot: just send "getip" to the bot
+      - option (2): connect a screen and use ifconfig
+      - option (3): from a remote machine in the same network: check router or use nmap
+   3. connect to BB via ssh:
+      defaultuser: debian
+   4. stop MARTAS:
+              $ bash ~/.martas/runmartas stop
+   5. connect your sensor to the usb serial port using a usb to rs232 converter
+   6. check "lsusb" to see the name of the converter (e.g. pl2303)
+   7. check "dmesg | grep usb" to get the connections port like ttyUSB0
+   8. edit ~/.martas/conf/sensors.cfg
+      make use of the SENSORID, the parameters of A4 and the port info of B7
+      (SENSORID should contain serial number of the system  i.e. GSM19\_123456\_0001)
+   9. save ~/.martas/conf/sensors.cfg
+
+A. GSM19 Sensor
+   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter)
+   11. start recording
+
+B. MARTAS
+   10. start recording:
+              $ bash ~/.martas/runmartas start &
+              $ exit
+   11. check recording:
+              $ cat ~/.martas/log/martas.log (check log file)
+              $ ls -al ~/MARTAS/mqtt/SENSORID  (check buffermemory for new data)
+
+
+#### 9.2.3 Quantum POS1
+
+#### 9.2.4 Meteolabs BM35 pressure
+
+#### 9.2.5 ObsDAQ / PalmAcq
 
 Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
 1) Use palmacq.py -h  and obsdaq.py -h for further information. These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
@@ -1874,11 +2054,11 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
       FGE\_S0252\_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time. From now on NTP time will be recorded additionally in the sectime column
 
-#### 9.2.5 LM - TLippmann tilt meter
+#### 9.2.6 LM - TLippmann tilt meter
 
 To be added
 
-#### 9.2.6 Dallas OW (One wire) support
+#### 9.2.7 Dallas OW (One wire) support
 
 Modify owfs,conf
 
@@ -1897,7 +2077,7 @@ Then start the owserver
         $ sudo etc/init.d/owserver start
 
 
-#### 9.2.7  Communicating with an Arduino Uno Microcontroller
+#### 9.2.8  Communicating with an Arduino Uno Microcontroller
 
 An [Arduino Microcontroller] has to be programmed properly with serial outputs, which are interpretable from MARTAS. Such Arduino programs are called sketch.
 MARTAS contains a few example scripts, which show, how these sketches need to work, in order to be used with MARTAS. In principle, two basic acquisition modes are supported
@@ -1951,7 +2131,7 @@ The installation is usually straightforward as described in section 2. For some 
 might however require very specific or some additional packages to fulfill required dependencies. Here we summarise 
 some system specific issues and solutions, as well as a full installation cookbook.
 
-#### 10.1.1 BeagleBone Black Rev C with system python
+#### 10.1.1 MARTAS acquisition om BeagleBone Black Rev C with system python
 
 For some hardware systems, particularly ARM processors (Beaglebone, Raspberry, etc) problems might occur during the 
 setup of virtual python environments. Such problems have been experienced while installing scipy inside a virtual
@@ -1970,8 +2150,11 @@ packages for your specific system based on apt.
       # seems as if only SD <= 32 GB are working
       sudo apt update
       sudo apt upgrade
+      # install MQTT client and broker (if not configured differently, the beaglebone acts as broker)
       sudo apt install mosquitto mosquitto-clients
-      # configure mosquitto
+      # configure mosquitto (see 2.3)
+      # eventually install and configure ntp (network time protocol)
+      #sudo apt install ntp
       sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-numba python3-pandas
       sudo pip install --break-system-packages pywavelets==1.8.0
       sudo pip install --break-system-packages pymysql==1.1.1
@@ -1996,12 +2179,14 @@ the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full pat
 it available from cron.
 
 
-#### 10.1.2 Installation behind a proxy server
+#### 10.1.2 MARTAS acquisition on Raspberry 
+
+
+#### 10.1.4 Installation behind a proxy server
 
 Reconfigure pip to use the proxy server (if necessary)
 
       pip config set global.proxy http://{host}/{port}
-
 
 
 #### 10.1.3 Full installation examples for specific systems

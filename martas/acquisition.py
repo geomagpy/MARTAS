@@ -439,7 +439,7 @@ def main(argv):
     if int(mqttport) == 8883:
         print ("MQTT: TLS encryption")
         if mqttcert:
-            client.tls_set(certfile=mqttcert)
+            client.tls_set(ca_certs=mqttcert)
         else:
             client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS,
                     ciphers=None)
