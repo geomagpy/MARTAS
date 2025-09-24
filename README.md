@@ -754,7 +754,7 @@ publication channel. This channel should be pne of the following:
 INTERMAGNET observtory:    gin-mqtt.bgs.ac.uk
 Test observatory:  gin-mqtt-staging.bgs.ac.uk
 
-After acquiring this information create an credential input on your MARTAS computer:
+After acquiring this information create an credential input on your pMARTAS computer:
 
         addcred -t transfer -c bgsmqtt -u XXX -p PASSWD -a 
 
@@ -830,7 +830,7 @@ information on delivery.
 ### 5.1. Quick instructions
 
 In the following we are setting up MARCOS to collect measurement data from a broker. MARCOS subscribes to the broker 
-and receives any new data published there. All three systems, MARTAS, BROKER, and MARCOS can run on the same machine 
+and receives any new data published there. All three systems, pMARTAS, BROKER, and pMARCOS can run on the same machine 
 as different processes. You can also have several MARCOS collectors accessing the 
 same broker independently.
 
@@ -925,7 +925,7 @@ packing formats. These binary files can be read with MagPy and transformed into 
 
 Checkout the MagPy instructions to setup and initialize a MagPy data base
 (see [section 9](https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#9-sql-databases)). 
-This is usually done within minutes and then can be readily used for MARCOS data collections or MARTAS dissemination. 
+This is usually done within minutes and then can be readily used for pMARCOS data collections or pMARTAS dissemination. 
 When initializing MARCOS and selecting destination "db" you will need to provide a credential shortcut for the 
 database. You can create such credentials using addcred. Use addcred -h for all options.
 
@@ -1071,7 +1071,7 @@ Communication program for microcontrollers (here ARDUINO) e.g. used for remote s
 ### 6.4 backup
 
 The backup routine will be scheduled automatically within the martas_init routine. *backup* creates a 
-backup of all configuration files and settings. These backups can be used to recover a MARTAS/MARCOS system quickly.
+backup of all configuration files and settings. These backups can be used to recover a pMARTAS/pMARCOS system quickly.
 Recovery is widely independent of hardware and software versions. To recover a broken MARTAS system you would perform
 the following steps:
 
@@ -1423,8 +1423,8 @@ Simple test code for serial communication. Not for any productive purpose.
 
 The threshold application can be used to check your data in realtime and trigger certain action in case a defined 
 threshold is met. Among the possible actions are notifications by mail or messenger, switching command to a connected
-microcontroller, or execution of bash scripts. This app reads data from a defined source: a MARTAS buffer files, 
-MARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you 
+microcontroller, or execution of bash scripts. This app reads data from a defined source: pMARTAS buffer files, 
+pMARCOS database or any file supported by [MagPy] (eventually directly from MQTT). Within a configuration file you 
 define threshold values for contents in this data sources. Notifications can be triggered if the defined criteria are
 met, and even switching commands can be send if thresholds are broken. All threshold processes can be logged and  can 
 be monitored independently by mail, nagios, icinga, telegram.
@@ -1553,7 +1553,7 @@ communication.
 |  web/smoothiesettings.js | define settings for real time plots                              |
 
 
-### 7.4 Monitoring MARTAS and MARCOS
+### 7.4 Monitoring pMARTAS and pMARCOS
 
 #### 7.4.1. monitor.py
 
@@ -1562,7 +1562,7 @@ monitoring setup.
 
 ### 7.4.2 Support for NAGIOS/ICINGA
 
-Beside the internal monitoring routines you might want to include your MARTAS/MARCOS environment into a high end 
+Beside the internal monitoring routines you might want to include your pMARTAS/pMARCOS environment into a high end 
 monitoring network. Please checkout Icinga and/or NAGIOS for this purpose. MARTAS can be easily included into such
 networks and instructions are available upon request.
 
@@ -1657,7 +1657,7 @@ You can can now talk to your BOT (here are some examples):
 
         plot data from DS18B20_28616411B2648B6D_0001 between 2020-10-24 and 2020-10-26
 
-If you have a microcontroller connected programmed with MARTAS specifications (e.g. arduino) you can also send switching commands:
+If you have a microcontroller connected, programmed with MARTAS specifications (e.g. arduino) you can also send switching commands:
 
         switch heating on
 
@@ -2118,21 +2118,21 @@ The following sketches are currently contained:
 
 
 If you change the sensor configuration of the Arduino, then you need to stop martas, eventually delete the existing
-arduino block (with the leading questionmark), connect the new sensor configuration and restart MARTAS.
+arduino block (with the leading questionmark), connect the new sensor configuration and restart pMARTAS.
 Make sure to disconnect the Arduino, before manipulating its sensor
-configuration. You can check the Arduino independently by looking at Arduino/Tools/SerialMonitor (make sure that MARTAS processes are not running).
+configuration. You can check the Arduino independently by looking at Arduino/Tools/SerialMonitor (make sure that pMARTAS processes are not running).
 
-**IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting MARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
+**IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting pMARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
 ## 10. Appendix
 
-### 10.1. Installation issues and examples
+### 10.1. Specific installation examples and possible issues
 
 The installation is usually straightforward as described in section 2. For some systems, especially ARM systems, you 
 might however require very specific or some additional packages to fulfill required dependencies. Here we summarise 
 some system specific issues and solutions, as well as a full installation cookbook.
 
-#### 10.1.1 MARTAS acquisition om BeagleBone Black Rev C with system python
+#### 10.1.1 MARTAS on BeagleBone Black Rev C with system python
 
 For some hardware systems, particularly ARM processors (Beaglebone, Raspberry, etc) problems might occur during the 
 setup of virtual python environments. Such problems have been experienced while installing scipy inside a virtual
@@ -2180,14 +2180,7 @@ the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full pat
 it available from cron.
 
 
-#### 10.1.2 MARTAS acquisition on Raspberry 
-
-
-#### 10.1.4 Installation behind a proxy server
-
-Reconfigure pip to use the proxy server (if necessary)
-
-      pip config set global.proxy http://{host}/{port}
+#### 10.1.2 MARTAS on Raspberry 
 
 
 #### 10.1.3 Full installation examples for specific systems
@@ -2299,51 +2292,12 @@ and finally initialize the database:
        >>> exit()
 
 
-#### 10.1.4 quick steps to run a new MARTAS with a new sensor for the first time (needs to be updated)
+#### 10.1.4 Installation behind a proxy server
 
-In this example we use a MARTAS i.e. readily installed beaglebone and connect a GSM19 Overhauzer sensor:
+Reconfigure pip to use the proxy server (if necessary)
 
-A. GSM19 Sensor
+      pip config set global.proxy http://{host}/{port}
 
-   1. Power on by pressing "B"
-   2. go to "C - Info"
-   3. go to "B - RS232"
-   4. note parameters and then "F - Ok"
-   5. switch real-time transfer to yes and then "F - Ok"
-   6. "F - Ok"
-   7. press "1" and "C" for main menu
-   8. start recording - press "A"
-   9. if GPS is set to yes wait until GPS is found
-
-B. MARTAS - beaglebone (BB)
-   1. connect BB to a DHCP network (if not possible connect a usbhub and screen+keyboard, then login and continue with 4.)
-   2. find out its IP
-      - option (1): with fully installed telegrambot: just send "getip" to the bot
-      - option (2): connect a screen and use ifconfig
-      - option (3): from a remote machine in the same network: check router or use nmap
-   3. connect to BB via ssh:
-      defaultuser: debian
-   4. stop MARTAS:
-              $ bash ~/.martas/runmartas stop
-   5. connect your sensor to the usb serial port using a usb to rs232 converter
-   6. check "lsusb" to see the name of the converter (e.g. pl2303)
-   7. check "dmesg | grep usb" to get the connections port like ttyUSB0
-   8. edit ~/.martas/conf/sensors.cfg
-      make use of the SENSORID, the parameters of A4 and the port info of B7
-      (SENSORID should contain serial number of the system  i.e. GSM19\_123456\_0001)
-   9. save ~/.martas/conf/sensors.cfg
-
-A. GSM19 Sensor
-   10. final check of sensor configration (i.e. base mode, 1 sec, no AC filter)
-   11. start recording
-
-B. MARTAS
-   10. start recording:
-              $ bash ~/.martas/runmartas start &
-              $ exit
-   11. check recording:
-              $ cat ~/.martas/log/martas.log (check log file)
-              $ ls -al ~/MARTAS/mqtt/SENSORID  (check buffermemory for new data)
 
 #### 10.1.5 enable remote terminal access
 
@@ -2366,7 +2320,7 @@ The main program contains a testing option -T which will create an artificial/ra
 
        python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
-#### 10.2.3 Testing MARTAS and MARCOS
+#### 10.2.3 Testing pMARTAS and pMARCOS
 
 Run a test acquisition as shown in 9.5.2 to simulate a sensor
 
@@ -2383,109 +2337,9 @@ two libraries. Please configure sensors.cfg accordingly and use a stationID diff
        python acquisition.py -m ~/.martas/conf/martas.cfg
 
 
-### 10.3 Issues and TODO
+### 10.3 Setup examples for automatic analysis processes
 
-in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
-delete the daily file and restart the recoding process. The next daily file will be OK in any case.
-
-- add trigger mode for GSM90 (sending f)
-- update scp_log to use protected creds
-
-#### Problem: pip install behind a proxy
-
-       export https_proxy=http://YOUR-PROXY-IP:PORT
-       pip install martas
-
-#### Problem pip install - packages do not match the hashes
-
-       pip install --no-cache-dir martas
-
-
-
-
-### 10.5 Example configurations
-
-#### 10.5.1 Setting up a secure mosquitto broker
-
-https://www.onetransistor.eu/2021/04/self-signed-certificates-for-mqtt-server.html
-
-1. Generate a Certificate Authority (CA) Key Pair and Certificate: 
-Create a CA key: Use openssl to generate a private key for the CA. You can use encryption (e.g., -aes256) for added 
-security. For example: Code
-
-       openssl genrsa -aes256 -out ca.key 2048
-
-2. Create a CA certificate: Use the CA key to generate a self-signed certificate. This certificate will be used to 
-sign other certificates. Common name should be IP or qualified domain name i.e mymacine.example.com. For example:
-
-       openssl req -new -x509 -days 365 -key ca.key -out ca.crt
-
-2. Generate a Server Key Pair and Certificate Request: 
-Generate a server key: Use openssl to create a private key for the Mosquitto broker. 
-Code
-
-       openssl genrsa -out server.key 2048
-
-Create a certificate signing request (CSR): Use the server key and information about your broker (e.g., common name, organization) to generate a CSR. 
-Code
-
-       openssl req -new -key server.key -out server.csr
-
-3. Sign the Server Certificate Request:
-Sign the CSR: Use the CA certificate and key to sign the server certificate request. This creates the server certificate. 
-Code
-
-       openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 365
-
-4. Configure Mosquitto Broker:
-Update mosquitto.conf: Locate the mosquitto.conf file and modify it to enable TLS. Add or uncomment lines similar to these: 
-Code
-
-    tls_version tlsv1.2
-    ca_file /path/to/ca.crt
-    cert_file /path/to/server.crt
-    key_file /path/to/server.key
-    require_certificate false  # Set to true for client certificate authentication
-
-Specify the port: The default port for MQTT over TLS is 8883. You might need to adjust this in your configuration.
-You also might need to make the server.key file readable by chmod 644.
-
-5. Configure Clients:
-Client Configuration: Clients need to be configured to use the CA certificate for verification. You can either:
-Provide the CA certificate file using the --cafile option in mosquitto_pub or mosquitto_sub.
-Enable TLS with the -p 8883 option and the OS-provided certificates (if applicable).
-Use TLS-PSK (Pre-Shared Key) authentication if desired. 
-6. Test the Setup:
-Publish and Subscribe:
-Use mosquitto_pub and mosquitto_sub to test the connection. Ensure you are using the correct port (8883 for TLS) and have configured the client with the necessary certificates.
-Verify:
-Check the logs of both the broker and the clients to confirm the TLS handshake was successful and messages are being exchanged securely. 
-
-7. Important Considerations:
-Self-Signed Certificates:
-Self-signed certificates are suitable for testing but not recommended for production environments. For production, use certificates issued by a trusted Certificate Authority.
-
-
-```
-per_listener_settings true
-connection_messages true
-log_timestamp true
-
-listener 1883 127.0.0.1
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-
-listener 8883
-tls_version tlsv1.2
-require_certificate false
-cafile /etc/mosquitto/ca_certificates/ca.crt
-keyfile /etc/mosquitto/certs/server.key
-certfile /etc/mosquitto/certs/server.crt
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-```
-
-#### 10.5.1 continuous, automatic DI analysis 
+#### 10.3.1 continuous, automatic DI analysis 
 
 The automatic DI analysis makes use of the basevalue application.
 ```
@@ -2576,6 +2430,25 @@ echo $DATE
 rsync -ave ssh --delete /srv/archive/WIC/DI/analyze/ cobs@138.22.188.192:/home/irene/DIdata/
 echo "Success"
 ```
+
+
+### 10.4 Issues and TODO
+
+in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
+delete the daily file and restart the recoding process. The next daily file will be OK in any case.
+
+- add trigger mode for GSM90 (sending f)
+- update scp_log to use protected creds
+
+#### Problem: pip install behind a proxy
+
+       export https_proxy=http://YOUR-PROXY-IP:PORT
+       pip install martas
+
+#### Problem pip install - packages do not match the hashes
+
+       pip install --no-cache-dir martas
+
 
 
 
