@@ -514,6 +514,7 @@ def main(argv):
         elif mqttpsk and pskidentity:
             if debug:
                 print("MQTT: TLS encryption based in PSK")
+            # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
             #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
             print ("MARTAS: Deprecation warning - but necessary for old clients")
             context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
