@@ -247,12 +247,12 @@ def get_graph_keys(tablename, result):
 
     return keyoptions, keyvalue
 
-def get_data(datatable, keys, result, duration=60, cred="cobsdb"):
+def get_data(datatable, keys, datainfo=None, duration=60, cred="cobsdb"):
     mydata = {}
     names = []
     db = mm.connect_db(cred, False, False)
-    stream = db.get_lines(datatable, 3600)
-    #print ("Obtained data stream with ", len(stream))
+    # This job needs including trim needs about 1 sec on my comp
+    stream = db.get_lines(datatable, 36000)
     endtime = stream.timerange()[1]
     stream = stream.trim(starttime=endtime-timedelta(minutes=duration), endtime=endtime)
     mydata['time'] = stream.ndarray[0]
@@ -936,7 +936,7 @@ def update_marcos7_status(n):
               Output('key-dropdown', 'value'),
               Input('data-dropdown', 'value'))
 def update_keydrop(datavalue):
-    result = get_datainfo_from_db(cred='cobsdb')
+    result = get_datainfo_from_db(cred=dbcred)
     keyoptions, keyvalue = get_graph_keys(datavalue, result)
     return keyoptions, keyvalue
 
@@ -964,9 +964,9 @@ def update_table_update(datavalue):
 def update_graph(n, hvalue, duration, datavalue, keyvalue):
     # read data
     #print ("Get available data sets")
-    result = get_datainfo_from_db(cred='cobsdb')
+    result = get_datainfo_from_db(cred=dbcred)
 
-    data, names = get_data(datavalue, [keyvalue], result, duration, cred='cobsdb')
+    data, names = get_data(datavalue, [keyvalue], datainfo=result, duration=duration, cred=dbcred)
     fig = make_subplots(rows=len(names), cols=1, vertical_spacing=0.1)
     fig.update_layout(
         plot_bgcolor='#4D4D4D',

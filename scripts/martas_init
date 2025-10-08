@@ -17,16 +17,17 @@ from pathlib import Path
 from crontab import CronTab
 import martas
 from martas.version import __version__
-
+import getpass
 
 def main(argv):
     debug = False
     dir = ".martas"
     redo = False
     update = False
+    minimalupdate = False
 
     try:
-        opts, args = getopt.getopt(argv,"hd:ruD",["path=","redo=","update=","debug=",])
+        opts, args = getopt.getopt(argv,"hd:ruUD",["path=","redo=","update=","UPADTE=","debug=",])
     except getopt.GetoptError:
         print ('martas_init')
         sys.exit(2)
@@ -47,9 +48,11 @@ def main(argv):
             print ('Options:')
             print ('-d, --directory : define the main configuration directory')
             print ('                : i.e. -d MARTAS will store everything within /hone/user/MARTAS')
-            print ('-u, --update : will update applications (app, doc, web) folder with new version')
-            print ('             : a backup is advisable before updating')
-            print ('-r, --redo   : replace already existing configuration files')
+            print ('-u, --update : will update applications (app, doc, web) folder with new version.')
+            print ('             : Then you will asked to input your new job or update an exsiting.')
+            print ('             : A backup is advisable before updating')
+            print ('-U, --UPDATE : will ONLY update applications (app, doc, web) folder with new version')
+            print ('-r, --redo   : replace all already existing configuration files.')
             print ('             : ATTENTION: redo will delete all previous configurations')
             print ('-------------------------------------')
             print ('Application:')
@@ -62,6 +65,8 @@ def main(argv):
             redo = True
         elif opt in ("-u", "--update"):
             update = True
+        elif opt in ("-U", "--UPDATE"):
+            minimalupdate = True
         elif opt in ("-D", "--debug"):
             debug = True
 
@@ -89,14 +94,13 @@ def main(argv):
 
     # get the martas package path
     file_path = os.path.dirname(martas.__file__)
-    print(file_path)
     if not debug:
         os.makedirs(os.path.join(homedir,dir), exist_ok=True)
         # create sudirs
         os.makedirs(os.path.join(homedir,dir,"log"), exist_ok=True)
     #
     # copy files into subdirs
-    if update:
+    if update or minimalupdate:
         print ("Updating app, doc and web to MARTAS version {}".format(__version__))
         shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
@@ -154,6 +158,16 @@ def main(argv):
     noti = "telegram"
     mailcred = "mymailcred"
     mainpath = os.path.join(homedir,dir) # i.e. /home/USER/.martas
+    pskcredentials = ""
+    mqttcert = ""
+    addtelegrambot = False
+
+
+    if minimalupdate:
+        print (" ------------------------------------------- ")
+        print (" application, web and documentfolder have been updated")
+        print (" ------------------------------------------- ")
+        sys.exit(0)
 
     cronlist = []
     print (" ------------------------------------------- ")
@@ -256,6 +270,40 @@ def main(argv):
     newmqttport = input()
     if newmqttport:
         mqttport = newmqttport
+    if int(mqttport) >= 8883:
+        print(" MQTT security based on TLS:")
+        print(" please choose: (1) TLS-PSK encryption, (2) TLS on certificate basis")
+        print(" (1) requires an available PSK identity and password")
+        print(" (2) to be used for IM MQTT service")
+        secsel = input()
+        if secsel in ["1"]:
+            print("  TLS-PSK: please insert a credential shortcut for a valid psk identity.")
+            print("           Needs to be different to user credentials.")
+            newpskcred = input()
+            if newpskcred:
+                # check whether existing
+                pskcredentials = newpskcred
+                # if not create
+            val = cred.lc(pskcredentials, "user")
+            if not val:
+                print("  ---- ")
+                print("  PSK Shortcut not yet existing - creating it: ")
+                print("  Insert your PSK identity:")
+                pskuser = input()
+                print("  Insert PSK:")
+                pskpwd = getpass.getpass()
+                cred.cc("transfer", pskcredentials, user=pskuser, passwd=pskpwd, address=mqttbroker, port=int(mqttport))
+            print(" -> MQTT psk identifier: {}".format(pskcredentials))
+        elif secsel in ["2"]:
+            print("  TLS with certificate: please insert path to ca.cert; leave empty for IM MQTT service")
+            newmqttcert = input()
+            if newmqttcert:
+                if not os.path.isfile(newmqttcert):
+                    print("  ! the selected ca.cert file is not existing")
+                    print("  ! please update martas.cfg afterwards")
+                mqttcert = newmqttcert
+            print(" -> MQTT certificate: {}".format(mqttcert))
+
     print(" -> MQTT broker port: {}".format(mqttport))
 
     print (" ------------------------------------------- ")
@@ -283,7 +331,6 @@ def main(argv):
             print("  Insert username of MQTT broker:")
             mqttuser = input()
             print("  Insert password of MQTT broker:")
-            import getpass
             mqttpwd = getpass.getpass()
             #mqttpwd = input()
             cred.cc("transfer",newmqttcred,user=mqttuser,passwd=mqttpwd,address=mqttbroker,port=int(mqttport))
@@ -323,6 +370,96 @@ def main(argv):
     else:
         pass
 
+    print (" ------------------------------------------- ")
+    print (" Two-way communication:")
+    print ("  Do you want to establish a two-way communication using telegram?")
+    print ("  Yes[y] or No[n] (default)")
+    print ("  Please consider the manual for secure configuration and then update conf/telegrambot.cfg")
+    newaddtelegrambot = input()
+    if newaddtelegrambot in ["Yes", "YES", "Y", "y"]:
+        addtelegrambot = True
+        print(" -> creating a TELEGRAM BOT run time script (requires inputs in conf/telegrambot.cfg before running)")
+        runscript = []
+        runscript.append("#! /bin/bash")
+        runscript.append("# TELEGRAM communication program")
+        runscript.append("")
+        runscript.append("{}".format(envact))
+        runscript.append("")
+        runscript.append('PYTHON={}'.format(sys.executable))
+        runscript.append('BOT="telegrambot.py"')
+        runscript.append('BOTPATH={}'.format(os.path.join(homedir, dir, "app")))
+        runscript.append("")
+        runscript.append('check_process()')
+        runscript.append("{")
+        runscript.append("    result=`/bin/ps aux | grep \"$BOT\" | grep -v grep | wc -l`")
+        runscript.append("}")
+        runscript.append('get_pid()')
+        runscript.append("{")
+        runscript.append("    pid=`/bin/ps -ef | grep \"$BOT\" | grep -v \"grep\" | awk '{print $2}'`")
+        runscript.append("}")
+        runscript.append("")
+        runscript.append("check_process")
+        runscript.append("# Run it")
+        runscript.append("# ######")
+        runscript.append("case \"$1\" in")
+        runscript.append("  start)")
+        runscript.append("    echo \"Starting $BOT ...\"")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\"")
+        runscript.append("        echo \" Starting $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        sleep 2")
+        runscript.append("        $PYTHON --version")
+        runscript.append("        $PYTHON $BOTPATH/$BOT")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running already\"")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  stop)")
+        runscript.append("    echo \"Stopping $BOT ...\"")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\"")
+        runscript.append("    else")
+        runscript.append("        echo \" Stopping $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        get_pid")
+        runscript.append("        kill -9 $pid")
+        runscript.append("        echo \" ... stopped\"")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  restart)")
+        runscript.append("    echo \"Restarting $BOT ...\"")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"1\" ]; then")
+        runscript.append("        echo \" Stopping $BOT\"")
+        runscript.append("        get_pid")
+        runscript.append("        kill -9 $pid")
+        runscript.append("        echo \" ... stopped\"")
+        runscript.append("    fi")
+        runscript.append("    echo \" Starting $BOT\"")
+        runscript.append("    echo \"--------------------\"")
+        runscript.append("    sleep 2")
+        runscript.append("    $PYTHON --version")
+        runscript.append("    $PYTHON $BOTPATH/$BOT")
+        runscript.append("    ;;")
+        runscript.append("  status)")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \"$BOT is dead\"")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running\"")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  *)")
+        runscript.append("    echo \"Usage: bash runbot.sh {start|stop|restart|status}\"")
+        runscript.append("    ;;")
+        runscript.append("esac")
+        runscript.append("exit 0")
+        with open(os.path.join(homedir, dir, "runbot.sh"), "wt") as fout:
+            for line in runscript:
+                fout.write(line+"\n")
 
     print (" ------------------------------------------- ")
     print (" Please select - you are initializing (A) a acquisition/MARTAS or (B) a collector/MARCOS")
@@ -766,6 +903,15 @@ def main(argv):
             job8 = cron.new(command=line8, comment=comment8)
             job8.setall('3 1 * * *')
 
+        if addtelegrambot:
+            comment10 = "Telegram two-way communication bot"
+            line10 = "/usr/bin/bash -i {} start 2>&1".format(os.path.join(homedir, dir, "runbot.sh"))
+            if not list(cron.find_comment(comment10)):
+                job10a = cron.new(command=line10, comment=comment10)
+                job10a.setall('0 8 * * *')
+                job10b = cron.new(command=line10, comment=comment10)
+                job10b.setall('0 16 * * *')
+
 
     replacedict = { "/logpath" : malogpath,
                     "/sensorpath" : os.path.join(confpath, "sensors.cfg"),
@@ -783,7 +929,7 @@ def main(argv):
                     "collectlog" : os.path.join(logpath,"download-source.log"),
                     "filterlog" : os.path.join(logpath,"filterstatus.log"),
                     "basevaluelog" : os.path.join(logpath,"basevaluestatus.log"),
-                    "/telegrambot.log" : os.path.join(logpath,"telegrambot.log"),
+                    "/telegrambotlogpath" : os.path.join(logpath,"telegrambot.log"),
                     "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
                     "notificationcfg" : notipath,
@@ -798,6 +944,10 @@ def main(argv):
                     }
     if mqttcred:
         replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)
+    if mqttcert:
+        replacedict["#mqttcert  :  /path/to/ca.crt"] = "mqttcert  :  {}".format(mqttcert)
+    if pskcredentials:
+        replacedict["#mqttpsk  :  pskcredentials"] = "mqttpsk  :  {}".format(pskcredentials)
     if backuppath:
         replacedict["/backuppath"] = backuppath
 
