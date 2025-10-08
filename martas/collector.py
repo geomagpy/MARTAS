@@ -714,7 +714,7 @@ def on_message(client, userdata, msg):
             ##### Add the configuration to input and marcos.cfg
             ## Please note: requires anaconda2/bin/python on my test PC
             ## !!! Requires network connection !!!
-            if not telegramconf == '/telegram.conf':
+            if telegramconf and os.path.isfile(telegramconf):
                 martaslog = ml(receiver='telegram')
                 martaslog.receiveroptions('telegram',options={'conf':telegramconf})
                 statusdict['Hostname'] = hostname

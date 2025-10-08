@@ -72,6 +72,9 @@ from martas.core.websocket_server import WebsocketServer
 import paho.mqtt
 import paho.mqtt.client as mqtt
 import sys, getopt, os
+import ssl
+from sslpsk2.sslpsk2 import _ssl_set_psk_server_callback, _ssl_set_psk_client_callback
+
 
 ## Python Version
 ## -----------------------------------------------------------
@@ -104,6 +107,66 @@ webport = 8080
 socketport = 5000
 blacklist = []
 counter = 0
+
+## SSL PSK tools
+def _ssl_setup_psk_callbacks(sslobj):
+    psk = sslobj.context.psk
+    hint = sslobj.context.hint
+    identity = sslobj.context.identity
+    if psk:
+        if sslobj.server_side:
+            cb = psk if callable(psk) else lambda _identity: psk
+            _ssl_set_psk_server_callback(sslobj, cb, hint)
+        else:
+            cb = psk if callable(psk) else lambda _hint: psk if isinstance(psk, tuple) else (psk, identity)
+            _ssl_set_psk_client_callback(sslobj, cb)
+
+
+class SSLPSKContext(ssl.SSLContext):
+    @property
+    def psk(self):
+        return getattr(self, "_psk", None)
+
+    @psk.setter
+    def psk(self, psk):
+        self._psk = psk
+
+    @property
+    def hint(self):
+        return getattr(self, "_hint", None)
+
+    @hint.setter
+    def hint(self, hint):
+        self._hint = hint
+
+    @property
+    def identity(self):
+        return getattr(self, "_identity", None)
+
+    @identity.setter
+    def identity(self, identity):
+        self._identity = identity
+
+
+class SSLPSKObject(ssl.SSLObject):
+    def do_handshake(self, *args, **kwargs):
+        if not hasattr(self, '_did_psk_setup'):
+            _ssl_setup_psk_callbacks(self)
+            self._did_psk_setup = True
+        super().do_handshake(*args, **kwargs)
+
+
+class SSLPSKSocket(ssl.SSLSocket):
+    def do_handshake(self, *args, **kwargs):
+        if not hasattr(self, '_did_psk_setup'):
+            _ssl_setup_psk_callbacks(self)
+            self._did_psk_setup = True
+        super().do_handshake(*args, **kwargs)
+
+
+SSLPSKContext.sslobject_class = SSLPSKObject
+SSLPSKContext.sslsocket_class = SSLPSKSocket
+
 
 class protocolparameter(object):
     def __init__(self):
@@ -147,7 +210,7 @@ def webProcess(webpath,webport):
     reactor.listenTCP(webport,factory)
     reactor.run()
 
-def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, mqttversion=2, destinationid='',debug=False):
+def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, mqttcert="", mqttpsk="", mqttversion=2, destinationid='',debug=False):
         """
     connectclient method
     used to connect to a specific client as defined by the input variables
@@ -172,6 +235,30 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
                 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientid)
             except:
                 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=clientid)
+
+        # TLS encryption part
+        if int(port) == 8883 and not mqttpsk:
+            if mqttcert:
+                if debug:
+                    print("MQTT: TLS encryption based on certificate")
+                    print(mqttcert)
+                client.tls_set(ca_certs=mqttcert)
+            else:
+                if debug:
+                    print("MQTT: basic TLS")
+                client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED,
+                               tls_version=ssl.PROTOCOL_TLS,
+                               ciphers=None)
+        if int(port) in [8884, 8883] and mqttpsk:
+            if debug:
+                print("MQTT: TLS encrytion based in PSK")
+            pskidentity = mpcred.lc(mqttpsk, 'user')
+            pskpwd = mpcred.lc(mqttpsk, 'passwd')
+            context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.set_ciphers('PSK')
+            context.psk = bytes.fromhex(pskpwd)
+            context.identity = pskidentity.encode()
+            client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
 
         # Authentication part
         if not credentials in ['','-']:
@@ -993,7 +1080,7 @@ def main(argv):
 
     if source == 'mqtt':
         mqttversion = int(conf.get("mqttversion", 2))
-        client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttversion=mqttversion, destinationid=dbcred, debug=debug) # dbcred is used for clientid
+        client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttcert=mqttcert, mqttpsk=mqttpsk, mqttversion=mqttversion, destinationid=dbcred, debug=debug) # dbcred is used for clientid
         client.loop_forever()
 
     elif source == 'wamp':
