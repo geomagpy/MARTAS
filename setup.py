@@ -26,6 +26,7 @@ install_requires=[
             "dash",
             "dash_daq",
             "psutil",
+            "sslpsk2",
             "setuptools >= 61.0.0"
           ]
 

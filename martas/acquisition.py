@@ -75,6 +75,7 @@ from martas.version import __version__
 import paho.mqtt.client as mqtt
 import paho.mqtt
 import ssl
+from sslpsk2.sslpsk2 import _ssl_set_psk_server_callback, _ssl_set_psk_client_callback
 
 ## Import twisted for serial port communication and web server
 ## -----------------------------------------------------------
@@ -154,6 +155,65 @@ current work              IMFile          : py3 		: active		: read files
 current work              FourPL          : py3 		: active		: 4point light geoelectric
 current work              BME280I2C       : py3 		: active		: I2C pins on raspberry with BME280 T-humidity-pressure
 """
+
+def _ssl_setup_psk_callbacks(sslobj):
+    psk = sslobj.context.psk
+    hint = sslobj.context.hint
+    identity = sslobj.context.identity
+    if psk:
+        if sslobj.server_side:
+            cb = psk if callable(psk) else lambda _identity: psk
+            _ssl_set_psk_server_callback(sslobj, cb, hint)
+        else:
+            cb = psk if callable(psk) else lambda _hint: psk if isinstance(psk, tuple) else (psk, identity)
+            _ssl_set_psk_client_callback(sslobj, cb)
+
+
+class SSLPSKContext(ssl.SSLContext):
+    @property
+    def psk(self):
+        return getattr(self, "_psk", None)
+
+    @psk.setter
+    def psk(self, psk):
+        self._psk = psk
+
+    @property
+    def hint(self):
+        return getattr(self, "_hint", None)
+
+    @hint.setter
+    def hint(self, hint):
+        self._hint = hint
+
+    @property
+    def identity(self):
+        return getattr(self, "_identity", None)
+
+    @identity.setter
+    def identity(self, identity):
+        self._identity = identity
+
+
+class SSLPSKObject(ssl.SSLObject):
+    def do_handshake(self, *args, **kwargs):
+        if not hasattr(self, '_did_psk_setup'):
+            _ssl_setup_psk_callbacks(self)
+            self._did_psk_setup = True
+        super().do_handshake(*args, **kwargs)
+
+
+class SSLPSKSocket(ssl.SSLSocket):
+    def do_handshake(self, *args, **kwargs):
+        if not hasattr(self, '_did_psk_setup'):
+            _ssl_setup_psk_callbacks(self)
+            self._did_psk_setup = True
+        super().do_handshake(*args, **kwargs)
+
+
+SSLPSKContext.sslobject_class = SSLPSKObject
+SSLPSKContext.sslsocket_class = SSLPSKSocket
+
 
 def SendInit(confdict,sensordict):
     """
@@ -326,6 +386,8 @@ def main(argv):
     cred = ''
     creduser = ''
     credhost = ''
+    pskidentity = b""
+    pskpwd = ""
     pwd = 'None'
     debug = False
     test = False
@@ -385,10 +447,16 @@ def main(argv):
     if debug:
         print ("Configuration:", conf)
 
+    cred = conf.get('mqttcred',"")
+    credpath = conf.get('credentialpath', None)
     broker = conf.get('broker',"")
     mqttport = int(conf.get('mqttport',1883))
     mqttdelay = int(conf.get('mqttdelay',60))
     mqttcert = conf.get('mqttcert',"")
+    mqttpsk = conf.get('mqttpsk',"")
+    if mqttpsk and credpath:
+        pskidentity = mpcred.lc(mqttpsk, 'user', path=credpath)
+        pskpwd = mpcred.lc(mqttpsk, 'passwd', path=credpath)
 
     ##  Get Sensor data
     ##  ----------------------------
@@ -401,11 +469,9 @@ def main(argv):
 
     ## Check for credentials
     ## ----------------------------
-    cred = conf.get('mqttcred',"")
     if not cred == '':
         try:
             print ("Accessing credential information for {}".format(cred))
-            credpath = conf.get('credentialpath',None)
             creduser = mpcred.lc(cred,'user',path=credpath)
             pwd = mpcred.lc(cred,'passwd',path=credpath)
         except:
@@ -436,13 +502,29 @@ def main(argv):
         print ("MQTT: password authentication")
         client.username_pw_set(username=creduser,password=pwd)
 
-    if int(mqttport) == 8883:
-        print ("MQTT: TLS encryption")
+    if int(mqttport) == 8883 and not mqttpsk:
         if mqttcert:
+            if debug:
+                print("MQTT: TLS encryption based on certificate")
+                print(mqttcert)
             client.tls_set(ca_certs=mqttcert)
         else:
+            if debug:
+                print("MQTT: basic TLS")
             client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS,
                     ciphers=None)
+
+    if int(mqttport) in [8884, 8883] and mqttpsk:
+        if debug:
+            print("MQTT: TLS encrytion based in PSK")
+        context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.set_ciphers('PSK')
+        print ("Establishing ", pskpwd)
+        #context.psk = bytes.fromhex("1234")
+        context.psk = bytes.fromhex(pskpwd)
+        context.identity = pskidentity.encode()
+        #context.identity = b'testuser'
+        client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
 
     ##  Start Twisted logging system
     ##  ----------------------------

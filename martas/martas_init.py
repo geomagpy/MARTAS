@@ -17,16 +17,17 @@ from pathlib import Path
 from crontab import CronTab
 import martas
 from martas.version import __version__
-
+import getpass
 
 def main(argv):
     debug = False
     dir = ".martas"
     redo = False
     update = False
+    minimalupdate = False
 
     try:
-        opts, args = getopt.getopt(argv,"hd:ruD",["path=","redo=","update=","debug=",])
+        opts, args = getopt.getopt(argv,"hd:ruUD",["path=","redo=","update=","UPADTE=","debug=",])
     except getopt.GetoptError:
         print ('martas_init')
         sys.exit(2)
@@ -47,9 +48,11 @@ def main(argv):
             print ('Options:')
             print ('-d, --directory : define the main configuration directory')
             print ('                : i.e. -d MARTAS will store everything within /hone/user/MARTAS')
-            print ('-u, --update : will update applications (app, doc, web) folder with new version')
-            print ('             : a backup is advisable before updating')
-            print ('-r, --redo   : replace already existing configuration files')
+            print ('-u, --update : will update applications (app, doc, web) folder with new version.')
+            print ('             : Then you will asked to input your new job or update an exsiting.')
+            print ('             : A backup is advisable before updating')
+            print ('-U, --UPDATE : will ONLY update applications (app, doc, web) folder with new version')
+            print ('-r, --redo   : replace all already existing configuration files.')
             print ('             : ATTENTION: redo will delete all previous configurations')
             print ('-------------------------------------')
             print ('Application:')
@@ -62,6 +65,8 @@ def main(argv):
             redo = True
         elif opt in ("-u", "--update"):
             update = True
+        elif opt in ("-U", "--UPDATE"):
+            minimalupdate = True
         elif opt in ("-D", "--debug"):
             debug = True
 
@@ -89,7 +94,6 @@ def main(argv):
 
     # get the martas package path
     file_path = os.path.dirname(martas.__file__)
-    print(file_path)
     if not debug:
         os.makedirs(os.path.join(homedir,dir), exist_ok=True)
         # create sudirs
@@ -154,6 +158,14 @@ def main(argv):
     noti = "telegram"
     mailcred = "mymailcred"
     mainpath = os.path.join(homedir,dir) # i.e. /home/USER/.martas
+    pskcredentials = ""
+    mqttcert = ""
+
+    if minimalupdate:
+        print (" ------------------------------------------- ")
+        print (" application, web and documentfolder have been updated")
+        print (" ------------------------------------------- ")
+        sys.exit(0)
 
     cronlist = []
     print (" ------------------------------------------- ")
@@ -256,6 +268,40 @@ def main(argv):
     newmqttport = input()
     if newmqttport:
         mqttport = newmqttport
+    if int(mqttport) >= 8883:
+        print(" MQTT security based on TLS:")
+        print(" please choose: (1) TLS-PSK encryption, (2) TLS on certificate basis")
+        print(" (1) requires an available PSK identity and password")
+        print(" (2) to be used for IM MQTT service")
+        secsel = input()
+        if secsel in ["1"]:
+            print("  TLS-PSK: please insert a credential shortcut for a valid psk identity.")
+            print("           Needs to be different to user credentials.")
+            newpskcred = input()
+            if newpskcred:
+                # check whether existing
+                pskcredentials = newpskcred
+                # if not create
+            val = cred.lc(pskcredentials, "user")
+            if not val:
+                print("  ---- ")
+                print("  PSK Shortcut not yet existing - creating it: ")
+                print("  Insert your PSK identity:")
+                pskuser = input()
+                print("  Insert PSK:")
+                pskpwd = getpass.getpass()
+                cred.cc("transfer", pskcredentials, user=pskuser, passwd=pskpwd, address=mqttbroker, port=int(mqttport))
+            print(" -> MQTT credentials: {}".format(mqttcred))
+        elif secsel in ["2"]:
+            print("  TLS with certificate: please insert path to ca.cert; leave empty for IM MQTT service")
+            newmqttcert = input()
+            if newmqttcert:
+                if not os.path.isfile(newmqttcert):
+                    print("  ! the selected ca.cert file is not existing")
+                    print("  ! please update martas.cfg afterwards")
+                mqttcert = newmqttcert
+
+
     print(" -> MQTT broker port: {}".format(mqttport))
 
     print (" ------------------------------------------- ")
@@ -283,7 +329,6 @@ def main(argv):
             print("  Insert username of MQTT broker:")
             mqttuser = input()
             print("  Insert password of MQTT broker:")
-            import getpass
             mqttpwd = getpass.getpass()
             #mqttpwd = input()
             cred.cc("transfer",newmqttcred,user=mqttuser,passwd=mqttpwd,address=mqttbroker,port=int(mqttport))
@@ -798,6 +843,10 @@ def main(argv):
                     }
     if mqttcred:
         replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)
+    if mqttcert:
+        replacedict["#mqttcert  :  /path/to/ca.crt"] = "mqttcert  :  {}".format(mqttcert)
+    if pskcredentials:
+        replacedict["#mqttpsk  :  pskcredentials"] = "mqttpsk  :  {}".format(pskcredentials)
     if backuppath:
         replacedict["/backuppath"] = backuppath
 

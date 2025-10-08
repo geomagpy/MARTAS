@@ -237,7 +237,7 @@ messages are stored locally in case of network connection issues, and send after
 
 Authentication and secure data communication are supported by MARTAS. In order to enable
 authentication and SSL encryption for accessing data streams from your acquisition machine please check mosquitto 
-instructions to be found on many webpages. A good starting read is [Steves guide](http://www.steves-internet-guide.com/mqtt-security-mechanisms/).
+instructions to be found on many webpages. A good starting read is [Steves guide](http://www.steves-internet-guide.com/mossquitto-conf-file/).
 
 For enabling authentication you firstly need to Add a USER and a password file to the MQTT broker. Replace USER with
 your desired username:
@@ -270,6 +270,16 @@ credentials list of a pMARTAS acquisition unit which also acts as broker use:
 
 #### 2.3.3 Enabling TLS encryption
 
+MARTAS supports certificate-based TLS communication and also the use of pre-shared-keys (PSK) for data transfer between
+pMARTAS, BROKER and pMARCOS on ports 8883 (certificate, PSK) and 8884 (PSK only). If you choose one of these ports
+during initialization you will have to choose between these two possibilities. In both cases you will need information
+from the broker provider. If you are setting up your own broker you will detailed instructions in section 10.x of the 
+appendix. For certificate based communication, the broker provider will have to provide a ca.crt file which needs to be
+locally stored on your client. You will need to provide the path to this file for communication. If TlS-PSK is selected
+You will get a PSK identity and a PSK key which you have to store locally suing the addcred routine. 
+
+Please checkout the appendix for more details on TLS security.
+
 In the following you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
 official mosquitto installation instructions when setting up a secure TLS broker. TLS encryption is recommended if you 
 are using an external broker. If your full setup (pMARTAS and pMARCOS are in the same network behind a Firewall) you might 
@@ -290,6 +300,18 @@ Then we create the actual self-signed CA certificate. This certificate will be u
 
        openssl req -new -x509 -days 3650 -key ca.key -out ca.crt
 
+You will have to enter some information:
+
+```
+Country Name (2 letter code) [AU]:AU
+State or Province Name (full name) [Some-State]:Austria
+Locality Name (eg, city) []:Muggendorf
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsBrokerCA
+Organizational Unit Name (eg, section) []:DataBroker
+Common Name (e.g. server FQDN or YOUR name) []:theia
+Email Address []:max.mustermann@world.me
+```
+
 > [!IMPORTANT]
 > Self-signed certificates are suitable for testing but not recommended for production environments. For production, use certificates issued by a trusted Certificate Authority.
 
@@ -308,6 +330,23 @@ each client. To generate a server key pair and certificate:
 
        openssl genrsa -out server.key 2048
        openssl req -new -key server.key -out server.csr
+
+You will have to enter some information for the sever certificate. Please note the differences in organisation names:
+
+```
+Country Name (2 letter code) [AU]:AU
+State or Province Name (full name) [Some-State]:Austria
+Locality Name (eg, city) []:Muggendorf
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsServerCert
+Organizational Unit Name (eg, section) []:BrokerCert
+Common Name (e.g. server FQDN or YOUR name) []:theia
+Email Address []:ro.leonhardt@proton.me
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+```
 
 We are also creating a certificate signing request (CSR). Insert country, address, and email address. Note that here, 
 every piece of information is about the server, so common name is server domain (the dynamic DNS domain). If you don't 
@@ -349,6 +388,9 @@ allow_anonymous false
 password_file /etc/mosquitto/passwd
 ```
 
+Example for TLS-PSK encryption:
+
+       openssl rand -hex 32
 
 #### 2.3.4 Testing MQTT data transfer
 
@@ -368,6 +410,10 @@ In case you are using authenticated access use the following additional options:
 In case you are using secure TLS access (OS encrypted) use the following additional options:
 
         mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 -d
+
+In case you are using secure TLS access with CA file use the following additional options:
+
+        mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 --cafile /path/to/ca.crt -d
 
 As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription
 command. Checkout the official mosquitto pages for more information.
@@ -2165,6 +2211,7 @@ packages for your specific system based on apt.
       sudo pip install --break-system-packages dash==3.1.1
       # there might be an error message related to uninstall blinker: ignore
       # Test MagPy
+      sudo pip install --break-system-packages sslpsk2==1.0.2
       sudo pip install --break-system-packages MARTAS-develop.zip
       # eventually hash errors occur - just retry
       # Test MagPy
@@ -2303,10 +2350,141 @@ Reconfigure pip to use the proxy server (if necessary)
 
 tmate is not supported any more. instructions
 
+### 10.2 Setting up a secure TLS based mosquitto broker for MARTAS
 
-### 10.2 Development tools
+#### 10.2.1 Certificate based TLS encryption
 
-#### 10.2.1 Testing modules
+In the following you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
+official mosquitto installation instructions when setting up a secure TLS broker. TLS encryption is recommended if you 
+are using an external broker. If your full setup (pMARTAS and pMARCOS are in the same network behind a Firewall) you might 
+want to skip TLS encryption.
+
+For our example we firstly create a certificate authority (CA). For SSL connections, the server and client's 
+certificates must be signed by a trusted CA. A copy of the CA is stored on the server and the clients. They check 
+received certificates against the CA before trusting another device.
+
+We generate a Certificate Authority (CA) Key Pair and Certificate using openssl:
+
+       openssl genrsa -des3 -out ca.key 2048
+
+This command will request a pass phrase. You will need this pass phrase everytime you generate certificates and you 
+want to sign them with this CA.
+
+Then we create the actual self-signed CA certificate. This certificate will be used to sign other certificates.
+
+       openssl req -new -x509 -days 3650 -key ca.key -out ca.crt
+
+You will have to enter some information:
+
+```
+Country Name (2 letter code) [AU]:AU
+State or Province Name (full name) [Some-State]:Austria
+Locality Name (eg, city) []:Muggendorf
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsBrokerCA
+Organizational Unit Name (eg, section) []:DataBroker
+Common Name (e.g. server FQDN or YOUR name) []:theia
+Email Address []:max.mustermann@world.me
+```
+
+> [!IMPORTANT]
+> Self-signed certificates are suitable for testing but not recommended for production environments. For production, use certificates issued by a trusted Certificate Authority.
+
+Please insert appropriate information into the requested fields. As it is a self-signed certificate I recommend to 
+insert the purpose (i.e. OBSCODE MARTAS service) as organization or unit. The Common name should be you full name and
+NOT the domain name. The validity is set to 10 years.
+The CA certificate is now generated and you should copy it to the dedicated folder of Mosquitto. You will need CA 
+certificate file (ca.crt) on pMARTAS, broker and pMARCOS.
+
+       sudo cp ca.crt /etc/mosquitto/ca_certificates/
+
+To generate client certificates on another device, the certificate file and pass phrase are needed.
+
+In a next step we use openssl to create certificates and private keys. One for the server and as many as needed for 
+each client. To generate a server key pair and certificate: 
+
+       openssl genrsa -out server.key 2048
+       openssl req -new -key server.key -out server.csr
+
+You will have to enter some information for the sever certificate. Please note the differences in organisation names:
+
+```
+Country Name (2 letter code) [AU]:AU
+State or Province Name (full name) [Some-State]:Austria
+Locality Name (eg, city) []:Muggendorf
+Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsServerCert
+Organizational Unit Name (eg, section) []:BrokerCert
+Common Name (e.g. server FQDN or YOUR name) []:theia
+Email Address []:ro.leonhardt@proton.me
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+```
+
+We are also creating a certificate signing request (CSR). Insert country, address, and email address. Note that here, 
+every piece of information is about the server, so common name is server domain (the dynamic DNS domain). If you don't 
+have one just enter the name of your server there. Then we have to sign the server certificate request:
+
+       openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
+
+Use the CA certificate and key to sign the server certificate request. This creates the server certificate. Then copy
+key and certificate to the mosquitto configuration of the server:
+
+       sudo cp server.crt /etc/mosquitto/certs/
+       sudo cp server.key /etc/mosquitto/certs/
+
+Clients need to be configured to use the CA certificate for verification. You should provide the CA certificate 
+file. In the martas configuration file use the option "mqttcert" and provide a valid path to the  using the "ca.crt" 
+file. Enable TLS with "mqttport" : 8883.
+
+An example file for configuring the mosquitto listener is show below:
+
+```
+# Global
+per_listener_settings true
+
+# Local listener
+listener 1883 127.0.0.1
+
+# Default listener
+listener 1883
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+
+# Certificate listener
+listener 8883
+cafile /etc/mosquitto/ca_certificates/ca.crt
+certfile /etc/mosquitto/certs/server.crt
+keyfile /etc/mosquitto/certs/server.key
+require_certificate false
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+```
+
+#### 10.2.2 TLS-PSK encryption using pre-shared-keys
+
+On the mosquitto broker, go to /etc/mosquitto and copy the pskfile.example
+
+       sudo cp pskfile.example psk.txt
+
+The content of the file should look like as follows:
+
+```
+psktester:1234
+pskidentity2:1234
+```
+
+In this file you can then enter psk identities and hex keys. In order to generate suitable keys you might want to use 
+openssl.
+
+       openssl rand -hex 32
+
+The identity and its key then need to be shared with the client (pMARTAS or pMARCOS). 
+
+### 10.3 Development tools
+
+#### 10.3.1 Testing modules
 
 Unittest are included in the following modules. app_tester will perform a unittest on applications in the app folder:
 
@@ -2314,13 +2492,13 @@ Unittest are included in the following modules. app_tester will perform a unitte
        python core/methods.py
        python core/definitive.py
 
-#### 10.2.2 Testing acquisition
+#### 10.3.2 Testing acquisition
 
 The main program contains a testing option -T which will create an artificial/random data set published on topic "tst":
 
        python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
-#### 10.2.3 Testing pMARTAS and pMARCOS
+#### 10.3.3 Testing pMARTAS and pMARCOS
 
 Run a test acquisition as shown in 9.5.2 to simulate a sensor
 
@@ -2337,9 +2515,9 @@ two libraries. Please configure sensors.cfg accordingly and use a stationID diff
        python acquisition.py -m ~/.martas/conf/martas.cfg
 
 
-### 10.3 Setup examples for automatic analysis processes
+### 10.4 Setup examples for automatic analysis processes
 
-#### 10.3.1 continuous, automatic DI analysis 
+#### 10.4.1 continuous, automatic DI analysis 
 
 The automatic DI analysis makes use of the basevalue application.
 ```
@@ -2432,7 +2610,7 @@ echo "Success"
 ```
 
 
-### 10.4 Issues and TODO
+### 10.5 Issues and TODO
 
 in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
 delete the daily file and restart the recoding process. The next daily file will be OK in any case.
