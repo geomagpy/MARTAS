@@ -2473,7 +2473,7 @@ The content of the file should look like as follows:
 
 ```
 psktester:1234
-pskidentity2:1234
+pskidentity2:4321
 ```
 
 In this file you can then enter psk identities and hex keys. In order to generate suitable keys you might want to use 
@@ -2481,7 +2481,25 @@ openssl.
 
        openssl rand -hex 16
 
-The identity and its key then need to be shared with the client (pMARTAS or pMARCOS). 
+Add a listener to your mosquitto configuration. 
+
+```
+# Global
+per_listener_settings true
+
+...
+
+# TSL-PSK listener
+listener 8884
+psk_hint secure-martas-communication
+psk_file /etc/mosquitto/psk.txt
+require_certificate false
+allow_anonymous false
+password_file /etc/mosquitto/passwd
+```
+
+You might want to add some access control to specific topics. Please checkout the mosquitto manual on acl_files.
+
 
 ### 10.3 Development tools
 
