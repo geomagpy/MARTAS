@@ -864,6 +864,19 @@ def main(argv):
                 if not list(cron.find_comment(comment3)):
                     job3 = cron.new(command=line3, comment=comment3)
                     job3.setall('2 0 * * 2')
+            mvcomment2 = "Start MARCOS viewer"
+            mvline2 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "marcos_view"),
+                                                          os.path.join(logpath, "marcos_view.log"))
+            if not list(cron.find_comment(mvcomment2)):
+                jobmv2 = cron.new(command=mvline2, comment=mvcomment2)
+                jobmv2.setall('16 0 * * *')
+                jobmv2.enable(False)
+            mvcomment3 = "Optional: Regular download of buffer from MARCOS {}".format(jobname)
+            mvline3 = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","file_download.py"),os.path.join(confpath,"download-{}.cfg".format(jobname)), os.path.join(logpath,"download-{}.log".format(jobname)))
+            if not list(cron.find_comment(mvcomment2)):
+                jobmv3 = cron.new(command=mvline3, comment=mvcomment3)
+                jobmv3.setall('16 0 * * *')
+                jobmv3.enable(False)
 
     with CronTab(user=True) as cron:
         if initjob == "MARCOS":
@@ -967,8 +980,7 @@ def main(argv):
         files_to_change["filterconf"] = {"source": os.path.join(confpath, "filter.bak"),
                                          "dest": os.path.join(confpath, "filter.cfg")}
         files_to_change["downloadconf"] = {"source": os.path.join(confpath, "download-source.bak"),
-                                           "dest": os.path.join(confpath, "download-source.cfg")}
-
+                                           "dest": os.path.join(confpath, "download-{}.cfg".format(jobname))}
         # file for which replacements will happen and new names
     files_to_change["skeletonlogrotate"] = {"source": os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
                               "dest": os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))}

@@ -252,6 +252,7 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
         if int(port) in [8884, 8883] and mqttpsk:
             if debug:
                 print("MQTT: TLS encrytion based in PSK")
+            # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
             pskidentity = mpcred.lc(mqttpsk, 'user')
             pskpwd = mpcred.lc(mqttpsk, 'passwd')
             #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
