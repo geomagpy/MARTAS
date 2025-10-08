@@ -2479,7 +2479,7 @@ pskidentity2:1234
 In this file you can then enter psk identities and hex keys. In order to generate suitable keys you might want to use 
 openssl.
 
-       openssl rand -hex 32
+       openssl rand -hex 16
 
 The identity and its key then need to be shared with the client (pMARTAS or pMARCOS). 
 
