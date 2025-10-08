@@ -100,7 +100,7 @@ def main(argv):
         os.makedirs(os.path.join(homedir,dir,"log"), exist_ok=True)
     #
     # copy files into subdirs
-    if update:
+    if update or minimalupdate:
         print ("Updating app, doc and web to MARTAS version {}".format(__version__))
         shutil.rmtree(os.path.join(homedir, dir, "app"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
@@ -291,7 +291,7 @@ def main(argv):
                 print("  Insert PSK:")
                 pskpwd = getpass.getpass()
                 cred.cc("transfer", pskcredentials, user=pskuser, passwd=pskpwd, address=mqttbroker, port=int(mqttport))
-            print(" -> MQTT credentials: {}".format(mqttcred))
+            print(" -> MQTT psk identifier: {}".format(pskcredentials))
         elif secsel in ["2"]:
             print("  TLS with certificate: please insert path to ca.cert; leave empty for IM MQTT service")
             newmqttcert = input()
@@ -300,7 +300,7 @@ def main(argv):
                     print("  ! the selected ca.cert file is not existing")
                     print("  ! please update martas.cfg afterwards")
                 mqttcert = newmqttcert
-
+            print(" -> MQTT certificate: {}".format(mqttcert))
 
     print(" -> MQTT broker port: {}".format(mqttport))
 
