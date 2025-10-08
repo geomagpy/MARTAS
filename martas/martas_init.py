@@ -111,14 +111,11 @@ def main(argv):
         shutil.rmtree(os.path.join(homedir, dir, "doc"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "init"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "logrotate"),ignore_errors=True)
-        shutil.rmtree(os.path.join(homedir, dir, "telegram"),ignore_errors=True)
         shutil.rmtree(os.path.join(homedir, dir, "web"),ignore_errors=True)
     if not os.path.isdir(os.path.join(homedir,dir,"conf")):
         shutil.copytree(os.path.join(file_path, "conf"), os.path.join(homedir, dir, "conf"))
     if not os.path.isdir(os.path.join(homedir,dir,"app")):
         shutil.copytree(os.path.join(file_path, "app"), os.path.join(homedir, dir, "app"))
-    if not os.path.isdir(os.path.join(homedir,dir,"telegram")):
-        shutil.copytree(os.path.join(file_path, "telegram"), os.path.join(homedir, dir, "telegram"))
     if not os.path.isdir(os.path.join(homedir,dir,"doc")):
         shutil.copytree(os.path.join(file_path, "doc"), os.path.join(homedir, dir, "doc"))
     if not os.path.isdir(os.path.join(homedir,dir,"init")):
@@ -940,7 +937,7 @@ def main(argv):
                     "1883"  :  mqttport,
                     "mqttqos  :  0": "mqttqos  :  {}".format(mqttqos),
                     "payloadformat  :  martas": "payloadformat  :  {}".format(payloadformat),
-                    "home/username/.magpycred" : os.path.join(homedir, ".magpycred"),
+                    "/home/username/.magpycred" : os.path.join(homedir, ".magpycred"),
                     }
     if mqttcred:
         replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)

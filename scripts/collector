@@ -714,7 +714,7 @@ def on_message(client, userdata, msg):
             ##### Add the configuration to input and marcos.cfg
             ## Please note: requires anaconda2/bin/python on my test PC
             ## !!! Requires network connection !!!
-            if not telegramconf == '/telegram.conf':
+            if telegramconf and os.path.isfile(telegramconf):
                 martaslog = ml(receiver='telegram')
                 martaslog.receiveroptions('telegram',options={'conf':telegramconf})
                 statusdict['Hostname'] = hostname
@@ -796,6 +796,7 @@ def main(argv):
     blacklist = []
     global concount
     concount = 0
+    conf = {}
 
 
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
@@ -1080,6 +1081,8 @@ def main(argv):
 
     if source == 'mqtt':
         mqttversion = int(conf.get("mqttversion", 2))
+        mqttcert = conf.get("mqttcert", "")
+        mqttpsk = conf.get("mqttpsk", "")
         client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttcert=mqttcert, mqttpsk=mqttpsk, mqttversion=mqttversion, destinationid=dbcred, debug=debug) # dbcred is used for clientid
         client.loop_forever()
 

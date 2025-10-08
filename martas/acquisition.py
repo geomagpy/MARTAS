@@ -454,9 +454,12 @@ def main(argv):
     mqttdelay = int(conf.get('mqttdelay',60))
     mqttcert = conf.get('mqttcert',"")
     mqttpsk = conf.get('mqttpsk',"")
-    if mqttpsk and credpath:
+    if mqttpsk:
         pskidentity = mpcred.lc(mqttpsk, 'user', path=credpath)
         pskpwd = mpcred.lc(mqttpsk, 'passwd', path=credpath)
+    if debug:
+        print ("MQTTPSK", mqttpsk, credpath)
+        print ("PSKID", pskidentity)
 
     ##  Get Sensor data
     ##  ----------------------------
@@ -502,29 +505,27 @@ def main(argv):
         print ("MQTT: password authentication")
         client.username_pw_set(username=creduser,password=pwd)
 
-    if int(mqttport) == 8883 and not mqttpsk:
+    if int(mqttport) >= 8883:
         if mqttcert:
             if debug:
                 print("MQTT: TLS encryption based on certificate")
                 print(mqttcert)
             client.tls_set(ca_certs=mqttcert)
+        elif mqttpsk and pskidentity:
+            if debug:
+                print("MQTT: TLS encryption based in PSK")
+            #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
+            print ("MARTAS: Deprecation warning - but necessary for old clients")
+            context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
+            context.set_ciphers('PSK')
+            context.psk = bytes.fromhex(pskpwd)
+            context.identity = pskidentity.encode()
+            client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
         else:
             if debug:
                 print("MQTT: basic TLS")
             client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS,
                     ciphers=None)
-
-    if int(mqttport) in [8884, 8883] and mqttpsk:
-        if debug:
-            print("MQTT: TLS encrytion based in PSK")
-        context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.set_ciphers('PSK')
-        print ("Establishing ", pskpwd)
-        #context.psk = bytes.fromhex("1234")
-        context.psk = bytes.fromhex(pskpwd)
-        context.identity = pskidentity.encode()
-        #context.identity = b'testuser'
-        client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
 
     ##  Start Twisted logging system
     ##  ----------------------------

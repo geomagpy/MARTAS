@@ -254,7 +254,9 @@ def connectclient(broker='localhost', port=1883, timeout=60, credentials='', use
                 print("MQTT: TLS encrytion based in PSK")
             pskidentity = mpcred.lc(mqttpsk, 'user')
             pskpwd = mpcred.lc(mqttpsk, 'passwd')
-            context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT)
+            #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
+            print ("MARTAS: Deprecation warning - but necessary for old clients")
+            context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
             context.set_ciphers('PSK')
             context.psk = bytes.fromhex(pskpwd)
             context.identity = pskidentity.encode()
@@ -796,6 +798,7 @@ def main(argv):
     blacklist = []
     global concount
     concount = 0
+    conf = {}
 
 
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
@@ -1080,6 +1083,8 @@ def main(argv):
 
     if source == 'mqtt':
         mqttversion = int(conf.get("mqttversion", 2))
+        mqttcert = conf.get("mqttcert", "")
+        mqttpsk = conf.get("mqttpsk", "")
         client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttcert=mqttcert, mqttpsk=mqttpsk, mqttversion=mqttversion, destinationid=dbcred, debug=debug) # dbcred is used for clientid
         client.loop_forever()
 
