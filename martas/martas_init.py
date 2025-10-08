@@ -372,6 +372,8 @@ def main(argv):
     print ("  Do you want to establish a two-way communication using telegram?")
     print ("  Yes[y] or No[n] (default)")
     print ("  Please consider the manual for secure configuration and then update conf/telegrambot.cfg")
+    print ("  You will also need to install telepot: pip install telepot")
+    print ("  before using two communication.")
     newaddtelegrambot = input()
     if newaddtelegrambot in ["Yes", "YES", "Y", "y"]:
         addtelegrambot = True
@@ -873,7 +875,7 @@ def main(argv):
                 jobmv2.enable(False)
             mvcomment3 = "Optional: Regular download of buffer from MARCOS {}".format(jobname)
             mvline3 = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","file_download.py"),os.path.join(confpath,"download-{}.cfg".format(jobname)), os.path.join(logpath,"download-{}.log".format(jobname)))
-            if not list(cron.find_comment(mvcomment2)):
+            if not list(cron.find_comment(mvcomment3)):
                 jobmv3 = cron.new(command=mvline3, comment=mvcomment3)
                 jobmv3.setall('16 0 * * *')
                 jobmv3.enable(False)
@@ -1022,9 +1024,12 @@ def main(argv):
     if initjob == "MARCOS":
         print("- update filter.cfg and activate filter job in crontab in case of > 1Hz data")
         print("- read the manual (again) for monitoring and threshold - activate/configure")
+        print("- if you want regular downloads of buffer files in addition to MQTT then update the download job")
         print("- your collector job will be started tonight. Please start manually with upload option:")
         print("  bash collect-{}.sh update".format(jobname))
         print("  keep running for a few minutes. This will update the meta information in your database.")
+    print("- you might want to add job restarts after rebooting into crontab:")
+    print("  @reboot sleep 60 && bash -i /jobpath/runmartas.sh start > /logpath/runmartas.log 2>&1")
 
 if __name__ == "__main__":
    main(sys.argv[1:])

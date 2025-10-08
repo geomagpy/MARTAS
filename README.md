@@ -157,7 +157,8 @@ if you are also using MARTAS of any of its modules we would be happy to put yu o
 ### 2.1 Installation requirements
 
 All installation instructions assume a linux (debian-like) system. Although the core methods of MARTAS are platform 
-independent, it is currently only tested and supported on debian-like LINUX systems.
+independent, it is currently only tested and supported on debian-like LINUX systems. It is also strongly recommended
+to run use UTC times. 
 
     SYSTEM:
     - mosquitto (MQTT client - broker)

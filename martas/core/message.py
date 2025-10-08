@@ -619,7 +619,7 @@ class ActionHandler(object):
             se = s.get('sensorid').replace('$','').replace('?','').replace('!','')
             try:
                 lf = _latestfile(os.path.join(mqttpath,se,'*'),date=True)
-                diff = (datetime.now(timezone.utc)-lf).total_seconds()
+                diff = (datetime.now(timezone.utc).replace(tzinfo=None)-lf).total_seconds()
                 flag = "active"
                 if diff > 300:
                     flag = "inactive since {:.1f} hours".format(diff/3600.)
