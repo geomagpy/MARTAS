@@ -387,6 +387,7 @@ def main(argv):
         runscript.append("")
         runscript.append('PYTHON={}'.format(sys.executable))
         runscript.append('BOT="telegrambot.py"')
+        runscript.append('BOTPATH={}'.format(os.path.join(homedir, dir, "app")))
         runscript.append("")
         runscript.append('check_process()')
         runscript.append("{")
@@ -402,24 +403,24 @@ def main(argv):
         runscript.append("# ######")
         runscript.append("case \"$1\" in")
         runscript.append("  start)")
-        runscript.append("    echo \"Starting $BOT ...\" ")
+        runscript.append("    echo \"Starting $BOT ...\"")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"0\" ]; then")
-        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("        echo \" $BOT is not running\"")
         runscript.append("        echo \" Starting $BOT\"")
         runscript.append("        echo \" --------------------\"")
         runscript.append("        sleep 2")
         runscript.append("        $PYTHON --version")
-        runscript.append("        $PYTHON app/$BOT")
+        runscript.append("        $PYTHON $BOTPATH/$BOT")
         runscript.append("    else")
-        runscript.append("        echo \"$BOT is running already\" ")
+        runscript.append("        echo \"$BOT is running already\"")
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  stop)")
-        runscript.append("    echo \"Stopping $BOT ...\" ")
+        runscript.append("    echo \"Stopping $BOT ...\"")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"0\" ]; then")
-        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("        echo \" $BOT is not running\"")
         runscript.append("    else")
         runscript.append("        echo \" Stopping $BOT\"")
         runscript.append("        echo \" --------------------\"")
@@ -429,10 +430,10 @@ def main(argv):
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  restart)")
-        runscript.append("    echo \"Restarting $BOT $OPT ...\" ")
+        runscript.append("    echo \"Restarting $BOT ...\"")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"1\" ]; then")
-        runscript.append("        echo \" Stopping $BOT\" ")
+        runscript.append("        echo \" Stopping $BOT\"")
         runscript.append("        get_pid")
         runscript.append("        kill -9 $pid")
         runscript.append("        echo \" ... stopped\"")
@@ -441,14 +442,14 @@ def main(argv):
         runscript.append("    echo \"--------------------\"")
         runscript.append("    sleep 2")
         runscript.append("    $PYTHON --version")
-        runscript.append("    $PYTHON app/$BOT")
+        runscript.append("    $PYTHON $BOTPATH/$BOT")
         runscript.append("    ;;")
         runscript.append("  status)")
         runscript.append("    check_process")
         runscript.append("    if [ \"$result\" = \"0\" ]; then")
-        runscript.append("        echo \"$BOT is dead\" ")
+        runscript.append("        echo \"$BOT is dead\"")
         runscript.append("    else")
-        runscript.append("        echo \"$BOT is running\" ")
+        runscript.append("        echo \"$BOT is running\"")
         runscript.append("    fi")
         runscript.append("    ;;")
         runscript.append("  *)")
@@ -903,8 +904,8 @@ def main(argv):
             job8.setall('3 1 * * *')
 
         if addtelegrambot:
-            comment10 = "Telegram tow-way communication bot"
-            line10 = "/usr/bin/bash -i runbot.sh start > {} 2>&1".format(os.path.join(logpath, "telegrambot.log"))
+            comment10 = "Telegram two-way communication bot"
+            line10 = "/usr/bin/bash -i {} start 2>&1".format(os.path.join(homedir, dir, "runbot.sh"))
             if not list(cron.find_comment(comment10)):
                 job10a = cron.new(command=line10, comment=comment10)
                 job10a.setall('0 8 * * *')
@@ -928,7 +929,7 @@ def main(argv):
                     "collectlog" : os.path.join(logpath,"download-source.log"),
                     "filterlog" : os.path.join(logpath,"filterstatus.log"),
                     "basevaluelog" : os.path.join(logpath,"basevaluestatus.log"),
-                    "/telegrambot.log" : os.path.join(logpath,"telegrambot.log"),
+                    "/telegrambotlogpath" : os.path.join(logpath,"telegrambot.log"),
                     "thresholdsource" : thresholdsource,
                     "mynotificationtype" : noti,
                     "notificationcfg" : notipath,
