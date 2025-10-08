@@ -160,6 +160,8 @@ def main(argv):
     mainpath = os.path.join(homedir,dir) # i.e. /home/USER/.martas
     pskcredentials = ""
     mqttcert = ""
+    addtelegrambot = False
+
 
     if minimalupdate:
         print (" ------------------------------------------- ")
@@ -368,6 +370,95 @@ def main(argv):
     else:
         pass
 
+    print (" ------------------------------------------- ")
+    print (" Two-way communication:")
+    print ("  Do you want to establish a two-way communication using telegram?")
+    print ("  Yes[y] or No[n] (default)")
+    print ("  Please consider the manual for secure configuration and then update conf/telegrambot.cfg")
+    newaddtelegrambot = input()
+    if newaddtelegrambot in ["Yes", "YES", "Y", "y"]:
+        addtelegrambot = True
+        print(" -> creating a TELEGRAM BOT run time script (requires inputs in conf/telegrambot.cfg before running)")
+        runscript = []
+        runscript.append("#! /bin/bash")
+        runscript.append("# TELEGRAM communication program")
+        runscript.append("")
+        runscript.append("{}".format(envact))
+        runscript.append("")
+        runscript.append('PYTHON={}'.format(sys.executable))
+        runscript.append('BOT="telegrambot.py"')
+        runscript.append("")
+        runscript.append('check_process()')
+        runscript.append("{")
+        runscript.append("    result=`/bin/ps aux | grep \"$BOT\" | grep -v grep | wc -l`")
+        runscript.append("}")
+        runscript.append('get_pid()')
+        runscript.append("{")
+        runscript.append("    pid=`/bin/ps -ef | grep \"$BOT\" | grep -v \"grep\" | awk '{print $2}'`")
+        runscript.append("}")
+        runscript.append("")
+        runscript.append("check_process")
+        runscript.append("# Run it")
+        runscript.append("# ######")
+        runscript.append("case \"$1\" in")
+        runscript.append("  start)")
+        runscript.append("    echo \"Starting $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("        echo \" Starting $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        sleep 2")
+        runscript.append("        $PYTHON --version")
+        runscript.append("        $PYTHON app/$BOT")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running already\" ")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  stop)")
+        runscript.append("    echo \"Stopping $BOT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \" $BOT is not running\" ")
+        runscript.append("    else")
+        runscript.append("        echo \" Stopping $BOT\"")
+        runscript.append("        echo \" --------------------\"")
+        runscript.append("        get_pid")
+        runscript.append("        kill -9 $pid")
+        runscript.append("        echo \" ... stopped\"")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  restart)")
+        runscript.append("    echo \"Restarting $BOT $OPT ...\" ")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"1\" ]; then")
+        runscript.append("        echo \" Stopping $BOT\" ")
+        runscript.append("        get_pid")
+        runscript.append("        kill -9 $pid")
+        runscript.append("        echo \" ... stopped\"")
+        runscript.append("    fi")
+        runscript.append("    echo \" Starting $BOT\"")
+        runscript.append("    echo \"--------------------\"")
+        runscript.append("    sleep 2")
+        runscript.append("    $PYTHON --version")
+        runscript.append("    $PYTHON app/$BOT")
+        runscript.append("    ;;")
+        runscript.append("  status)")
+        runscript.append("    check_process")
+        runscript.append("    if [ \"$result\" = \"0\" ]; then")
+        runscript.append("        echo \"$BOT is dead\" ")
+        runscript.append("    else")
+        runscript.append("        echo \"$BOT is running\" ")
+        runscript.append("    fi")
+        runscript.append("    ;;")
+        runscript.append("  *)")
+        runscript.append("    echo \"Usage: bash runbot.sh {start|stop|restart|status}\"")
+        runscript.append("    ;;")
+        runscript.append("esac")
+        runscript.append("exit 0")
+        with open(os.path.join(homedir, dir, "runbot.sh"), "wt") as fout:
+            for line in runscript:
+                fout.write(line+"\n")
 
     print (" ------------------------------------------- ")
     print (" Please select - you are initializing (A) a acquisition/MARTAS or (B) a collector/MARCOS")
@@ -810,6 +901,15 @@ def main(argv):
         if not list(cron.find_comment(comment8)):
             job8 = cron.new(command=line8, comment=comment8)
             job8.setall('3 1 * * *')
+
+        if addtelegrambot:
+            comment10 = "Telegram tow-way communication bot"
+            line10 = "/usr/bin/bash -i runbot.sh start > {} 2>&1".format(os.path.join(logpath, "telegrambot.log"))
+            if not list(cron.find_comment(comment10)):
+                job10a = cron.new(command=line10, comment=comment10)
+                job10a.setall('0 8 * * *')
+                job10b = cron.new(command=line10, comment=comment10)
+                job10b.setall('0 16 * * *')
 
 
     replacedict = { "/logpath" : malogpath,
