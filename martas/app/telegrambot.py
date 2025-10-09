@@ -129,11 +129,14 @@ def handle(msg):
                 cc = message.get(com)
                 comcontent = cc.get('message')
                 text = comcontent.get("text","")
-                calls = comcontent.get("call",[])
+                calls = comcontent.get("calls",[])
                 pics = comcontent.get("pictures",[])
                 for call in calls:
                     text += ah.execute_call(call)
-                bot.sendMessage(chat_id, text)
+                    if 'fswebcam' in call:
+                        pics.append('/tmp/webimage.jpg')
+                if text:
+                    bot.sendMessage(chat_id, text)
                 for pic in pics:
                     if os.path.isfile(pic):
                         bot.sendPhoto(chat_id, open(pic,'rb'))

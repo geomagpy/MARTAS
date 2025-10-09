@@ -811,6 +811,7 @@ class ActionHandler(object):
         DESCRIPTION:
             get logging information
         """
+        debug=True
         logpath = ""
         tmppath = ""
         cmd = input.replace('getlog', '').replace('print log', '').replace('send log', '').replace('get log', '')
@@ -821,10 +822,12 @@ class ActionHandler(object):
             N = 10
         if not N:
             N = 10
+
         cmd = cmd.strip()
         syslogfiles = ['syslog', 'dmesg', 'messages', 'faillog']
         telegramlog = self.configuration.get('bot_logging','')
-        martaslog = self.configuration.get('martaslog','')
+        martaspath = self.configuration.get('martaspath','')
+        martaslog = os.path.join(martaspath,"log")
 
         martaslogfiles = glob.glob(os.path.join(martaslog, '*.log'))
         martaslogfiles = [os.path.basename(ma) for ma in martaslogfiles]
@@ -846,6 +849,8 @@ class ActionHandler(object):
                 print(" identified logfile", tmppath)
             if os.path.isfile(tmppath):
                 logpath = tmppath
+        if not logpath:
+            logpath = os.path.join(martaslog, "martas.log")
         if os.path.isfile(logpath):
             if debug:
                 print("Checking logfile {}".format(logpath))
@@ -1133,6 +1138,10 @@ class ActionHandler(object):
             Methods issueing call already: tmate,
         """
         mesg = ""
+        p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+        (output, err) = p.communicate()
+        output = output.decode()
+        mesg = output
         try:
             p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
             (output, err) = p.communicate()
