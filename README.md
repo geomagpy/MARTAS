@@ -584,6 +584,7 @@ martas config directory)
 
         GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
+Please note: gsm90v7init.sh is also working for GSM90v8 and GSM90v9 instruments.
 
 ### 4.4 Examples for sensor definitions in sensors.cfg
 
@@ -1983,34 +1984,34 @@ data files/ database  written
 
 Principally all libraries should work in version 2.0.0 although only tested libraries contain the new version number.
 
-| Instrument          | versions | Inst-type   | Library                  | mode     | init           | requires         |
-|---------------------|----------|-------------|--------------------------|----------|----------------|------------------|
-| Arduino             |          | multiple    | activearduinoprotocol.py | active   |                |                  |
-| AD7714              |          | multiple    | ad7714protocol.py        | active   |                |                  |
-| Arduino             |          | multiple    | arduinoprotocol.py       | passive  |                |                  |
-| BM35-pressure       |          | pressure    | bm35protocol.py          | passive  | bm35init.sh    |                  |
-| BME280              |          | pressure    | bme280i2cprotocol.py     | passive  |                | adafruit_bme280  |
-| CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active   |                | pycampbellcr1000 |
-| Cesium G823         |          | opt.pumped  | csprotocol.py            | passive  |                |                  |
-| Thies LNM           |          | laserdisdro | disdroprotocol.py        | active   |                |                  |
-| DSP Ultrasonic wind |          | wind        | dspprotocol.py           | active   |                |                  |
-| ENV05               | 2.0.0    | temperature | envprotocol.py           | passive  |                |                  |
-| FLUKE 289           | 2.0.0    | multiple    | fluke289protocol.py      | active   |                |                  |
-| 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active   |                |                  |
-| GIC                 |          | special     | gicprotocol.py           | active   |                |                  |
-| GP20S3              |          | opt.pumped  | gp20s3protocol.py        | passive  |                |                  |
-| GSM19               |          | overhauser  | gsm19protocol.py         |          |                |                  |
-| GSM90               | 2.0.0    | overhauser  | gsm90protocol.py         | passive  | gsm90v?init.sh |                  |
-| DataFiles           | 2.0.0    | multiple    | imfileprotocol.py        | active   |                |                  |
-| LEMI025             | 2.0.0    | fluxgate    | lemiprotocol.py          | passive  |                |                  |
-| LEMI036             | 2.0.0    | fluxgate    | lemiprotocol.py          | passive  |                |                  |
-| Tilt Lippmann       | develop  | tilt        | lmprotocol.py            | active   |                |                  |
-| LORAWAN             | develop  | multiple    | lorawanprotocol.py       |          |                |                  |
-| MySQL               | 2.0.0    | multiple    | mysqlprotocol.py         | active   |                |                  |
-| ObsDaq              |          | multiple    | obsdaqprotocol.py        | active   | obsdaqinit.sh  |                  |
-| OneWire             |          | multiple    | owprotocol.py            | passive  |                |                  |
-| POS1                |          | overhauser  | pos1protocol.py          | passive  | pos1init.sh    |                  |
-| Test                | 2.0.0    | special     | testprotocol.py          |          |                |                  |
+| Instrument          | versions | Inst-type   | Library                  | mode    | init           | requires         |
+|---------------------|----------|-------------|--------------------------|---------|----------------|------------------|
+| Arduino             |          | multiple    | activearduinoprotocol.py | active  |                |                  |
+| AD7714              |          | multiple    | ad7714protocol.py        | active  |                |                  |
+| Arduino             |          | multiple    | arduinoprotocol.py       | passive |                |                  |
+| BM35-pressure       |          | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
+| BME280              |          | pressure    | bme280i2cprotocol.py     | passive |                | adafruit_bme280  |
+| CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active  |                | pycampbellcr1000 |
+| Cesium G823         |          | opt.pumped  | csprotocol.py            | passive |                |                  |
+| Thies LNM           |          | laserdisdro | disdroprotocol.py        | active  |                |                  |
+| DSP Ultrasonic wind |          | wind        | dspprotocol.py           | active  |                |                  |
+| ENV05               | 2.0.0    | temperature | envprotocol.py           | passive |                |                  |
+| FLUKE 289           | 2.0.0    | multiple    | fluke289protocol.py      | active  |                |                  |
+| 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active  |                |                  |
+| GIC                 |          | special     | gicprotocol.py           | active  |                |                  |
+| GP20S3              |          | opt.pumped  | gp20s3protocol.py        | passive |                |                  |
+| GSM19               |          | overhauser  | gsm19protocol.py         | passive |                |                  |
+| GSM90               | 2.0.0    | overhauser  | gsm90protocol.py         | passive | gsm90v?init.sh |                  |
+| DataFiles           | 2.0.0    | multiple    | imfileprotocol.py        | active  |                |                  |
+| LEMI025             | 2.0.0    | fluxgate    | lemiprotocol.py          | passive |                |                  |
+| LEMI036             | 2.0.0    | fluxgate    | lemiprotocol.py          | passive |                |                  |
+| Tilt Lippmann       | develop  | tilt        | lmprotocol.py            | active  |                |                  |
+| LORAWAN             | develop  | multiple    | lorawanprotocol.py       |         |                |                  |
+| MySQL               | 2.0.0    | multiple    | mysqlprotocol.py         | active  |                |                  |
+| ObsDaq              |          | multiple    | obsdaqprotocol.py        | active  | obsdaqinit.sh  |                  |
+| OneWire             |          | multiple    | owprotocol.py            | passive |                |                  |
+| POS1                |          | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
+| Test                | 2.0.0    | special     | testprotocol.py          |         |                |                  |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
@@ -2435,7 +2436,8 @@ key and certificate to the mosquitto configuration of the server:
        sudo cp server.crt /etc/mosquitto/certs/
        sudo cp server.key /etc/mosquitto/certs/
 
-Clients need to be configured to use the CA certificate for verification. You should provide the CA certificate 
+Please check the permissions for server and ca certs. They should be readable. Clients need to be configured to use the
+CA certificate for verification. You should provide the CA certificate 
 file. In the martas configuration file use the option "mqttcert" and provide a valid path to the  using the "ca.crt" 
 file. Enable TLS with "mqttport" : 8883.
 
@@ -2462,6 +2464,12 @@ require_certificate false
 allow_anonymous false
 password_file /etc/mosquitto/passwd
 ```
+
+Testing certificate based connections:
+
+       mosquitto_sub -h theia -t test/# -p 8883 --cafile /etc/mosquitto/ca_certificates/ca.crt -v -d
+       mosquitto_pub -h theia -t test -m "hello" -p 8883 --cafile /etc/mosquitto/ca_certificates/ca.crt -d
+
 
 #### 10.2.2 TLS-PSK encryption using pre-shared-keys
 
@@ -2499,6 +2507,10 @@ password_file /etc/mosquitto/passwd
 ```
 
 You might want to add some access control to specific topics. Please checkout the mosquitto manual on acl_files.
+
+Testing TLS-PSK connections:
+
+       mosquitto_sub -h theia -t test/# -p 8883 --cafile /etc/mosquitto/ca_certificates/ca.crt -v -d
 
 
 ### 10.3 Development tools
