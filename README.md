@@ -15,7 +15,7 @@ observatories. and data sources consisting of timeseries measurements from local
 also be used for many other sensor networks focusing on timeseries measurements from locally fixed instruments. MARTAS 
 is freely available under GNUv3 license. When using MARTAS please cite the software package.   
 
-Developers: R. Leonhardt, R. Mandl, R. Bailey, V. Haberle (GeoSphere Austria)
+Developers: R. Leonhardt, R. Mandl, R. Bailey, P. Arneitz, V. Haberle, N. Kompein (GeoSphere Austria)
 
 
 ### Table of Contents
@@ -1233,42 +1233,37 @@ The application requires credentials of remote source and local database created
 
 Upload data to a destination using various different protocols supported are FTP, SFTP, RSYNC, SCP. Jobs are listed in 
 a json structure and read by the upload process. You can have multiple jobs. Each job refers to a local path. Each job
-can also have multiple destinations.
+can also have multiple destinations. Authentication is done using addcred. You will add credential information
+for each destination name using addcred -t transfer -c DESTINATION -u USER -p PWD -a ADDRESS.
 
-Examples:
-1. FTP Upload from a directory using files not older than 2 days
 ```
-{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
-```
-2. FTP Upload a single file
-```
-{"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
-```
-3. FTP Upload all files with extensions
-```
-{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
-```
-4. Test environment
-```
-{"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
-```
-5. RSYNC upload
-```
-{"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
-```
-6. JOB on BROKER
-```
-{"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
+{
+    "bufferdata": {
+        "path": "/srv/mqtt/TEST_1234_0001/",
+        "destinations": {
+            "zamgftp": {
+                "type": "ftp",
+                "path": "data/beagle/test"
+            }
+        },
+        "log": "/mainpath/log/upload.log",
+        "extensions": [
+            "bin"
+        ],
+        "namefractions" : [
+            "myfile",
+            "good",
+            "tmp"
+        ],
+        "starttime": 60,
+        "endtime": "utcnow"
+    }
+}
 ```
 
 Application:
 
-   python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
-
-Problem:
- - upload is not performed and stops already at first input. The log file contains "DEALING with ...", "file upload app finished", "SUCCESS"
-Solution:
- - this error is typically related to an empty memory file
+        python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
 
 
 ### 6.10 filter

@@ -778,7 +778,7 @@ class ActionHandler(object):
             calls.append(call)
 
         message['text'] = mesg
-        message['calls'] = calls
+        message['call'] = calls
         return message
 
 
@@ -811,7 +811,6 @@ class ActionHandler(object):
         DESCRIPTION:
             get logging information
         """
-        debug=True
         logpath = ""
         tmppath = ""
         cmd = input.replace('getlog', '').replace('print log', '').replace('send log', '').replace('get log', '')
@@ -977,18 +976,20 @@ class ActionHandler(object):
         calls = []
         configpath = self.configuration.get('uploadconfig','')
         memorypath = self.configuration.get('uploadmemory','')
-
-        if not memorypath:
-            memorypath = "/tmp/martas_tgupload_memory.json"
-        python = sys.executable
-        path = os.path.join(self.configuration.get('martasapp',''),'file_upload.py')
-        optioncfg = '-j'
-        optionmem = '-m'
-        if configpath:
-            call = "{} {} {} {} {} {}".format(python,path,optioncfg,configpath,optionmem,memorypath)
-            calls.append(call)
-        message['call'] = calls
-        message['text'] = "Requesting upload...\n"
+        if not configpath:
+            message['text'] = "Upload not configured - aborting\n"
+        else:
+            if not memorypath:
+                memorypath = "/tmp/martas_tgupload_memory.json"
+            python = sys.executable
+            path = os.path.join(self.configuration.get('martasapp',''),'file_upload.py')
+            optioncfg = '-j'
+            optionmem = '-m'
+            if configpath:
+                call = "{} {} {} {} {} {}".format(python,path,optioncfg,configpath,optionmem,memorypath)
+                calls.append(call)
+            message['call'] = calls
+            message['text'] = "Requesting upload...\n"
         return message
 
 
@@ -1017,20 +1018,8 @@ class ActionHandler(object):
         """
         message = {}
         calls = []
-        cmd = input.split(" ")
-        interfacelist = []
-        for el in cmd:
-            el = el.strip()
-            if el in ['eth0', 'eth1', 'eth2', 'eth3', 'wlan0', 'wlan1', 'wlan2', 'usb0', 'usb1', 'usb2', 'usb3', 'lo',
-                      'wlp4s0']:
-                interfacelist.append(el)
-        if not interfacelist:
-            interfacelist = ['eth0', 'wlan0', 'wlp4s0', el]
-
-        for interface in interfacelist:
-            call = r"ifconfig {} | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){}[0-9]*).*/\2/p'".format(
-                interface, "{3}")
-            calls.append(call)
+        call = r"ip -br a"
+        calls.append(call)
         message['call'] = calls
         message['text'] = "Requesting IP...\n"
         return message
@@ -1137,18 +1126,13 @@ class ActionHandler(object):
             getip ??, upload, imbot, cam, martasupdate, reboot, switch, martas, marcos
             Methods issueing call already: tmate,
         """
-        mesg = ""
-        p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
-        (output, err) = p.communicate()
-        output = output.decode()
-        mesg = output
         try:
+            print ("Executing call")
             p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
             (output, err) = p.communicate()
             output = output.decode()
-
             mesg = output
-
+            print (" ... got", mesg)
         except subprocess.CalledProcessError:
             mesg = " check: call {} didnot work".format(call)
         except:

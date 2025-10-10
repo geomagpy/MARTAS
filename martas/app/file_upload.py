@@ -39,6 +39,9 @@ JOBLIST:
 ## JOB on BROKER
 {"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
 
+## JOB on MARTAS2
+{"bufferdata" : {"path":"/srv/mqtt/GSM19_7122568_0001/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["bin"], "starttime" : 60, "endtime" : "utcnow"}, "env1data" : {"path":"/srv/mqtt/DS18B20_2874EA75D0013CD4_0001/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["bin"], "starttime" : 60, "endtime" : "utcnow"}, "env2data" : {"path":"/srv/mqtt/UNOR3_851383136333516112E0_0001/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["bin"], "starttime" : 60, "endtime" : "utcnow"}, "backup" : {"path":"/home/debian/Backups/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["*"], "starttime" : 60, "endtime" : "utcnow"} }
+
 APPLICTAION:
    python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
 """
@@ -60,6 +63,7 @@ from subprocess import check_output   # used for checking whether send process a
 from datetime import datetime, timedelta, timezone
 import paramiko
 import sys, os
+from pathlib import Path
 
 
 # ################################################
@@ -158,7 +162,7 @@ def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd
     return success
 
 
-def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, extensions=None, namefractions=None, add="newer"):
+def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, extensions=None, namefractions=None, add="newer", debug=False):
     """
     DESCRIPTION
         Will compare contents of basepath and memory and create a list of paths with changed information
@@ -179,6 +183,9 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, 
         extensions = []
     if not namefractions:
         namefractions = []
+    startdate = startdate.replace(tzinfo=None)
+    enddate = enddate.replace(tzinfo=None)
+
 
     filelist=[]
     try:
@@ -202,7 +209,8 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, 
         print ("Directory not found")
         return {}, {}
 
-    print (filelist, startdate, enddate)
+    if debug:
+        print ("getchangedfiles 1:", filelist, startdate, enddate)
 
 
     retrievedSet={}
@@ -210,14 +218,12 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, 
         mtime = datetime.fromtimestamp(os.path.getmtime(name))
         stat=os.stat(os.path.join(basepath, name))
         mtime=stat.st_mtime
-        #ctime=stat.st_ctime
-        #size=stat.st_size
-        if datetime.utcfromtimestamp(mtime) > startdate and datetime.utcfromtimestamp(mtime) <= enddate:
+        if datetime.fromtimestamp(mtime, timezone.utc).replace(tzinfo=None) > startdate and datetime.fromtimestamp(mtime, timezone.utc).replace(tzinfo=None) <= enddate:
             retrievedSet[name] = mtime
 
-    print (retrievedSet)
-
-    print (memory)
+    if debug:
+        print ("getchangedfiles 2:", retrievedSet)
+        print ("getchangedfiles 3:", memory)
     if memory:
         if sys.version_info >= (3,):
             newdict = dict(retrievedSet.items() - memory.items())
@@ -448,6 +454,11 @@ def main(argv):
     jobs = ''
     tele = ''
     sendlogpath=''
+    logpath = ''
+    name = ''
+    receiver = ''
+    receiverconf = ''
+    debug = False
     try:
         opts, args = getopt.getopt(argv,"hj:m:t:",["jobs=","memory=","telegram=",])
     except getopt.GetoptError:
@@ -487,15 +498,22 @@ def main(argv):
             sendlogpath = arg
         elif opt in ("-t", "--telegram"):
             tele = arg
+        elif opt in ("-D", "--debug"):
+            debug = True
 
     if tele:
         # ################################################
         #          Telegram Logging
         # ################################################
         # tele needs a logpath, and a configuration path ('/home/cobs/SCRIPTS/telegram_notify.conf')
-        # TODO get this path
-        logpath = '/var/log/magpy/mm-fu-uploads.log'
-
+        mainpath = os.path.dirname(os.path.realpath(__file__))
+        logpath = os.path.join(mainpath, "..", "log", "mm-fu-uploads.log")
+        configpath = os.path.join(mainpath, "..", "conf", "monitor.cfg")
+        if os.path.isfile(configpath):
+            print (" reading configuration file ...")
+            monitorconf = mm.get_conf(configpath)
+            receiver = monitorconf.get('notification')
+            receiverconf = monitorconf.get('notificationconf')
 
     if jobs == '':
         print ('Specify a valid path to a jobs dictionary (json):')
@@ -503,8 +521,8 @@ def main(argv):
         sys.exit()
     else:
         if os.path.isfile(jobs):
-            with open(jobs, 'r') as file:
-                workdictionary = json.load(file)
+            workdictionary = mm.get_json(jobs)
+            #mm.put_json("/home/leon/.martas/conf/fileuploadjobs.json", workdictionary)
         else:
             print ('Specify a valid path to a jobs dictionary (json):')
             print ('-- check file_uploads.py -h for more options and requirements')
@@ -513,76 +531,94 @@ def main(argv):
     # make fileupload an independent method importing workingdictionary (add to MARTAS?)
     if not sendlogpath:
         sendlogpath = '/tmp/lastupload.json'
-
+    else:
+        # create a new memory if not existing
+        if not os.path.isfile(sendlogpath):
+            filepath = Path(sendlogpath)
+            filepath.parent.mkdir(parents=True, exist_ok=True)
 
     """
     Main Prog
     """
     try:
-      for key in workdictionary:
-        name = "FileUploads-{}".format(key)
-        print ("DEALING with ", key)
-        lastfiles = {}
-        fulldict = {}
-        if os.path.isfile(sendlogpath):
-            if os.stat(sendlogpath).st_size == 0:
-                lastfiles = {}
-            else:
-                with open(sendlogpath, 'r') as file:
-                    fulldict = json.load(file)
-                    lastfiles = fulldict.get(key)
-                    # lastfiles looks like: {'/path/to/my/file81698.txt' : '2019-01-01T12:33:12', ...}
+        for key in workdictionary:
+            name = "FileUploads-{}".format(key)
+            print("----------------------------------------------")
+            print ("DEALING with ", key)
+            print("----------------------------------------------")
+            lastfiles = {}
+            fulldict = {}
+            if os.path.isfile(sendlogpath):
+                if os.stat(sendlogpath).st_size == 0:
+                    lastfiles = {}
+                else:
+                    with open(sendlogpath, 'r') as file:
+                        fulldict = json.load(file)
+                        lastfiles = fulldict.get(key)
+                        # lastfiles looks like: {'/path/to/my/file81698.txt' : '2019-01-01T12:33:12', ...}
 
-        if not lastfiles == {}:
-            print ("opened memory")
-            pass
+            if not lastfiles == {}:
+                print ("creating new memory")
+                pass
 
-        sourcepath = workdictionary.get(key).get('path')
-        extensions = workdictionary.get(key).get('extensions',[])
-        namefractions = workdictionary.get(key).get('namefractions',[])
-        # Test if sourcepath is file
-        starttime = workdictionary.get(key).get('starttime',datetime(1777,4,30))
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        endtime = workdictionary.get(key).get('endtime',now)
-        if endtime in ["utc","now","utcnow"]:
-            endtime = now
-        if isinstance(starttime, int):
-            starttime = now-timedelta(days=starttime)
-        newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime, extensions,namefractions)
+            #print ("Extracting jobs ...")
+            sourcepath = workdictionary.get(key).get('path')
+            extensions = workdictionary.get(key).get('extensions',[])
+            namefractions = workdictionary.get(key).get('namefractions',[])
+            # Test if sourcepath is file
+            starttime = workdictionary.get(key).get('starttime',datetime(1777,4,30))
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
+            endtime = workdictionary.get(key).get('endtime',now)
+            if endtime in ["utc","now","utcnow"]:
+                endtime = now
+            if isinstance(starttime, int):
+                starttime = now-timedelta(days=starttime)
+            #print ("Done ...")
+            newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime, extensions,namefractions)
 
-        print ("Found new: {} and all {}".format(newfiledict, alldic))
+            #print ("Found new: {} and all {}".format(newfiledict, alldic))
 
-        for dest in workdictionary.get(key).get('destinations'):
-            print ("  -> Destination: {}".format(dest))
-            address=mpcred.lc(dest,'address')
-            user=mpcred.lc(dest,'user')
-            passwd=mpcred.lc(dest,'passwd')
-            port=mpcred.lc(dest,'port')
-            destdict = workdictionary.get(key).get('destinations')[dest]
-            proxy = destdict.get('proxy',None)
-            #print (destdict)
-            if address and user and newfiledict:
-                for nfile in newfiledict:
-                    print ("    -> Uploading {} to dest {}".format(nfile, dest))
-                    success = uploaddata(nfile, destdict.get('path'), destdict.get('type'), address, user, passwd, port, proxy=proxy, logfile=destdict.get('logfile','stdout'))
-                    print ("    -> Success", success)
-                    if not success:
-                        #remove nfile from alldic
-                        # thus it will be retried again next time
-                        print (" !---> upload of {} not successful: keeping it in todo list".format(nfile))
-                        del alldic[nfile]
+            for dest in workdictionary.get(key).get('destinations'):
+                print ("  --------------------------------------------")
+                print ("  -> Destination: {}".format(dest))
+                print ("  --------------------------------------------")
+                print ("")
+                address=mpcred.lc(dest,'address')
+                user=mpcred.lc(dest,'user')
+                passwd=mpcred.lc(dest,'passwd')
+                port=mpcred.lc(dest,'port')
+                destdict = workdictionary.get(key).get('destinations')[dest]
+                proxy = destdict.get('proxy',None)
+                #print (destdict)
+                if address and user and newfiledict:
+                    for nfile in newfiledict:
+                        print ("    -> Uploading {} to dest {}".format(nfile, dest))
+                        success = uploaddata(nfile, destdict.get('path'), destdict.get('type'), address, user, passwd, port, proxy=proxy, logfile=destdict.get('logfile','stdout'))
+                        print ("    -> Success", success)
+                        if not success:
+                            #remove nfile from alldic
+                            # thus it will be retried again next time
+                            print (" !---> upload of {} not successful: keeping it in todo list".format(nfile))
+                            del alldic[nfile]
 
-        fulldict[key] = alldic
-        mm.put_json(sendlogpath, fulldict)
-      statusmsg[name] = "uploading data successful"
+            print (" ... done for key", key)
+            fulldict[key] = alldic
+            mm.put_json(sendlogpath, fulldict)
+            print(" ... log written")
+        statusmsg[name] = "uploading data successful"
     except:
-      statusmsg[name] = "error when uploading files - please check"
+        statusmsg[name] = "error when uploading files - please check"
 
     if tele:
-        print (statusmsg)
-        martaslog = ml(logfile=logpath,receiver='telegram')
-        martaslog.telegram['config'] = '/home/cobs/SCRIPTS/telegram_notify.conf'
-        martaslog.msg(statusmsg)
+        if debug:
+            print(statusmsg)
+        elif receiver:
+            martaslog = ml(logfile=logpath, receiver=receiver)
+            if receiver == 'email':
+                martaslog.email['config'] = receiverconf
+            elif receiver == 'telegram':
+                martaslog.telegram['config'] = receiverconf
+            changes = martaslog.msg(statusmsg)
 
     print ("----------------------------------------------------------------")
     print ("file upload app finished")

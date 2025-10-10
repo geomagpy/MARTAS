@@ -203,6 +203,7 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "archive.cfg"), os.path.join(confpath, "archive.bak"))
     shutil.copyfile(os.path.join(confpath, "basevalue.cfg"), os.path.join(confpath, "basevalue.bak"))
     shutil.copyfile(os.path.join(confpath, "download-source.cfg"), os.path.join(confpath, "download-source.bak"))
+    shutil.copyfile(os.path.join(confpath, "fileuploadjobs.json"), os.path.join(confpath, "fileuploadjobs.bak"))
     shutil.copyfile(os.path.join(confpath, "filter.cfg"), os.path.join(confpath, "filter.bak"))
     shutil.copyfile(os.path.join(confpath, "gamma.cfg"), os.path.join(confpath, "gamma.bak"))
     shutil.copyfile(os.path.join(confpath, "mail.cfg"), os.path.join(confpath, "mail.bak"))
@@ -929,6 +930,7 @@ def main(argv):
                     "/sensorpath" : os.path.join(confpath, "sensors.cfg"),
                     "/initdir" : initpath,
                     "/mainpath" : os.path.join(homedir,dir),
+                    "/homedirectory" : homedir,
                     "/srv/mqtt" : bufferpath,
                     "/obsdaqpath" : os.path.join(confpath, "obsdaq.cfg"),
                     "myhome" : stationname,
@@ -986,6 +988,8 @@ def main(argv):
         # file for which replacements will happen and new names
     files_to_change["skeletonlogrotate"] = {"source": os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
                               "dest": os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))}
+    files_to_change["fileuploadconf"] = {"source": os.path.join(confpath, "fileuploadjobs.bak"),
+                        "dest": os.path.join(confpath, "fileuploadjobs.json")}
     files_to_change["monitorconf"] = {"source": os.path.join(confpath, "monitor.bak"),
                         "dest": os.path.join(confpath, "monitor.cfg")}
     files_to_change["thresholdconf"] = {"source": os.path.join(confpath, "threshold.bak"),
