@@ -345,13 +345,13 @@ class ActionHandler(object):
                                    'availability': ['MARTAS'],
                                    'priority' : 1,
                                    'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
-                                   'description': 'restart-stop-start : e.g. restart MARTAS process'},
+                                   'description': 'restart-stop-start-update-status : e.g. restart MARTAS process: send - martas restart - to restart a martas process'},
                        'marcos' : {'commands': ['Marcos','marcos','MARCOS'], 
                                    'combination' : 'any',
                                    'availability': ['MARCOS'],
                                    'priority' : 1,
                                    'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
-                                   'description': 'restart-stop-start : e.g. restart MARCOS processes'},
+                                   'description': 'restart-stop-start-status : e.g. restart MARCOS processes: if you have a collector called collect-local then - marcos local restart - will restart this process'},
                        'cam' :    {'commands': ['cam','Cam','picture','Picture','photo'],
                                    'combination' : 'any',
                                    'priority' : 1,
@@ -386,7 +386,7 @@ class ActionHandler(object):
                                    'priority' : 1,
                                    'availability': ['MARTAS'],
                                    'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] },
-                                   'description': 'otional: turn on/off remote switches if supported by the hardware (work in progress)'},
+                                   'description': 'optional: turn on/off remote switches if supported by the hardware (work in progress)'},
                        'badwords':{'commands': ['fuck','asshole'],
                                    'combination' : 'any',
                                    'priority' : 1,
@@ -664,7 +664,7 @@ class ActionHandler(object):
             return mesg
         command = ""
 
-        comms = ["start","stop","restart"]
+        comms = ["start","stop","restart","update","status"]
         for jc in comms:
             searchterm = "martas {}".format(jc)
             if searchterm in input:
@@ -691,11 +691,14 @@ class ActionHandler(object):
         if debug:
             print("Running ACTION marcos")
             print("-----------------------")
-        collectlist = glob.glob('{}/collect-*'.format(self.configuration.get('base')))
+        collectorpath = os.path.join(self.configuration.get('base'),"collect-*")
+        if debug:
+            print (" collector jobs:", collectorpath)
+        collectlist = glob.glob(collectorpath)
         if debug:
             print (" collector jobs:", collectlist)
 
-        comms = ["start","stop","restart"]
+        comms = ["start","stop","restart","status"]
         for jc in comms:
             if jc in input:
                 command = jc
@@ -704,6 +707,7 @@ class ActionHandler(object):
         if not command:
             if debug:
                 print (" did not find start, stop, restart command - skipping")
+            message['text'] = "did not find start, stop, restart command - skipping"
             return message
         else:
             cleaninput = input.replace("marcos","").replace(command,"").strip()
@@ -746,7 +750,7 @@ class ActionHandler(object):
             updating martas using pip - requires martas 2 to be published on pypi
         """
         message = {}
-        message['call'] = ["pip install -U martas"]
+        message['call'] = ["pip install -U martas", "martas_init -U"]
         message['text'] = "updating martas...\n"
         return message
 
