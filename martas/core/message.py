@@ -553,7 +553,8 @@ class ActionHandler(object):
             elif action == 'upload':
                 msg = self.action_upload()
             elif action == 'aperta':
-                msg['text'] = self.action_tmate(input)
+                #msg['text'] = self.action_tmate(input)
+                msg = self.action_upterm()
             elif action == 'getip':
                 msg = self.action_getip(input, debug=debug)
             elif action == 'badwords':
@@ -954,23 +955,51 @@ class ActionHandler(object):
 
     def action_imbot(self, input):
         message = {}
-        cmd = input.replace('martas', '').replace('MARTAS', '')
+        cmd = input.replace('imbot', '').replace('IMBOT', '')
         cmd = cmd.strip()
         call = ""
+        year = 0
+        imo = ""
         yearl = re.findall(r'\d+', cmd)
-        # TODO update with new IMBOT2.0
-        imbotoverview = self.configuration.get("imbotoverview","")
-        imbotmemory = self.configuration.get("imbotmemory","")
-        imbotarchive = self.configuration.get("imbotarchive","")
-
-        if len(yearl) > 0:
-            call = "/usr/bin/python3 {a} -m {c}/second/sec_analysis{b}.json -l {d}/second/{b}/level".format(
-                a=imbotoverview, b=yearl[-1], c=imbotmemory, d=imbotarchive)
+        print ("got year", yearl)
+        if yearl and len(yearl) > 0:
+            for y in yearl:
+                cmd = cmd.replace(y)
+            cmd = cmd.strip()
+            if 1900 < int(yearl[-1]) < 2177:
+                year = int(yearl[-1])
+        if cmd.find('minute') > -1:
+            cmd = cmd.replace('minute')
+            cmd = cmd.strip()
+            res = 'minute'
         else:
-            call = "/usr/bin/python3 {a} -m {c}/second/sec_analysis2020.json -l {d}/second/2020/level".format(
-                a=imbotoverview, c=imbotmemory, d=imbotarchive)
+            cmd = cmd.replace('second')
+            cmd = cmd.strip()
+            res = 'second'
+        print ("remaining command:", cmd)
+        if cmd.find('bar') > -1:
+            cmd = cmd.replace('bar')
+            cmd = cmd.strip()
+            typ = 'bar'
+        elif cmd.find('imo') > -1:
+            cmd = cmd.replace('imo')
+            cmd = cmd.strip()
+            typ = 'imo'
+            # get IMO from remaining stream
+            print ("remaining imo", cmd, len(cmd))
+            if len(cmd) == 3:
+                imo = cmd.upper()
+        else:
+            cmd = cmd.replace('list')
+            cmd = cmd.strip()
+            typ = 'list'
+
+        imbotconfig = self.configuration.get("imbotconfig","")
+
+        call = "imbot_chart -c {a} -t {b} -y {c} -r {d} -i {e}".format(
+                a=imbotconfig, b=typ, c=year, d=res, e=imo)
         message['call'] = [call]
-        message["text"] = "Requesting IMBOT report...\n"
+        message["text"] = "Requesting IMBOT report of typ {}...\n".format(typ)
         return message
 
 
@@ -997,7 +1026,7 @@ class ActionHandler(object):
         return message
 
 
-    def action_upterm(self, command, debug=False):
+    def action_upterm(self, debug=False):
         """
         DESCRIPTION
            Open a ssh connection to a existing upterm terminal
@@ -1005,6 +1034,10 @@ class ActionHandler(object):
         REQUIREMENTS
            upterm host, which provides secure ssh link
         """
+        message = {}
+        message['call'] = ["upterm host --accept"]
+        message["text"] = "Requesting ssh connection...\n"
+        return message
         #import paramiko
 
         # ssh

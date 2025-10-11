@@ -1716,7 +1716,6 @@ You also might need to add the following line to your .bashrc
          export PATH=$PATH:/sbin
 
 
-
 ## 8. Additional tools
 
 ### 8.1 analysis.py for continuous flagging, adjusted/quasidefinitive data products and status information 
@@ -2540,10 +2539,90 @@ two libraries. Please configure sensors.cfg accordingly and use a stationID diff
        nano ~/.martas/conf/sensors.cfg
        python acquisition.py -m ~/.martas/conf/martas.cfg
 
+### 10.4 Setting up upterm for remote station maintenance
 
-### 10.4 Setup examples for automatic analysis processes
+tested on Ubuntu 22.04.5 LTS (x86-64, ThinkPad X13 Gen 4) and Raspbian 10 buster (arm, v7l) 
 
-#### 10.4.1 continuous, automatic DI analysis 
+#### 10.4.1 Ubuntu 22 
+
+Download the linux Version console 
+
+        wget https://github.com/owenthereal/upterm/releases/download/v0.15.3-upterm_linux_amd64.deb 
+
+and install it
+
+        sudo apt update 
+        sudo apt install ./upterm_linux_amd64.deb
+
+        which upterm ssh -v -T uptermd.upterm.dev 
+
+##### SSH key 
+
+In case of “Permission denied (publickey)” generate and/or add SSH key: 
+
+        ssh-keygen -t ed25519 -C "your_email@example.com" 
+        eval "$(ssh-agent -s)" 
+        ssh-add ~/.ssh/id_ed25519 
+        ssh-add -l 
+        ssh -v -T uptermd.upterm.dev 
+
+##### Session with myself: 
+
+Run upterm: 
+
+        upterm host 
+
+You will see the ssh link. Open a new terminal and copy it: console ssh XXXXXXXXX@uptermd.upterm.dev to end session: 
+
+        exit 
+
+#### 10.4.2 Raspberry 
+
+To build a upterm binary for ARM you have to download a new Go tool (at least Go 1.13+):
+
+        wget https://go.dev/dl/go1.21.5.linux-armv6l.tar.gz 
+        sudo tar -C /usr/local -xzf go1.21.5.linux-armv6l.tar.gz 
+        export PATH=$PATH:/usr/local/go/bin 
+
+check console go version Bulid the binary and move it into /usr/local/bin:
+
+        git clone https://github.com/owenthereal/upterm.git 
+        cd ~/upterm GOOS=linux GOARCH=arm GOARM=7 go build -o upterm ./cmd/upterm 
+        sudo mv ~/upterm/upterm/upterm /usr/local/bin/upterm 
+        sudo chmod +x /usr/local/bin/upterm 
+
+check 
+
+        upterm version 
+
+In case of “Permission denied (publickey)” check 1.1. Caution: geosphere guest is blocking port 22!!! 
+
+#### 10.4.3 Beaglebone 
+
+tested for: 
+
+        uname -a
+        Linux iapetus 6.15.7-bone21 #1 PREEMPT Tue Jul 22 03:13:03 UTC 2025 armv7l GNU/Linux 
+
+Get new version of Go tool (apt too old): 
+
+        wget https://go.dev/dl/go1.25.1.linux-armv6l.tar.gz 
+        sudo tar -C /usr/local -xzf go1.25.1.linux-armv6l.tar.gz 
+        export PATH=$PATH:/usr/local/go/bin 
+
+go version Build upterm binary: console 
+
+        git clone https://github.com/owenthereal/upterm.git 
+        cd upterm GOOS=linux GOARCH=arm GOARM=7 
+        go build -o upterm ./cmd/upterm 
+        sudo mv upterm/upterm /usr/local/bin/ 
+        sudo chmod +x /usr/local/bin/upterm 
+
+In case of “Permission denied (publickey)” check 1.1
+
+### 10.5 Setup examples for automatic analysis processes
+
+#### 10.5.1 continuous, automatic DI analysis 
 
 The automatic DI analysis makes use of the basevalue application.
 ```
@@ -2636,7 +2715,7 @@ echo "Success"
 ```
 
 
-### 10.5 Issues and TODO
+### 10.6 Issues and TODO
 
 in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
 delete the daily file and restart the recoding process. The next daily file will be OK in any case.
