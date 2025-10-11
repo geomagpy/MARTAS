@@ -31,21 +31,25 @@ body {
 	grid-column: 1 / 2 ;
 	grid-row: 2 ;
 	}
+	.gauges {
+	grid-column: 1 / 2 ;
+	grid-row: 3 ;
+	}
 	.graphs {
 	grid-column: 2 / 4;
-	grid-row: 2;
+	grid-row: 2 / 4;
 	}
 	.about {
 	grid-column: 1 / 2;
-	grid-row: 3;
+	grid-row: 4;
 	}
 	.link {
 	grid-column: 2 / 3;
-	grid-row: 3;
+	grid-row: 4;
 	}
 	.stats {
 	grid-column: 3 / 4 ;
-	grid-row: 3;
+	grid-row: 4;
 	}
 
 @media only screen and (max-width: 780px) and (min-width: 480px){
@@ -70,6 +74,10 @@ body {
 	.sensors {
 	grid-column: 1 / 3 ;
 	grid-row: 3;
+	}
+	.gauges {
+	grid-column: 1 / 3 ;
+	grid-row: 7;
 	}
 	.graphs {
 	grid-column: 1 / 3;
@@ -111,6 +119,10 @@ body {
 	grid-column: 1 / 2 ;
 	grid-row: 3 ;
 	}
+	.gauges {
+	grid-column: 1 / 3 ;
+	grid-row: 8;
+	}
 	.graphs {
 	grid-column: 1 / 2;
 	grid-row: 4;
@@ -128,3 +140,4 @@ body {
 	grid-row: 7;
 	}
 }
+

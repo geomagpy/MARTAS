@@ -19,6 +19,10 @@ pip install dash_daq
 mainpath = os.path.dirname(os.path.realpath(__file__))
 configpath = os.path.join(mainpath,"..","conf","martas.cfg")
 
+statusdict = {"mqtt" : {"space" : 400, "used": 150 },
+              "base" : {"space" : 100, "used": 100 }
+              }
+
 def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
     """
     DESCRIPTION
@@ -55,6 +59,68 @@ def get_new_data(path="/home/leon/MARTAS/mqtt", duration=600, debug=False):
                 data2show.append(lf)
     return data2show
 
+def get_sensor_table(sensorpath="/home/leon/.martas/conf/sensors.cfg", bufferpath="/home/leon/MARTAS/mqtt", duration=600, debug=False):
+    """
+    DESCRIPTION
+        Get all current data files from mqtt path
+    """
+    sl = get_sensors(path=sensorpath, debug=False)
+    data2show = get_new_data(path=bufferpath, duration=duration)
+    scols = ['SensorID','Components','Active']
+    stable = []
+    for s in sl:
+        options=[]
+        values=[]
+        #htmllist.append(html.Span('{}'.format(s), style=style))
+        active = False
+        for d in data2show:
+            if d.find(s) >= 0:
+                active = True
+                ndd = nd.get(d)
+                for elem in ndd.get('names'):
+                    values.append(elem)
+        stable.append({'SensorID' : s, 'Components':",".join(values),'Active':str(active)})
+    return stable, scols
+
+def getspace(path="/srv"): # path = '/srv'
+    """
+    DESCRIPTION
+        get space from monitor
+    """
+    statvfs = os.statvfs(path)
+    total = (statvfs.f_frsize * statvfs.f_blocks / (1024.*1024.))     # Size of filesystem in bytes
+    remain = (statvfs.f_frsize * statvfs.f_bavail / (1024.*1024.))     # Number of free bytes that ordinary users
+    usedper=100-(remain/total*100.)
+    used = total-remain
+    return total, used
+
+def get_storage_usage(statusdict=None, mqttpath="", logpath="", debug=False):
+    if not statusdict:
+        statusdict = {}
+    txt = ""
+    atotal, aused = 0, 0
+    mtotal, mused = 0, 0
+    if mqttpath:
+        if os.path.exists(mqttpath):
+            atotal, aused = getspace(path=mqttpath)
+    if logpath:
+        logpath = os.path.dirname(logpath)
+        if os.path.exists(logpath):
+            mtotal, mused = getspace(path=logpath)
+    ad = statusdict.get('mqtt',{})
+    if ad:
+        ad["space"] = np.round(atotal/1000.,0)
+        ad["used"] = np.round(aused/1000.,0)
+    md = statusdict.get('base',{})
+    if md:
+        md["space"] = np.round(mtotal/1000.,0)
+        md["used"] = np.round(mused/1000.,0)
+    if debug:
+        print ("SPACE", atotal, aused)
+        print("SPACE", mtotal, mused)
+    return statusdict
+
+
 def extract_data(f, duration=600, debug=False):
     if debug:
         print("Extracting data from:", f)
@@ -75,13 +141,17 @@ def extract_data(f, duration=600, debug=False):
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
+logpath = os.path.dirname(cfg.get('logging'))
 sensorpath = cfg.get('sensorsconf')
 bufferpath = cfg.get('bufferdirectory')
 data2show = get_new_data(path=bufferpath)
+statusdict = get_storage_usage(statusdict=statusdict, mqttpath=bufferpath, logpath=logpath, debug=False)
+
 nd={}
 for d in data2show:
     data, names = extract_data(d)
     nd[d] = {'names': names }
+stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
 
 app = Dash(__name__, assets_ignore='marcos.css')
 
@@ -109,9 +179,74 @@ app.layout = (html.Div(
                               html.Div(
                                   className="box sensors",
                                   children=html.Div([
-                                      html.H4('Sensors'),
-                                      html.Div(id='live-update-text')
-                                      ])
+                                      dash_table.DataTable( data=stable,
+                                                            id='sensors-table',
+                                                            sort_action='native',
+                                                            columns=[{'id': c, 'name': c} for c in scols],
+                                                            style_cell_conditional=[
+                                                                {
+                                                                    'if': {'column_id': c},
+                                                                    'textAlign': 'left'
+                                                                } for c in ['SensorID', 'Components']
+                                                            ],
+                                                            style_data={
+                                                                'color': 'rgb(230, 230, 250)',
+                                                                'fontSize': '14px',
+                                                                'backgroundColor': 'rgb(112, 128, 144)'
+                                                            },
+                                                            style_data_conditional=[
+                                                                {
+                                                                    'if': {'row_index': 'odd'},
+                                                                    'backgroundColor': 'rgb(119, 149, 163)',
+                                                                },
+                                                                {
+                                                                    'if': {
+                                                                        'filter_query': '{Active} = True',
+                                                                        'column_id': 'Active'
+                                                                    },
+                                                                    'backgroundColor': "#008003"
+                                                                },
+                                                                {
+                                                                    'if': {
+                                                                        'filter_query': '{Active} = False',
+                                                                        'column_id': 'Active'
+                                                                    },
+                                                                    'backgroundColor': 'tomato'
+                                                                }
+                                                            ],
+                                                            style_header={
+                                                                'backgroundColor': '#4D4D4D',
+                                                                'color': 'rgb(230, 230, 250)',
+                                                                'fontWeight': 'bold',
+                                                                'fontSize': '16px',
+                                                                'border': '1px solid black'
+                                                            }
+                                      )
+                                  ])
+                              ),
+                              html.Div(
+                                  className="box gauges",
+                                  children=html.Div([
+                                      daq.Gauge(
+                                          id='buffer-gauge',
+                                          size=120,
+                                          color={"gradient": True,
+                                                 "ranges": {"green": [0, statusdict['mqtt'].get('space') * 0.8],
+                                                            "yellow": [statusdict['mqtt'].get('space') * 0.8,
+                                                                       statusdict['mqtt'].get('space') * 0.9],
+                                                            "red": [statusdict['mqtt'].get('space') * 0.9,
+                                                                    statusdict['mqtt'].get('space')]}},
+                                          value=statusdict['mqtt'].get('used'),
+                                          label='Buffer',
+                                          max=statusdict['mqtt'].get('space'),
+                                          min=0,
+                                      ),
+                                      dcc.Interval(
+                                          id='gauge-update',
+                                          interval=60 * 1000,  # in milliseconds
+                                          n_intervals=0
+                                      )
+                                  ])
                               ),
                               html.Div(
                                   className='box graphs',
@@ -130,7 +265,7 @@ app.layout = (html.Div(
                                       html.H4('About'),
                                       html.P('MARTAS (MagPys automatic real time acquisition system)'),
                                       html.P('Version {}'.format(__version__)),
-                                      html.P('written by R. Leonhardt, R. Bailey, R. Mandl'),
+                                      html.P('written by R. Leonhardt, R. Bailey, R. Mandl, P. Arneitz, V. Haberle'),
                                   ])
                               ),
                              html.Div(
@@ -168,7 +303,13 @@ def update_config(n):
     htmllist.append(html.P(['MQTT broker: {}'.format(cfg.get('broker'))]))
     return htmllist
 
-1
+@app.callback(Output('live-update-gauge', 'children'),
+              Input('gauge-update', 'n_intervals'))
+def update_gauge_status(n):
+    statusdict = get_storage_usage(statusdict={}, mqttpath=bufferpath, logpath=logpath, debug=False)
+    stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
+    return
+
 @app.callback(Output('live-update-text', 'children'),
               Input('graph-update', 'n_intervals'))
 def update_metrics(n):
