@@ -958,50 +958,50 @@ class ActionHandler(object):
         cmd = input.replace('imbot', '').replace('IMBOT', '')
         cmd = cmd.strip()
         call = ""
-        year = 0
+        year = ""
         imo = ""
         yearl = re.findall(r'\d+', cmd)
         print ("got year", yearl)
         if yearl and len(yearl) > 0:
             for y in yearl:
-                cmd = cmd.replace(y)
+                cmd = cmd.replace(y,"")
             cmd = cmd.strip()
             if 1900 < int(yearl[-1]) < 2177:
-                year = int(yearl[-1])
+                year = "-y {}".format(int(yearl[-1]))
         if cmd.find('minute') > -1:
-            cmd = cmd.replace('minute')
+            cmd = cmd.replace('minute','')
             cmd = cmd.strip()
             res = 'minute'
         else:
-            cmd = cmd.replace('second')
+            cmd = cmd.replace('second','')
             cmd = cmd.strip()
             res = 'second'
         print ("remaining command:", cmd)
         if cmd.find('bar') > -1:
-            cmd = cmd.replace('bar')
+            cmd = cmd.replace('bar','')
             cmd = cmd.strip()
             typ = 'bar'
         elif cmd.find('imo') > -1:
-            cmd = cmd.replace('imo')
+            cmd = cmd.replace('imo','')
             cmd = cmd.strip()
             typ = 'imo'
             # get IMO from remaining stream
             print ("remaining imo", cmd, len(cmd))
             if len(cmd) == 3:
-                imo = cmd.upper()
+                imo = "-i {}".format(cmd.upper())
         else:
-            cmd = cmd.replace('list')
+            cmd = cmd.replace('list','')
             cmd = cmd.strip()
             typ = 'list'
 
         imbotconfig = self.configuration.get("imbotconfig","")
 
-        call = "imbot_chart -c {a} -t {b} -y {c} -r {d} -i {e}".format(
+        call = "imbot_chart -c {a} -t {b} {c} -r {d} {e}".format(
                 a=imbotconfig, b=typ, c=year, d=res, e=imo)
         message['call'] = [call]
         message["text"] = "Requesting IMBOT report of typ {}...\n".format(typ)
         if typ == 'bar':
-            message["picture"] = ['/tmp/bar_levels.png']
+            message["pictures"] = ['/tmp/bar_levels.png']
         return message
 
 

@@ -137,7 +137,7 @@ def handle(msg):
                     if 'fswebcam' in call:
                         pics.append('/tmp/webimage.jpg')
                 if text:
-                    bot.sendMessage(chat_id, text)
+                    bot.sendMessage(chat_id, text, parse_mode='HTML')
                 for pic in pics:
                     if os.path.isfile(pic):
                         bot.sendPhoto(chat_id, open(pic,'rb'))
