@@ -271,7 +271,7 @@ def main(argv):
     if int(mqttport) >= 8883:
         print(" MQTT security based on TLS:")
         print(" please choose: (1) TLS-PSK encryption, (2) TLS on certificate basis")
-        print(" (1) requires an available PSK identity and password")
+        print(" (1) requires an available PSK identity and password - AND - pip install sslpsk2")
         print(" (2) to be used for IM MQTT service")
         secsel = input()
         if secsel in ["1"]:

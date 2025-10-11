@@ -26,7 +26,6 @@ install_requires=[
             "dash",
             "dash_daq",
             "psutil",
-            "sslpsk2",
             "setuptools >= 61.0.0"
           ]
 
@@ -42,6 +41,6 @@ setup(
     description='MARTAS',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    package_data={'martas': ['conf/*.cfg', 'doc/*.png', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'scripts/*.sh', 'web/*.js', 'web/*.html', 'web/*.py', 'web/assets/*']  },
+    package_data={'martas': ['conf/*.cfg', 'conf/*.json', 'doc/*.png', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'scripts/*.sh', 'web/*.js', 'web/*.html', 'web/*.py', 'web/assets/*']  },
     install_requires=install_requires,
 )

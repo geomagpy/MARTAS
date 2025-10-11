@@ -13,4 +13,3 @@ pexpect
 requests
 python-crontab
 numba
-sslpsk2

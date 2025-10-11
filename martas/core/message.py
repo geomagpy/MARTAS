@@ -1000,6 +1000,8 @@ class ActionHandler(object):
                 a=imbotconfig, b=typ, c=year, d=res, e=imo)
         message['call'] = [call]
         message["text"] = "Requesting IMBOT report of typ {}...\n".format(typ)
+        if typ == 'bar':
+            message["picture"] = ['/tmp/bar_levels.png']
         return message
 
 

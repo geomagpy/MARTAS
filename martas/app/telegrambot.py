@@ -134,7 +134,6 @@ def handle(msg):
                 for call in calls:
                     print ("executing call", call)
                     text += ah.execute_call(call)
-                    print (text)
                     if 'fswebcam' in call:
                         pics.append('/tmp/webimage.jpg')
                 if text:
