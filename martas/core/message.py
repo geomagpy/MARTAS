@@ -4,6 +4,8 @@
 
 
 import sys
+from os import WCONTINUED
+
 sys.path.insert(1, '/home/leon/Software/magpy/')  # should be magpy2
 
 import unittest
@@ -386,7 +388,7 @@ class ActionHandler(object):
                                    'priority' : 1,
                                    'availability': ['MARTAS'],
                                    'options' : {'swP:0:4' : ['P:0:4','swP:0:4','heating off','pin4 off','off'], 'swP:1:4' : ['P:1:4','swP:1:4','heating on','pin4 on','on'], 'swP:1:5' : ['P:1:5','swP:1:5','pin5 on'], 'swP:0:5' : ['P:0:5','swP:0:5','pin5 on'], 'swD' : ['swD','state','State'] },
-                                   'description': 'optional: turn on/off remote switches if supported by the hardware (work in progress)'},
+                                   'description': 'optional: turn on/off remote switches if supported by the hardware (work in progress). switch without options will return the switch status. switch swP:1:4  will turn on port 4 from a attached microcontroller'},
                        'badwords':{'commands': ['fuck','asshole'],
                                    'combination' : 'any',
                                    'priority' : 1,
@@ -869,9 +871,22 @@ class ActionHandler(object):
         """
         DESCRIPTION
             send switching command to  a connected microcontroller
+            Possible switch commands are:
+            swP:0:4   = switch - off - port 4
+            swP:1:4   = switch - on - port 4
+            swP:1:5   = switch - on - port 4
+            swS, Status = get status
         """
         message = {}
         call = ''
+        martasconf = self.configuration.get('martasconfig','')
+        command = command.replace("switch","").replace("heating ","swP:").replace("on ","1:4").replace("off ","0:4").strip()
+        if command.find('swP') > -1:
+            pass
+        else:
+            # Show switch status if no specific switch command is given
+            command = "swS"
+
         try:
             if debug:
                 print("Running switch command...")
@@ -881,13 +896,13 @@ class ActionHandler(object):
             if debug:
                 print("tpath: {}".format(path))
             option = '-c'
-            call = "{} {} {} {}".format(python,path,option,command)
+            call = "{} {} {} {} -m {}".format(python,path,option,command,martasconf)
             mesg = "Running command {}\n".format(command)
         except:
             mesg = "martas: check_call problem\n"
         message['call'] = [call]
         message['text'] = mesg
-        return mesg
+        return message
 
 
     def action_tmate(self, command, debug=False):

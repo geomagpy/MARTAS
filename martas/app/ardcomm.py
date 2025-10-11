@@ -4,7 +4,6 @@ Small program to send commands to an Arduino.
 Used to interact with MARTAS supported scripts on Arduinos.
 """
 
-from __future__ import print_function
 import sys, time, os, socket
 import getopt
 import serial
@@ -14,18 +13,18 @@ from matplotlib.dates import date2num, num2date
 import numpy as np
 import time
 # get core functions to extract sensorcfg
-scriptpath = os.path.dirname(os.path.realpath(__file__))
-coredir = os.path.abspath(os.path.join(scriptpath, '..', 'core'))
-sys.path.insert(0, coredir)
-import acquisitionsupport as acs
+from martas.core.methods import martaslog as ml
+from martas.core import methods as mm
+from martas.version import __version__
+
 
 def get_arduino_cfg(mpath="/etc/martas/martas.cfg",debug=False):
     if debug:
         print ("Getting arduino config from sensors.cfg")
     serialcfg = {"port":"/dev/ttyACM0","baudrate":9600,"parity":"N","bytesize":8,"stopbits":1}
     try:
-        conf = acs.GetConf(mpath)
-        sensors = acs.GetSensors(conf.get('sensorsconf'))
+        conf = mm.get_conf(mpath)
+        sensors = mm.get_sensors(conf.get('sensorsconf'))
         for sensordict in sensors:
             if sensordict.get("sensorid").find("ARDUINO")>-1:
                 serialcfg["baudrate"]=int(sensordict.get('baudrate'))

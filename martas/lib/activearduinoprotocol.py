@@ -38,12 +38,12 @@ class ActiveArduinoProtocol(object):
             2.) The header line
                 The header line contains information on the provided data for each sensor.
                 The typical format includes the MagPy key, the actual Variable and the unit.
-                Key and Variable are separeted by an underscore, unit is provided in brackets.
+                Key and Variable are separated by an underscore, unit is provided in brackets.
                 Like the Meta information the header should be sent out once in a while
                 Example:
                      H1: f_F [nT], t1_Temp [degC], var1_Quality [None], var2_Pressure [mbar]
             3.) The data line:
-                The data line containes all data from a specific sensor
+                The data line contains all data from a specific sensor
                 Example:
                      D1: 46543.7898, 6.9, 10, 978.000
 
@@ -112,6 +112,8 @@ class ActiveArduinoProtocol(object):
             log.msg("DEBUG - Running on board {}".format(self.board))
         # get existing sensors for the relevant board
         self.existinglist = mm.get_sensors(confdict.get('sensorsconf'),identifier='?',secondidentifier=self.board)
+        if self.debug:
+            log.msg("DEBUG - Arduino sensors: {}".format(self.existinglist))
         self.sensor = ''
         self.ser = None
 
@@ -133,7 +135,7 @@ class ActiveArduinoProtocol(object):
 
     def restart(self):
         try:
-            subprocess.check_call(['/etc/init.d/martas', 'restart'])
+            subprocess.check_call(['/home/debian/.martas/runmartas.sh', 'restart'])
         except subprocess.CalledProcessError:
             log.msg('SerialCall: check_call didnt work')
             pass # handle errors in the called executable
@@ -282,6 +284,8 @@ class ActiveArduinoProtocol(object):
                           idnum is stored in sensordict['path'] (like ow)
         """
         #existingpathlist = [line.get('path') for line in existinglist]
+        if self.debug:
+            log.msg("DEBUG - running get Sensorlist")
 
         evdict = {}
         meta = 'not known'

@@ -623,9 +623,16 @@ wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L
 
 #### General Adruino microcontroller (Arduino)  
 
-Please read section [9.2.7](#927--communicating-with-an-arduino-uno-microcontroller).
+Please read section [9.2.7](#927--communicating-with-an-arduino-uno-microcontroller). The recommended integration of microcontrollers like an arduino is based on the
+**active** library: 
 
          ARDUINO1,ACM0,9600,8,1,N,active,None,60,1,ActiveArduino,ARDUINO,-,0001,-,Home,NTP,environment,getO-getU
+
+There is however also a **passive** library which requires an Arduino configuration to send data regularly without
+requests.
+
+         ARDUINO1,ACM0,9600,8,1,N,passive,None,60,1,Arduino,ARDUINO,-,0001,-,Home,NTP,environment,Arduino sensors
+
 
 #### MariaDB/MySQL database access  
 
@@ -1980,9 +1987,9 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 
 | Instrument          | versions | Inst-type   | Library                  | mode    | init           | requires         |
 |---------------------|----------|-------------|--------------------------|---------|----------------|------------------|
-| Arduino             |          | multiple    | activearduinoprotocol.py | active  |                |                  |
+| Arduino             | 2.0.0    | multiple    | activearduinoprotocol.py | active  |                |                  |
 | AD7714              |          | multiple    | ad7714protocol.py        | active  |                |                  |
-| Arduino             |          | multiple    | arduinoprotocol.py       | passive |                |                  |
+| Arduino             | 2.0.0    | multiple    | arduinoprotocol.py       | passive |                |                  |
 | BM35-pressure       |          | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
 | BME280              |          | pressure    | bme280i2cprotocol.py     | passive |                | adafruit_bme280  |
 | CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active  |                | pycampbellcr1000 |
