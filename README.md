@@ -461,6 +461,14 @@ folder in the uses home directory for storing its data and configurations. You c
 another path (relative to the users homedirectory) using -d. I.e. -d MARTAS will use /home/user/MARTAS as default 
 directory.
 
+Another important command to update only the applications without touching configurations:
+
+        (martas)$ martas_init -U
+
+In order to redo the configuration, also replacing existing configurations:
+
+        (martas)$ martas_init -r
+
 ### 3.2 Inputs during setup
 
 The required inputs are self explaining. Please read the comments and suggestions carefully. Before starting the 

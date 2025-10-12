@@ -30,24 +30,25 @@ def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
         read SensorIDs from sensors
     """
     sl = []
-    sensorlist = mm.get_sensors(path, "")
-    for line in sensorlist:
-        sl.append(line.get('sensorid',''))
+    sensorlistmain = mm.get_sensors(path, "")
     sensorlist = mm.get_sensors(path, "!")
     if len(sensorlist) > 0:
-        sensorlist = [el for el in sensorlist if not el.get("sensorid","").find("OW") > -1]
+        # drop OW group input from main list if OW sensors found
+        sensorlistmain = [el for el in sensorlistmain if not el.get("sensorid","").find("OW") > -1]
     for line in sensorlist:
         sl.append(line.get('sensorid',''))
     sensorlist = mm.get_sensors(path, "?")
     print ("?", sensorlist)
     if len(sensorlist) > 0:
-        sensorlist = [el for el in sensorlist if not el.get("sensorid","").find("ARDUINO") > -1]
+        sensorlistmain = [el for el in sensorlistmain if not el.get("sensorid","").find("ARDUINO") > -1]
     for line in sensorlist:
         sl.append(line.get('sensorid',''))
     sensorlist = mm.get_sensors(path, "$")
     if len(sensorlist) > 0:
-        sensorlist = [el for el in sensorlist if not el.get("name","").find("MySQL") > -1]
+        sensorlistmain = [el for el in sensorlistmain if not el.get("name","").find("MySQL") > -1]
     for line in sensorlist:
+        sl.append(line.get('sensorid',''))
+    for line in sensorlistmain:
         sl.append(line.get('sensorid',''))
     if debug:
         print ("Activated sensors in sensors.cfg", sl)
