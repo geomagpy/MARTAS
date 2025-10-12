@@ -624,29 +624,28 @@ app.layout = (html.Div(
                               html.Div(
                                   className="mbox mq",
                                   children=html.Div([
-                                      html.H4('Crontab'),
                                       dash_table.DataTable(crontable,
                                                            columns=[{'id': c, 'name': c} for c in croncols],
                                                            sort_action='native',
+                                                           fixed_rows={'headers': True},
+                                                           style_cell={'minWidth': 95, 'width': 95, 'maxWidth': 95, 'padding': '5px'},
+                                                           style_table={'height': 300},  # default is 500
                                                            style_cell_conditional=[
                                                                {
                                                                    'if': {'column_id': c},
                                                                    'textAlign': 'left'
                                                                } for c in ['job','enabled']
                                                            ],
-                                                           style_header={
-                                                               'backgroundColor': 'rgb(30, 30, 30)',
-                                                               'color': 'white',
-                                                               'fontWeight': 'bold'
-                                                           },
                                                            style_data={
-                                                               'backgroundColor': 'rgb(50, 50, 50)',
-                                                               'color': 'white'
+                                                               'whiteSpace': 'normal',
+                                                               'color': 'rgb(230, 230, 250)',
+                                                               'fontSize': '14px',
+                                                               'backgroundColor': 'rgb(112, 128, 144)'
                                                            },
                                                            style_data_conditional=[
                                                                {
                                                                    'if': {'row_index': 'odd'},
-                                                                   'backgroundColor': 'rgb(70, 70, 70)',
+                                                                   'backgroundColor': 'rgb(119, 149, 163)',
                                                                },
                                                                {
                                                                    'if': {
@@ -657,6 +656,13 @@ app.layout = (html.Div(
                                                                    'color': 'black'
                                                                },
                                                            ],
+                                                           style_header={
+                                                               'backgroundColor': '#4D4D4D',
+                                                               'color': 'rgb(230, 230, 250)',
+                                                               'fontWeight': 'bold',
+                                                               'fontSize': '16px',
+                                                               'border': '1px solid black'
+                                                           },
                                                            ),
 
                                   ])
@@ -669,41 +675,24 @@ app.layout = (html.Div(
                                                           id='sensors-table',
                                                           sort_action='native',
                                                           columns=[{'id': c, 'name': c} for c in dcols],
+                                                          fixed_rows={'headers': True},
+                                                          style_cell={'minWidth': 95, 'width': 95, 'maxWidth': 95, 'padding': '5px'},
+                                                          style_table={'height': 150},  # default is 500
                                                           style_cell_conditional=[
                                                                 {
                                                                     'if': {'column_id': c},
                                                                     'textAlign': 'left'
                                                                 } for c in ['DataID', 'SensorID', 'Actual']
                                                           ],
-                                                          style_header={
-                                                              'backgroundColor': 'rgb(30, 30, 30)',
-                                                              'color': 'white',
-                                                              'fontWeight': 'bold'
-                                                          },
                                                           style_data={
-                                                              'backgroundColor': 'rgb(50, 50, 50)',
-                                                              'color': 'white'
+                                                              'color': 'rgb(230, 230, 250)',
+                                                              'fontSize': '14px',
+                                                              'backgroundColor': 'rgb(112, 128, 144)'
                                                           },
                                                           style_data_conditional=[
                                                               {
                                                                   'if': {'row_index': 'odd'},
-                                                                  'backgroundColor': 'rgb(70, 70, 70)',
-                                                              },
-                                                            {
-                                                                'if': {
-                                                                    'filter_query': '{Actual} < 1',
-                                                                    'column_id': 'Actual'
-                                                                },
-                                                                'backgroundColor': 'tomato',
-                                                                'color': 'white'
-                                                            },
-                                                              {
-                                                                  'if': {
-                                                                      'filter_query': '{in DATAINFO} = False',
-                                                                      'column_id': 'in DATAINFO'
-                                                                  },
-                                                                  'backgroundColor': 'tomato',
-                                                                  'color': 'white'
+                                                                  'backgroundColor': 'rgb(119, 149, 163)',
                                                               },
                                                               {
                                                                   'if': {
@@ -713,7 +702,28 @@ app.layout = (html.Div(
                                                                   'backgroundColor': '#eaf044',
                                                                   'color': 'black'
                                                               },
+                                                              {
+                                                                  'if': {
+                                                                      'filter_query': '{Actual} < 1',
+                                                                      'column_id': 'Actual'
+                                                                  },
+                                                                  'backgroundColor': 'tomato'
+                                                              },
+                                                              {
+                                                                  'if': {
+                                                                      'filter_query': '{in DATAINFO} = False',
+                                                                      'column_id': 'in DATAINFO'
+                                                                  },
+                                                                  'backgroundColor': 'tomato'
+                                                              },
                                                           ],
+                                                          style_header={
+                                                              'backgroundColor': '#4D4D4D',
+                                                              'color': 'rgb(230, 230, 250)',
+                                                              'fontWeight': 'bold',
+                                                              'fontSize': '16px',
+                                                              'border': '1px solid black'
+                                                          }
                                                           ),
                                  ])
                              ),

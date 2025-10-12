@@ -7,6 +7,7 @@ from dash import Dash, html, dash_table, dcc, Output, Input
 import dash_daq as daq
 from plotly.subplots import make_subplots
 from martas.app.monitor import _latestfile
+from crontab import CronTab
 
 
 """
@@ -30,6 +31,22 @@ def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
     """
     sl = []
     sensorlist = mm.get_sensors(path, "")
+    for line in sensorlist:
+        sl.append(line.get('sensorid',''))
+    sensorlist = mm.get_sensors(path, "!")
+    if len(sensorlist) > 0:
+        sensorlist = [el for el in sensorlist if not el.get("sensorid","").find("OW") > -1]
+    for line in sensorlist:
+        sl.append(line.get('sensorid',''))
+    sensorlist = mm.get_sensors(path, "?")
+    print ("?", sensorlist)
+    if len(sensorlist) > 0:
+        sensorlist = [el for el in sensorlist if not el.get("sensorid","").find("ARDUINO") > -1]
+    for line in sensorlist:
+        sl.append(line.get('sensorid',''))
+    sensorlist = mm.get_sensors(path, "$")
+    if len(sensorlist) > 0:
+        sensorlist = [el for el in sensorlist if not el.get("name","").find("MySQL") > -1]
     for line in sensorlist:
         sl.append(line.get('sensorid',''))
     if debug:
@@ -121,6 +138,51 @@ def get_storage_usage(statusdict=None, mqttpath="", logpath="", debug=False):
     return statusdict
 
 
+def get_cron_jobs(debug=False):
+    """
+    DESCRIPTION
+        get active Cron jobs once per minute
+    """
+    crontable = []
+
+    mycron = CronTab(user=True)
+    for job in mycron:
+        if debug:
+            print ("Testing job:", job)
+        comm = job.comment
+        cand = job.command
+        en = job.is_enabled()
+        cl = cand.split()
+        logstatus = False
+        active = False
+        jobcommand = cl[1]
+        lf = ""
+        ctime = ""
+        if len(jobcommand) < 3:
+            jobcommand = cl[2]
+        jc = jobcommand.split("/")[-1]
+        for el in cl:
+            if el.find(".log") >= 0:
+                te = el.split("/")
+                if debug:
+                    print ("Found basic cron job", te)
+                try:
+                    ctime = os.path.getctime(el)
+                    ctime = datetime.fromtimestamp(ctime)
+                    logstatus = True
+                    if ctime > datetime.now()-timedelta(days=8):
+                        active = True
+                    ctime = ctime.strftime("%Y-%m-%dT%H:%M:%S")
+                    jn = jc.split(".")[0]
+                except:
+                    pass
+                lf = te[-1]
+        resd = {"job" : jc, "enabled":str(en), "logfile":lf, "last log":ctime}
+        crontable.append(resd)
+    croncols = ["job", "enabled", "logfile", "last log"]
+
+    return crontable, croncols
+
 def extract_data(f, duration=600, debug=False):
     if debug:
         print("Extracting data from:", f)
@@ -152,6 +214,12 @@ for d in data2show:
     data, names = extract_data(d)
     nd[d] = {'names': names }
 stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
+ctable, ccols = get_cron_jobs(debug=True)
+# Determine the sampling rate for graph
+srate = 10
+for s in stable:
+    if s.get('SensorID','').find('LEMI') > -1:
+        srate = 60
 
 app = Dash(__name__, assets_ignore='marcos.css')
 
@@ -183,6 +251,8 @@ app.layout = (html.Div(
                                                             id='sensors-table',
                                                             sort_action='native',
                                                             columns=[{'id': c, 'name': c} for c in scols],
+                                                            style_cell={'minWidth': 95, 'width': 95, 'maxWidth': 95,
+                                                                        'padding': '5px'},
                                                             style_cell_conditional=[
                                                                 {
                                                                     'if': {'column_id': c},
@@ -254,29 +324,71 @@ app.layout = (html.Div(
                                       dcc.Graph(id='live-graph', animate=False),
                                       dcc.Interval(
                                           id='graph-update',
-                                          interval=5 * 1000,  # in milliseconds
+                                          interval=srate * 1000,  # in milliseconds - use 60 sec to allow even LEMI 10Hz data to loaded
                                           n_intervals=0
                                       )
-                                  ])
-                              ),
-                              html.Div(
-                                  className="box about",
-                                  children=html.Div([
-                                      html.H4('About'),
-                                      html.P('MARTAS (MagPys automatic real time acquisition system)'),
-                                      html.P('Version {}'.format(__version__)),
-                                      html.P('written by R. Leonhardt, R. Bailey, R. Mandl, P. Arneitz, V. Haberle'),
                                   ])
                               ),
                              html.Div(
                                  className="box link",
                                  children=html.Div([
-                                     html.H4('Links'),
-                                     html.P(['MARTAS on GitHUB:', html.A('click here', href='https://github.com/geomagpy/MARTAS')]),
-                                     html.P(['MARTAS manual:',
-                                                 html.A('click here', href='https://github.com/geomagpy/MARTAS?tab=readme-ov-file#martas')]),
+                                     dash_table.DataTable(ctable,
+                                                          columns=[{'id': c, 'name': c} for c in ccols],
+                                                          sort_action='native',
+                                                          fixed_rows={'headers': True},
+                                                          style_cell={'minWidth': 95, 'width': 95, 'maxWidth': 95,
+                                                                      'padding': '5px'},
+                                                          style_table={'height': 200},  # default is 500
+                                                          style_cell_conditional=[
+                                                              {
+                                                                  'if': {'column_id': c},
+                                                                  'textAlign': 'left'
+                                                              } for c in ['job', 'enabled']
+                                                          ],
+                                                          style_data={
+                                                              'whiteSpace': 'normal',
+                                                              'color': 'rgb(230, 230, 250)',
+                                                              'fontSize': '14px',
+                                                              'backgroundColor': 'rgb(112, 128, 144)'
+                                                          },
+                                                          style_data_conditional=[
+                                                              {
+                                                                  'if': {'row_index': 'odd'},
+                                                                  'backgroundColor': 'rgb(119, 149, 163)',
+                                                              },
+                                                              {
+                                                                  'if': {
+                                                                      'filter_query': '{enabled} = False',
+                                                                      'column_id': 'enabled'
+                                                                  },
+                                                                  'backgroundColor': '#eaf044',
+                                                                  'color': 'black'
+                                                              },
+                                                          ],
+                                                          style_header={
+                                                              'backgroundColor': '#4D4D4D',
+                                                              'color': 'rgb(230, 230, 250)',
+                                                              'fontWeight': 'bold',
+                                                              'fontSize': '16px',
+                                                              'border': '1px solid black'
+                                                          },
+                                                          ),
+
                                  ])
                              ),
+                             html.Div(
+                                  className="box about",
+                                  children=html.Div([
+                                      html.H4('MARTAS (MagPys automatic real time acquisition system)'),
+                                      html.P('Version {}'.format(__version__)),
+                                      html.P('written by R. Leonhardt, R. Bailey, R. Mandl, P. Arneitz, V. Haberle'),
+                                      html.P(['MARTAS on GitHUB:',
+                                              html.A('click here', href='https://github.com/geomagpy/MARTAS')]),
+                                      html.P(['MARTAS manual:',
+                                              html.A('click here',
+                                                     href='https://github.com/geomagpy/MARTAS?tab=readme-ov-file#martas')]),
+                                  ])
+                              ),
                              html.Div(
                                  className="box stats",
                                  children=html.Div([
@@ -311,37 +423,10 @@ def update_gauge_status(n):
     return
 
 @app.callback(Output('live-update-text', 'children'),
-              Input('graph-update', 'n_intervals'))
+              Input('gauge-update', 'n_intervals'))
 def update_metrics(n):
-    style = {'padding': '5px', 'fontSize': '16px'}
-    pos = {}
-    htmllist = []
-    sl = get_sensors(path=sensorpath, debug=False)
-    data2show = get_new_data(path=bufferpath, duration=600)
-    for s in sl:
-        options=[]
-        values=[]
-        #htmllist.append(html.Span('{}'.format(s), style=style))
-        active = False
-        for d in data2show:
-            if d.find(s) >= 0:
-                active = True
-                ndd = nd.get(d)
-                #print ("XXX", nd.get(d))
-                for elem in ndd.get('names'):
-                    options.append({'label': elem, 'value': elem})
-                    values.append(elem)
-        htmllist.append(html.Div([ daq.BooleanSwitch(id='my-boolean-switch', on=active, label={'label':s,
-                                                                                               'style':style}, color="#008003",style=pos),
-                                   ])
-                        )
-        htmllist.append(html.Div([ dcc.Checklist(
-                                 id='{}-checklist'.format(s),
-                                 options=options,
-                                 value=values)
-                                 ])
-                        )
-    return htmllist
+    ctable, ccols = get_cron_jobs()
+    return
 
 
 @app.callback(
