@@ -393,7 +393,7 @@ class ActiveArduinoProtocol(object):
         #time.sleep(2)
 
         def write_read(ser,command,end="MARTASEND",maxcnt=20,debug=False):
-            data = b""
+            #data = b""
             dedata = ""
             all = ""
             cnt=0

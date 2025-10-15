@@ -452,6 +452,8 @@ def definitivefiles_min(config=None, results=None, runmode="thirdrun", headdict=
         print(" ------------------------------ ")
         print(" b) running k values determination ")
         #print ("Header", merge.header)
+        # TODO - this is not perfectly correct. We need at least one day from the past and the following year
+        print ("ATTENTION : IF THE TIMERANGE OF MERGE IS TO SHORT THEN KVALS ARE MISSING", merge.timerange())
         kvals = activity.K_fmi(merge, K9_limit=500, longitude=15.87)
         #kvals = merge.k_fmi()
         kvals.write(os.path.join(outpath, 'magpy'), filenamebegins='Definitive_kvals_' + str(year), dateformat='%Y',
