@@ -279,119 +279,8 @@ appendix. For certificate based communication, the broker provider will have to 
 locally stored on your client. You will need to provide the path to this file for communication. If TlS-PSK is selected
 You will get a PSK identity and a PSK key which you have to store locally suing the addcred routine. 
 
-Please checkout the appendix for more details on TLS security.
+Please checkout the [appendix](#102-setting-up-a-secure-tls-based-mosquitto-broker-for-martas) for more details on TLS security.
 
-In the following you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
-official mosquitto installation instructions when setting up a secure TLS broker. TLS encryption is recommended if you 
-are using an external broker. If your full setup (pMARTAS and pMARCOS are in the same network behind a Firewall) you might 
-want to skip TLS encryption.
-
-For our example we firstly create a certificate authority (CA). For SSL connections, the server and client's 
-certificates must be signed by a trusted CA. A copy of the CA is stored on the server and the clients. They check 
-received certificates against the CA before trusting another device.
-
-We generate a Certificate Authority (CA) Key Pair and Certificate using openssl:
-
-       openssl genrsa -des3 -out ca.key 2048
-
-This command will request a pass phrase. You will need this pass phrase everytime you generate certificates and you 
-want to sign them with this CA.
-
-Then we create the actual self-signed CA certificate. This certificate will be used to sign other certificates.
-
-       openssl req -new -x509 -days 3650 -key ca.key -out ca.crt
-
-You will have to enter some information:
-
-```
-Country Name (2 letter code) [AU]:AU
-State or Province Name (full name) [Some-State]:Austria
-Locality Name (eg, city) []:Muggendorf
-Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsBrokerCA
-Organizational Unit Name (eg, section) []:DataBroker
-Common Name (e.g. server FQDN or YOUR name) []:theia
-Email Address []:max.mustermann@world.me
-```
-
-> [!IMPORTANT]
-> Self-signed certificates are suitable for testing but not recommended for production environments. For production, use certificates issued by a trusted Certificate Authority.
-
-Please insert appropriate information into the requested fields. As it is a self-signed certificate I recommend to 
-insert the purpose (i.e. OBSCODE MARTAS service) as organization or unit. The Common name should be you full name and
-NOT the domain name. The validity is set to 10 years.
-The CA certificate is now generated and you should copy it to the dedicated folder of Mosquitto. You will need CA 
-certificate file (ca.crt) on pMARTAS, broker and pMARCOS.
-
-       sudo cp ca.crt /etc/mosquitto/ca_certificates/
-
-To generate client certificates on another device, the certificate file and pass phrase are needed.
-
-In a next step we use openssl to create certificates and private keys. One for the server and as many as needed for 
-each client. To generate a server key pair and certificate: 
-
-       openssl genrsa -out server.key 2048
-       openssl req -new -key server.key -out server.csr
-
-You will have to enter some information for the sever certificate. Please note the differences in organisation names:
-
-```
-Country Name (2 letter code) [AU]:AU
-State or Province Name (full name) [Some-State]:Austria
-Locality Name (eg, city) []:Muggendorf
-Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsServerCert
-Organizational Unit Name (eg, section) []:BrokerCert
-Common Name (e.g. server FQDN or YOUR name) []:theia
-Email Address []:ro.leonhardt@proton.me
-
-Please enter the following 'extra' attributes
-to be sent with your certificate request
-A challenge password []:
-An optional company name []:
-```
-
-We are also creating a certificate signing request (CSR). Insert country, address, and email address. Note that here, 
-every piece of information is about the server, so common name is server domain (the dynamic DNS domain). If you don't 
-have one just enter the name of your server there. Then we have to sign the server certificate request:
-
-       openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
-
-Use the CA certificate and key to sign the server certificate request. This creates the server certificate. Then copy
-key and certificate to the mosquitto configuration of the server:
-
-       sudo cp server.crt /etc/mosquitto/certs/
-       sudo cp server.key /etc/mosquitto/certs/
-
-Clients need to be configured to use the CA certificate for verification. You should provide the CA certificate 
-file. In the martas configuration file use the option "mqttcert" and provide a valid path to the  using the "ca.crt" 
-file. Enable TLS with "mqttport" : 8883.
-
-An example file for configuring the mosquitto listener is show below:
-
-```
-# Global
-per_listener_settings true
-
-# Local listener
-listener 1883 127.0.0.1
-
-# Default listener
-listener 1883
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-
-# Certificate listener
-listener 8883
-cafile /etc/mosquitto/ca_certificates/ca.crt
-certfile /etc/mosquitto/certs/server.crt
-keyfile /etc/mosquitto/certs/server.key
-require_certificate false
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-```
-
-Example for TLS-PSK encryption:
-
-       openssl rand -hex 32
 
 #### 2.3.4 Testing MQTT data transfer
 
@@ -415,6 +304,10 @@ In case you are using secure TLS access (OS encrypted) use the following additio
 In case you are using secure TLS access with CA file use the following additional options:
 
         mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 --cafile /path/to/ca.crt -d
+
+In case you are using secure TLS-PSK access use the following additional options:
+
+        mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 --psk-identity PSKUSER --psk PSKKEY -d
 
 As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription
 command. Checkout the official mosquitto pages for more information.
@@ -1074,7 +967,7 @@ find subsections with detailed instructions and example applications for all of 
 | Script           | Purpose                                              | Config        | Version | Section |
 |------------------|------------------------------------------------------|---------------|---------|---------|
 | archive.py       | Read database tables and create archive files        | archive.cfg   | 2.0.0*  | 6.2     |
-| ardcomm.py       | Communicating with arduino microcontroller           |               | 1.0.0   | 6.3     |
+| ardcomm.py       | Communicating with arduino microcontroller           |               | 2.0.0*  | 6.3     |
 | backup.py        | Backup configuration                                 |               | 2.0.0   | 6.4     |
 | basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg | 2.0.0   | 6.5     |
 | checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0*  | 6.6     |
@@ -1129,7 +1022,8 @@ blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
 
 ### 6.3 ardcomm
 
-Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands
+Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands. Please read section
+for details.
 
 ### 6.4 backup
 

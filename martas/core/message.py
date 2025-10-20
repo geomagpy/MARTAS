@@ -1181,9 +1181,11 @@ class ActionHandler(object):
             Methods issueing call already: tmate,
         """
         try:
-            print ("Executing call")
+            print ("Executing call", call)
             p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
             (output, err) = p.communicate()
+            if call.find("upterm") > -1:
+                p_status = p.wait()
             output = output.decode()
             mesg = output
             print (" ... got", mesg)
