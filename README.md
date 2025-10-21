@@ -964,28 +964,28 @@ MARTAS/apps. Below you will find a comprehensive list of these scripts and their
 find subsections with detailed instructions and example applications for all of these programs.
 
 
-| Script           | Purpose                                              | Config        | Version | Section |
-|------------------|------------------------------------------------------|---------------|---------|---------|
-| archive.py       | Read database tables and create archive files        | archive.cfg   | 2.0.0*  | 6.2     |
-| ardcomm.py       | Communicating with arduino microcontroller           |               | 2.0.0*  | 6.3     |
-| backup.py        | Backup configuration                                 |               | 2.0.0   | 6.4     |
-| basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg | 2.0.0   | 6.5     |
-| checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0*  | 6.6     |
-| db_truncate.py   | Delete data from all data tables                     | truncate.cfg  | 2.0.0*  | 6.7     |
-| file_download.py | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.8     |
-| file_upload.py   | Upload files                                         | upload.json   | 2.0.0*  | 6.9     |
-| filter.py        | filter data                                          | filter.cfg    | 2.0.0   | 6.10    |
-| gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.11    |
-| monitor.py       | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0*  | 6.12    |
-| obsdaq.py        | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.13    |
-| optimzetables.py | Optimize table disk usages (requires ROOT)           |               | 2.0.0*  | 6,14    |
-| palmacq.py       | Communicate with PalmAcq datalogger                  | obsdaq.cfg    | 2.0.0*  | 6.15    |
-| serialinit.py    | Sensor initialization uses this method               |               | 2.0.0*  | 6.16    |
-| speedtest.py     | Test bandwidth of the internet connection            |               | 2.0.0*  | 6.17    |
-| statemachine.py  | Currently under development - will replace threshold |               | 1.0.0   | 6.18    |
-| testnote.py      | Send a quick message by mail or telegram             |               | 2.0.0*  | 6.19    |
-| testserial.py    | test script for serial comm - development tool       |               | 1.0.0   | 6.20    |
-| threshold.py     | Tests values and send reports                        | threshold.cfg | 2.0.0   | 6.21    |
+| Script           | Purpose                                              | Config              | Version | Section |
+|------------------|------------------------------------------------------|---------------------|---------|---------|
+| archive.py       | Read database tables and create archive files        | archive.cfg         | 2.0.0*  | 6.2     |
+| ardcomm.py       | Communicating with arduino microcontroller           |                     | 2.0.0*  | 6.3     |
+| backup.py        | Backup configuration                                 |                     | 2.0.0   | 6.4     |
+| basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg       | 2.0.0   | 6.5     |
+| checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |                     | 2.0.0*  | 6.6     |
+| db_truncate.py   | Delete data from all data tables                     | truncate.cfg        | 2.0.0*  | 6.7     |
+| file_download.py | Download files, store them and add to archives       | download-source.cfg | 2.0.0   | 6.8     |
+| file_upload.py   | Upload files                                         | upload.json         | 2.0.0*  | 6.9     |
+| filter.py        | filter data                                          | filter.cfg          | 2.0.0   | 6.10    |
+| gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg           |         | 6.11    |
+| monitor.py       | Monitoring space, data and logfiles                  | monitor.cfg         | 2.0.0*  | 6.12    |
+| obsdaq.py        | Communicate with ObsDAQ ADC                          | obsdaq.cfg          | 2.0.0*  | 6.13    |
+| optimzetables.py | Optimize table disk usages (requires ROOT)           |                     | 2.0.0*  | 6,14    |
+| palmacq.py       | Communicate with PalmAcq datalogger                  | obsdaq.cfg          | 2.0.0*  | 6.15    |
+| serialinit.py    | Sensor initialization uses this method               |                     | 2.0.0*  | 6.16    |
+| speedtest.py     | Test bandwidth of the internet connection            |                     | 2.0.0*  | 6.17    |
+| statemachine.py  | Currently under development - will replace threshold |                     | 1.0.0   | 6.18    |
+| testnote.py      | Send a quick message by mail or telegram             |                     | 2.0.0*  | 6.19    |
+| testserial.py    | test script for serial comm - development tool       |                     | 1.0.0   | 6.20    |
+| threshold.py     | Tests values and send reports                        | threshold.cfg       | 2.0.0   | 6.21    |
 
 Version 2.0.0* means it still needs to be tested
 

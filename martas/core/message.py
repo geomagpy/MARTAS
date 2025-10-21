@@ -1182,11 +1182,16 @@ class ActionHandler(object):
         """
         try:
             print ("Executing call", call)
-            p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
-            (output, err) = p.communicate()
             if call.find("upterm") > -1:
-                p_status = p.wait()
-            output = output.decode()
+                process = subprocess.run(call, shell=True, text=True, capture_output=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                print ("Done")
+                output = process.stdout
+                print (output)
+            else:
+                p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+                (output, err) = p.communicate()
+                print ("Done")
+                output = output.decode()
             mesg = output
             print (" ... got", mesg)
         except subprocess.CalledProcessError:

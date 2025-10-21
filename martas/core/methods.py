@@ -41,7 +41,7 @@ Methods:
 |                 |  connect_db  |  2.0.0 |    yes |                                  | -      | archive  |
 |                 |  datetime_to_array  |  2.0.0 |  yes |                             | -      | libs     |
 |                 |  data_to_file  |  2.0.0 |  yes |                                  | -      | libs     |
-|                 |  get_bool  |  2.0.0 |      yes |                                  | -      | archive,filter |
+|                 |  get_bool  |  2.0.0 |      yes |                                  | -      | archive,filter, f_down |
 |                 |  get_conf  |  2.0.0 |      yes |                                  | -      | marcosscripts |
 |                 |  get_json  |  2.0.0 |      yes |                                  | -      | file_upload |
 |                 |  get_sensors  |  2.0.0 |   yes |                                  | -      | marcosscripts |

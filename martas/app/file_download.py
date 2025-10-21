@@ -207,12 +207,6 @@ Changelog:
 
 """
 
-def get_bool(string):
-    if string in ['true','True','Yes','yes','y','TRUE',True]:
-        return True
-    else:
-        return False
-
 
 def walk_dir(directory_path, filename, date, dateformat, debug=False):
     """
@@ -406,7 +400,7 @@ def check_configuration(config=None,debug=False):
         print('-- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
-    if config.get('archivepath') == '':
+    if config.get('archivepath') == '' or config.get('archivepath') == '/archivepath':
         destination = tempfile.gettempdir()
     else:
         if not os.path.isdir(config.get('archivepath')):
@@ -462,7 +456,7 @@ def check_configuration(config=None,debug=False):
     walk = config.get('walksubdirs')
     if debug:
         print ("   Walk through subdirs: {}".format(walk))
-    if get_bool(walk):
+    if mm.get_bool(walk):
         if not protocol in ['','scp','rsync']: 
             print('   -> Walk mode only works for local directories and scp access.')
             print('   -> Switching walk mode off.')
@@ -471,7 +465,10 @@ def check_configuration(config=None,debug=False):
     if not creddb == '':
         print("   Accessing local data bank ...")
         # required for either writeing to DB or getting meta in case of writing archive
-        db = mm.connect_db(creddb)
+        try:
+            db = mm.connect_db(creddb)
+        except:
+            db = None
     config['db'] = db
 
     # loaded all credential (if started from root permissions are required for that)
@@ -688,8 +685,8 @@ def obtain_data_files(config=None,filelist=None,debug=False):
     password = config.get('rmpassword')
     address = config.get('rmaddress')
     port = config.get('rmport',21)
-    zipping = get_bool(config.get('zipdata'))
-    forcelocal = get_bool(config.get('forcedirectory',False))
+    zipping = mm.get_bool(config.get('zipdata'))
+    forcelocal = mm.get_bool(config.get('forcedirectory',False))
     deleteopt = " "
     sensid = ""
     ftp = None
@@ -849,6 +846,7 @@ def write_data(config=None,localpathlist=None,debug=False):
     stationid = config.get('stationid','')
     sensorid = config.get('sensorid','')
     force = config.get('forcerevision','')
+    subdirectory = None
     writemode = config.get('writemode','replace')
     if not writemode in ['replace','overwrite']:
         # replace will replace existing data and leave the rest unchanged
@@ -977,7 +975,7 @@ def write_data(config=None,localpathlist=None,debug=False):
                 data.header = merge_two_dicts(existheader,data.header)
 
             # Writing data
-            if not debug and get_bool(config.get('writedatabase')):
+            if not debug and mm.get_bool(config.get('writedatabase')):
                 print("  {}: Adding {} data points to DB now".format(data.header.get('SensorID'), data.length()[0]))
 
                 if not len(data.ndarray[0]) > 0:
@@ -994,7 +992,7 @@ def write_data(config=None,localpathlist=None,debug=False):
                 print ("  DEBUG selected - no database written")
 
             # Writing data
-            if not debug and get_bool(config.get('writearchive')):
+            if not debug and mm.get_bool(config.get('writearchive')):
                 if force:
                     archivepath = os.path.join(config.get('archivepath'),stationid.upper(),fixsensorid,datainfoid)
 
@@ -1102,14 +1100,14 @@ def main(argv):
     config, success = check_configuration(config=config, debug=debug)
 
     if not success:
-        statusmsg[name] = 'invalid cofiguration data - aborting'
+        statusmsg[name] = 'invalid configuration data - aborting'
     else:
         # Override config data with given inputs
         # -----------------------
         if writearchivearg:
-            config['writearchive'] = get_bool(writearchivearg)
+            config['writearchive'] = mm.get_bool(writearchivearg)
         if writedbarg:
-            config['writedatabase'] = get_bool(writedbarg)
+            config['writedatabase'] = mm.get_bool(writedbarg)
         if deptharg:
             config['defaultdepth'] = deptharg
 
@@ -1119,12 +1117,12 @@ def main(argv):
 
         # Obtain list of files to be transferred
         # -----------------------
-        #try:
-        filelist = create_transfer_list(config=config,datelist=datelist,debug=debug)
-        moveon = True
-        #except:
-        #    statusmsg[name] = 'could not obtain remote file list - aborting'
-        #    moveon = False
+        try:
+            filelist = create_transfer_list(config=config,datelist=datelist,debug=debug)
+            moveon = True
+        except:
+            statusmsg[name] = 'could not obtain remote file list - aborting'
+            moveon = False
 
         if moveon:
             # Obtain list of files to be transferred
@@ -1138,7 +1136,7 @@ def main(argv):
             # Write data to specified destinations
             # -----------------------
             #try:
-            if config.get('db') and len(localpathlist) > 0 and (get_bool(config.get('writedatabase')) or get_bool(config.get('writearchive'))):
+            if config.get('db') and len(localpathlist) > 0 and (mm.get_bool(config.get('writedatabase')) or mm.get_bool(config.get('writearchive'))):
                     succ = write_data(config=config,localpathlist=localpathlist,debug=debug)
             #except:
             #    statusmsg[name] = 'problem when writing data'
