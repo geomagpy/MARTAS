@@ -458,6 +458,7 @@ def main(argv):
     name = ''
     receiver = ''
     receiverconf = ''
+    proxies = {}
     debug = False
     try:
         opts, args = getopt.getopt(argv,"hj:m:t:",["jobs=","memory=","telegram=",])
@@ -514,6 +515,10 @@ def main(argv):
             monitorconf = mm.get_conf(configpath)
             receiver = monitorconf.get('notification')
             receiverconf = monitorconf.get('notificationconf')
+            if monitorconf.get('https'):
+                proxies['https'] = monitorconf.get('https')
+            if monitorconf.get('http'):
+                proxies['http'] = monitorconf.get('http')
 
     if jobs == '':
         print ('Specify a valid path to a jobs dictionary (json):')
@@ -613,7 +618,7 @@ def main(argv):
         if debug:
             print(statusmsg)
         elif receiver:
-            martaslog = ml(logfile=logpath, receiver=receiver)
+            martaslog = ml(logfile=logpath, receiver=receiver, proxies=proxies)
             if receiver == 'email':
                 martaslog.email['config'] = receiverconf
             elif receiver == 'telegram':

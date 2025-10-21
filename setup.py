@@ -16,6 +16,7 @@ install_requires=[
             "geomagpy > 1.1.9",
             "numpy >= 1.21.0",
             "scipy >= 1.7.1",
+            "calender",
             "paramiko",
             "pexpect",
             "pyserial",

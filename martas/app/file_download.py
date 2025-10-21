@@ -1020,6 +1020,7 @@ def main(argv):
     debug = False
     filelist = []
     localpathlist = []
+    proxies = {}
 
     try:
         opts, args = getopt.getopt(argv,"hc:e:d:w:a:D",["configuration=","endtime=","depth=","writedb=","writearchive=","debug=",])
@@ -1147,10 +1148,15 @@ def main(argv):
     receiverconf = config.get('notificationconf')
     logpath = config.get('logpath')
 
+    if config.get('https'):
+        proxies['https'] = config.get('https')
+    if config.get('http'):
+        proxies['http'] = config.get('http')
+
     if debug:   #No update of statusmessages if only a selected sensor list is analyzed
         print (statusmsg)
     else:
-        martaslog = ml(logfile=logpath,receiver=receiver)
+        martaslog = ml(logfile=logpath,receiver=receiver,proxies=proxies)
         martaslog.telegram['config'] = receiverconf
         martaslog.msg(statusmsg)
 

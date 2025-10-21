@@ -16,7 +16,9 @@ All threshold processes can be logged and  can be monitored
 by nagios, icinga or martas.
 Threshold.py can be scheduled in crontab.
 
-REQUIREMENTS:
+REQUIREMENTS:# Proxies (if deviating from system proxies)
+#https         :   http://192.168.1.1:3128
+
 pip install geomagpy (>= 2.0.0)
 
 
@@ -327,6 +329,7 @@ def main(argv):
     statuskeylist = []
     travistestrun = False
     changes = []
+    proxies = {}
 
     usagestring = 'threshold.py -h <help> -m <configpath>'
     try:
@@ -486,6 +489,11 @@ def main(argv):
     cfg = conf.get('notificationconfig')
     logfile = conf.get('logfile')
 
+    if conf.get('https'):
+        proxies['https'] = conf.get('https')
+    if conf.get('http'):
+        proxies['http'] = conf.get('http')
+
     if travistestrun:
         print ("Skipping send routines in test run - finished successfully")
         sys.exit()
@@ -493,7 +501,7 @@ def main(argv):
     if debug:
         print ("New notifications would be send to: {} (Config: {})".format(receiver,cfg))
     else:
-        martaslog = ml(logfile=logfile,receiver=receiver)
+        martaslog = ml(logfile=logfile,receiver=receiver,proxies=proxies)
         if receiver == 'telegram':
             martaslog.telegram['config'] = cfg
         elif receiver == 'email':

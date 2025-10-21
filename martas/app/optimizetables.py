@@ -129,6 +129,7 @@ def main(argv):
     configpath = ""
     logpath = "/var/log/magpy/tg_db_opt.log"
     conf = {}
+    proxies = {}
     telegramcfg = ""
     debug=False
 
@@ -191,8 +192,13 @@ def main(argv):
     statusmsg[name] = report
     print("Status", statusmsg[name])
 
+    if conf.get('https'):
+        proxies['https'] = conf.get('https')
+    if conf.get('http'):
+        proxies['http'] = conf.get('http')
+
     if report and cfg and not debug:
-        martaslog = ml(logfile=logpath, receiver=receiver)
+        martaslog = ml(logfile=logpath, receiver=receiver, proxies=proxies)
         if receiver == 'telegram':
             martaslog.telegram['config'] = cfg
         elif receiver == 'email':

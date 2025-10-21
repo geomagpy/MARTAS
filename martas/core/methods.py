@@ -634,12 +634,14 @@ def sendtelegram(message, configpath="", proxies=None, debug=True):
     if not proxies:
         proxies = {}
 
-    print("Running telegram send:", configpath, message, proxies)
+    if debug:
+        print("Running telegram send:", configpath, message, proxies)
     if not message or not configpath or not os.path.isfile(configpath):
         return False
     # telegram notifications - replace and cut
     rep = message.replace('&', 'and').replace('/', '')[:4000]
-    print("Sending by telegram:", rep)
+    if debug:
+        print("Sending by telegram:", rep)
     # Send report to the specific user i.e. by telegram
     config = configparser.ConfigParser()
     config.read(configpath)

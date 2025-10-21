@@ -456,6 +456,7 @@ def main(argv):
     jobs = ''
     joblist = []
     changes = []
+    proxies = {}
     configpath = ''
     jobname = 'M{}'.format(version)
     hostname = socket.gethostname().upper()
@@ -659,10 +660,15 @@ def main(argv):
     except:
         statusmsg[testname] = "error when running monitoring application - please check"
 
+    if monitorconf.get('https'):
+        proxies['https'] = monitorconf.get('https')
+    if monitorconf.get('http'):
+        proxies['http'] = monitorconf.get('http')
+
     if debug:
         print (statusmsg)
     else:
-        martaslog = ml(logfile=logpath,receiver=receiver)
+        martaslog = ml(logfile=logpath,receiver=receiver,proxies=proxies)
         if receiver == 'email':
             martaslog.email['config'] = receiverconf
         elif receiver == 'telegram':

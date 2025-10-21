@@ -200,6 +200,7 @@ def main(argv):
     obssenslist = []
     startdate = ''
     statusmsg = {}
+    proxies = {}
     hostname = socket.gethostname().upper()
     debug=False
     try:
@@ -411,7 +412,11 @@ def main(argv):
     if debug or obssenslist:   #No update of statusmessages if only a selected sensor list is analyzed
         print (statusmsg)
     else:
-        martaslog = ml(logfile=logpath,receiver=receiver)
+        if config.get('https'):
+            proxies['https'] = config.get('https')
+        if config.get('http'):
+            proxies['http'] = config.get('http')
+        martaslog = ml(logfile=logpath,receiver=receiver,proxies=proxies)
         martaslog.telegram['config'] = receiverconf
         martaslog.msg(statusmsg)
 
