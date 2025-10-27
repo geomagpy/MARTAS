@@ -430,14 +430,15 @@ def main(argv):
         elif opt in ("-D", "--debug"):
             debug = True
 
-
-    if debug:
-        print (" Running acquisition tool in debug mode")
     ##  Load defaults dict
     ##  ----------------------------
     conf = mm.get_conf(martasfile)
-
     conf["station"] = conf.get("station").lower()
+    if conf.get('debug') in ["True","TRUE","true"]:
+        debug = True
+
+    if debug:
+        print (" Running acquisition tool in debug mode")
 
     if test:
         # When running test then conf will be predefined
@@ -517,10 +518,11 @@ def main(argv):
             client.tls_set(ca_certs=mqttcert)
         elif mqttpsk and pskidentity:
             if debug:
-                print("MQTT: TLS encryption based in PSK")
+                print("MQTT: TLS encryption based on PSK")
             # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
             #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
-            print ("MARTAS: Deprecation warning - but necessary for old clients")
+            if debug:
+                print ("MARTAS TLS: Deprecation warning - but necessary for old clients")
             context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
             context.set_ciphers('PSK')
             context.psk = bytes.fromhex(pskpwd)

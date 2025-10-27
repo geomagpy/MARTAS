@@ -96,7 +96,7 @@ def get_sensor_table(sensorpath="/home/leon/.martas/conf/sensors.cfg", bufferpat
                 active = True
                 ndd = nd.get(d)
                 for elem in ndd.get('names'):
-                    values.append(elem)
+                    values.append(str(elem))
         stable.append({'SensorID' : s, 'Components':",".join(values),'Active':str(active)})
     return stable, scols
 
