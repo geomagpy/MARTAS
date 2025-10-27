@@ -2496,7 +2496,11 @@ To build a upterm binary for ARM you have to download a new Go tool (at least Go
 check console go version Bulid the binary and move it into /usr/local/bin:
 
         git clone https://github.com/owenthereal/upterm.git 
-        cd ~/upterm GOOS=linux GOARCH=arm GOARM=7 go build -o upterm ./cmd/upterm 
+        cd ~/upterm 
+        GOOS=linux 
+        GOARCH=arm 
+        GOARM=7 
+        go build -o upterm ./cmd/upterm 
         sudo mv ~/upterm/upterm/upterm /usr/local/bin/upterm 
         sudo chmod +x /usr/local/bin/upterm 
 

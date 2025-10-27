@@ -282,6 +282,8 @@ def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
     -> do all that in while True
     """
     prot = {}
+    pname = None
+    protocol = None
     sensorid = sensordict.get('sensorid')
     log.msg("Starting passive thread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
@@ -306,6 +308,8 @@ def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
 
     port = confdict['serialport']+sensordict.get('port')
     log.msg("  -> Connecting to port {} ...".format(port))
+    if confdict.get('debug') == 'True':
+        log.msg("DEBUG -> perameters - protocol {}, port {}, baudrate {}".format(pname, port, int(sensordict.get('baudrate'))))
     serialPort = SerialPort(protocol, port, reactor, baudrate=int(sensordict.get('baudrate')))
 
     passiveconnection = {sensorid: protocolname}

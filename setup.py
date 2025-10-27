@@ -12,13 +12,15 @@ shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
 shutil.copyfile('martas/web/martas_view.py', 'scripts/martas_view')
 shutil.copyfile('martas/web/marcos_view.py', 'scripts/marcos_view')
 
+# modules:
+# paramiko : file_upload
+
 install_requires=[
             "geomagpy > 1.1.9",
             "numpy >= 1.21.0",
             "scipy >= 1.7.1",
-            "calender",
-            "paramiko",
             "pexpect",
+            "paramiko",
             "pyserial",
             "requests",
             "python-crontab",
