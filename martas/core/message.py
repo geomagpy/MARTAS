@@ -397,7 +397,7 @@ class ActionHandler(object):
                                    'priority' : 1,
                                    'availability': ['hidden'],
                                    'description': 'reboot the remote computer'},
-                       'martasupgrade': {'commands': ['martasupgrade','martas upgrade','upgrade MARTAS'],
+                       'martasupgrade': {'commands': ['upgrade'],
                                    'combination' : 'any',
                                    'priority' : 1,
                                    'availability': ['hidden'],
