@@ -525,13 +525,9 @@ def main(argv):
                 print ("MARTAS TLS: Deprecation warning - but necessary for old clients")
             context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
             context.set_ciphers('PSK')
-            print ("HERE1")
             context.psk = bytes.fromhex(pskpwd)
-            print ("HERE2")
             context.identity = pskidentity.encode()
-            print ("HERE3")
             client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
-            print ("HERE4")
         else:
             if debug:
                 print("MQTT: basic TLS")

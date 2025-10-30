@@ -585,14 +585,14 @@ def main(argv):
             except:
                 pass
         if sensor.get('mode') in ['p','passive','Passive','P']:
-            try:
-                connected = passive_thread(conf,sensor,client,establishedconnections)
-                log.msg(" - Passive thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
-                establishedconnections.update(connected)
-                passive_count +=1
-            except:
-                log.msg(" - !!! Passive thread failed for {} !!!".format(sensor.get('sensorid')))
-                pass
+            #try:
+            connected = passive_thread(conf,sensor,client,establishedconnections)
+            log.msg(" - Passive thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+            establishedconnections.update(connected)
+            passive_count +=1
+            #except:
+            #    log.msg(" - !!! Passive thread failed for {} !!!".format(sensor.get('sensorid')))
+            #    pass
         elif sensor.get('mode') in ['a','active','Active','A']:
             #try:
             log.msg(" - Active thread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
