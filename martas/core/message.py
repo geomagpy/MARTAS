@@ -397,7 +397,7 @@ class ActionHandler(object):
                                    'priority' : 1,
                                    'availability': ['hidden'],
                                    'description': 'reboot the remote computer'},
-                       'martasupgrade': {'commands': ['martasupgrade'],
+                       'martasupgrade': {'commands': ['martasupgrade','martas upgrade','upgrade MARTAS'],
                                    'combination' : 'any',
                                    'priority' : 1,
                                    'availability': ['hidden'],
@@ -410,13 +410,13 @@ class ActionHandler(object):
                        'martas' : {'commands': ['Martas','martas','MARTAS'],
                                    'combination' : 'any',
                                    'availability': ['MARTAS'],
-                                   'priority' : 1,
+                                   'priority' : 2,
                                    'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
                                    'description': 'restart-stop-start-update-status : e.g. restart MARTAS process: send - martas restart - to restart a martas process'},
                        'marcos' : {'commands': ['Marcos','marcos','MARCOS'],
                                    'combination' : 'any',
                                    'availability': ['MARCOS'],
-                                   'priority' : 1,
+                                   'priority' : 2,
                                    'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
                                    'description': 'restart-stop-start-status : e.g. restart MARCOS processes: if you have a collector called collect-local then - marcos local restart - will restart this process'},
                        'aperta': {'commands': ['aperta', 'Aperta', 'Sesam öffne dich'],
@@ -1202,9 +1202,12 @@ class ActionHandler(object):
                 (output, err) = p.communicate()
                 output = output.decode()
             mesg = output
-            print (" ... got", mesg)
+            print (" ... got:", mesg)
+            print (" length:", len(mesg))
+            if len(mesg) > 4000:
+                mesg = "Message too long - showing only last part:\n\n... " + mesg[-3800:]
         except subprocess.CalledProcessError:
-            mesg = " check: call {} didnot work".format(call)
+            mesg = " check: call {} did not work".format(call)
         except:
             mesg = "getip: check_call problem"
         return mesg
