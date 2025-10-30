@@ -747,7 +747,7 @@ class ActionHandler(object):
         return message
 
 
-    def action_martasupdate(self, user='cobs', debug=True):
+    def action_martasupdate(self, debug=True):
         """
         DESCRIPTION:
             updating martas using pip - requires martas 2 to be published on pypi
@@ -905,6 +905,7 @@ class ActionHandler(object):
         return message
 
 
+    # TODO deprecated
     def action_tmate(self, command, debug=False):
         """
         DESCRIPTION
@@ -1181,16 +1182,24 @@ class ActionHandler(object):
             Methods issueing call already: tmate,
         """
         try:
-            print ("Executing call", call)
+            if debug:
+                print ("Executing call", call)
             if call.find("upterm") > -1:
-                process = subprocess.run(call, shell=True, text=True, capture_output=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                print ("Done")
-                output = process.stdout
-                print (output)
+                # Special treatment required - as terminal needs to be kept open (p.communicate() would close the terminal
+                p = subprocess.Popen([call], stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+                oput = []
+                count = 0
+                line = p.stdout.readline().decode()
+                while count < 10:
+                    if line.find("SSH Command") > -1:
+                        oput.append(line)
+                        break
+                    line = p.stdout.readline().decode()
+                    count += 1
+                output = "".join(oput)
             else:
                 p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
                 (output, err) = p.communicate()
-                print ("Done")
                 output = output.decode()
             mesg = output
             print (" ... got", mesg)

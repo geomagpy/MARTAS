@@ -95,7 +95,7 @@ def get_sensor_table(sensorpath="/home/leon/.martas/conf/sensors.cfg", bufferpat
             if d.find(s) >= 0:
                 active = True
                 ndd = nd.get(d)
-                for elem in ndd.get('names'):
+                for elem in ndd.get('allnames'):
                     values.append(str(elem))
         stable.append({'SensorID' : s, 'Components':",".join(values),'Active':str(active)})
     return stable, scols
@@ -194,13 +194,17 @@ def extract_data(f, duration=600, debug=False):
         print(" - got {} datapoints for keys {}".format(len(stream), keys))
     data = {}
     names = []
+    allnames = []
     data['time'] = stream.ndarray[0]
     for key in keys:
+        # Limit to numerical keys for selection
         name = stream.get_key_name(key)
-        data[name] = stream._get_column(key)
-        names.append(name)
+        if key in DataStream().NUMKEYLIST:
+            data[name] = stream._get_column(key)
+            names.append(name)
+        allnames.append(name)
     # print (data, names)
-    return data, names
+    return data, names, allnames
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
@@ -212,8 +216,8 @@ statusdict = get_storage_usage(statusdict=statusdict, mqttpath=bufferpath, logpa
 
 nd={}
 for d in data2show:
-    data, names = extract_data(d)
-    nd[d] = {'names': names }
+    data, names, anames = extract_data(d)
+    nd[d] = {'names': names, 'allnames': anames  }
 stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
 ctable, ccols = get_cron_jobs(debug=True)
 # Determine the sampling rate for graph
@@ -443,8 +447,8 @@ def update_graph(n, hvalue, duration):
     data2show = get_new_data(path=bufferpath,duration=cov)
     all_names =[]
     for f in data2show:
-        data, names = extract_data(f,duration=cov)
-        nd[f] = {'names': names, 'data':data}
+        data, names, anames = extract_data(f,duration=cov)
+        nd[f] = {'allnames': anames, 'names': names, 'data':data}
         all_names.extend(names)
 
     fig = make_subplots(rows=len(all_names), cols=1, vertical_spacing=0.1)
