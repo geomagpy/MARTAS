@@ -970,7 +970,7 @@ def main(argv):
     files_to_change = {}
     if initjob == "MARTAS":
         replacedict["/mybasedir"] = bufferpath
-        replacedict["space,martas,marcos,logfile"] = "space,martas,logpfile"
+        replacedict["space,martas,marcos,logfile"] = "space,martas,logfile"
         files_to_change["martasconf"] = {"source" : os.path.join(confpath, "martas.bak") ,
                                         "dest" : os.path.join(confpath, "martas.cfg") }
 

@@ -2489,7 +2489,7 @@ You will see the ssh link. Open a new terminal and copy it: console ssh XXXXXXXX
 
 To build a upterm binary for ARM you have to download a new Go tool (at least Go 1.13+):
 
-        wget https://go.dev/dl/go1.21.5.linux-armv6l.tar.gz 
+        wget https://go.dev/dl/go1.21.5.linux-armv6l.tar.gz  # 1.25.3
         sudo tar -C /usr/local -xzf go1.21.5.linux-armv6l.tar.gz 
         export PATH=$PATH:/usr/local/go/bin 
 
