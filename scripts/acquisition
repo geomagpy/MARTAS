@@ -75,7 +75,10 @@ from martas.version import __version__
 import paho.mqtt.client as mqtt
 import paho.mqtt
 import ssl
-from sslpsk2.sslpsk2 import _ssl_set_psk_server_callback, _ssl_set_psk_client_callback
+try:
+    from sslpsk2.sslpsk2 import _ssl_set_psk_server_callback, _ssl_set_psk_client_callback
+except:
+    pass
 
 ## Import twisted for serial port communication and web server
 ## -----------------------------------------------------------

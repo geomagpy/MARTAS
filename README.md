@@ -2085,7 +2085,7 @@ some system specific issues and solutions, as well as a full installation cookbo
 
 #### 10.1.1 MARTAS on BeagleBone Black Rev C with system python
 
-For some hardware systems, particularly ARM processors (Beaglebone, Raspberry, etc) problems might occur during the 
+For some hardware systems, particularly ARM processors (Beaglebone, etc) problems might occur during the 
 setup of virtual python environments. Such problems have been experienced while installing scipy inside a virtual
 environment on beaglebone blacks. You might want to consider search engines to find solutions for that. Alternatively 
 you can also switch to system python for running MARTAS. 
@@ -2132,7 +2132,35 @@ the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full pat
 it available from cron.
 
 
-#### 10.1.2 MARTAS on Raspberry 
+#### 10.1.2 MARTAS on Raspberry (zero, RP5)
+
+The following approach was tested using Debian bookworm with python 3.11.
+
+        sudo apt update
+        sudo apt upgrade
+
+install MQTT client and broker (if not configured differently, the raspberry acts as broker) and virtualenv
+
+        sudo apt install mosquitto mosquitto-clients
+        sudo apt install python3-virtualenv
+
+Create an environment and install MARTAS
+
+        virtualenv ~/env/martas
+        source ~/env/martas/bin/activate
+        pip install martas
+
+Create a bufferdircetory
+
+        mkdir ~/MARTAS
+
+Eventually add credentials for notifications by e-mail (skip this one if not used)
+
+        addcred -t email -c email -u USER -p PASSWD -h -p 
+
+Run initialization
+
+        martas_init
 
 
 #### 10.1.3 Full installation examples for specific systems

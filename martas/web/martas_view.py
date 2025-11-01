@@ -236,6 +236,8 @@ for d in data2show:
 stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
 ctable, ccols = get_cron_jobs(debug=False)
 
+print ("Display refresh rate: {} sec".format(srate))
+
 app = Dash(__name__, assets_ignore='marcos.css')
 
 app.layout = (html.Div(
@@ -321,7 +323,7 @@ app.layout = (html.Div(
                                                             "red": [statusdict['mqtt'].get('space') * 0.9,
                                                                     statusdict['mqtt'].get('space')]}},
                                           value=statusdict['mqtt'].get('used'),
-                                          label='Buffer',
+                                          label='Buffer [GB]',
                                           max=statusdict['mqtt'].get('space'),
                                           min=0,
                                       ),
@@ -456,7 +458,7 @@ def update_graph(n, hvalue, duration):
     data2show = get_new_data(path=bufferpath,duration=cov)
     all_names =[]
     for f in data2show:
-        data, names, anames = extract_data(f,duration=cov)
+        data, names, anames, mdr = extract_data(f,duration=cov)
         nd[f] = {'allnames': anames, 'names': names, 'data':data}
         all_names.extend(names)
 

@@ -187,7 +187,14 @@ def get_cron_jobs(debug=False):
 def extract_data(f, duration=600, debug=False):
     if debug:
         print("Extracting data from:", f)
+    mindisplayrate = 5
+    t1 = datetime.now()
     stream = read(f, starttime=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=duration))
+    if stream.samplingrate() < 0.99:
+        mindisplayrate = 60
+        if debug:
+            print ("Sampling rate to high for rendering display - downsampling to 1 sec")
+        stream = stream.filter()
     # convert to pandas
     keys = stream._get_key_headers()
     if debug:
@@ -199,12 +206,17 @@ def extract_data(f, duration=600, debug=False):
     for key in keys:
         # Limit to numerical keys for selection
         name = stream.get_key_name(key)
-        if key in DataStream().NUMKEYLIST:
+        if key in DataStream().NUMKEYLIST and len(names) < 3:
+            # limit to three components for each sensor
             data[name] = stream._get_column(key)
             names.append(name)
         allnames.append(name)
     # print (data, names)
-    return data, names, allnames
+    t2 = datetime.now()
+    tdiff = (t2-t1).total_seconds()
+    if tdiff > mindisplayrate/2:
+        mindisplayrate = int(np.ceil(tdiff*2))
+    return data, names, allnames, mindisplayrate
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
@@ -215,19 +227,18 @@ data2show = get_new_data(path=bufferpath)
 statusdict = get_storage_usage(statusdict=statusdict, mqttpath=bufferpath, logpath=logpath, debug=False)
 
 nd={}
+srate = 5 # displayrate - needs to be large enough, dynamically adjusted
 for d in data2show:
-    data, names, anames = extract_data(d)
+    data, names, anames, mdr = extract_data(d)
     nd[d] = {'names': names, 'allnames': anames  }
+    if mdr > srate:
+        srate = mdr
 stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
-ctable, ccols = get_cron_jobs(debug=True)
-# Determine the sampling rate for graph
-srate = 10
-for s in stable:
-    if s.get('SensorID','').find('LEMI') > -1:
-        srate = 60
+ctable, ccols = get_cron_jobs(debug=False)
+
+print ("Display refresh rate: {} sec".format(srate))
 
 app = Dash(__name__, assets_ignore='marcos.css')
-
 
 app.layout = (html.Div(
                  className="wrapper",
