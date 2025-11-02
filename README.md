@@ -489,7 +489,7 @@ Please note: gsm90v7init.sh is also working for GSM90v8 and GSM90v9 instruments.
 
 ### 4.4 Examples for sensor definitions in sensors.cfg
 
-#### Geomagnetic GSM90 Overhauser Sensors (GEM Systems)
+#### 4.4.1 Geomagnetic GSM90 Overhauser Sensors (GEM Systems)
 
          GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
@@ -499,13 +499,13 @@ sensors require initialization data provided in ~/.martas/init i.e. gsm90v7init.
 to start continuous recording of the system. I strongly recommend passive recording i.e. at 0.5 Hz (GPS mode) and then
 filter to 1 Hz to obtain a record with readings centered on the second.
 
-#### Geomagnetic GSM19 Overhauzer Sensors (GEM Systems)
+#### 4.4.2 Geomagnetic GSM19 Overhauzer Sensors (GEM Systems)
 
         GSM19_7122568_0001,USB0,115200,8,1,N,passive,,-,1,GSM19,GSM19,7122568,0001,-,mobile,GPS,magnetism,GEM Overhauzer v7.0
 
 The GSM19 sensor needs to be configured so that it sends data to the serial port (see [9.2.2](#922-gem-systems-overhauser-gsm19)).
 
-#### Geoelectric 4point light 10W (Lippmann)  
+#### 4.4.3 Geoelectric 4point light 10W (Lippmann)  
 
         4PL_123_0001,ACM0,19200,8,1,N,active,None,60,1,FourPL,4PL,123,0001,-,Home,NTP,geoelectric,wenner-0.65-0-c-o
 
@@ -518,11 +518,11 @@ freqdic = {"a":"0.26Hz","b":"0.52Hz","c":"1.04Hz","d":"2.08Hz","e":"4.16Hz","f":
 wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L=0 is not used for wenner, current (c) = 100uA, and frequency (o) = 1.04 Hz
 
 
-#### Meteorology DSP Ultrasonic wind (Meteolab)  
+#### 4.4.4 Meteorology DSP Ultrasonic wind (Meteolab)  
 
          ULTRASONICDSP_0009009195_0001,S0,115200,8,1,N,active,None,60,1,DSP,ULTRASONICDSP,0009009195,0001,...
 
-#### General Adruino microcontroller (Arduino)  
+#### 4.4.5 General Adruino microcontroller (Arduino)  
 
 Please read section [9.2.7](#927--communicating-with-an-arduino-uno-microcontroller). The recommended integration of microcontrollers like an arduino is based on the
 **active** library: 
@@ -535,7 +535,7 @@ requests.
          ARDUINO1,ACM0,9600,8,1,N,passive,None,60,1,Arduino,ARDUINO,-,0001,-,Home,NTP,environment,Arduino sensors
 
 
-#### MariaDB/MySQL database access  
+#### 4.4.6 MariaDB/MySQL database access  
 
 A database link needs to be created using **addcred**. This shortcut, *cobsdb* in belows example, is used to connect
 the database. Data is obtained with the given sampling rate (10 seconds below). Only tables belonging to SensorGroup
@@ -544,7 +544,7 @@ defining how old data is allowed to be considered.
 
          cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
 
-#### Onewire Senors (Dallas)  
+#### 4.4.7 Onewire Senors (Dallas)  
 
 The following additional packages need to be installed:
 
@@ -555,19 +555,19 @@ Please also read section [9.2.6](#926-dallas-ow-one-wire-support) for configurat
 
          OW,-,-,-,-,-,active,None,10,1,Ow,OW,-,0001,-,A2,NTP,environment,environment: dallas one wire sensors
 
-#### Environment ENV05 T/rh ()
+#### 4.4.8 Environment ENV05 T/rh ()
 
          ENV05_3_0001,USB0,9600,8,1,N,passive,None,-,1,Env,ENV05,3,0001,-,AS-W-20,NTP,environment,temperature and humidity
 
-#### Geomagnetic LEMI025/036 variometer (LEMI LVIV)
+#### 4.4.9 Geomagnetic LEMI025/036 variometer (LEMI LVIV)
 
          LEMI036_3_0001,USB0,57600,8,1,N,passive,None,-,1,Lemi,LEMI036,3,0001,-,ABS-67,GPS,magnetism,magnetic variometer from Lviv
 
-#### Geomagnetism POS1/POS4 Overhauser Sensor (Quantum magnetics)
+#### 4.4.10 Geomagnetism POS1/POS4 Overhauser Sensor (Quantum magnetics)
 
          POS1_N432_0001,S0,9600,8,1,N,passive,pos1init.sh,-,1,POS1,POS1,N432,0001,-,AS-W-36,GPS,magnetism,Quantum magnetics POS1 Overhauzer sensor
 
-#### Datalogger CR1000/CR800 (Campbell Scientific)
+#### 4.4.11 Datalogger CR1000/CR800 (Campbell Scientific)
 
 You need to install a Campbell python library in order to use this datalogger:
 
@@ -580,19 +580,35 @@ Then you can use the following line in sensors.cfg
 
          CR1000JC_1_0002,USB0,38400,8,1,N,active,None,2,1,cr1000jc,CR1000JC,02367,0002,-,TEST,NTP,meteorological,snow height
 
-#### Datalogger AD7714 24bit ()
+#### 4.4.12 Datalogger AD7714 24bit ()
 
          AD7714_0001_0001,-,-,-,-,-,autonomous,None,-,10,ad7714,AD7714,-,0001,-,-,NTP,environment,24bit analog digital converter
 
-#### Multimeter Fluke 289
+#### 4.4.13 BME280 I2C sensors
+
+Using I2C senosrs requires the additional installation of adafruit python packages. Currently a library for BM280 
+temperature, humidity and pressure senosr is included. Other I2C senosrs could easily be added in future.
+
+Install the following packages first:
+
+         pip install board
+         pip install adafruit-blinka 
+         pip install adafruit-circuitpython-bme280
+
+and then add a sensor line like the following
+
+         BME280_1971_0001,I2C,-,-,-,-,active,None,10,1,BME280IC2,BME280,1971,0001,-,OnBoard,NTP,environment,bme environment sensor
+
+
+#### 4.4.14 Multimeter Fluke 289
 
          FLUKE289_24580003_0001,USB0,115200,8,1,N,active,None,0.1,10,fluke289,FLUKE289,24580003,0001,-,TEST,NTP,electric,voltage
 
-#### Geomagnetic Obsdaq/Palmdaq datalogger together FGE Magnetometer (MINGEO, DTU)
+#### 4.4.15 Geomagnetic Obsdaq/Palmdaq datalogger together FGE Magnetometer (MINGEO, DTU)
 
          FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 
-#### Data files (supported are all data files, readable with MagPy)
+#### 4.4.16 Data files (supported are all data files, readable with MagPy)
 
          WICadjusted,/home/leon/Cloud/Daten,-,-,-,-,active,None,30,1,IMfile,*.min,-,0001,-,-,-,magnetism,-
 
@@ -1893,7 +1909,7 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | AD7714              |          | multiple    | ad7714protocol.py        | active  |                |                  |
 | Arduino             | 2.0.0    | multiple    | arduinoprotocol.py       | passive |                |                  |
 | BM35-pressure       |          | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
-| BME280              |          | pressure    | bme280i2cprotocol.py     | passive |                | adafruit_bme280  |
+| BME280              | 2.0.0    | pressure    | bme280i2cprotocol.py     | active  |                | 4.4.13           |
 | CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active  |                | pycampbellcr1000 |
 | Cesium G823         |          | opt.pumped  | csprotocol.py            | passive |                |                  |
 | Thies LNM           |          | laserdisdro | disdroprotocol.py        | active  |                |                  |
@@ -1914,7 +1930,7 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | ObsDaq              |          | multiple    | obsdaqprotocol.py        | active  | obsdaqinit.sh  |                  |
 | OneWire             |          | multiple    | owprotocol.py            | passive |                |                  |
 | POS1                |          | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
-| Test                | 2.0.0    | special     | testprotocol.py          |         |                |                  |
+| Test                | 2.0.0    | special     | testprotocol.py          | passive |                |                  |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
@@ -2143,11 +2159,29 @@ install MQTT client and broker (if not configured differently, the raspberry act
 
         sudo apt install mosquitto mosquitto-clients
         sudo apt install python3-virtualenv
+        sudo apt install cmake llvm-14
+
 
 Create an environment and install MARTAS
 
         virtualenv ~/env/martas
         source ~/env/martas/bin/activate
+
+Get some of the critical python dependencies first. In case of failures please contact the development 
+team for working versions of the specific packages and their dependencies. Typically problems are related 
+to sub-dependencies of numpy, matplotlib and scipy. The following recommendation is valid for bookworm 
+with python 3.11, which might fail because of the matplotlib dependency contourpy. So lets choose a 
+working version first:
+
+        pip install contourpy==1.0.7
+        pip install matplotlib==3.6.3
+        pip install pywavelet==1.8.0
+        pip install cryptography==38.0.4
+        LLVM_CONFIG=/usr/bin/llvm-config-14
+        pip install numba==0.59.1
+
+Then install all other modules and their dependencies
+
         pip install martas
 
 Create a bufferdircetory
