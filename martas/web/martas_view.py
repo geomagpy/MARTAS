@@ -38,7 +38,6 @@ def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
     for line in sensorlist:
         sl.append(line.get('sensorid',''))
     sensorlist = mm.get_sensors(path, "?")
-    print ("?", sensorlist)
     if len(sensorlist) > 0:
         sensorlistmain = [el for el in sensorlistmain if not el.get("sensorid","").find("ARDUINO") > -1]
     for line in sensorlist:

@@ -2150,7 +2150,8 @@ it available from cron.
 
 #### 10.1.2 MARTAS on Raspberry (zero, RP5)
 
-The following approach was tested using Debian bookworm with python 3.11.
+The following approach was tested using Debian bookworm with python 3.11. Please note: you can also use the 
+"break-system-packages" approach as in 10.1.1.
 
         sudo apt update
         sudo apt upgrade
@@ -2159,8 +2160,6 @@ install MQTT client and broker (if not configured differently, the raspberry act
 
         sudo apt install mosquitto mosquitto-clients
         sudo apt install python3-virtualenv
-        sudo apt install cmake llvm-14
-
 
 Create an environment and install MARTAS
 
@@ -2173,10 +2172,20 @@ to sub-dependencies of numpy, matplotlib and scipy. The following recommendation
 with python 3.11, which might fail because of the matplotlib dependency contourpy. So lets choose a 
 working version first:
 
+        pip install numpy==1.26.4
         pip install contourpy==1.0.7
         pip install matplotlib==3.6.3
         pip install pywavelet==1.8.0
         pip install cryptography==38.0.4
+        pip install geomagpy
+
+In case you get problems related to llvmlite or numba (observed in rasbian bookworm with python 3.11.2), please contact
+the development team for a minimal version of geomagpy without emd support (please note: this will affect KI and 
+activity analysis, which usually is not done on pMARTAS).
+
+Alternatively, you might also try:
+
+        sudo apt install llvm-14
         LLVM_CONFIG=/usr/bin/llvm-config-14
         pip install numba==0.59.1
 
