@@ -123,7 +123,7 @@ def handle(msg):
     else:
         if content_type == 'text':
             tglogger.info('Received command "{}" from ChatID {} (User: {})'.format(command,chat_id,firstname))
-            al = ah.interprete(command)
+            al = ah.interpret(command)
             message = ah.execute_action(al, input=command, debug=True)
             for com in message:
                 cc = message.get(com)

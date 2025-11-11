@@ -634,31 +634,46 @@ def main(argv):
         if 'martas' in joblist:
             if debug:
                 print ("Running martas job")
-            statusmsg = check_martas(testpath=basedirectory, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            try:
+                statusmsg = check_martas(testpath=basedirectory, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            except:
+                statusmsg[testname] = "error when running martas job monitoring - please check"
         elif 'datafile' in joblist:
             if debug:
                 print ("Running datafile job on {}".format(basedirectory))
-            statusmsg = check_datafile(testpath=basedirectory, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            try:
+                statusmsg = check_datafile(testpath=basedirectory, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, ignorelist=ignorelist,thresholddict=thresholddict, debug=debug)
+            except:
+                statusmsg[testname] = "error when running datafile monitoring - please check"
         if 'marcos' in joblist:
             if debug:
                 print ("Running marcos job")
-            db = mm.connect_db(dbcred)
-            statusmsg = check_marcos(db, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, excludelist=ignorelist,acceptedoffsets=thresholddict, debug=debug)
+            try:
+                db = mm.connect_db(dbcred)
+                statusmsg = check_marcos(db, threshold=defaultthreshold, jobname=testname, statusdict=statusmsg, excludelist=ignorelist,acceptedoffsets=thresholddict, debug=debug)
+            except:
+                statusmsg[testname] = "error when running marcos job monitoring - please check"
         if 'logfile' in joblist:
             if debug:
                 print ("Running logfile job on {}".format(logfile))
-            statusmsg = check_logfile(logfile, tmpdir=tmpdir, jobname=testname, statusdict=statusmsg, testtype=logtesttype, logsearchmessage=logsearchmessage, tolerance=testamount, debug=debug)
+            try:
+                statusmsg = check_logfile(logfile, tmpdir=tmpdir, jobname=testname, statusdict=statusmsg, testtype=logtesttype, logsearchmessage=logsearchmessage, tolerance=testamount, debug=debug)
+            except:
+                statusmsg[testname] = "error when running logfile monitoring - please check"
         if execute:
             # scan statusmessages for execute call
-            if any([statusmsg.get(stat).find('CRITICAL: execute script')>-1 for stat in statusmsg]):
-                # Found a critical execution message
-                if debug:
-                    print ("Running execute job")
-                statusmsg = execute_script(execute,jobname=testname, statusdict=statusmsg)
+            try:
+                if any([statusmsg.get(stat).find('CRITICAL: execute script')>-1 for stat in statusmsg]):
+                    # Found a critical execution message
+                    if debug:
+                        print ("Running execute job")
+                    statusmsg = execute_script(execute,jobname=testname, statusdict=statusmsg)
+            except:
+                statusmsg[testname] = "error when executing monitoring application"
 
         statusmsg[testname] = "monitoring application running successful"
     except:
-        statusmsg[testname] = "error when running monitoring application - please check"
+        statusmsg[testname] = "basic error when running monitoring application - please check"
 
     if monitorconf.get('https'):
         proxies['https'] = monitorconf.get('https')

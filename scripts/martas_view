@@ -38,7 +38,6 @@ def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
     for line in sensorlist:
         sl.append(line.get('sensorid',''))
     sensorlist = mm.get_sensors(path, "?")
-    print ("?", sensorlist)
     if len(sensorlist) > 0:
         sensorlistmain = [el for el in sensorlistmain if not el.get("sensorid","").find("ARDUINO") > -1]
     for line in sensorlist:
@@ -95,7 +94,7 @@ def get_sensor_table(sensorpath="/home/leon/.martas/conf/sensors.cfg", bufferpat
             if d.find(s) >= 0:
                 active = True
                 ndd = nd.get(d)
-                for elem in ndd.get('names'):
+                for elem in ndd.get('allnames'):
                     values.append(str(elem))
         stable.append({'SensorID' : s, 'Components':",".join(values),'Active':str(active)})
     return stable, scols
@@ -187,20 +186,36 @@ def get_cron_jobs(debug=False):
 def extract_data(f, duration=600, debug=False):
     if debug:
         print("Extracting data from:", f)
+    mindisplayrate = 5
+    t1 = datetime.now()
     stream = read(f, starttime=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=duration))
+    if stream.samplingrate() < 0.99:
+        mindisplayrate = 60
+        if debug:
+            print ("Sampling rate to high for rendering display - downsampling to 1 sec")
+        stream = stream.filter()
     # convert to pandas
     keys = stream._get_key_headers()
     if debug:
         print(" - got {} datapoints for keys {}".format(len(stream), keys))
     data = {}
     names = []
+    allnames = []
     data['time'] = stream.ndarray[0]
     for key in keys:
+        # Limit to numerical keys for selection
         name = stream.get_key_name(key)
-        data[name] = stream._get_column(key)
-        names.append(name)
+        if key in DataStream().NUMKEYLIST and len(names) < 3:
+            # limit to three components for each sensor
+            data[name] = stream._get_column(key)
+            names.append(name)
+        allnames.append(name)
     # print (data, names)
-    return data, names
+    t2 = datetime.now()
+    tdiff = (t2-t1).total_seconds()
+    if tdiff > mindisplayrate/2:
+        mindisplayrate = int(np.ceil(tdiff*2))
+    return data, names, allnames, mindisplayrate
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
@@ -211,19 +226,18 @@ data2show = get_new_data(path=bufferpath)
 statusdict = get_storage_usage(statusdict=statusdict, mqttpath=bufferpath, logpath=logpath, debug=False)
 
 nd={}
+srate = 5 # displayrate - needs to be large enough, dynamically adjusted
 for d in data2show:
-    data, names = extract_data(d)
-    nd[d] = {'names': names }
+    data, names, anames, mdr = extract_data(d)
+    nd[d] = {'names': names, 'allnames': anames  }
+    if mdr > srate:
+        srate = mdr
 stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
-ctable, ccols = get_cron_jobs(debug=True)
-# Determine the sampling rate for graph
-srate = 10
-for s in stable:
-    if s.get('SensorID','').find('LEMI') > -1:
-        srate = 60
+ctable, ccols = get_cron_jobs(debug=False)
+
+print ("Display refresh rate: {} sec".format(srate))
 
 app = Dash(__name__, assets_ignore='marcos.css')
-
 
 app.layout = (html.Div(
                  className="wrapper",
@@ -308,7 +322,7 @@ app.layout = (html.Div(
                                                             "red": [statusdict['mqtt'].get('space') * 0.9,
                                                                     statusdict['mqtt'].get('space')]}},
                                           value=statusdict['mqtt'].get('used'),
-                                          label='Buffer',
+                                          label='Buffer [GB]',
                                           max=statusdict['mqtt'].get('space'),
                                           min=0,
                                       ),
@@ -443,8 +457,8 @@ def update_graph(n, hvalue, duration):
     data2show = get_new_data(path=bufferpath,duration=cov)
     all_names =[]
     for f in data2show:
-        data, names = extract_data(f,duration=cov)
-        nd[f] = {'names': names, 'data':data}
+        data, names, anames, mdr = extract_data(f,duration=cov)
+        nd[f] = {'allnames': anames, 'names': names, 'data':data}
         all_names.extend(names)
 
     fig = make_subplots(rows=len(all_names), cols=1, vertical_spacing=0.1)
