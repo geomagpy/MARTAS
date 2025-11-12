@@ -2175,7 +2175,8 @@ working version first:
         pip install numpy==1.26.4
         pip install contourpy==1.0.7
         pip install matplotlib==3.6.3
-        pip install pywavelet==1.8.0
+        #####pip install pywavelet==1.8.0####
+        pip install PyWavelets==1.8.0
         pip install cryptography==38.0.4
         pip install geomagpy
 
