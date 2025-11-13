@@ -2528,7 +2528,8 @@ tested on Ubuntu 22.04.5 LTS (x86-64, ThinkPad X13 Gen 4) and Raspbian 10 buster
 
 Download the linux Version console 
 
-        wget https://github.com/owenthereal/upterm/releases/download/v0.15.3-upterm_linux_amd64.deb 
+        ###wget https://github.com/owenthereal/upterm/releases/download/v0.15.3-upterm_linux_amd64.deb### 
+        wget https://github.com/owenthereal/upterm/releases/download/v0.17.0/upterm_linux_amd64.deb
 
 and install it
 
