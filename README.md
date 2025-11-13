@@ -2564,8 +2564,8 @@ To build a upterm binary for ARM you have to download a new Go tool (at least Go
 
         ####wget https://go.dev/dl/go1.21.5.linux-armv6l.tar.gz  # 1.25.3####
         ####sudo tar -C /usr/local -xzf go1.21.5.linux-armv6l.tar.gz ####
-        wget https://go.dev/dl/go1.21.5.linux-armv64.tar.gz  # 1.25.3
-        sudo tar -C /usr/local -xzf go1.21.5.linux-armv64.tar.gz
+        wget https://go.dev/dl/go1.21.5.linux-arm64.tar.gz  # 1.25.3
+        sudo tar -C /usr/local -xzf go1.21.5.linux-arm64.tar.gz
         export PATH=$PATH:/usr/local/go/bin 
 
 check console go version Bulid the binary and move it into /usr/local/bin:
