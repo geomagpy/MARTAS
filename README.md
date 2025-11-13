@@ -2601,7 +2601,8 @@ Get new version of Go tool (apt too old):
 go version Build upterm binary: console 
 
         git clone https://github.com/owenthereal/upterm.git 
-        cd upterm GOOS=linux GOARCH=arm GOARM=7 
+        ####cd upterm GOOS=linux GOARCH=arm GOARM=7 ####
+        cd upterm; GOOS=linux; GOARCH=arm; GOARM=7
         go build -o upterm ./cmd/upterm 
         sudo mv upterm/upterm /usr/local/bin/ 
         sudo chmod +x /usr/local/bin/upterm 
