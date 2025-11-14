@@ -2556,7 +2556,7 @@ Run upterm:
 
 You will see the ssh link. Open a new terminal and copy it: console ssh XXXXXXXXX@uptermd.upterm.dev to end session: 
 for example:
-
+```
 ╭─ Session: bJ5OpbvIMVtyfKlWbmiq ─╮
 ┌──────────────────┬─────────────────────────────────────────────┐
 │ Command:         │ /bin/bash                                   │
@@ -2572,7 +2572,7 @@ for example:
 🤝 Accept connections? [y/n] (or <ctrl-c> to force exit)
 
 ✅ Starting to accept connections...
-
+```
 
 the last line starting with "ssh bJ5OpbvIM...." is the command you need to enter in your clients terminal - with upterm also installed.
         exit 
