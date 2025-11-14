@@ -4,7 +4,8 @@
 
 #$PYTHONPATH $MARTASPATH/app/serialinit.py -p "/dev/ttyS0" -b 9600 -c "mode text,time datetime,date 11-22-16,range 48500,auto 5" -k "%H:%M:%S" -x -d 0
 PYTHONPATH="/usr/bin/python3"
-MARTASPATH="/home/debian/MARTAS"
+####MARTASPATH="/home/debian/MARTAS"####
+MARTASPATH="/home/debian/.martas"
 DAY=$(date +FORMAT=%d |awk -F '=' '{print $2}')
 MONTH=$(date +FORMAT=%m |awk -F '=' '{print $2}')
 YEAR=$(date +FORMAT=%y |awk -F '=' '{print $2}')
@@ -19,7 +20,7 @@ $PYTHONPATH $MARTASPATH/app/serialinit.py -p "$YOURDEV" -b 9600 -c "mode text,ra
 $PYTHONPATH $MARTASPATH/app/serialinit.py -p "$YOURDEV" -b 9600 -c "run" -x -d 0 -f True > returnstring
 DATEFOUND=$(more returnstring |grep -a -i 'Response' |awk -F ' ' '{print $7}') # retrieve date from POS1 found by run command return
 echo 'DATEFOUND in POS1:' $DATEFOUND
-if [ $DATEFOUND = $DATESET ]; then
+if [ "$DATEFOUND" = "$DATESET" ]; then
     echo 'DATESET IS EQUAL TO FOUND IN RUNNING POS1 SYSTEM. USING GPS SYSTEM TIME ONLY.';
     $PYTHONPATH $MARTASPATH/app/serialinit.py -p "$YOURDEV" -b 9600 -c "mode text,range $MAINFIELDAWAITING,auto 5" -x -d 0 -f True;
     echo 'POS1 initilized with GPS.';
