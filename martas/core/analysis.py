@@ -7,6 +7,10 @@ Methods of this module
 | --------------- |  ----------------  |  ------- |  ------- |  ------------------------------- | ------ | -------- |
 |  MartasAnalysis |  __init__          |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  _get_data_from_db |  2.0.0   |      yes |                                  | -      |          |
+|  MartasAnalysis |  _data_from_db     |  2.0.0   |      yes |  weather                         | -      |          |
+|  MartasAnalysis |  get_marcos_data   |  2.0.0   |      yes |  weather                         | -      |          |
+|  MartasAnalysis |  put_data          |  2.0.0   |          |  weather                         | -      |          |
+|  MartasAnalysis |  db_table_exists   |  2.0.0   |          |  weather                         | -      |          |
 |  MartasAnalysis |  update_flags_db   |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  periodically      |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  cleanup           |  2.0.0   |      yes |                                  | -      |          |
@@ -23,7 +27,7 @@ Methods of this module
 |  MartasStatus   |  check_highs       |  2.0.0   |      yes |                                  | -      |          |
 |  MartasStatus   |  create_sql        |  2.0.0   |      yes |                                  | -      |          |
 |  MartasStatus   |  statustableinit   |  2.0.0   |      yes |                                  | -      |          |
-
+get_marcos_data
 
 
 PREREQUISITES
@@ -66,6 +70,7 @@ APPLICATION
 """
 import sys
 sys.path.insert(1,'/home/leon/Software/MARTAS/') # should be magpy2
+sys.path.insert(1,'/home/leon/Software/magpy/') # should be magpy2
 
 import unittest
 
@@ -86,6 +91,7 @@ import itertools
 import getopt
 import pwd
 import socket
+import glob
 import sys  # for sys.version_info()
 
 class MartasAnalysis(object):
@@ -203,7 +209,7 @@ class MartasAnalysis(object):
                                  }
                         }
 
-        self.config = mm.check_conf(config, debug=True)
+        self.config = mm.check_conf(config, debug=False)
         self.flagdict = flagdict
 
         self.logpath = self.config.get('logpath')
@@ -306,6 +312,259 @@ class MartasAnalysis(object):
 
         return datadict
 
+
+    def _data_from_db(self, name, starttime=None, endtime=None, samplingperiod=1, debug=False):
+        """
+        DESCRIPTION
+            Extract data sets from database based on name fraction.
+            - will get the lowest sampling period data equal or above the provided limit (default 1sec)
+            - will also check coverage
+            this method has a similar name and almost identical application are analysis._get_data_from_db
+        RETURN
+            datastream
+        """
+        datadict = {}
+        determinesr = []
+        datastream = DataStream()
+        success = False
+        if not starttime and not endtime:
+            success = True
+
+        # First get all existing sensors comaptible with name fraction
+        sensorlist = self.db.select('DataID', 'DATAINFO', 'SensorID LIKE "%{}%"'.format(name))
+        if debug:
+            print("   -> Found {}".format(sensorlist))
+            print("   a) select of highest resolution data equal/above samplingperiods of {} sec".format(
+                samplingperiod))  # should be tested later again
+        # Now get corresponding sampling rate
+        projected_sr = samplingperiod
+        for sensor in sensorlist:
+            sr = 0
+            res = self.db.select('DataSamplingrate', 'DATAINFO', 'DataID="{}"'.format(sensor))
+            try:
+                sr = float(res[0])
+                if debug:
+                    print("    - Sensor: {} -> Samplingrate: {}".format(sensor, sr))
+            except:
+                if debug:
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("Check sampling rate {} of {}".format(res, sensor))
+                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                determinesr.append(sensor)
+            if sr >= projected_sr - 0.02:
+                # if sr is larger to projected sr within 0.02 sec
+                cont = {}
+                cont['samplingrate'] = sr
+                datadict[sensor] = cont
+        if len(determinesr) > 0:
+            if debug:
+                print("   b) checking sampling rate of {} sensors without sampling rate".format(len(determinesr)))
+            for sensor in determinesr:
+                lastdata = self.db.get_lines(sensor, 7200)
+                if len(lastdata) > 0:
+                    sr = lastdata.samplingrate()
+                    if debug:
+                        print("    - Sensor: {} -> Samplingrate: {}".format(sensor, sr))
+                    # update samplingrate in db
+                    print("    - updating header with determined sampling rate:", lastdata.header)
+                    self.db.write(lastdata)
+                    if sr >= projected_sr - 0.02:
+                        # if sr is larger to projected sr within 0.02 sec
+                        cont = {}
+                        cont['samplingrate'] = sr
+                        datadict[sensor] = cont
+        if debug:
+            print("   -> {} data sets fulfilling search criteria after a and b".format(len(datadict)))
+
+        data = DataStream()
+        selectedsensor = ''
+        sel_sr = 9999
+        for dataid in datadict:
+            cont = datadict.get(dataid)
+            sr = cont.get('samplingrate')
+            if sr < sel_sr:
+                selectedsensor = dataid
+                sel_sr = sr
+                if debug:
+                    print("   -> {}: this sensor with sampling rate {} sec is selected".format(selectedsensor, sel_sr))
+                ddata = self.db.read(selectedsensor, starttime=starttime, endtime=endtime)
+                if len(ddata) > 0:
+                    data = join_streams(ddata, data)
+                if debug:
+                    print("   c) now check whether the timerange is fitting")
+                st, et = data.timerange()
+                if starttime:
+                    # assume everything within oe hour to be OK
+                    if np.abs((starttime - st).total_seconds()) < 3600:
+                        success = True
+                if endtime:
+                    if np.abs((endtime - et).total_seconds()) < 3600:
+                        success = True
+
+        return data, success
+
+
+    def get_marcos_data(self, sname, starttime=None, endtime=None, stationid='SGO', apply_flags=True, config=None, debug=False):
+        """
+        DESCRIPTION
+            The method is a general data access routine to be used on a MARCOS collector. get_data can be applied either
+            with simple SensorID's, DataID's or with full file paths. If only a DataID is given, then firstly the
+            database will be scanned for existing data and then the archive will be scanned. Links to DB and archive
+            need to be provided with the config data. If SensorID's are provided the method will scan for 1 second
+            data sets.
+        VARIABLES:
+
+        """
+        if not config:
+            config = {}
+
+        archive = config.get('archivepath', '/srv/archive')
+
+        et = ''
+        data = DataStream()
+        if not endtime:
+            pass
+        elif endtime == 'now':
+            et = 'now'
+            endtime = datetime.now(timezone.utc).replace(tzdata=None)
+        else:
+            endtime = testtime(endtime)
+        if not starttime:
+            if et == 'now':
+                starttime = endtime - timedelta(days=1)
+        else:
+            starttime = testtime(starttime)
+
+        # if sname is a path with wildcards then skip db test and read directly
+        l = glob.glob(sname)
+        l = [f for f in l if os.path.isfile(f)]
+        if debug:
+            print ("Files", l)
+        if len(l) > 0:
+            # file path with wildcards was provided
+            data = read(sname, starttime=starttime, endtime=endtime)
+        else:
+            # check availability in primary database first
+            if self.db:
+                dname = sname.replace("*", "%")
+                ddata, success = self._data_from_db(dname, starttime=starttime, endtime=endtime, samplingperiod=1,
+                                               debug=debug)
+            else:
+                ddata = DataStream()
+                success = False
+            # if no fdata or incomplete check archive
+            if not success:
+                paths = []
+                l1 = glob.glob(os.path.join(archive, stationid, sname))
+                dirs = [f for f in l1 if os.path.isdir(f)]
+                for d in dirs:
+                    l2 = glob.glob(os.path.join(d, sname))
+                    paths = [f for f in l2 if os.path.isdir(f)]
+                if debug:
+                    print("Found the following paths:", paths)
+                if len(paths) > 1:
+                    print("name fragment is unspecific")
+                if len(paths) > 0:
+                    for path in paths:
+                        cdata = read(os.path.join(path, sname), starttime=starttime, endtime=endtime)
+                        if not cdata.samplingrate() < 0.98:
+                            data = join_streams(cdata, data)
+                            if len(ddata) > 0:
+                                data = join_streams(data, ddata)
+            else:
+                data = ddata.copy()
+        # flags
+        if self.db and apply_flags:
+            fl = self.db.flags_from_db(sensorid=data.header.get("SensorID"), starttime=starttime, endtime=endtime)
+            data = fl.apply_flags(data)
+
+        return data
+
+    def db_table_exists(self, db, tablename):
+        """
+        DESCRIPTION
+            check whether a table existis or not
+        VARIABLES:
+            db   :    a link to a mysql database
+            tablename  :  the table to be searched (%tablename%)
+                          e.g.  MyTable  wil find MyTable, NOTMyTable, OhItsMyTableIndeed
+        RETURNS
+            True : if one or more table with %tablename% are existing
+            False : if tablename is NOT found in database db
+        APPLICATION
+            db = mysql.connect(...)
+            return dbtableexists(db,'MyTable')
+        """
+        n = 0
+        sql = "SHOW TABLES LIKE '%{}%'".format(tablename)
+
+        cursor = db.cursor()
+        try:
+            n = cursor.execute(sql)
+        except:
+            pass
+        if n > 0:
+            return True
+        else:
+            return False
+
+    def put_data(self, datastream, destinations=None, debug=False):
+        """
+        DESCRIPTION
+            export data to the selected archives, databases and/or files
+        VARIABLE
+            datastream  :   the MagPy datastream to be exported
+            destinations  : a list of destinations
+        RETURNS
+            true if all destinations were successful
+            false if not
+        """
+        success = True
+        connectdict = self.config.get('conncetedDB')
+
+        if not destinations or not isinstance(destinations, dict):
+            print(" _put_data: no destinations defined")
+            return False
+
+        if debug:
+            print(" -----------------------")
+            print(" put_data: Exporting data")
+            print(" -----------------------")
+        for destination in destinations:
+            if debug:
+                print(" put_data: putting data to {}".format(destination))
+            cont = destinations.get(destination)
+            name = cont.get("name")
+            if destination:
+                if debug:
+                    print(" put_data: -> {} to DB {}".format(name, destination))
+                ok = True
+                if ok:
+                    dbw = connectdict[destination]
+                    if self.db_table_exists(dbw.db, name):
+                        dbw.write(datastream, tablename=name)
+                    else:
+                        # Here the basic header info in DATAINFO and SENSORS will be created
+                        dbw.write(datastream)
+            # except:
+            #    success = False
+            elif os.path.isdir(destination) or "/" in destination:
+                if debug:
+                    print(" put_data: -> {} writing to path {}".format(name, destination))
+                dateformat = cont.get("dateformat", "%Y%m")
+                coverage = cont.get("coverage", "month")
+                mode = cont.get("mode", "replace")
+                format_type = cont.get("format_type", "PYCDF")
+                ok = True
+                if ok:
+                    datastream.write(destination, filenamebegins=name, dateformat=dateformat, coverage=coverage,
+                                     mode=mode, format_type=format_type)
+                # except:
+                #    success = False
+        if debug:
+            print(" -----------------------")
+
+        return success
 
     def update_flags_db(self, flags, debug=False):
         success = True
@@ -752,6 +1011,7 @@ class MartasAnalysis(object):
 
         return datastream, funclist
 
+
     def adjust_vario(self, source, basemode='constant', starttime=None, endtime=None, flagfile=None, basefile=None, basestart=None, baseend=None, drop_flagged=False, bc=False, skipsec=False, debug=False):
         """
         DESCRIPTION
@@ -1039,7 +1299,6 @@ class MartasAnalysis(object):
                 print (" adjust_varion : failed because basevalue file is not existing")
 
             return result
-
 
 
     def adjust_scalar(self, source, starttime=None, endtime=None, flagfile=None, skipsec=False, debug=False):
@@ -1382,6 +1641,26 @@ class TestAnalysis(unittest.TestCase):
             if elem == "TEST":
                 res = mf._get_data_from_db(elem, starttime=datetime.now()-timedelta(days=1), endtime=datetime.now(), debug=True)
         self.assertTrue(res)
+
+    def test_data_from_db(self):
+        mf = MartasAnalysis()
+        res = mf._data_from_db("TEST", starttime=datetime.now()-timedelta(days=1), endtime=datetime.now(), debug=True)
+        self.assertTrue(res)
+
+    def test_get_marcos_data(self):
+        mf = MartasAnalysis()
+        data = mf.get_marcos_data("TEST001*", starttime=datetime.now()-timedelta(days=1), endtime=datetime.now(), stationid='TEST', apply_flags=True, config=None,
+                            debug=True)
+        self.assertTrue(data)
+        data = mf.get_marcos_data("/home/leon/MARTAS/mqtt/TEST_1*", starttime="2025-08-01", endtime="2025-08-03", stationid='TEST', apply_flags=True, config=None,
+                            debug=True)
+        self.assertFalse(data)
+
+    def test_zzz_db_table_exists(self):
+        mf = MartasAnalysis()
+        connectdict = mf.config.get('conncetedDB')
+        dbw = connectdict.get('cobsdb')
+        self.assertTrue(mf.db_table_exists(dbw.db, "SENSORS"))
 
     def test_periodically(self):
         mf = MartasAnalysis()

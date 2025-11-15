@@ -213,7 +213,7 @@ def check_conf(config, startdate=None, enddate='now', varios=None, scalars=None,
         credential = credentials[0]
         # connecting all databases and store it
         for credel in credentials:
-            connectdict[credel] = connect_db(credential)
+            connectdict[credel] = connect_db(credential, report=False)
     config['conncetedDB'] = connectdict
 
     if debug:

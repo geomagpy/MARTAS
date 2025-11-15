@@ -2323,9 +2323,11 @@ Reconfigure pip to use the proxy server (if necessary)
       pip config set global.proxy http://{host}/{port}
 
 
-#### 10.1.5 enable remote terminal access
+#### 10.1.5 installation problems and their solutions
 
-tmate is not supported any more. instructions
+sslpsk2 cannot be installed -> sudo apt install ssh libssl-dev and retry
+
+
 
 ### 10.2 Setting up a secure TLS based mosquitto broker for MARTAS
 
