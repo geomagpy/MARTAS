@@ -1928,8 +1928,8 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | LORAWAN             | develop  | multiple    | lorawanprotocol.py       |         |                |                  |
 | MySQL               | 2.0.0    | multiple    | mysqlprotocol.py         | active  |                |                  |
 | ObsDaq              |          | multiple    | obsdaqprotocol.py        | active  | obsdaqinit.sh  |                  |
-| OneWire             |          | multiple    | owprotocol.py            | passive |                |                  |
-| POS1                |          | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
+| OneWire             | 2.0.0    | multiple    | owprotocol.py            | passive |                |                  |
+| POS1                | 2.0.0    | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
 | Test                | 2.0.0    | special     | testprotocol.py          | passive |                |                  |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 

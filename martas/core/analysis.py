@@ -476,7 +476,8 @@ class MartasAnalysis(object):
         # flags
         if self.db and apply_flags:
             fl = self.db.flags_from_db(sensorid=data.header.get("SensorID"), starttime=starttime, endtime=endtime)
-            data = fl.apply_flags(data)
+            if len(fl) > 0:
+                data = fl.apply_flags(data)
 
         return data
 
