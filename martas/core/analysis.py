@@ -333,8 +333,8 @@ class MartasAnalysis(object):
         # First get all existing sensors comaptible with name fraction
         sensorlist = self.db.select('DataID', 'DATAINFO', 'SensorID LIKE "%{}%"'.format(name))
         if debug:
-            print("   -> Found {}".format(sensorlist))
-            print("   a) select of highest resolution data equal/above samplingperiods of {} sec".format(
+            print(" _data_from_db:  -> Found {}".format(sensorlist))
+            print(" _data_from_db:  a) select of highest resolution data equal/above samplingperiods of {} sec".format(
                 samplingperiod))  # should be tested later again
         # Now get corresponding sampling rate
         projected_sr = samplingperiod
@@ -347,9 +347,9 @@ class MartasAnalysis(object):
                     print("    - Sensor: {} -> Samplingrate: {}".format(sensor, sr))
             except:
                 if debug:
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print("Check sampling rate {} of {}".format(res, sensor))
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("      Check sampling rate {} of {}".format(res, sensor))
+                    print("      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                 determinesr.append(sensor)
             if sr >= projected_sr - 0.02:
                 # if sr is larger to projected sr within 0.02 sec
@@ -358,7 +358,7 @@ class MartasAnalysis(object):
                 datadict[sensor] = cont
         if len(determinesr) > 0:
             if debug:
-                print("   b) checking sampling rate of {} sensors without sampling rate".format(len(determinesr)))
+                print(" _data_from_db:  a*) checking sampling rate of {} sensors without sampling rate".format(len(determinesr)))
             for sensor in determinesr:
                 lastdata = self.db.get_lines(sensor, 7200)
                 if len(lastdata) > 0:
@@ -374,32 +374,38 @@ class MartasAnalysis(object):
                         cont['samplingrate'] = sr
                         datadict[sensor] = cont
         if debug:
-            print("   -> {} data sets fulfilling search criteria after a and b".format(len(datadict)))
+            print(" _data_from_db:  -> {} data sets fulfilling search criteria after a and a*".format(len(datadict)))
+            print(" _data_from_db:  {}".format([d for d in datadict]))
 
         data = DataStream()
         selectedsensor = ''
         sel_sr = 9999
         for dataid in datadict:
+            if debug:
+                print (" _data_from_db: part (b) - scanning {}".format(dataid))
             cont = datadict.get(dataid)
             sr = cont.get('samplingrate')
-            if sr < sel_sr:
+            if sr <= sel_sr:
+                # select the smallest available sampling rate consistent with the projected one,
+                # also use multiple data stream with same sampling rate (i.e. meteo data from subsequent sensors)
                 selectedsensor = dataid
                 sel_sr = sr
                 if debug:
-                    print("   -> {}: this sensor with sampling rate {} sec is selected".format(selectedsensor, sel_sr))
+                    print("   -> testing {}: sampling rate {} sec is selected".format(selectedsensor, sel_sr))
                 ddata = self.db.read(selectedsensor, starttime=starttime, endtime=endtime)
                 if len(ddata) > 0:
                     data = join_streams(ddata, data)
                 if debug:
-                    print("   c) now check whether the timerange is fitting")
-                st, et = data.timerange()
-                if starttime:
-                    # assume everything within oe hour to be OK
-                    if np.abs((starttime - st).total_seconds()) < 3600:
-                        success = True
-                if endtime:
-                    if np.abs((endtime - et).total_seconds()) < 3600:
-                        success = True
+                    print(" _data_from_db: part (c) now checking whether the timerange is fitting to {} - {}".format(starttime,endtime))
+                if len(data) > 0:
+                    st, et = data.timerange()
+                    if starttime:
+                        # assume everything within oe hour to be OK
+                        if np.abs((starttime - st).total_seconds()) < 3600:
+                            success = True
+                    if endtime:
+                        if np.abs((endtime - et).total_seconds()) < 3600:
+                            success = True
 
         return data, success
 
@@ -426,7 +432,7 @@ class MartasAnalysis(object):
             pass
         elif endtime == 'now':
             et = 'now'
-            endtime = datetime.now(timezone.utc).replace(tzdata=None)
+            endtime = datetime.now(timezone.utc).replace(tzinfo=None)
         else:
             endtime = testtime(endtime)
         if not starttime:
@@ -439,7 +445,7 @@ class MartasAnalysis(object):
         l = glob.glob(sname)
         l = [f for f in l if os.path.isfile(f)]
         if debug:
-            print ("Files", l)
+            print ("get_marcos_file: scanned for full paths - found:", l)
         if len(l) > 0:
             # file path with wildcards was provided
             data = read(sname, starttime=starttime, endtime=endtime)
@@ -476,7 +482,7 @@ class MartasAnalysis(object):
         # flags
         if self.db and apply_flags:
             fl = self.db.flags_from_db(sensorid=data.header.get("SensorID"), starttime=starttime, endtime=endtime)
-            if len(fl) > 0:
+            if len(fl) > 0 and len(data) > 0:
                 data = fl.apply_flags(data)
 
         return data
