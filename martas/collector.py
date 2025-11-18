@@ -670,7 +670,7 @@ def on_message(client, userdata, msg):
                 pass
         else:
             log.msg("Non-interpreted format: {}  {}".format(msg.topic, str(msg.payload)))
-    elif msg.topic.find('statuslog') > 0:
+    elif msg.topic and msg.topic.find('statuslog') > 0:
         # json style statusinfo is coming
         hostname = msg.topic.split('/')[-1]
         #log.msg("---------------------------------------------------------------")
