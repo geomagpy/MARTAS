@@ -1740,30 +1740,40 @@ statusdict = {"Average Temperature of TEST001": {
 
 THe keys of each status element refer to the following inputs:
 
-| key           | description                          | default                  | example     |
-|---------------|--------------------------------------|--------------------------|-------------|
-| source        | DataID                               | -                        | -           |
-| key           | column of DataID                     | x                        | t1          |
-| field         | physical property contained in key   | -                        | temperature |
-| group         | primary purpose of Instrument/Sensor | SensorGroup              | magnetism   |
-| type          | specific primary sensor type         | SensorType               | fluxgate    |
-| pierid        | reference to pier                    | PierID                   | A2          |
-| station       | reference to StationID               | StationID                | WIC         |
-| longitude     |                                      | DataAcquisitionLongitude | -           |
-| latitude      |                                      | DataAcquisitionLatitude  | -           |
-| altitude      |                                      | DataElevation            | -           |
-| range         | timerange in minutes                 | 30                       | 30          |
-| mode          | mean,median,max,min,uncert           | mean                     | fluxgate    |
-| value_unit    | unit of key                          | unit-col-KEY             | -           |
-| warning_low   | lower warning level                  | 0                        | -5          |
-| warning_high  | upper warning level                  | 0                        | 10          |
-| critical_low  | lower critical level                 | 0                        | -20         |
-| critical_high | upper critical level                 | 0                        | 20          |
+| key           | description                          | DB field       | default                  | example     |
+|---------------|--------------------------------------|----------------|--------------------------|-------------|
+| source        | DataID                               | source         | -                        | -           |
+| key           | column of DataID                     |                | x                        | t1          |
+| field         | physical property contained in key   | status_field   | -                        | temperature |
+| group         | primary purpose of Instrument/Sensor | status_group   | SensorGroup              | magnetism   |
+| type          | specific primary sensor type         | status_type    | SensorType               | fluxgate    |
+| pierid        | reference to pier                    | pierid         | PierID                   | A2          |
+| station       | reference to StationID               | stationid      | StationID                | WIC         |
+| longitude     |                                      | longitude      | DataAcquisitionLongitude | -           |
+| latitude      |                                      | latitude       | DataAcquisitionLatitude  | -           |
+| altitude      |                                      | altitude       | DataElevation            | -           |
+| range         | timerange in minutes                 |                | 30                       | 30          |
+| mode          | mean,median,max,min,uncert,gradient  |                | mean                     | fluxgate    |
+| value_unit    | unit of key                          | value_unit     | unit-col-KEY             | -           |
+| warning_low   | lower warning level                  | warning_low    | 0                        | -5          |
+| warning_high  | upper warning level                  | warning_high   | 0                        | 10          |
+| critical_low  | lower critical level                 | critical_low   | 0                        | -20         |
+| critical_high | upper critical level                 | critical_high  | 0                        | 20          |
+| -             | filled in DB                         | status_value   |                          | 13.3        |
+| -             | filled in DB                         | value_min      |                          |             |
+| -             | filled in DB                         | value_max      |                          |             |
+| -             | filled in DB                         | value_std      |                          |             |
+| -             | filled in DB                         | validity_start |                          |             |
+| -             | filled in DB                         | validity_end   |                          |             |
+| -             | filled in DB                         | comment        |                          |             |
+| -             | filled in DB                         | date_added     |                          |             |
+| -             | filled in DB                         | active         |                          |             |
 
 
 The key values of each status element contained in the status dictionary need to be unique and are ideally human 
 readable. The subdictionary defines parameters of the data set to be extracted. Typically recent data covering the 
-last "range" minutes are extracted and the value as defined by mode (mean, median, max, min, uncert) is obtained. If 
+last "range" minutes are extracted and the value as defined by mode (mean, median, max, min, uncert, gradient (= mean 
+gradient based on numpy.gradient)) is obtained. If 
 no data is found the "active" value of the return dictionary is set to 0. Most properties are obtained from existing
 tables in the database. You can override database contents by providing the corresponding inputs within the status
 elements. Please note: the physical property "field" is not contained in the database and can only be supplied here.

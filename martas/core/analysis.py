@@ -1518,6 +1518,9 @@ class MartasStatus(object):
                     value = value_max
                 elif mode == "std":
                     value = np.std(cleandata)
+                elif mode == "gradient":
+                    gr = np.gradient(cleandata)
+                    value = np.mean(gr)
                 elif mode == "last":  # if mode.startswith(last) allow last1, last2 etc
                     value = cleandata[-1]
                     endtime = newendtime
