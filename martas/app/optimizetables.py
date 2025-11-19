@@ -99,7 +99,7 @@ def optimize(credentials='cobsdb', sqlcred='sql', debug=False):
         print ("-----------------------------------")
         for table in tables:
             print (' -> running for {}, user: {}'.format(table, sqluser))
-            optbash = 'sudo /usr/bin/pt-online-schema-change --alter "Engine=InnoDB" D=cobsdb,t={} --user={} --password={} --execute'.format(table,sqluser,sqlpwd)
+            optbash = 'sudo /usr/bin/pt-online-schema-change --alter "Engine=InnoDB" D={},t={} --user={} --password={} --execute'.format(dbname,table,sqluser,sqlpwd)
             print (optbash)
             try:
                 os.system(optbash)
@@ -183,7 +183,7 @@ def main(argv):
         receiver = conf.get('notification', "telegram")
         cfg = conf.get('notificationcfg', os.path.join(basepath,"..","conf","telegram.cfg"))
         if not credentials:
-            credentials = conf.get("credentials")
+            credentials = conf.get("dbcredentials")
     print ("Running optimize version", version)
     print ("-------------------------------")
     report = optimize(credentials=credentials, sqlcred=sql, debug=debug)

@@ -851,6 +851,19 @@ see [section 6.12](#612-monitor)
 
 see [section 6.7](#67-db_truncate) and [section 6.14](#614-optimizetables) 
 
+Please note that running optimizetable requires a general access to your database. In order to get that running do
+
+         > sudo mysql -u root -p
+         $ CREATE USER 'admin'@'localhost' IDENTIFIED BY password;
+         $ GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost';
+         $ FLUSH PRIVILEGES;
+
+Then you need to add this information to the credentials:
+
+         > addcred -t db -c sqlmaster -u admin -p password -o localhost -d datadb
+
+Please replace password by something of your choice.
+
 #### 5.2.4 backup
 
 see [section 6.4](#64-backup)
@@ -2156,7 +2169,7 @@ packages for your specific system based on apt.
 If you do not specify an extended path variable in cron then you likely will need to update the path variable then in 
 the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full path "/usr/local/bin/acquisition" to make
 it available from cron.
-
+Please read sections 4 for [MARTAS](#4-pmartas) setup.
 
 #### 10.1.2 MARTAS on Raspberry (zero, RP5)
 
@@ -2216,6 +2229,7 @@ Run initialization
 
         martas_init
 
+Please read sections 4 for [MARTAS](#4-pmartas) setup and section 5 for [MARCOS](#5-marcos) setup.
 
 #### 10.1.3 Full installation examples for specific systems
 
@@ -2310,20 +2324,26 @@ Install database support
 
        sudo apt install mariadb-server php php-mysql phpmyadmin
 
-The setup a database:
+The setup a database  and also a optimzing access "sqlmaster":
 
        sudo mysql -u root
        > CREATE DATABASE magpydb;
-       > GRANT ALL PRIVILEGES ON magpydb.* TO 'magpy'@'%' IDENTIFIED BY 'magpy' WITH GRANT OPTION;
+       > GRANT ALL PRIVILEGES ON magpydb.* TO 'user'@'%' IDENTIFIED BY 'password' WITH GRANT OPTION;
+       > GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost' IDENTIFIED BY 'passwd';
        > FLUSH PRIVILEGES;
 
 and finally initialize the database:
 
        python
        >>> from magpy.database import *
-       >>> db=mysql.connect(host="localhost",user="magpy",passwd="magpy",db="magpydb")
+       >>> db=mysql.connect(host="localhost",user="user",passwd="password",db="magpydb")
        >>> dbinit(db)
        >>> exit()
+
+add credentials for database access (please replace dbnames, user and passwords with your choice)
+
+       addcred -t db -c magpydb -u user -p password -o localhost -d magpydb
+       addcred -t db -c sqlmaster -u admin -p passwd -o localhost -d magpydb
 
 
 #### 10.1.4 Installation behind a proxy server
