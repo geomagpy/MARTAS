@@ -2552,7 +2552,7 @@ and install it
 
 ##### SSH key 
 
-In case of “Permission denied (publickey)” generate and/or add SSH key: 
+In case of “Permission denied (publickey)” generate and/or add SSH key (DO NOT ENTER A PASSPHRASE): 
 
         ssh-keygen -t ed25519 -C "your_email@example.com" 
         eval "$(ssh-agent -s)" 
