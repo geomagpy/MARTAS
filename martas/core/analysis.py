@@ -68,6 +68,7 @@ APPLICATION
         python flagging.py -c /etc/marcos/analysis.cfg -j delete -s MYSENSORID -o "f"
 
 """
+import json
 import sys
 sys.path.insert(1,'/home/leon/Software/MARTAS/') # should be magpy2
 sys.path.insert(1,'/home/leon/Software/magpy/') # should be magpy2
@@ -267,7 +268,7 @@ class MartasAnalysis(object):
                     datadict[sensor] = cont
         if len(determinesr) > 0:
             if debug:
-                print("   b) checking sampling rate of {} }sensors without sampling rate".format(len(determinesr)))
+                print("   b) checking sampling rate of {} sensors without sampling rate".format(len(determinesr)))
             for sensor in determinesr:
                 lastdata = self.db.get_lines(sensor, namedict.get('coverage',7200))
                 if len(lastdata) > 0:
@@ -425,6 +426,7 @@ class MartasAnalysis(object):
             config = {}
 
         archive = config.get('archivepath', '/srv/archive')
+        #archive = self.config.get('archivepath', '/srv/archive')
 
         et = ''
         data = DataStream()
@@ -1471,6 +1473,12 @@ class MartasStatus(object):
         newendtime = endtime  # will be changes for mode "last"
         ok = True
         if ok:
+            maan = MartasAnalysis(config=self.config)
+            data = maan.get_marcos_data(source, starttime=starttime, endtime=endtime, config=self.config,
+                            debug=True)
+            ndata = data._drop_nans(key)
+            cleandata = ndata._get_column(key)
+            """
             # check what happens if no data is present or no valid data is found
             if source.find('/') > -1:
                 if debug:
@@ -1502,6 +1510,7 @@ class MartasStatus(object):
                     print(" -> reading done: got {} datapoints for {}".format(len(ddata), key))
                 ndata = ddata._drop_nans(key)
                 cleandata = ndata._get_column(key)
+            """
             newendtime = ndata.end()
             if debug:
                 print(" -> {} datapoints remaining after cleaning NaN".format(len(cleandata)))
@@ -1528,6 +1537,7 @@ class MartasStatus(object):
                     value = np.mean(cleandata)
                 active = 1
 
+        result['displayname'] =  "{}_{}_{}".format(key, ndata.header.get("SensorID","Dummy_").split("_")[0], ndata.header.get("StationID",""))
         result['mode'] = mode
         result['value'] = value
         result['min'] = value_min
@@ -1537,13 +1547,14 @@ class MartasStatus(object):
         result['endtime'] = endtime
         result['longitude'] = ndata.header.get('DataLocationLongitude',0.0)
         result['latitude'] = ndata.header.get('DataLocationLongitude',0.0)
-        result['altitude'] = ndata.header.get('DataElevation',0.0)
+        result['elevation'] = ndata.header.get('DataElevation',0.0)
         result['active'] = active
         result["type"] = ndata.header.get("SensorType","")
         result["group"] = ndata.header.get("SensorGroup","")
         result["value_unit"] =  ndata.header.get("unit-col-{}".format(key),"")
-        result["stationid"] = ndata.header.get("StationID","")
+        result["location"] = ndata.header.get("StationID","")
         result["pierid"] = ndata.header.get("PierID","")
+
         if debug:
             print("DEBUG: returning value={}, starttime={}, endtime={} and active={}".format(value, starttime, endtime,
                                                                                              active))
@@ -1589,26 +1600,37 @@ class MartasStatus(object):
         start = res.get('starttime')
         end = res.get('endtime')
         active = res.get('active')
-        long = res.get('longitude')
-        lat = res.get('latitude')
-        alt = res.get('altitude')
+        displayname = statuselem.get("displayname", res.get('displayname'))
         stype = statuselem.get("type", res.get('typ'))
         group = statuselem.get("group", res.get('group'))
         field = statuselem.get("field", "")
+        long = statuselem.get("longitude", res.get('longitude'))
+        lat = statuselem.get("latitude", res.get('latitude'))
+        alt = statuselem.get("elevation", res.get('elevation'))
         value_unit = statuselem.get("value_unit", res.get('value_unit'))
         warning_high = statuselem.get("warning_high", 0)
         critical_high = statuselem.get("critical_high", 0)
         warning_low = statuselem.get("warning_low", 0)
         critical_low = statuselem.get("critical_low", 0)
         source = statuselem.get("source", "")
-        stationid = statuselem.get("stationid", res.get('stationid'))
+        stationid = statuselem.get("stationid", res.get(',location'))
         pierid = statuselem.get("pierid", res.get('pierid'))
         comment = statuselem.get("comment", "")
-        sql = "INSERT INTO {} (status_notation,status_type,status_group,status_field,status_value,value_min,value_max,value_std,value_unit,warning_high,critical_high,warning_low,critical_low,validity_start,validity_end,source,stationid,pierid,longitude,latitude,altitude,comment,date_added,active) VALUES ('{}','{}','{}','{}',{},{},{},{},'{}',{},{},{},{},'{}','{}','{}','{}','{}',{},{},{},'{}','{}',{}) ON DUPLICATE KEY UPDATE status_type = '{}',status_group = '{}',status_field = '{}',status_value = {},value_min = {},value_max = {},value_std = {},value_unit = '{}',warning_high = {},critical_high = {},warning_low = {},critical_low = {},validity_start = '{}',validity_end = '{}',source = '{}',stationid = '{}',pierid = '{}',longitude = {},latitude = {},altitude = {},comment='{}',date_added = '{}',active = {} ".format(
-            self.tablename, notation, stype, group, field, value, value_min, value_max, uncert, value_unit, warning_high, critical_high,
-            warning_low, critical_low, start, end, source, stationid, pierid, long, lat, alt, comment, now, active, stype, group, field, value,
+        access = statuselem.get("access","")
+        notification_warning = statuselem.get("notification_warning",[]) #list
+        warning = json.dumps(notification_warning)
+        notification_critical = statuselem.get("notification_critical",[]) #list
+        critical = json.dumps(notification_critical)
+        symbol_standard = statuselem.get("symbol_standard","")
+        symbol_warning = statuselem.get("symbol_warning","")
+        symbol_critical = statuselem.get("symbol_critical","")
+        picture = statuselem.get("picture","")
+
+        sql = "INSERT INTO {} (status_notation,displayname,status_type,status_group,status_field,status_value,value_min,value_max,value_std,value_unit,warning_high,critical_high,warning_low,critical_low,validity_start,validity_end,source,location,pierid,longitude,latitude,elevation,comment,access,notification_warning,notification_critical,symbol_standard,symbol_warning,symbol_critical,picture,date_added,active) VALUES ('{}','{}','{}','{}','{}',{},{},{},{},'{}',{},{},{},{},'{}','{}','{}','{}','{}',{},{},{},'{}','{}','{}','{}','{}','{}','{}','{}','{}',{}) ON DUPLICATE KEY UPDATE displayname = '{}',status_type = '{}',status_group = '{}',status_field = '{}',status_value = {},value_min = {},value_max = {},value_std = {},value_unit = '{}',warning_high = {},critical_high = {},warning_low = {},critical_low = {},validity_start = '{}',validity_end = '{}',source = '{}',location = '{}',pierid = '{}',longitude = {},latitude = {},elevation = {},comment='{}',access='{}',notification_warning='{}',notification_critical='{}',symbol_standard='{}',symbol_warning='{}',symbol_critical='{}',picture='{}',date_added = '{}',active = {} ".format(
+            self.tablename, notation, displayname, stype, group, field, value, value_min, value_max, uncert, value_unit, warning_high, critical_high,
+            warning_low, critical_low, start, end, source, stationid, pierid, long, lat, alt, comment,access,warning,critical,symbol_standard,symbol_warning,symbol_critical,picture, now, active, displayname, stype, group, field, value,
             value_min, value_max, uncert, value_unit, warning_high, critical_high, warning_low, critical_low, start,
-            end, source, stationid, pierid, long, lat, alt, comment, now, active)
+            end, source, stationid, pierid, long, lat, alt, comment,access,warning,critical,symbol_standard,symbol_warning,symbol_critical,picture, now, active)
         return sql
 
 
@@ -1616,13 +1638,39 @@ class MartasStatus(object):
         """
         DESCRIPTION
             creating a STATUS Database table
+        "source": "TEST001_1234_0001_0001",
+        "displayname": "Temp-TEST",
+        "key": "x",
+        "type": "temperature",
+        "field": "tunnel condition",
+        "group": "environment",
+        "location": "gmo",
+        "pierid": "",
+        "latitude": "",
+        "longitude": "",
+        "elevation": "",
+        "comment": "",
+        "range": 30,
+        "mode": "mean",
+        "value_unit": "°C",
+        "warning_high": 10,
+        "critical_high": 20,
+        "access": "public",
+        "notification warning": ['admin'],
+        "notification critical": ['telegram']
+        "symbol standard": "url",
+        "symbol warning": "url",
+        "symbol critical": "url",
+        "picture": "url",
+
         """
-        columns = ['status_notation', 'status_type', 'status_group', 'status_field', 'status_value', 'value_min',
+
+        columns = ['status_notation', 'displayname', 'status_type', 'status_group', 'status_field', 'status_value', 'value_min',
                    'value_max', 'value_std', 'value_unit', 'warning_high', 'critical_high', 'warning_low',
-                   'critical_low', 'validity_start', 'validity_end', 'stationid', 'pierid', 'latitude', 'longitude', 'altitude', 'source',
-                   'comment', 'date_added', 'active']
-        coldef = ['CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'FLOAT', 'FLOAT',
-                  'FLOAT', 'FLOAT', 'DATETIME', 'DATETIME', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'TEXT', 'DATETIME', 'INT']
+                   'critical_low', 'validity_start', 'validity_end', 'location', 'pierid', 'latitude', 'longitude', 'elevation', 'source',
+                   'comment', 'access', 'notification_warning', 'notification_critical', 'symbol_standard', 'symbol_warning', 'symbol_critical', 'picture', 'date_added', 'active']
+        coldef = ['CHAR(100)', 'CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'FLOAT', 'FLOAT',
+                  'FLOAT', 'FLOAT', 'DATETIME', 'DATETIME', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'TEXT', 'CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'DATETIME', 'INT']
         fulllist = []
         for i, elem in enumerate(columns):
             newelem = '{} {}'.format(elem, coldef[i])
@@ -1749,16 +1797,36 @@ class TestStatus(unittest.TestCase):
     def test_read_data(self):
         #statusdict = mm.get_json(statusfile)
         #ms = MartasStatus(config=config, statusdict=statusdict,tablename='COBSSTATUS')
-        statusdict = {"Average field X": {
-            "source": "TEST001_1234_0001_0001",
+        statusdict = { "x_TEST001_WIC-148998710074": {
+            "source": "TEST001_1234_0001*",
+            "displayname": "x_TEST003_WIC",
             "key": "x",
-            "type": "temperature",
-            "field": "environment",
+            "type": "magnetic X",
+            "field": "magnetism",
+            "group": "earth observation",
+            "location": "WIC",
+            "pierid": "AS-O-40",
+            "latitude": 47.93010075007265,
+            "longitude": 15.865712739701538,
+            "elevation": 1087.85,
+            "comment": "",
             "range": 30,
-            "mode": "mean",
-            "value_unit": "°C",
-            "warning_high": 10,
-            "critical_high": 20}
+            "mode": "median",
+            "value_unit": "nT",
+            "warning_high": 50000,
+            "critical_high": 51000,
+            "access": "",
+            "notification_warning": [
+                "telegram"
+            ],
+            "notification_critical": [
+                "telegram"
+            ],
+            "symbol_standard": "",
+            "symbol_warning": "",
+            "symbol_critical": "",
+            "picture": ""
+            }
         }
         ms = MartasStatus(statusdict=statusdict, tablename='COBSSTATUS')
         initsql = ms.statustableinit(debug=True)
@@ -1770,7 +1838,7 @@ class TestStatus(unittest.TestCase):
             newsql = ms.create_sql(elem, res, statuselem)
             print (warnmsg)
             sqllist.append(newsql)
-        #initsql = ms.statustableinit(debug=True)
+        initsql = ms.statustableinit(debug=True)
         sql = "; ".join(sqllist)
 
         md = ms.db
