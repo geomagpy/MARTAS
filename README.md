@@ -2147,7 +2147,8 @@ packages for your specific system based on apt.
       # eventually install and configure ntp (network time protocol)
       #sudo apt install ntp
       sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-numba python3-pandas
-      sudo pip install --break-system-packages pywavelets==1.8.0
+      ####sudo pip install --break-system-packages pywavelets==1.8.0####
+      sudo pip install --break-system-packages PyWavelets==1.8.0
       sudo pip install --break-system-packages pymysql==1.1.1
       sudo pip install --break-system-packages geomagpy
       # Test MagPy
