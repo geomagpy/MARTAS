@@ -1594,9 +1594,17 @@ class MartasStatus(object):
         if not res:
             res = {}
         value = res.get('value')
+        if not value:
+            value = "NULL"
         value_min = res.get('min')
+        if not value_min:
+            value_min = "NULL"
         value_max = res.get('max')
+        if not value_max:
+            value_max = "NULL"
         uncert = res.get('uncert')
+        if not uncert:
+            uncert = "NULL"
         start = res.get('starttime')
         end = res.get('endtime')
         active = res.get('active')
@@ -1604,23 +1612,51 @@ class MartasStatus(object):
         stype = statuselem.get("type", res.get('typ'))
         group = statuselem.get("group", res.get('group'))
         field = statuselem.get("field", "")
+        if not field:
+            field = "NULL"
         long = statuselem.get("longitude", res.get('longitude'))
+        if not long:
+            long = "NULL"
         lat = statuselem.get("latitude", res.get('latitude'))
+        if not lat:
+            lat = "NULL"
         alt = statuselem.get("elevation", res.get('elevation'))
+        if not alt:
+            alt = "NULL"
         value_unit = statuselem.get("value_unit", res.get('value_unit'))
-        warning_high = statuselem.get("warning_high", 0)
-        critical_high = statuselem.get("critical_high", 0)
-        warning_low = statuselem.get("warning_low", 0)
-        critical_low = statuselem.get("critical_low", 0)
+        if not value_unit:
+            value_unit = "NULL"
+        warning_high = statuselem.get("warning_high", "NULL")
+        if not warning_high:
+            warning_high = "NULL"
+        critical_high = statuselem.get("critical_high", "NULL")
+        if not critical_high:
+            critical_high = "NULL"
+        warning_low = statuselem.get("warning_low", "NULL")
+        if not warning_low:
+            warning_low = "NULL"
+        critical_low = statuselem.get("critical_low", "NULL")
+        if not critical_low:
+            critical_low = "NULL"
         source = statuselem.get("source", "")
         stationid = statuselem.get("stationid", res.get(',location'))
+        if not stationid:
+            stationid = "NULL"
         pierid = statuselem.get("pierid", res.get('pierid'))
         comment = statuselem.get("comment", "")
+        if not comment:
+            comment = "NULL"
         access = statuselem.get("access","")
+        if not access:
+            access = "NULL"
         notification_warning = statuselem.get("notification_warning",[]) #list
         warning = json.dumps(notification_warning)
+        if not warning:
+            warning = "NULL"
         notification_critical = statuselem.get("notification_critical",[]) #list
         critical = json.dumps(notification_critical)
+        if not critical:
+            critical = "NULL"
         symbol_standard = statuselem.get("symbol_standard","")
         symbol_warning = statuselem.get("symbol_warning","")
         symbol_critical = statuselem.get("symbol_critical","")

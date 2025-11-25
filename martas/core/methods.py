@@ -328,7 +328,7 @@ def get_conf(path, confdict=None):
        key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
        key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
     """
-    exceptionlist = ['bot_id']
+    exceptionlist = ['bot_id','https','http']
     if not confdict:
         confdict = {}
 
