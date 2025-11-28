@@ -851,6 +851,7 @@ def write_data(config=None,localpathlist=None,debug=False):
 
     RETURNS
     """
+    success = True
     if not config:
         config={}
     if not localpathlist:
@@ -881,6 +882,7 @@ def write_data(config=None,localpathlist=None,debug=False):
             if debug:
                 print (" Dealing with {}. Length = {}".format(f,data.length()[0]))
                 print (" -------------------------------")
+                print (" data looks like: ", data.ndarray)
                 #print ("SensorID in file: {}".format(data.header.get('SensorID')))
 
             # Station ID provided?
@@ -896,8 +898,8 @@ def write_data(config=None,localpathlist=None,debug=False):
                     print("   Could not find station ID in datafile")
                     print("   Please provide by using -t stationid")
                     #sys.exit()
-                    # Abort try clause
-                    x= 1/0
+                    success = False
+                    continue
 
             if debug:
                 print("  -> Using StationID", data.header.get('StationID'))
@@ -913,10 +915,10 @@ def write_data(config=None,localpathlist=None,debug=False):
             else:
                 if data.header.get('SensorID','') == '':
                     print("   Could not find sensor ID in datafile")
-                    print("   Please provide by using -s sensorid")
+                    print("   Please provide in configuration or by using -s sensorid")
                     # Abort try clause
-                    x= 1/0
-                    #sys.exit()
+                    success = False
+                    continue
 
             fixsensorid = data.header.get('SensorID')
 
@@ -996,13 +998,17 @@ def write_data(config=None,localpathlist=None,debug=False):
                 if not len(data.ndarray[0]) > 0:
                     data = data.linestruct2ndarray()  # Dealing with very old formats                   
                 if len(data.ndarray[0]) > 0:
-                    if not force == '':
-                        tabname = "{}_{}".format(fixsensorid,str(force).zfill(4))
-                        print (" - Force option chosen: forcing data to table {}".format(tabname))
-                        print ("   IMPORTANT: general database meta information will not be updated") 
-                        db.write(data, tablename=tabname)
-                    else:
-                        db.write(data)
+                    try:
+                        if not force == '':
+                            tabname = "{}_{}".format(fixsensorid,str(force).zfill(4))
+                            print (" - Force option chosen: forcing data to table {}".format(tabname))
+                            print ("   IMPORTANT: general database meta information will not be updated")
+                            db.write(data, tablename=tabname)
+                        else:
+                            db.write(data)
+                    except:
+                        print (" !! Error when writing ", f)
+                        success = False
             elif debug:
                 print ("  DEBUG selected - no database written")
 
@@ -1022,6 +1028,7 @@ def write_data(config=None,localpathlist=None,debug=False):
                     print ("  Writing to archive requires forcerevision")
             elif debug:
                 print ("  DEBUG selected - no archive written")
+    return success
 
 def main(argv):
     version = "2.0.0"
@@ -1153,7 +1160,9 @@ def main(argv):
             # -----------------------
             #try:
             if config.get('db') and len(localpathlist) > 0 and (mm.get_bool(config.get('writedatabase')) or mm.get_bool(config.get('writearchive'))):
-                    succ = write_data(config=config,localpathlist=localpathlist,debug=debug)
+                succ = write_data(config=config,localpathlist=localpathlist,debug=debug)
+                if not succ:
+                    statusmsg[name] = 'could not write data - check logfile'
             #except:
             #    statusmsg[name] = 'problem when writing data'
 
