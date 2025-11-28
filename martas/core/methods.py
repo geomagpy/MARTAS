@@ -313,7 +313,7 @@ def get_bool(string):
         return False
 
 
-def get_conf(path, confdict=None):
+def get_conf(path, confdict=None, debug=False):
     """
     Version 2020-10-28
     DESCRIPTION:
@@ -336,6 +336,8 @@ def get_conf(path, confdict=None):
         with open(path, 'r') as config:
             confs = config.readlines()
             for conf in confs:
+                if debug:
+                    print ("Analyzing config-file line:", conf)
                 conflst = conf.split(':')
                 if conflst[0].strip() in exceptionlist or methods.is_number(conflst[0].strip()):
                     # define a list where : occurs in the value and is not a dictionary indicator

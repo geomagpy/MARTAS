@@ -1434,7 +1434,9 @@ class MartasStatus(object):
                                 }
                         }
 
-        self.config = mm.check_conf(config, debug=True)
+        print ("HELLO")
+        self.config = mm.check_conf(config, debug=False)
+        print ("Done")
         self.statusdict = statusdict
         self.tablename = tablename
 
