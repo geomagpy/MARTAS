@@ -282,6 +282,17 @@ def dir_extract(lines, filename, date, dateformat):
                     file_path = tokens[8]
                     #print (tokens[8])
                     pathlist.append(file_path)
+        elif not tokens[0][0] == "d":
+            # exception for Geoelectric (Windows FTP)
+            if tokens[2] == '<DIR>':
+                # Not interested in directories
+                continue
+            file_path = tokens[3]
+            if len(tokens) == 5:
+                # TODO blanks in filenames!!!
+                file_path = file_path+' '+tokens[4]
+            if fnmatch.fnmatch(file_path, filepat):
+                pathlist.append(file_path)
     return pathlist
 
 
@@ -548,6 +559,10 @@ def get_datelist(config=None,current=None,debug=False):
             newcurrent = current-timedelta(days=elem+1)
     else:
         datelist = ['dummy']
+    if depth == 0:
+        #exception for Geoelectric
+        newcurrent = current-timedelta(hours=1)
+        datelist = [newcurrent.strftime('%Y-%m-%d %H')]
 
     #if debug:
     print("   -> Dealing with time range:\n {}".format(datelist))
