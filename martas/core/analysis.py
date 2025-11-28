@@ -544,19 +544,18 @@ class MartasAnalysis(object):
                 print(" put_data: putting data to {}".format(destination))
             cont = destinations.get(destination)
             name = cont.get("name")
-            if destination:
+            if destination and not "/" in destination:
                 if debug:
                     print(" put_data: -> {} to DB {}".format(name, destination))
-                ok = True
-                if ok:
+                try:
                     dbw = connectdict[destination]
                     if self.db_table_exists(dbw.db, name):
                         dbw.write(datastream, tablename=name)
                     else:
                         # Here the basic header info in DATAINFO and SENSORS will be created
                         dbw.write(datastream)
-            # except:
-            #    success = False
+                except:
+                    success = False
             elif os.path.isdir(destination) or "/" in destination:
                 if debug:
                     print(" put_data: -> {} writing to path {}".format(name, destination))
@@ -564,12 +563,11 @@ class MartasAnalysis(object):
                 coverage = cont.get("coverage", "month")
                 mode = cont.get("mode", "replace")
                 format_type = cont.get("format_type", "PYCDF")
-                ok = True
-                if ok:
+                try:
                     datastream.write(destination, filenamebegins=name, dateformat=dateformat, coverage=coverage,
                                      mode=mode, format_type=format_type)
-                # except:
-                #    success = False
+                except:
+                    success = False
         if debug:
             print(" -----------------------")
 
