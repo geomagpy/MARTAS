@@ -394,8 +394,12 @@ class MartasAnalysis(object):
                 if debug:
                     print("   -> testing {}: sampling rate {} sec is selected".format(selectedsensor, sel_sr))
                 ddata = self.db.read(selectedsensor, starttime=starttime, endtime=endtime)
+                if debug:
+                    print("       got {} datapoints".format(len(ddata)))
                 if len(ddata) > 0:
                     data = join_streams(ddata, data)
+                if debug:
+                    print ("     data looks like after join", data.ndarray)
                 if debug:
                     print(" _data_from_db: part (c) now checking whether the timerange is fitting to {} - {}".format(starttime,endtime))
                 if len(data) > 0:
@@ -407,6 +411,8 @@ class MartasAnalysis(object):
                     if endtime:
                         if np.abs((endtime - et).total_seconds()) < 3600:
                             success = True
+                    if debug:
+                        print ("      -> Starttime {}, Endtime {}, Success {}".format(st, et,success))
 
         return data, success
 
@@ -481,9 +487,16 @@ class MartasAnalysis(object):
                                 data = join_streams(data, ddata)
             else:
                 data = ddata.copy()
+
+        if debug:
+            print ("get_marcos_file: obtained data looks like", data.ndarray)
         # flags
         if self.db and apply_flags:
+            if debug:
+                print("get_marcos_file: applying flags")
             fl = self.db.flags_from_db(sensorid=data.header.get("SensorID"), starttime=starttime, endtime=endtime)
+            if debug:
+                print("get_marcos_file: got {} flags".format(len(fl)))
             if len(fl) > 0 and len(data) > 0:
                 data = fl.apply_flags(data)
 
