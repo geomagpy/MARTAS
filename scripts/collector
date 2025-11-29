@@ -411,12 +411,13 @@ def on_message(client, userdata, msg):
         if not msg.topic.startswith(stationid):
             return
 
-    if pyversion.startswith('3'):
+    if not pyversion.startswith('2'):
        msg.payload= msg.payload.decode('ascii')
 
     global qos
     global verifiedlocation
     global debug
+    global stid
     digit = 0
     arrayinterpreted = False
     wsarrayinterpreted = False

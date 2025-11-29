@@ -1940,7 +1940,7 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | ENV05               | 2.0.0    | temperature | envprotocol.py           | passive |                |                  |
 | FLUKE 289           | 2.0.0    | multiple    | fluke289protocol.py      | active  |                |                  |
 | 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active  |                |                  |
-| GIC                 |          | special     | gicprotocol.py           | active  |                |                  |
+| GIC                 | 2.0.0    | special     | gicprotocol.py           | active  |                | authentication   |
 | GP20S3              |          | opt.pumped  | gp20s3protocol.py        | passive |                |                  |
 | GSM19               |          | overhauser  | gsm19protocol.py         | passive |                |                  |
 | GSM90               | 2.0.0    | overhauser  | gsm90protocol.py         | passive | gsm90v?init.sh |                  |

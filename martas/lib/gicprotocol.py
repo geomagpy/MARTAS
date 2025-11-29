@@ -21,14 +21,14 @@ class GICProtocol():
     [{"client":"gic01","date":"2022-04-13","timeUTC":"16:43:05","temperatureDegC":"34.8","NpcMilliAmps":"120.0434"},{"client":"gic02",... }]
 
     The protocol defines the sensor name in its init section, which
-    is used to dipatch url links and define local storage folders
+    is used to dispatch url links and define local storage folders
 
-    URLs are then taken from magpy crendentials by extracting the address for the given sensor name
+    URLs are then taken from magpy credentials by extracting the address for the given sensor name. So you first need
+    to add access credentials as follows:
+    addcred -t transfer -c gicaut -u USERNAME -p PASSWORD -a https://URL.TO.GIC.DATA:PORT
 
-    Add the following line to sensors.cfg:
+    Add the following line to sensors.cfg to request new data every 60 seconds:
     gicaut,URL,-,-,-,-,active,None,60,1,GIC,GIC,-,0001,-,different,NTP,spaceweather,geomagnetically induced currents
-    #CR1000JC_1_0002,USB0,38400,8,1,N,active,None,2,1,cr1000jc,CR1000JC,02367,0002,-,TEST,NTP,meteorological,snow height
-
 
 
     """
