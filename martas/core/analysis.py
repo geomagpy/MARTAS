@@ -1590,13 +1590,13 @@ class MartasStatus(object):
         msg = ''
         if value:
             if critical_high and value >= critical_high:
-                msg = "CRITCAL STATUS: value exceeding {} {}".format(critical_high, value_unit)
+                msg = "CRITCAL state: value exceeding {} {}".format(critical_high, value_unit)
             elif warning_high and value >= warning_high:
-                msg = "WARNING: value exceeding {} {}".format(warning_high, value_unit)
+                msg = "WARNING state: value exceeding {} {}".format(warning_high, value_unit)
             elif critical_low and value <= critical_low:
-                msg = "CRITICAL STATUS: value below {} {}".format(critical_low, value_unit)
+                msg = "CRITICAL state: value below {} {}".format(critical_low, value_unit)
             elif warning_low and value <= warning_low:
-                msg = "WARNING: value below {} {}".format(warning_low, value_unit)
+                msg = "WARNING state: value below {} {}".format(warning_low, value_unit)
         return msg
 
 

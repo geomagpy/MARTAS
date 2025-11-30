@@ -88,7 +88,7 @@ class GICProtocol():
             lines = []
             packcode = '6hLll'
             sensorid = "{}_{}_{}".format(self.sensor.upper(), dataname.upper(), self.revision)
-            header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, '[x,t2]', '[GIC,T]', '[mA,degC]', '[10000,10000]',
+            header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, '[x,t2]', '[GIC,T]', '[mA,degC]', '[1000,1000]',
                                                           packcode, struct.calcsize('<' + packcode))
             for i,gic in enumerate(giclist):
                 # ignore empty and experimental data sets
@@ -107,6 +107,8 @@ class GICProtocol():
                     try:
                         gic = float(gic)
                     except:
+                        gic = 999999
+                    if gic > 554999 and gic < 555001:
                         gic = 999999
                     try:
                         temperature = float(temperature)
