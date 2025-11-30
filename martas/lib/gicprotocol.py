@@ -78,7 +78,9 @@ class GICProtocol():
             #if self.debug:
             #print ("ANALYSIS", el)
             dataname = el.get("client")
-            giclist = str(el.get("NpcMilliAmps")).split(";")
+            gicval = str(el.get("NpcMilliAmps")) # can be a single value, string with ; and an integer
+            print (gicval)
+            giclist = gicval.split(";")
             sdate = el.get("date")
             stime = el.get("timeUTC")
             temperature = el.get("temperatureDegC")
