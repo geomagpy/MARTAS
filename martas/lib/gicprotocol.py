@@ -79,7 +79,7 @@ class GICProtocol():
             #print ("ANALYSIS", el)
             dataname = el.get("client")
             gicval = str(el.get("NpcMilliAmps")) # can be a single value, string with ; and an integer
-            print (gicval)
+            #print (gicval)
             giclist = gicval.split(";")
             sdate = el.get("date")
             stime = el.get("timeUTC")
