@@ -78,7 +78,7 @@ class GICProtocol():
             #if self.debug:
             #print ("ANALYSIS", el)
             dataname = el.get("client")
-            giclist = el.get("NpcMilliAmps").split(";")
+            giclist = str(el.get("NpcMilliAmps")).split(";")
             sdate = el.get("date")
             stime = el.get("timeUTC")
             temperature = el.get("temperatureDegC")
@@ -90,6 +90,7 @@ class GICProtocol():
                                                           packcode, struct.calcsize('<' + packcode))
             for i,gic in enumerate(giclist):
                 # ignore empty and experimental data sets
+                gic = float(gic)
                 if gic and not gic in [555000] and not dataname in ['gic20'] and not sdate in [555000]:
                     datearray = []
                     data_bin = None
