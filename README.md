@@ -166,7 +166,7 @@ to run use UTC times.
     - virtualenvironment (python environment)
         sudo apt-get install virtualenv
     - MAROCS only (if MariaDB is used)
-        sudo apt-get install mariadb
+        sudo apt-get install mariadb-server
         sudo apt-get install percona-toolkit
 
     PYTHON:
@@ -2120,7 +2120,13 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 The installation is usually straightforward as described in section 2. For some systems, especially ARM systems, you 
 might however require very specific or some additional packages to fulfill required dependencies. Here we summarise 
-some system specific issues and solutions, as well as a full installation cookbook.
+some system specific issues and solutions, as well as a full installation cookbook. Some general hints regarding
+installation problems are listed below:
+
+Sometime occuring on ARM processor systems:
+- llvmlite installation issues: either install llvm or request "geomagpy-minimal" from authors
+- general problem with any python package: check 
+
 
 #### 10.1.1 MARTAS on BeagleBone Black Rev C with system python
 
