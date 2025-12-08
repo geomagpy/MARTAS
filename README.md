@@ -74,7 +74,7 @@ state-of-the-art standard protocol of the Internet-of-Things (IOT). A receiver c
 store this data in various different archiving types (files (like CDF, CSV, TXT, BIN), databases). Various logging 
 methods, comparison functions, threshold tickers, and process communication routines complement the MARTAS package.
 
-Currently supported systems are:
+Currently supported systems are (see also [9.1](#91-sensor-communication-libraries)):
 
 - Lemi025,Lemi036, and most likely all other Lemi systems;
 - Geometrics G823 Cs Magnetometers
@@ -142,15 +142,14 @@ base support.
 
 ### 1.3 MARTAS users
 
-MARTAS is currently used by many organizations:
+MARTAS is going to be published in 2026 and currently is used already by the following organizations:
 
 Austria: GeoSphere Austria, Conrad Observatory and power grid monitoring networks
 Finnland: Image geomagnetic network stations
 Colombia: Fuquene geomagnetic observatory
 Bulgaria: PAG geomagnetic Observatory
 
-if you are also using MARTAS of any of its modules we would be happy to put yu on the list. 
-
+If you are also using MARTAS or any of its modules we would be happy to put you on the list. 
 
 ## 2. Installation
 
@@ -198,8 +197,14 @@ Install the package using pip:
 
         (martas)$ pip install martas-2.x.x.tar.gz
 
-If you face problems when installing martas within a python environment you can also switch to system python without 
-significant problems. Please follow the instructions in section [10.1.1](#1011-installing-martas-with-system-python).
+Installation was successfully tested on Ubuntu 20.04, 22.04, 24.04, Debian 13 "Trixie" (also on Raspberry Pi 5, Zero W2 
+hardwares).
+If you face **problems** when installing MARTAS please checkout the following points:
+- installation on Beaglebone Black C3: Please follow the instructions in section [10.1.1](#1011-installing-martas-with-system-python).
+- installation issues with llvmlite python package or any other python packages. Either try the instructions of section [10.1.2](#1012-martas-on-raspberry-zero-rp5) or request a minimal package (pMARTAS acquisition only) from the authors.
+- you might want to look at section [10.1.5](#1015-installation-problems-and-their-solutions) where we collect further issues plus solutions
+- write an issue describing your hardware and operating system plus error report.
+
 
 ### 2.3 Configure MQTT
 
@@ -1753,34 +1758,41 @@ statusdict = {"Average Temperature of TEST001": {
 
 THe keys of each status element refer to the following inputs:
 
-| key           | description                          | DB field       | default                  | example     |
-|---------------|--------------------------------------|----------------|--------------------------|-------------|
-| source        | DataID                               | source         | -                        | -           |
-| key           | column of DataID                     |                | x                        | t1          |
-| field         | physical property contained in key   | status_field   | -                        | temperature |
-| group         | primary purpose of Instrument/Sensor | status_group   | SensorGroup              | magnetism   |
-| type          | specific primary sensor type         | status_type    | SensorType               | fluxgate    |
-| pierid        | reference to pier                    | pierid         | PierID                   | A2          |
-| station       | reference to StationID               | stationid      | StationID                | WIC         |
-| longitude     |                                      | longitude      | DataAcquisitionLongitude | -           |
-| latitude      |                                      | latitude       | DataAcquisitionLatitude  | -           |
-| altitude      |                                      | altitude       | DataElevation            | -           |
-| range         | timerange in minutes                 |                | 30                       | 30          |
-| mode          | mean,median,max,min,uncert,gradient  |                | mean                     | fluxgate    |
-| value_unit    | unit of key                          | value_unit     | unit-col-KEY             | -           |
-| warning_low   | lower warning level                  | warning_low    | 0                        | -5          |
-| warning_high  | upper warning level                  | warning_high   | 0                        | 10          |
-| critical_low  | lower critical level                 | critical_low   | 0                        | -20         |
-| critical_high | upper critical level                 | critical_high  | 0                        | 20          |
-| -             | filled in DB                         | status_value   |                          | 13.3        |
-| -             | filled in DB                         | value_min      |                          |             |
-| -             | filled in DB                         | value_max      |                          |             |
-| -             | filled in DB                         | value_std      |                          |             |
-| -             | filled in DB                         | validity_start |                          |             |
-| -             | filled in DB                         | validity_end   |                          |             |
-| -             | filled in DB                         | comment        |                          |             |
-| -             | filled in DB                         | date_added     |                          |             |
-| -             | filled in DB                         | active         |                          |             |
+| key                   | description                          | DB field       | default                  | example       |
+|-----------------------|--------------------------------------|----------------|--------------------------|---------------|
+| source                | DataID                               | source         | -                        | -             |
+| key                   | column of DataID                     |                | x                        | t1            |
+| field                 | physical property contained in key   | status_field   | -                        | temperature   |
+| group                 | primary purpose of Instrument/Sensor | status_group   | SensorGroup              | magnetism     |
+| type                  | specific primary sensor type         | status_type    | SensorType               | fluxgate      |
+| pierid                | reference to pier                    | pierid         | PierID                   | A2            |
+| station               | reference to StationID               | stationid      | StationID                | WIC           |
+| longitude             |                                      | longitude      | DataAcquisitionLongitude | -             |
+| latitude              |                                      | latitude       | DataAcquisitionLatitude  | -             |
+| altitude              |                                      | altitude       | DataElevation            | -             |
+| range                 | timerange in minutes                 |                | 30                       | 30            |
+| mode                  | mean,median,max,min,uncert,gradient  |                | mean                     | fluxgate      |
+| value_unit            | unit of key                          | value_unit     | unit-col-KEY             | -             |
+| warning_low           | lower warning level                  | warning_low    | 0                        | -5            |
+| warning_high          | upper warning level                  | warning_high   | 0                        | 10            |
+| critical_low          | lower critical level                 | critical_low   | 0                        | -20           |
+| critical_high         | upper critical level                 | critical_high  | 0                        | 20            |
+| access                | define access level                  | access         | public                   | public        |
+| notification warning  | list of notification configs         |                | None                     | ["email.cfg"] |
+| notification critical | list of notification configs         |                | None                     | ["email.cfg"] |
+| symbol standard       | URL with png                         |                |                          | icons/st.png  |
+| symbol warning        | URL with png                         |                |                          |               |
+| symbol critical       | URL with png                         |                |                          |               |
+| picture               | URL with png                         |                |                          |               |
+| -                     | filled in DB                         | status_value   |                          | 13.3          |
+| -                     | filled in DB                         | value_min      |                          |               |
+| -                     | filled in DB                         | value_max      |                          |               |
+| -                     | filled in DB                         | value_std      |                          |               |
+| -                     | filled in DB                         | validity_start |                          |               |
+| -                     | filled in DB                         | validity_end   |                          |               |
+| -                     | filled in DB                         | comment        |                          |               |
+| -                     | filled in DB                         | date_added     |                          |               |
+| -                     | filled in DB                         | active         |                          |               |
 
 
 The key values of each status element contained in the status dictionary need to be unique and are ideally human 
@@ -1931,12 +1943,12 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | Arduino             | 2.0.0    | multiple    | activearduinoprotocol.py | active  |                |                  |
 | AD7714              |          | multiple    | ad7714protocol.py        | active  |                |                  |
 | Arduino             | 2.0.0    | multiple    | arduinoprotocol.py       | passive |                |                  |
-| BM35-pressure       |          | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
+| BM35-pressure       | 2.0.0    | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
 | BME280              | 2.0.0    | pressure    | bme280i2cprotocol.py     | active  |                | 4.4.13           |
 | CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active  |                | pycampbellcr1000 |
 | Cesium G823         |          | opt.pumped  | csprotocol.py            | passive |                |                  |
-| Thies LNM           |          | laserdisdro | disdroprotocol.py        | active  |                |                  |
-| DSP Ultrasonic wind |          | wind        | dspprotocol.py           | active  |                |                  |
+| Thies LNM           | 2.0.0    | laserdisdro | disdroprotocol.py        | active  |                |                  |
+| DSP Ultrasonic wind | 2.0.0    | wind        | dspprotocol.py           | active  |                |                  |
 | ENV05               | 2.0.0    | temperature | envprotocol.py           | passive |                |                  |
 | FLUKE 289           | 2.0.0    | multiple    | fluke289protocol.py      | active  |                |                  |
 | 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active  |                |                  |
@@ -2029,7 +2041,11 @@ B. MARTAS
 
 #### 9.2.3 Quantum POS1
 
+to be written
+
 #### 9.2.4 Meteolabs BM35 pressure
+
+to be written
 
 #### 9.2.5 ObsDAQ / PalmAcq
 
@@ -2047,7 +2063,7 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
 
 #### 9.2.6 LM - TLippmann tilt meter
 
-To be added
+To be added (stalled)
 
 #### 9.2.7 Dallas OW (One wire) support
 
@@ -2180,6 +2196,7 @@ Please read sections 4 for [MARTAS](#4-pmartas) setup.
 
 #### 10.1.2 MARTAS on Raspberry (zero, RP5)
 
+For Debian 13 "Trixie" please use the standard installation routine. For older systems proceed as follows.
 The following approach was tested using Debian bookworm with python 3.11. Please note: you can also use the 
 "break-system-packages" approach as in 10.1.1.
 
@@ -2199,7 +2216,7 @@ Create an environment and install MARTAS
 Get some of the critical python dependencies first. In case of failures please contact the development 
 team for working versions of the specific packages and their dependencies. Typically problems are related 
 to sub-dependencies of numpy, matplotlib and scipy. The following recommendation is valid for bookworm 
-with python 3.11, which might fail because of the matplotlib dependency contourpy. So lets choose a 
+with python 3.11, which might fail because of the matplotlib dependency *contourpy*. So lets choose a 
 working version first:
 
         pip install numpy==1.26.4
@@ -2210,7 +2227,7 @@ working version first:
         pip install cryptography==38.0.4
         pip install geomagpy
 
-In case you get problems related to llvmlite or numba (observed in rasbian bookworm with python 3.11.2), please contact
+In case you get problems related to llvmlite or numba (observed in raspbian bookworm with python 3.11.2), please contact
 the development team for a minimal version of geomagpy without emd support (please note: this will affect KI and 
 activity analysis, which usually is not done on pMARTAS).
 
@@ -2364,7 +2381,19 @@ Reconfigure pip to use the proxy server (if necessary)
 
 sslpsk2 cannot be installed -> sudo apt install ssh libssl-dev and retry
 
+#### 10.1.6 Removing MARTAS 1.x and replacing by MARTAS2
 
+Install the MARTAS 2. Copy all essential config information. Then
+
+      sudo /etc/init.d/martas stop
+
+Now start MARTAS2 and test everything.
+
+If successful:
+
+      sudo update-rc.d -f martas remove
+
+      sudo rm /etc/init.d/martas
 
 ### 10.2 Setting up a secure TLS based mosquitto broker for MARTAS
 
