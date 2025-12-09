@@ -862,7 +862,7 @@ def write_data(config=None,localpathlist=None,debug=False):
     stationid = config.get('stationid','')
     sensorid = config.get('sensorid','')
     force = config.get('forcerevision','')
-    subdirectory = None
+    subdirectory = config.get('writedirectory','')
     writemode = config.get('writemode','replace')
     if not writemode in ['replace','overwrite']:
         # replace will replace existing data and leave the rest unchanged
