@@ -603,6 +603,8 @@ def main(argv):
     testamount = int(monitorconf.get('tolerance'))
     logsearchmessage = monitorconf.get('logsearchmessage')
     execute = monitorconf.get('execute',None)
+    spacewarning  = int(monitorconf.get('spacewarning', 80))
+    spacecritical  = int(monitorconf.get('spacecritical', 90))
 
     if execute == "/path/execute.sh":
         execute = None
@@ -626,7 +628,7 @@ def main(argv):
             try:
                 spacename = "{}-{}-diskspace".format(hostname, jobname)
                 if os.path.exists(basedirectory):
-                    statusmsg[spacename] = getspace(basedirectory)
+                    statusmsg[spacename] = getspace(basedirectory,warning=spacewarning,critical=spacecritical)
                 else:
                     statusmsg[spacename] = "{} does not exist".format(basedirectory)
             except:
