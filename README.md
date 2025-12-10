@@ -919,7 +919,7 @@ This is usually done within minutes and then can be readily used for pMARCOS dat
 When initializing MARCOS and selecting destination "db" you will need to provide a credential shortcut for the 
 database. You can create such credentials using addcred. Use addcred -h for all options.
 
-      $ addcred -d db -c mydb -u user -p secret -h localhost
+      $ addcred -t db -c mydb -u user -p secret -o localhost -d mydb
 
 Please use the "update" option when running a job with a new sensor for the first time to create default inputs into the
 database (and not only the data table).
@@ -1946,7 +1946,7 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | BM35-pressure       | 2.0.0    | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
 | BME280              | 2.0.0    | pressure    | bme280i2cprotocol.py     | active  |                | 4.4.13           |
 | CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active  |                | pycampbellcr1000 |
-| Cesium G823         |          | opt.pumped  | csprotocol.py            | passive |                |                  |
+| Cesium G823         | 2.0.0    | opt.pumped  | csprotocol.py            | passive |                |                  |
 | Thies LNM           | 2.0.0    | laserdisdro | disdroprotocol.py        | active  |                |                  |
 | DSP Ultrasonic wind | 2.0.0    | wind        | dspprotocol.py           | active  |                |                  |
 | ENV05               | 2.0.0    | temperature | envprotocol.py           | passive |                |                  |
