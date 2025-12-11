@@ -17,7 +17,7 @@ try:
     import busio
     from adafruit_bme280 import basic as adafruit_bme280
 except:
-    log.msg("   bme280 ic2 requires board, busio and adafruit packages - install first")
+    log.msg("   bme280 ic2 requires the following packages to be install: board, adafruit-blinka and adafruit-circuitpython-bme280")
 
 ## I2C BME280 protocol
 ## -----------------------

@@ -21,6 +21,7 @@ def main(argv):
     name = "TestMessage"
     logpath = '/var/log/magpy/testmessage.log'
     note = {}
+    proxies = {}
     debug = False
 
     try:
@@ -54,6 +55,7 @@ def main(argv):
             print ('python3 testnote.py -n email -m "Hello World" -c /etc/martas/mail.cfg -l TestMessage -p /home/user/test.log')
             print ('python3 testnote.py -n telegram -m "Hello World, I am here" -c /etc/martas/telegram.cfg -l TestMessage -p /home/leon/test.log')
             print ('python3 testnote.py -n log -m "Hello World again" -l TestMessage -p /home/leon/test.log')
+            print ('python3 testnote.py -n telegram -m "Hello World" -c ~/.martas/conf/telegram.cfg -l TestMessage -p /home/leon/test.log -o http://192.168.1.1:3128')
             sys.exit()
         elif opt in ("-n", "--notifictaiontype"):
             notificationtype = arg
@@ -65,6 +67,8 @@ def main(argv):
             name = arg
         elif opt in ("-p", "--logpath"):
             logpath = os.path.abspath(arg)
+        elif opt in ("-o", "--proxy"):
+            proxies = {'https', arg}
         elif opt in ("-D", "--debug"):
             debug = True
 
@@ -76,9 +80,9 @@ def main(argv):
         print ("Notification type not supported. Needs to be one of email, telegram, log")
         sys.exit()
 
-    note[name] = message 
+    note[name] = message
 
-    martaslog = ml(logfile=logpath,receiver=notificationtype)
+    martaslog = ml(logfile=logpath,receiver=notificationtype, proxies=proxies)
     martaslog.telegram['config'] = configpath
     martaslog.email['config'] = configpath
     martaslog.msg(note)

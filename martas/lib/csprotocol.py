@@ -61,18 +61,13 @@ class CsProtocol(LineReceiver):
     def processData(self, data):
         """Convert raw ADC counts into SI units as per datasheets"""
 
+        datearray = []
+        data_bin = None
         currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
-        # Correction for ms time to work with databank:
-        #currenttime_ms = currenttime.microsecond/1000000.
-        #ms_rounded = round(float(currenttime_ms),3)
-        #if not ms_rounded >= 1.0:
-        #    currenttime = currenttime.replace(microsecond=int(ms_rounded*1000000.))
-        #else:
-        #    currenttime = currenttime.replace(microsecond=0) + timedelta(seconds=1.0)
         filename = datetime.strftime(currenttime, "%Y-%m-%d")
-        actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
-        lastActualtime = currenttime
-        outtime = datetime.strftime(currenttime, "%H:%M:%S")
+        #actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
+        #lastActualtime = currenttime
+        #outtime = datetime.strftime(currenttime, "%H:%M:%S")
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
 
         sensorid = self.sensor
@@ -106,17 +101,18 @@ class CsProtocol(LineReceiver):
     def lineReceived(self, line):
 
         topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        if self.pvers > 2:
-            line=line.decode('ascii')        
+        line=line.decode('ascii', 'ignore')
         # extract only ascii characters
         line = ''.join(filter(lambda x: x in string.printable, str(line)))
 
+        dataarray = None
+        head = None
         ok = True
         try:
             data = line.split()
             if len(data) == 2:
                 dataarray, head = self.processData(data)
-            elif len(data) == 1 and len(data.split(',')) == 2:
+            elif len(data) == 1 and len(data[0].split(',')) == 2:
                 data = ['$',data]
                 dataarray, head = self.processData(data)
             else:
@@ -126,7 +122,7 @@ class CsProtocol(LineReceiver):
             log.err('{}: Unable to parse data {}'.format(self.sensordict.get('protocol'), line))
             ok = False
 
-        if ok:
+        if ok and dataarray:
             senddata = False
             coll = int(self.sensordict.get('stack'))
             if coll > 1:

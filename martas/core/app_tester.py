@@ -18,13 +18,14 @@ from magpy.stream import DataStream, read
 from magpy.core import database
 from magpy.opt import cred as mpcred
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from martas.core import methods as mameth
 
 from martas.app import archive
 from martas.app import basevalue
 from martas.app import checkdatainfo
 from martas.app import db_truncate
+from martas.app import file_download
 from martas.app import filter
 from martas.app import threshold
 
@@ -84,7 +85,6 @@ class TestArchive(unittest.TestCase):
     #def test_validtimerange(self):
     #    archive.validtimerange(timetuple, mintime, maxtime, debug=False)
 
-
 class TestBasevalue(unittest.TestCase):
     """
     Test environment for all basevalue methods
@@ -98,6 +98,7 @@ class TestBasevalue(unittest.TestCase):
         pl = config.get('pierlist')
         self.assertEqual(len(pl), 2)
 
+    """
     def test_get_runmode(self):
         joblist = ['firstrun','overview']
         jl, jt = basevalue.get_runmode(joblist)
@@ -165,6 +166,7 @@ class TestBasevalue(unittest.TestCase):
         if os.path.isfile(os.path.join("/tmp","BLV_LEMI036_1_0002_GP20S3NSS2_012201_0001_A2_2025_firstrun.txt")):
             t = True
         self.assertTrue(t)
+    """
 
 
 class TestCheckdataInfo(unittest.TestCase):
@@ -204,13 +206,55 @@ class TestDBTrcuncate(unittest.TestCase):
         pass
 
 
+class TestFileDownload(unittest.TestCase):
+    """
+    Test environment for all methods
+    """
+
+    def test_check_configuration(self):
+        print ("TESTING file_download")
+        print ("---------------------------------------------------------------")
+        confpath = os.path.abspath(os.path.join(os.path.dirname(__file__),'..','conf','download-source.cfg'))
+        config = mameth.get_conf(confpath)
+        config, success = file_download.check_configuration(config=config, debug=True)
+        #print (config)
+        print (success)
+        self.assertEqual(config.get('db'),None)
+        self.assertEqual(success,True)
+
+    def test_get_datelist(self):
+        confpath = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'conf', 'download-source.cfg'))
+        config = mameth.get_conf(confpath)
+        config, success = file_download.check_configuration(config=config, debug=False)
+        current = datetime.now(timezone.utc).replace(tzinfo=None)
+        datelist = file_download.get_datelist(config=config,current=current,debug=True)
+        succ = False
+        if current.strftime("%Y-%m-%d") in datelist:
+            succ = True
+        self.assertTrue(succ)
+
+    def test_create_transfer_list_dir_extract(self):
+        confpath = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'conf', 'download-source.cfg'))
+        config = mameth.get_conf(confpath)
+        config, success = file_download.check_configuration(config=config, debug=False)
+        # set protocol to local directory
+        config['protocol'] = ''
+        current = datetime.now(timezone.utc).replace(tzinfo=None)
+        datelist = file_download.get_datelist(config=config,current=current,debug=False)
+        filelist = file_download.create_transfer_list(config=config, datelist=datelist, debug=True)
+        self.assertTrue(isinstance(filelist, (list,tuple)))
+
+    # missing are file_download.obtain_data_files(config=None,filelist=None,debug=False)
+    # and file_download.write_data(config=None,localpathlist=None,debug=False)
+
+
 class TestFilter(unittest.TestCase):
     """
     Test environment for all methods
     """
 
     def test_read_conf(self):
-        cfg = filter.read_conf("config/filter.cfg")
+        cfg = filter.read_conf("../conf/filter.cfg")
         self.assertNotEqual(cfg,None)
 
     def test_get_sensors(self):

@@ -7,6 +7,10 @@ Methods of this module
 | --------------- |  ----------------  |  ------- |  ------- |  ------------------------------- | ------ | -------- |
 |  MartasAnalysis |  __init__          |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  _get_data_from_db |  2.0.0   |      yes |                                  | -      |          |
+|  MartasAnalysis |  _data_from_db     |  2.0.0   |      yes |  weather                         | -      |          |
+|  MartasAnalysis |  get_marcos_data   |  2.0.0   |      yes |  weather                         | -      |          |
+|  MartasAnalysis |  put_data          |  2.0.0   |          |  weather                         | -      |          |
+|  MartasAnalysis |  db_table_exists   |  2.0.0   |          |  weather                         | -      |          |
 |  MartasAnalysis |  update_flags_db   |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  periodically      |  2.0.0   |      yes |                                  | -      |          |
 |  MartasAnalysis |  cleanup           |  2.0.0   |      yes |                                  | -      |          |
@@ -23,7 +27,7 @@ Methods of this module
 |  MartasStatus   |  check_highs       |  2.0.0   |      yes |                                  | -      |          |
 |  MartasStatus   |  create_sql        |  2.0.0   |      yes |                                  | -      |          |
 |  MartasStatus   |  statustableinit   |  2.0.0   |      yes |                                  | -      |          |
-
+get_marcos_data
 
 
 PREREQUISITES
@@ -64,8 +68,10 @@ APPLICATION
         python flagging.py -c /etc/marcos/analysis.cfg -j delete -s MYSENSORID -o "f"
 
 """
+import json
 import sys
 sys.path.insert(1,'/home/leon/Software/MARTAS/') # should be magpy2
+sys.path.insert(1,'/home/leon/Software/magpy/') # should be magpy2
 
 import unittest
 
@@ -86,6 +92,7 @@ import itertools
 import getopt
 import pwd
 import socket
+import glob
 import sys  # for sys.version_info()
 
 class MartasAnalysis(object):
@@ -203,7 +210,7 @@ class MartasAnalysis(object):
                                  }
                         }
 
-        self.config = mm.check_conf(config, debug=True)
+        self.config = mm.check_conf(config, debug=False)
         self.flagdict = flagdict
 
         self.logpath = self.config.get('logpath')
@@ -261,7 +268,7 @@ class MartasAnalysis(object):
                     datadict[sensor] = cont
         if len(determinesr) > 0:
             if debug:
-                print("   b) checking sampling rate of {} }sensors without sampling rate".format(len(determinesr)))
+                print("   b) checking sampling rate of {} sensors without sampling rate".format(len(determinesr)))
             for sensor in determinesr:
                 lastdata = self.db.get_lines(sensor, namedict.get('coverage',7200))
                 if len(lastdata) > 0:
@@ -306,6 +313,278 @@ class MartasAnalysis(object):
 
         return datadict
 
+
+    def _data_from_db(self, name, starttime=None, endtime=None, samplingperiod=1, debug=False):
+        """
+        DESCRIPTION
+            Extract data sets from database based on name fraction.
+            - will get the lowest sampling period data equal or above the provided limit (default 1sec)
+            - will also check coverage
+            this method has a similar name and almost identical application are analysis._get_data_from_db
+        RETURN
+            datastream
+        """
+        datadict = {}
+        determinesr = []
+        datastream = DataStream()
+        success = False
+        if not starttime and not endtime:
+            success = True
+
+        # First get all existing sensors comaptible with name fraction
+        sensorlist = self.db.select('DataID', 'DATAINFO', 'SensorID LIKE "%{}%"'.format(name))
+        if debug:
+            print(" _data_from_db:  -> Found {}".format(sensorlist))
+            print(" _data_from_db:  a) select of highest resolution data equal/above samplingperiods of {} sec".format(
+                samplingperiod))  # should be tested later again
+        # Now get corresponding sampling rate
+        projected_sr = samplingperiod
+        for sensor in sensorlist:
+            sr = 0
+            res = self.db.select('DataSamplingrate', 'DATAINFO', 'DataID="{}"'.format(sensor))
+            try:
+                sr = float(res[0])
+                if debug:
+                    print("    - Sensor: {} -> Samplingrate: {}".format(sensor, sr))
+            except:
+                if debug:
+                    print("      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    print("      Check sampling rate {} of {}".format(res, sensor))
+                    print("      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                determinesr.append(sensor)
+            if sr >= projected_sr - 0.02:
+                # if sr is larger to projected sr within 0.02 sec
+                cont = {}
+                cont['samplingrate'] = sr
+                datadict[sensor] = cont
+        if len(determinesr) > 0:
+            if debug:
+                print(" _data_from_db:  a*) checking sampling rate of {} sensors without sampling rate".format(len(determinesr)))
+            for sensor in determinesr:
+                lastdata = self.db.get_lines(sensor, 7200)
+                if len(lastdata) > 0:
+                    sr = lastdata.samplingrate()
+                    if debug:
+                        print("    - Sensor: {} -> Samplingrate: {}".format(sensor, sr))
+                    # update samplingrate in db
+                    print("    - updating header with determined sampling rate:", lastdata.header)
+                    self.db.write(lastdata)
+                    if sr >= projected_sr - 0.02:
+                        # if sr is larger to projected sr within 0.02 sec
+                        cont = {}
+                        cont['samplingrate'] = sr
+                        datadict[sensor] = cont
+        if debug:
+            print(" _data_from_db:  -> {} data sets fulfilling search criteria after a and a*".format(len(datadict)))
+            print(" _data_from_db:  {}".format([d for d in datadict]))
+
+        data = DataStream()
+        selectedsensor = ''
+        sel_sr = 9999
+        for dataid in datadict:
+            if debug:
+                print (" _data_from_db: part (b) - scanning {}".format(dataid))
+            cont = datadict.get(dataid)
+            sr = cont.get('samplingrate')
+            if sr <= sel_sr:
+                # select the smallest available sampling rate consistent with the projected one,
+                # also use multiple data stream with same sampling rate (i.e. meteo data from subsequent sensors)
+                selectedsensor = dataid
+                sel_sr = sr
+                if debug:
+                    print("   -> testing {}: sampling rate {} sec is selected".format(selectedsensor, sel_sr))
+                ddata = self.db.read(selectedsensor, starttime=starttime, endtime=endtime)
+                if debug:
+                    print("       got {} datapoints".format(len(ddata)))
+                if len(ddata) > 0:
+                    data = join_streams(ddata, data)
+                if debug:
+                    print ("     data looks like after join", data.ndarray)
+                if debug:
+                    print(" _data_from_db: part (c) now checking whether the timerange is fitting to {} - {}".format(starttime,endtime))
+                if len(data) > 0:
+                    st, et = data.timerange()
+                    if starttime:
+                        # assume everything within oe hour to be OK
+                        if np.abs((starttime - st).total_seconds()) < 3600:
+                            success = True
+                    if endtime:
+                        if np.abs((endtime - et).total_seconds()) < 3600:
+                            success = True
+                    if debug:
+                        print ("      -> Starttime {}, Endtime {}, Success {}".format(st, et,success))
+
+        return data, success
+
+
+    def get_marcos_data(self, sname, starttime=None, endtime=None, stationid='SGO', apply_flags=True, config=None, debug=False):
+        """
+        DESCRIPTION
+            The method is a general data access routine to be used on a MARCOS collector. get_data can be applied either
+            with simple SensorID's, DataID's or with full file paths. If only a DataID is given, then firstly the
+            database will be scanned for existing data and then the archive will be scanned. Links to DB and archive
+            need to be provided with the config data. If SensorID's are provided the method will scan for 1 second
+            data sets.
+        VARIABLES:
+
+        """
+        if not config:
+            config = {}
+
+        archive = config.get('archivepath', '/srv/archive')
+        #archive = self.config.get('archivepath', '/srv/archive')
+
+        et = ''
+        data = DataStream()
+        if not endtime:
+            pass
+        elif endtime == 'now':
+            et = 'now'
+            endtime = datetime.now(timezone.utc).replace(tzinfo=None)
+        else:
+            endtime = testtime(endtime)
+        if not starttime:
+            if et == 'now':
+                starttime = endtime - timedelta(days=1)
+        else:
+            starttime = testtime(starttime)
+
+        # if sname is a path with wildcards then skip db test and read directly
+        l = glob.glob(sname)
+        l = [f for f in l if os.path.isfile(f)]
+        if debug:
+            print ("get_marcos_file: scanned for full paths - found:", l)
+        if len(l) > 0:
+            # file path with wildcards was provided
+            data = read(sname, starttime=starttime, endtime=endtime)
+        else:
+            # check availability in primary database first
+            if self.db:
+                dname = sname.replace("*", "%")
+                ddata, success = self._data_from_db(dname, starttime=starttime, endtime=endtime, samplingperiod=1,
+                                               debug=debug)
+            else:
+                ddata = DataStream()
+                success = False
+            # if no fdata or incomplete check archive
+            if not success:
+                paths = []
+                l1 = glob.glob(os.path.join(archive, stationid, sname))
+                dirs = [f for f in l1 if os.path.isdir(f)]
+                for d in dirs:
+                    l2 = glob.glob(os.path.join(d, sname))
+                    paths = [f for f in l2 if os.path.isdir(f)]
+                if debug:
+                    print("Found the following paths:", paths)
+                if len(paths) > 1:
+                    print("name fragment is unspecific")
+                if len(paths) > 0:
+                    for path in paths:
+                        cdata = read(os.path.join(path, sname), starttime=starttime, endtime=endtime)
+                        if not cdata.samplingrate() < 0.98:
+                            data = join_streams(cdata, data)
+                            if len(ddata) > 0:
+                                data = join_streams(data, ddata)
+            else:
+                data = ddata.copy()
+
+        if debug:
+            print ("get_marcos_file: obtained data looks like", data.ndarray)
+        # flags
+        if self.db and apply_flags:
+            if debug:
+                print("get_marcos_file: applying flags")
+            fl = self.db.flags_from_db(sensorid=data.header.get("SensorID"), starttime=starttime, endtime=endtime)
+            if debug:
+                print("get_marcos_file: got {} flags".format(len(fl)))
+            if len(fl) > 0 and len(data) > 0:
+                data = fl.apply_flags(data)
+
+        return data
+
+    def db_table_exists(self, db, tablename):
+        """
+        DESCRIPTION
+            check whether a table existis or not
+        VARIABLES:
+            db   :    a link to a mysql database
+            tablename  :  the table to be searched (%tablename%)
+                          e.g.  MyTable  wil find MyTable, NOTMyTable, OhItsMyTableIndeed
+        RETURNS
+            True : if one or more table with %tablename% are existing
+            False : if tablename is NOT found in database db
+        APPLICATION
+            db = mysql.connect(...)
+            return dbtableexists(db,'MyTable')
+        """
+        n = 0
+        sql = "SHOW TABLES LIKE '%{}%'".format(tablename)
+
+        cursor = db.cursor()
+        try:
+            n = cursor.execute(sql)
+        except:
+            pass
+        if n > 0:
+            return True
+        else:
+            return False
+
+    def put_data(self, datastream, destinations=None, debug=False):
+        """
+        DESCRIPTION
+            export data to the selected archives, databases and/or files
+        VARIABLE
+            datastream  :   the MagPy datastream to be exported
+            destinations  : a list of destinations
+        RETURNS
+            true if all destinations were successful
+            false if not
+        """
+        success = True
+        connectdict = self.config.get('conncetedDB')
+
+        if not destinations or not isinstance(destinations, dict):
+            print(" _put_data: no destinations defined")
+            return False
+
+        if debug:
+            print(" -----------------------")
+            print(" put_data: Exporting data")
+            print(" -----------------------")
+        for destination in destinations:
+            if debug:
+                print(" put_data: putting data to {}".format(destination))
+            cont = destinations.get(destination)
+            name = cont.get("name")
+            if destination and not "/" in destination:
+                if debug:
+                    print(" put_data: -> {} to DB {}".format(name, destination))
+                try:
+                    dbw = connectdict[destination]
+                    if self.db_table_exists(dbw.db, name):
+                        dbw.write(datastream, tablename=name)
+                    else:
+                        # Here the basic header info in DATAINFO and SENSORS will be created
+                        dbw.write(datastream)
+                except:
+                    success = False
+            elif os.path.isdir(destination) or "/" in destination:
+                if debug:
+                    print(" put_data: -> {} writing to path {}".format(name, destination))
+                dateformat = cont.get("dateformat", "%Y%m")
+                coverage = cont.get("coverage", "month")
+                mode = cont.get("mode", "replace")
+                format_type = cont.get("format_type", "PYCDF")
+                try:
+                    datastream.write(destination, filenamebegins=name, dateformat=dateformat, coverage=coverage,
+                                     mode=mode, format_type=format_type)
+                except:
+                    success = False
+        if debug:
+            print(" -----------------------")
+
+        return success
 
     def update_flags_db(self, flags, debug=False):
         success = True
@@ -752,6 +1031,7 @@ class MartasAnalysis(object):
 
         return datastream, funclist
 
+
     def adjust_vario(self, source, basemode='constant', starttime=None, endtime=None, flagfile=None, basefile=None, basestart=None, baseend=None, drop_flagged=False, bc=False, skipsec=False, debug=False):
         """
         DESCRIPTION
@@ -1041,7 +1321,6 @@ class MartasAnalysis(object):
             return result
 
 
-
     def adjust_scalar(self, source, starttime=None, endtime=None, flagfile=None, skipsec=False, debug=False):
         """
         DESCRIPTION
@@ -1166,7 +1445,9 @@ class MartasStatus(object):
                                 }
                         }
 
-        self.config = mm.check_conf(config, debug=True)
+        #print ("HELLO")
+        self.config = mm.check_conf(config, debug=False)
+        #print ("Done")
         self.statusdict = statusdict
         self.tablename = tablename
 
@@ -1195,7 +1476,7 @@ class MartasStatus(object):
         key = statuselem.get('key','x')
         trange = statuselem.get('trange', 30)
         mode = statuselem.get('mode',"mean")
-        result = {}
+        result = statuselem.copy()
         active = 0
         value = 0
         value_min = 0
@@ -1205,6 +1486,12 @@ class MartasStatus(object):
         newendtime = endtime  # will be changes for mode "last"
         ok = True
         if ok:
+            maan = MartasAnalysis(config=self.config)
+            data = maan.get_marcos_data(source, starttime=starttime, endtime=endtime, config=self.config,
+                            debug=debug)
+            ndata = data._drop_nans(key)
+            cleandata = ndata._get_column(key)
+            """
             # check what happens if no data is present or no valid data is found
             if source.find('/') > -1:
                 if debug:
@@ -1236,6 +1523,7 @@ class MartasStatus(object):
                     print(" -> reading done: got {} datapoints for {}".format(len(ddata), key))
                 ndata = ddata._drop_nans(key)
                 cleandata = ndata._get_column(key)
+            """
             newendtime = ndata.end()
             if debug:
                 print(" -> {} datapoints remaining after cleaning NaN".format(len(cleandata)))
@@ -1252,6 +1540,9 @@ class MartasStatus(object):
                     value = value_max
                 elif mode == "std":
                     value = np.std(cleandata)
+                elif mode == "gradient":
+                    gr = np.gradient(cleandata)
+                    value = np.mean(gr)
                 elif mode == "last":  # if mode.startswith(last) allow last1, last2 etc
                     value = cleandata[-1]
                     endtime = newendtime
@@ -1259,6 +1550,10 @@ class MartasStatus(object):
                     value = np.mean(cleandata)
                 active = 1
 
+        # get existing statusdict info and use
+
+        if not result.get('displayname'):
+            result['displayname'] =  "{}_{}_{}".format(key, ndata.header.get("SensorID","Dummy_").split("_")[0], ndata.header.get("StationID",""))
         result['mode'] = mode
         result['value'] = value
         result['min'] = value_min
@@ -1266,15 +1561,24 @@ class MartasStatus(object):
         result['uncert'] = uncert
         result['starttime'] = starttime
         result['endtime'] = endtime
-        result['longitude'] = ndata.header.get('DataLocationLongitude',0.0)
-        result['latitude'] = ndata.header.get('DataLocationLongitude',0.0)
-        result['altitude'] = ndata.header.get('DataElevation',0.0)
+        if not result.get('lonitude'):
+            result['longitude'] = ndata.header.get('DataAcquisitionLongitude',0.0)
+        if not result.get('latitude'):
+            result['latitude'] = ndata.header.get('DataAcquisitionLatitude',0.0)
+        if not result.get('elevation'):
+            result['elevation'] = ndata.header.get('DataElevation',0.0)
         result['active'] = active
-        result["type"] = ndata.header.get("SensorType","")
-        result["group"] = ndata.header.get("SensorGroup","")
-        result["value_unit"] =  ndata.header.get("unit-col-{}".format(key),"")
-        result["stationid"] = ndata.header.get("StationID","")
-        result["pierid"] = ndata.header.get("PierID","")
+        if not result.get('type'):
+            result["type"] = ndata.header.get("SensorType","")
+        if not result.get('group'):
+            result["group"] = ndata.header.get("SensorGroup","")
+        if not result.get('value_unit'):
+            result["value_unit"] =  ndata.header.get("unit-col-{}".format(key),"")
+        if not result.get('location'):
+            result["location"] = ndata.header.get("StationID","")
+        if not result.get('pierid'):
+            result["pierid"] = ndata.header.get("PierID","")
+
         if debug:
             print("DEBUG: returning value={}, starttime={}, endtime={} and active={}".format(value, starttime, endtime,
                                                                                              active))
@@ -1297,49 +1601,102 @@ class MartasStatus(object):
         msg = ''
         if value:
             if critical_high and value >= critical_high:
-                msg = "CRITCAL STATUS: value exceeding {} {}".format(critical_high, value_unit)
+                msg = "CRITCAL state: value exceeding {} {}".format(critical_high, value_unit)
             elif warning_high and value >= warning_high:
-                msg = "WARNING: value exceeding {} {}".format(warning_high, value_unit)
+                msg = "WARNING state: value exceeding {} {}".format(warning_high, value_unit)
             elif critical_low and value <= critical_low:
-                msg = "CRITICAL STATUS: value below {} {}".format(critical_low, value_unit)
+                msg = "CRITICAL state: value below {} {}".format(critical_low, value_unit)
             elif warning_low and value <= warning_low:
-                msg = "WARNING: value below {} {}".format(warning_low, value_unit)
+                msg = "WARNING state: value below {} {}".format(warning_low, value_unit)
         return msg
 
 
-    def create_sql(self, notation, res=None, statuselem=None):
+    def create_sql(self, notation, res=None, statuselem=None, state=''):
         now = datetime.now(timezone.utc).replace(tzinfo=None)
+        last_warning, last_critical = datetime(1971,11,22), datetime(1971,11,22)
         if not statuselem:
             statuselem = {}
         if not res:
             res = {}
         value = res.get('value')
+        if not value:
+            value = "NULL"
         value_min = res.get('min')
+        if not value_min:
+            value_min = "NULL"
         value_max = res.get('max')
+        if not value_max:
+            value_max = "NULL"
         uncert = res.get('uncert')
+        if not uncert:
+            uncert = "NULL"
         start = res.get('starttime')
         end = res.get('endtime')
         active = res.get('active')
-        long = res.get('longitude')
-        lat = res.get('latitude')
-        alt = res.get('altitude')
-        stype = statuselem.get("type", res.get('typ'))
-        group = statuselem.get("group", res.get('group'))
-        field = statuselem.get("field", "")
-        value_unit = statuselem.get("value_unit", res.get('value_unit'))
-        warning_high = statuselem.get("warning_high", 0)
-        critical_high = statuselem.get("critical_high", 0)
-        warning_low = statuselem.get("warning_low", 0)
-        critical_low = statuselem.get("critical_low", 0)
+        displayname = statuselem.get("displayname", res.get('displayname'))
+        stype = statuselem.get("type", res.get('typ',"NULL"))
+        group = statuselem.get("group", res.get('group',"NULL"))
+        field = statuselem.get("field", res.get('field',"NULL"))
+        if not field:
+            field = "NULL"
+        long = statuselem.get("longitude", res.get('longitude',"NULL"))
+        if not long:
+            long = "NULL"
+        lat = statuselem.get("latitude", res.get('latitude',"NULL"))
+        if not lat:
+            lat = "NULL"
+        alt = statuselem.get("elevation", res.get('elevation',"NULL"))
+        if not alt:
+            alt = "NULL"
+        value_unit = statuselem.get("value_unit", res.get('value_unit','NULL'))
+        if not value_unit:
+            value_unit = "NULL"
+        warning_high = statuselem.get("warning_high", res.get('warning_high',"NULL"))
+        if not warning_high:
+            warning_high = "NULL"
+        critical_high = statuselem.get("critical_high", res.get('critical_high',"NULL"))
+        if not critical_high:
+            critical_high = "NULL"
+        warning_low = statuselem.get("warning_low", res.get('warning_low',"NULL"))
+        if not warning_low:
+            warning_low = "NULL"
+        critical_low = statuselem.get("critical_low", res.get('critical_high',"NULL"))
+        if not critical_low:
+            critical_low = "NULL"
         source = statuselem.get("source", "")
-        stationid = statuselem.get("stationid", res.get('stationid'))
-        pierid = statuselem.get("pierid", res.get('pierid'))
+        stationid = statuselem.get("stationid", res.get('location',"NULL"))
+        if not stationid:
+            stationid = "NULL"
+        pierid = statuselem.get("pierid", res.get('pierid',"NULL"))
         comment = statuselem.get("comment", "")
-        sql = "INSERT INTO {} (status_notation,status_type,status_group,status_field,status_value,value_min,value_max,value_std,value_unit,warning_high,critical_high,warning_low,critical_low,validity_start,validity_end,source,stationid,pierid,longitude,latitude,altitude,comment,date_added,active) VALUES ('{}','{}','{}','{}',{},{},{},{},'{}',{},{},{},{},'{}','{}','{}','{}','{}',{},{},{},'{}','{}',{}) ON DUPLICATE KEY UPDATE status_type = '{}',status_group = '{}',status_field = '{}',status_value = {},value_min = {},value_max = {},value_std = {},value_unit = '{}',warning_high = {},critical_high = {},warning_low = {},critical_low = {},validity_start = '{}',validity_end = '{}',source = '{}',stationid = '{}',pierid = '{}',longitude = {},latitude = {},altitude = {},comment='{}',date_added = '{}',active = {} ".format(
-            self.tablename, notation, stype, group, field, value, value_min, value_max, uncert, value_unit, warning_high, critical_high,
-            warning_low, critical_low, start, end, source, stationid, pierid, long, lat, alt, comment, now, active, stype, group, field, value,
+        if not comment:
+            comment = "NULL"
+        access = statuselem.get("access","")
+        if not access:
+            access = "NULL"
+        notification_warning = statuselem.get("notification_warning",[]) #list
+        warning = json.dumps(notification_warning)
+        if not warning:
+            warning = "NULL"
+        notification_critical = statuselem.get("notification_critical",[]) #list
+        critical = json.dumps(notification_critical)
+        if not critical:
+            critical = "NULL"
+        symbol_standard = statuselem.get("symbol_standard", res.get("symbol_standard","NULL"))
+        symbol_warning = statuselem.get("symbol_warning", res.get("symbol_warning","NULL"))
+        symbol_critical = statuselem.get("symbol_critical", res.get("symbol_critical","NULL"))
+        picture = statuselem.get("picture", res.get("picture"))
+        if state and not state in ['',None,"NULL"]:
+            if state.find("WARNING") >= 0:
+                last_warning = now
+            if state.find("CRITICAL") >= 0:
+                last_critical = now
+
+        sql = "INSERT INTO {} (status_notation,displayname,status_type,status_group,status_field,status_key,status_value,value_min,value_max,value_std,value_unit,warning_high,critical_high,warning_low,critical_low,validity_start,validity_end,source,location,pierid,longitude,latitude,elevation,comment,access,notification_warning,notification_critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical,date_added,active) VALUES ('{}','{}','{}','{}','{}',{},{},{},{},'{}',{},{},{},{},'{}','{}','{}','{}','{}',{},{},{},'{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}',{}) ON DUPLICATE KEY UPDATE displayname = '{}',status_type = '{}',status_group = '{}',status_field = '{}',status_value = {},value_min = {},value_max = {},value_std = {},value_unit = '{}',warning_high = {},critical_high = {},warning_low = {},critical_low = {},validity_start = '{}',validity_end = '{}',source = '{}',location = '{}',pierid = '{}',longitude = {},latitude = {},elevation = {},comment='{}',access='{}',notification_warning='{}',notification_critical='{}',symbol_standard='{}',symbol_warning='{}',symbol_critical='{}',picture='{}',last_warning='{}',last_critical='{}',date_added = '{}',active = {} ".format(
+            self.tablename, notation, displayname, stype, group, field, value, value_min, value_max, uncert, value_unit, warning_high, critical_high,
+            warning_low, critical_low, start, end, source, stationid, pierid, long, lat, alt, comment,access,warning,critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical, now, active, displayname, stype, group, field, value,
             value_min, value_max, uncert, value_unit, warning_high, critical_high, warning_low, critical_low, start,
-            end, source, stationid, pierid, long, lat, alt, comment, now, active)
+            end, source, stationid, pierid, long, lat, alt, comment,access,warning,critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical, now, active)
         return sql
 
 
@@ -1347,13 +1704,39 @@ class MartasStatus(object):
         """
         DESCRIPTION
             creating a STATUS Database table
+        "source": "TEST001_1234_0001_0001",
+        "displayname": "Temp-TEST",
+        "key": "x",
+        "type": "temperature",
+        "field": "tunnel condition",
+        "group": "environment",
+        "location": "gmo",
+        "pierid": "",
+        "latitude": "",
+        "longitude": "",
+        "elevation": "",
+        "comment": "",
+        "range": 30,
+        "mode": "mean",
+        "value_unit": "°C",
+        "warning_high": 10,
+        "critical_high": 20,
+        "access": "public",
+        "notification warning": ['admin'],
+        "notification critical": ['telegram']
+        "symbol standard": "url",
+        "symbol warning": "url",
+        "symbol critical": "url",
+        "picture": "url",
+
         """
-        columns = ['status_notation', 'status_type', 'status_group', 'status_field', 'status_value', 'value_min',
+
+        columns = ['status_notation', 'displayname', 'status_type', 'status_group', 'status_field', 'status_value', 'value_min',
                    'value_max', 'value_std', 'value_unit', 'warning_high', 'critical_high', 'warning_low',
-                   'critical_low', 'validity_start', 'validity_end', 'stationid', 'pierid', 'latitude', 'longitude', 'altitude', 'source',
-                   'comment', 'date_added', 'active']
-        coldef = ['CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'FLOAT', 'FLOAT',
-                  'FLOAT', 'FLOAT', 'DATETIME', 'DATETIME', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'TEXT', 'DATETIME', 'INT']
+                   'critical_low', 'validity_start', 'validity_end', 'location', 'pierid', 'latitude', 'longitude', 'elevation', 'source',
+                   'comment', 'access', 'notification_warning', 'notification_critical', 'symbol_standard', 'symbol_warning', 'symbol_critical', 'picture', 'last_warning', 'last_critical', 'date_added', 'active']
+        coldef = ['CHAR(100)', 'CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'FLOAT', 'FLOAT',
+                  'FLOAT', 'FLOAT', 'DATETIME', 'DATETIME', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'TEXT', 'CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'DATETIME', 'DATETIME', 'DATETIME', 'INT']
         fulllist = []
         for i, elem in enumerate(columns):
             newelem = '{} {}'.format(elem, coldef[i])
@@ -1382,6 +1765,26 @@ class TestAnalysis(unittest.TestCase):
             if elem == "TEST":
                 res = mf._get_data_from_db(elem, starttime=datetime.now()-timedelta(days=1), endtime=datetime.now(), debug=True)
         self.assertTrue(res)
+
+    def test_data_from_db(self):
+        mf = MartasAnalysis()
+        res = mf._data_from_db("TEST", starttime=datetime.now()-timedelta(days=1), endtime=datetime.now(), debug=True)
+        self.assertTrue(res)
+
+    def test_get_marcos_data(self):
+        mf = MartasAnalysis()
+        data = mf.get_marcos_data("TEST001*", starttime=datetime.now()-timedelta(days=1), endtime=datetime.now(), stationid='TEST', apply_flags=True, config=None,
+                            debug=True)
+        self.assertTrue(data)
+        data = mf.get_marcos_data("/home/leon/MARTAS/mqtt/TEST_1*", starttime="2025-08-01", endtime="2025-08-03", stationid='TEST', apply_flags=True, config=None,
+                            debug=True)
+        self.assertFalse(data)
+
+    def test_zzz_db_table_exists(self):
+        mf = MartasAnalysis()
+        connectdict = mf.config.get('conncetedDB')
+        dbw = connectdict.get('cobsdb')
+        self.assertTrue(mf.db_table_exists(dbw.db, "SENSORS"))
 
     def test_periodically(self):
         mf = MartasAnalysis()
@@ -1460,16 +1863,36 @@ class TestStatus(unittest.TestCase):
     def test_read_data(self):
         #statusdict = mm.get_json(statusfile)
         #ms = MartasStatus(config=config, statusdict=statusdict,tablename='COBSSTATUS')
-        statusdict = {"Average field X": {
-            "source": "TEST001_1234_0001_0001",
+        statusdict = { "x_TEST001_WIC-148998710074": {
+            "source": "TEST001_1234_0001*",
+            "displayname": "x_TEST003_WIC",
             "key": "x",
-            "type": "temperature",
-            "field": "environment",
+            "type": "magnetic X",
+            "field": "magnetism",
+            "group": "earth observation",
+            "location": "WIC",
+            "pierid": "AS-O-40",
+            "latitude": 47.93010075007265,
+            "longitude": 15.865712739701538,
+            "elevation": 1087.85,
+            "comment": "",
             "range": 30,
-            "mode": "mean",
-            "value_unit": "°C",
-            "warning_high": 10,
-            "critical_high": 20}
+            "mode": "median",
+            "value_unit": "nT",
+            "warning_high": 50000,
+            "critical_high": 51000,
+            "access": "",
+            "notification_warning": [
+                "telegram"
+            ],
+            "notification_critical": [
+                "telegram"
+            ],
+            "symbol_standard": "",
+            "symbol_warning": "",
+            "symbol_critical": "",
+            "picture": ""
+            }
         }
         ms = MartasStatus(statusdict=statusdict, tablename='COBSSTATUS')
         initsql = ms.statustableinit(debug=True)
@@ -1481,7 +1904,7 @@ class TestStatus(unittest.TestCase):
             newsql = ms.create_sql(elem, res, statuselem)
             print (warnmsg)
             sqllist.append(newsql)
-        #initsql = ms.statustableinit(debug=True)
+        initsql = ms.statustableinit(debug=True)
         sql = "; ".join(sqllist)
 
         md = ms.db

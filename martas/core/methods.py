@@ -41,7 +41,7 @@ Methods:
 |                 |  connect_db  |  2.0.0 |    yes |                                  | -      | archive  |
 |                 |  datetime_to_array  |  2.0.0 |  yes |                             | -      | libs     |
 |                 |  data_to_file  |  2.0.0 |  yes |                                  | -      | libs     |
-|                 |  get_bool  |  2.0.0 |      yes |                                  | -      | archive,filter |
+|                 |  get_bool  |  2.0.0 |      yes |                                  | -      | archive,filter, f_down |
 |                 |  get_conf  |  2.0.0 |      yes |                                  | -      | marcosscripts |
 |                 |  get_json  |  2.0.0 |      yes |                                  | -      | file_upload |
 |                 |  get_sensors  |  2.0.0 |   yes |                                  | -      | marcosscripts |
@@ -213,7 +213,7 @@ def check_conf(config, startdate=None, enddate='now', varios=None, scalars=None,
         credential = credentials[0]
         # connecting all databases and store it
         for credel in credentials:
-            connectdict[credel] = connect_db(credential)
+            connectdict[credel] = connect_db(credential, report=False)
     config['conncetedDB'] = connectdict
 
     if debug:
@@ -313,7 +313,7 @@ def get_bool(string):
         return False
 
 
-def get_conf(path, confdict=None):
+def get_conf(path, confdict=None, debug=False):
     """
     Version 2020-10-28
     DESCRIPTION:
@@ -328,7 +328,7 @@ def get_conf(path, confdict=None):
        key   :    subkey1:value1;subkey2:value2               # extracted as { key: {subkey1:value1,subkey2:value2} }
        key   :    subkey1:value1;subkey2:item1,item2,item3    # extracted as { key: {subkey1:value1,subkey2:[item1...]} }
     """
-    exceptionlist = ['bot_id']
+    exceptionlist = ['bot_id','https','http']
     if not confdict:
         confdict = {}
 
@@ -336,6 +336,8 @@ def get_conf(path, confdict=None):
         with open(path, 'r') as config:
             confs = config.readlines()
             for conf in confs:
+                if debug:
+                    print ("Analyzing config-file line:", conf)
                 conflst = conf.split(':')
                 if conflst[0].strip() in exceptionlist or methods.is_number(conflst[0].strip()):
                     # define a list where : occurs in the value and is not a dictionary indicator
@@ -634,12 +636,14 @@ def sendtelegram(message, configpath="", proxies=None, debug=True):
     if not proxies:
         proxies = {}
 
-    print("Running telegram send:", configpath, message, proxies)
+    if debug:
+        print("Running telegram send:", configpath, message, proxies)
     if not message or not configpath or not os.path.isfile(configpath):
         return False
     # telegram notifications - replace and cut
     rep = message.replace('&', 'and').replace('/', '')[:4000]
-    print("Sending by telegram:", rep)
+    if debug:
+        print("Sending by telegram:", rep)
     # Send report to the specific user i.e. by telegram
     config = configparser.ConfigParser()
     config.read(configpath)

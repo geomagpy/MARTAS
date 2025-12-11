@@ -441,6 +441,7 @@ def main(argv):
     newloggername = ''
     recentthreshold=7200
     sensorlist = []
+    proxies = {}
     sendlog = False
     db = None
     telegramconfig = '/etc/martas/telegram.cfg'
@@ -566,8 +567,13 @@ def main(argv):
 
     statusmsg = apply_filter(db, statusmsg=statusmsg, groupdict=groupparameter, permanent=permanent, blacklist=blacklist, jobtype=jobtype, endtime=endtime, dayrange=dayrange, dbinputsensors=sensorlist, basepath=basepath, destination=destination, outputformat=outputformat, recentthreshold=recentthreshold, debug=debug)
 
+    if basics.get('https'):
+        proxies['https'] = basics.get('https')
+    if basics.get('http'):
+        proxies['http'] = basics.get('http')
+
     if not debug and sendlog:
-        martaslog = ml(logfile=logpath,receiver=receiver)
+        martaslog = ml(logfile=logpath,receiver=receiver,proxies=proxies)
         if receiver == 'telegram':
             martaslog.telegram['config'] = notificationcfg
         elif receiver == 'email':

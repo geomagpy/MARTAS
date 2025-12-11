@@ -38,7 +38,7 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey, P. Arneitz, V. Haberle, N. Kompei
 
 MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
 and analysis in heterogeneous sensor environments. The principle idea is providing a unique platform to obtain data 
-from sensor interfaces, to stream this data though the internet, and record it within a generalized and open format to 
+from sensor interfaces, to stream this data through the internet, and record it within a generalized and open format to 
 a data collection system. Previously any system connected via serial interface to a recording computer was registered 
 by its own software usually in a company specific format. Intercomparison of such data, extraction of meta information, 
 realtime data transport and basically any analysis requiring different sources is significantly hampered.
@@ -74,7 +74,7 @@ state-of-the-art standard protocol of the Internet-of-Things (IOT). A receiver c
 store this data in various different archiving types (files (like CDF, CSV, TXT, BIN), databases). Various logging 
 methods, comparison functions, threshold tickers, and process communication routines complement the MARTAS package.
 
-Currently supported systems are:
+Currently supported systems are (see also [9.1](#91-sensor-communication-libraries)):
 
 - Lemi025,Lemi036, and most likely all other Lemi systems;
 - Geometrics G823 Cs Magnetometers
@@ -142,15 +142,14 @@ base support.
 
 ### 1.3 MARTAS users
 
-MARTAS is currently used by many organizations:
+MARTAS is going to be published in 2026 and currently is used already by the following organizations:
 
 Austria: GeoSphere Austria, Conrad Observatory and power grid monitoring networks
 Finnland: Image geomagnetic network stations
 Colombia: Fuquene geomagnetic observatory
 Bulgaria: PAG geomagnetic Observatory
 
-if you are also using MARTAS of any of its modules we would be happy to put yu on the list. 
-
+If you are also using MARTAS or any of its modules we would be happy to put you on the list. 
 
 ## 2. Installation
 
@@ -166,7 +165,7 @@ to run use UTC times.
     - virtualenvironment (python environment)
         sudo apt-get install virtualenv
     - MAROCS only (if MariaDB is used)
-        sudo apt-get install mariadb
+        sudo apt-get install mariadb-server
         sudo apt-get install percona-toolkit
 
     PYTHON:
@@ -198,8 +197,14 @@ Install the package using pip:
 
         (martas)$ pip install martas-2.x.x.tar.gz
 
-If you face problems when installing martas within a python environment you can also switch to system python without 
-significant problems. Please follow the instructions in section [10.1.1](#1011-installing-martas-with-system-python).
+Installation was successfully tested on Ubuntu 20.04, 22.04, 24.04, Debian 13 "Trixie" (also on Raspberry Pi 5, Zero W2 
+hardwares).
+If you face **problems** when installing MARTAS please checkout the following points:
+- installation on Beaglebone Black C3: Please follow the instructions in section [10.1.1](#1011-installing-martas-with-system-python).
+- installation issues with llvmlite python package or any other python packages. Either try the instructions of section [10.1.2](#1012-martas-on-raspberry-zero-rp5) or request a minimal package (pMARTAS acquisition only) from the authors.
+- you might want to look at section [10.1.5](#1015-installation-problems-and-their-solutions) where we collect further issues plus solutions
+- write an issue describing your hardware and operating system plus error report.
+
 
 ### 2.3 Configure MQTT
 
@@ -279,119 +284,8 @@ appendix. For certificate based communication, the broker provider will have to 
 locally stored on your client. You will need to provide the path to this file for communication. If TlS-PSK is selected
 You will get a PSK identity and a PSK key which you have to store locally suing the addcred routine. 
 
-Please checkout the appendix for more details on TLS security.
+Please checkout the [appendix](#102-setting-up-a-secure-tls-based-mosquitto-broker-for-martas) for more details on TLS security.
 
-In the following you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
-official mosquitto installation instructions when setting up a secure TLS broker. TLS encryption is recommended if you 
-are using an external broker. If your full setup (pMARTAS and pMARCOS are in the same network behind a Firewall) you might 
-want to skip TLS encryption.
-
-For our example we firstly create a certificate authority (CA). For SSL connections, the server and client's 
-certificates must be signed by a trusted CA. A copy of the CA is stored on the server and the clients. They check 
-received certificates against the CA before trusting another device.
-
-We generate a Certificate Authority (CA) Key Pair and Certificate using openssl:
-
-       openssl genrsa -des3 -out ca.key 2048
-
-This command will request a pass phrase. You will need this pass phrase everytime you generate certificates and you 
-want to sign them with this CA.
-
-Then we create the actual self-signed CA certificate. This certificate will be used to sign other certificates.
-
-       openssl req -new -x509 -days 3650 -key ca.key -out ca.crt
-
-You will have to enter some information:
-
-```
-Country Name (2 letter code) [AU]:AU
-State or Province Name (full name) [Some-State]:Austria
-Locality Name (eg, city) []:Muggendorf
-Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsBrokerCA
-Organizational Unit Name (eg, section) []:DataBroker
-Common Name (e.g. server FQDN or YOUR name) []:theia
-Email Address []:max.mustermann@world.me
-```
-
-> [!IMPORTANT]
-> Self-signed certificates are suitable for testing but not recommended for production environments. For production, use certificates issued by a trusted Certificate Authority.
-
-Please insert appropriate information into the requested fields. As it is a self-signed certificate I recommend to 
-insert the purpose (i.e. OBSCODE MARTAS service) as organization or unit. The Common name should be you full name and
-NOT the domain name. The validity is set to 10 years.
-The CA certificate is now generated and you should copy it to the dedicated folder of Mosquitto. You will need CA 
-certificate file (ca.crt) on pMARTAS, broker and pMARCOS.
-
-       sudo cp ca.crt /etc/mosquitto/ca_certificates/
-
-To generate client certificates on another device, the certificate file and pass phrase are needed.
-
-In a next step we use openssl to create certificates and private keys. One for the server and as many as needed for 
-each client. To generate a server key pair and certificate: 
-
-       openssl genrsa -out server.key 2048
-       openssl req -new -key server.key -out server.csr
-
-You will have to enter some information for the sever certificate. Please note the differences in organisation names:
-
-```
-Country Name (2 letter code) [AU]:AU
-State or Province Name (full name) [Some-State]:Austria
-Locality Name (eg, city) []:Muggendorf
-Organization Name (eg, company) [Internet Widgits Pty Ltd]:ConradObsServerCert
-Organizational Unit Name (eg, section) []:BrokerCert
-Common Name (e.g. server FQDN or YOUR name) []:theia
-Email Address []:ro.leonhardt@proton.me
-
-Please enter the following 'extra' attributes
-to be sent with your certificate request
-A challenge password []:
-An optional company name []:
-```
-
-We are also creating a certificate signing request (CSR). Insert country, address, and email address. Note that here, 
-every piece of information is about the server, so common name is server domain (the dynamic DNS domain). If you don't 
-have one just enter the name of your server there. Then we have to sign the server certificate request:
-
-       openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 3650
-
-Use the CA certificate and key to sign the server certificate request. This creates the server certificate. Then copy
-key and certificate to the mosquitto configuration of the server:
-
-       sudo cp server.crt /etc/mosquitto/certs/
-       sudo cp server.key /etc/mosquitto/certs/
-
-Clients need to be configured to use the CA certificate for verification. You should provide the CA certificate 
-file. In the martas configuration file use the option "mqttcert" and provide a valid path to the  using the "ca.crt" 
-file. Enable TLS with "mqttport" : 8883.
-
-An example file for configuring the mosquitto listener is show below:
-
-```
-# Global
-per_listener_settings true
-
-# Local listener
-listener 1883 127.0.0.1
-
-# Default listener
-listener 1883
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-
-# Certificate listener
-listener 8883
-cafile /etc/mosquitto/ca_certificates/ca.crt
-certfile /etc/mosquitto/certs/server.crt
-keyfile /etc/mosquitto/certs/server.key
-require_certificate false
-allow_anonymous false
-password_file /etc/mosquitto/passwd
-```
-
-Example for TLS-PSK encryption:
-
-       openssl rand -hex 32
 
 #### 2.3.4 Testing MQTT data transfer
 
@@ -415,6 +309,10 @@ In case you are using secure TLS access (OS encrypted) use the following additio
 In case you are using secure TLS access with CA file use the following additional options:
 
         mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 --cafile /path/to/ca.crt -d
+
+In case you are using secure TLS-PSK access use the following additional options:
+
+        mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 --psk-identity PSKUSER --psk PSKKEY -d
 
 As soon as you press return at the mosquitto_pub command you should read "test message" below your subscription
 command. Checkout the official mosquitto pages for more information.
@@ -596,7 +494,7 @@ Please note: gsm90v7init.sh is also working for GSM90v8 and GSM90v9 instruments.
 
 ### 4.4 Examples for sensor definitions in sensors.cfg
 
-#### Geomagnetic GSM90 Overhauser Sensors (GEM Systems)
+#### 4.4.1 Geomagnetic GSM90 Overhauser Sensors (GEM Systems)
 
          GSM90_6107631_0001,S1,115200,8,1,N,passive,gsm90v7init.sh,-,1,GSM90,GSM90,6107632,0002,-,AS-W-36,GPS,magnetism,GEM Overhauzer v7.0
 
@@ -606,13 +504,13 @@ sensors require initialization data provided in ~/.martas/init i.e. gsm90v7init.
 to start continuous recording of the system. I strongly recommend passive recording i.e. at 0.5 Hz (GPS mode) and then
 filter to 1 Hz to obtain a record with readings centered on the second.
 
-#### Geomagnetic GSM19 Overhauzer Sensors (GEM Systems)
+#### 4.4.2 Geomagnetic GSM19 Overhauzer Sensors (GEM Systems)
 
         GSM19_7122568_0001,USB0,115200,8,1,N,passive,,-,1,GSM19,GSM19,7122568,0001,-,mobile,GPS,magnetism,GEM Overhauzer v7.0
 
 The GSM19 sensor needs to be configured so that it sends data to the serial port (see [9.2.2](#922-gem-systems-overhauser-gsm19)).
 
-#### Geoelectric 4point light 10W (Lippmann)  
+#### 4.4.3 Geoelectric 4point light 10W (Lippmann)  
 
         4PL_123_0001,ACM0,19200,8,1,N,active,None,60,1,FourPL,4PL,123,0001,-,Home,NTP,geoelectric,wenner-0.65-0-c-o
 
@@ -625,11 +523,11 @@ freqdic = {"a":"0.26Hz","b":"0.52Hz","c":"1.04Hz","d":"2.08Hz","e":"4.16Hz","f":
 wenner-0.65-0-c-o  :  wenner configuration with electrode distance A of 0.65m, L=0 is not used for wenner, current (c) = 100uA, and frequency (o) = 1.04 Hz
 
 
-#### Meteorology DSP Ultrasonic wind (Meteolab)  
+#### 4.4.4 Meteorology DSP Ultrasonic wind (Meteolab)  
 
          ULTRASONICDSP_0009009195_0001,S0,115200,8,1,N,active,None,60,1,DSP,ULTRASONICDSP,0009009195,0001,...
 
-#### General Adruino microcontroller (Arduino)  
+#### 4.4.5 General Adruino microcontroller (Arduino)  
 
 Please read section [9.2.7](#927--communicating-with-an-arduino-uno-microcontroller). The recommended integration of microcontrollers like an arduino is based on the
 **active** library: 
@@ -642,7 +540,7 @@ requests.
          ARDUINO1,ACM0,9600,8,1,N,passive,None,60,1,Arduino,ARDUINO,-,0001,-,Home,NTP,environment,Arduino sensors
 
 
-#### MariaDB/MySQL database access  
+#### 4.4.6 MariaDB/MySQL database access  
 
 A database link needs to be created using **addcred**. This shortcut, *cobsdb* in belows example, is used to connect
 the database. Data is obtained with the given sampling rate (10 seconds below). Only tables belonging to SensorGroup
@@ -651,7 +549,7 @@ defining how old data is allowed to be considered.
 
          cobsdb,-,-,-,-,-,passive,None,10,1,MySQL,MySQL,-,0001,-,-,-,magnetism,-
 
-#### Onewire Senors (Dallas)  
+#### 4.4.7 Onewire Senors (Dallas)  
 
 The following additional packages need to be installed:
 
@@ -662,19 +560,19 @@ Please also read section [9.2.6](#926-dallas-ow-one-wire-support) for configurat
 
          OW,-,-,-,-,-,active,None,10,1,Ow,OW,-,0001,-,A2,NTP,environment,environment: dallas one wire sensors
 
-#### Environment ENV05 T/rh ()
+#### 4.4.8 Environment ENV05 T/rh ()
 
          ENV05_3_0001,USB0,9600,8,1,N,passive,None,-,1,Env,ENV05,3,0001,-,AS-W-20,NTP,environment,temperature and humidity
 
-#### Geomagnetic LEMI025/036 variometer (LEMI LVIV)
+#### 4.4.9 Geomagnetic LEMI025/036 variometer (LEMI LVIV)
 
          LEMI036_3_0001,USB0,57600,8,1,N,passive,None,-,1,Lemi,LEMI036,3,0001,-,ABS-67,GPS,magnetism,magnetic variometer from Lviv
 
-#### Geomagnetism POS1/POS4 Overhauser Sensor (Quantum magnetics)
+#### 4.4.10 Geomagnetism POS1/POS4 Overhauser Sensor (Quantum magnetics)
 
          POS1_N432_0001,S0,9600,8,1,N,passive,pos1init.sh,-,1,POS1,POS1,N432,0001,-,AS-W-36,GPS,magnetism,Quantum magnetics POS1 Overhauzer sensor
 
-#### Datalogger CR1000/CR800 (Campbell Scientific)
+#### 4.4.11 Datalogger CR1000/CR800 (Campbell Scientific)
 
 You need to install a Campbell python library in order to use this datalogger:
 
@@ -687,19 +585,35 @@ Then you can use the following line in sensors.cfg
 
          CR1000JC_1_0002,USB0,38400,8,1,N,active,None,2,1,cr1000jc,CR1000JC,02367,0002,-,TEST,NTP,meteorological,snow height
 
-#### Datalogger AD7714 24bit ()
+#### 4.4.12 Datalogger AD7714 24bit ()
 
          AD7714_0001_0001,-,-,-,-,-,autonomous,None,-,10,ad7714,AD7714,-,0001,-,-,NTP,environment,24bit analog digital converter
 
-#### Multimeter Fluke 289
+#### 4.4.13 BME280 I2C sensors
+
+Using I2C senosrs requires the additional installation of adafruit python packages. Currently a library for BM280 
+temperature, humidity and pressure senosr is included. Other I2C senosrs could easily be added in future.
+
+Install the following packages first:
+
+         pip install board
+         pip install adafruit-blinka 
+         pip install adafruit-circuitpython-bme280
+
+and then add a sensor line like the following
+
+         BME280_1971_0001,I2C,-,-,-,-,active,None,10,1,BME280IC2,BME280,1971,0001,-,OnBoard,NTP,environment,bme environment sensor
+
+
+#### 4.4.14 Multimeter Fluke 289
 
          FLUKE289_24580003_0001,USB0,115200,8,1,N,active,None,0.1,10,fluke289,FLUKE289,24580003,0001,-,TEST,NTP,electric,voltage
 
-#### Geomagnetic Obsdaq/Palmdaq datalogger together FGE Magnetometer (MINGEO, DTU)
+#### 4.4.15 Geomagnetic Obsdaq/Palmdaq datalogger together FGE Magnetometer (MINGEO, DTU)
 
          FGE_S0252_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 
-#### Data files (supported are all data files, readable with MagPy)
+#### 4.4.16 Data files (supported are all data files, readable with MagPy)
 
          WICadjusted,/home/leon/Cloud/Daten,-,-,-,-,active,None,30,1,IMfile,*.min,-,0001,-,-,-,magnetism,-
 
@@ -942,6 +856,19 @@ see [section 6.12](#612-monitor)
 
 see [section 6.7](#67-db_truncate) and [section 6.14](#614-optimizetables) 
 
+Please note that running optimizetable requires a general access to your database. In order to get that running do
+
+         > sudo mysql -u root -p
+         $ CREATE USER 'admin'@'localhost' IDENTIFIED BY password;
+         $ GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost';
+         $ FLUSH PRIVILEGES;
+
+Then you need to add this information to the credentials:
+
+         > addcred -t db -c sqlmaster -u admin -p password -o localhost -d datadb
+
+Please replace password by something of your choice.
+
 #### 5.2.4 backup
 
 see [section 6.4](#64-backup)
@@ -1071,28 +998,28 @@ MARTAS/apps. Below you will find a comprehensive list of these scripts and their
 find subsections with detailed instructions and example applications for all of these programs.
 
 
-| Script           | Purpose                                              | Config        | Version | Section |
-|------------------|------------------------------------------------------|---------------|---------|---------|
-| archive.py       | Read database tables and create archive files        | archive.cfg   | 2.0.0*  | 6.2     |
-| ardcomm.py       | Communicating with arduino microcontroller           |               | 1.0.0   | 6.3     |
-| backup.py        | Backup configuration                                 |               | 2.0.0   | 6.4     |
-| basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg | 2.0.0   | 6.5     |
-| checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |               | 2.0.0*  | 6.6     |
-| db_truncate.py   | Delete data from all data tables                     | truncate.cfg  | 2.0.0*  | 6.7     |
-| file_download.py | Download files, store them and add to archives       | collect.cfg   | 2.0.0*  | 6.8     |
-| file_upload.py   | Upload files                                         | upload.json   | 2.0.0*  | 6.9     |
-| filter.py        | filter data                                          | filter.cfg    | 2.0.0   | 6.10    |
-| gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg     |         | 6.11    |
-| monitor.py       | Monitoring space, data and logfiles                  | monitor.cfg   | 2.0.0*  | 6.12    |
-| obsdaq.py        | Communicate with ObsDAQ ADC                          | obsdaq.cfg    | 2.0.0*  | 6.13    |
-| optimzetables.py | Optimize table disk usages (requires ROOT)           |               | 2.0.0*  | 6,14    |
-| palmacq.py       | Communicate with PalmAcq datalogger                  | obsdaq.cfg    | 2.0.0*  | 6.15    |
-| serialinit.py    | Sensor initialization uses this method               |               | 2.0.0*  | 6.16    |
-| speedtest.py     | Test bandwidth of the internet connection            |               | 2.0.0*  | 6.17    |
-| statemachine.py  | Currently under development - will replace threshold |               | 1.0.0   | 6.18    |
-| testnote.py      | Send a quick message by mail or telegram             |               | 2.0.0*  | 6.19    |
-| testserial.py    | test script for serial comm - development tool       |               | 1.0.0   | 6.20    |
-| threshold.py     | Tests values and send reports                        | threshold.cfg | 2.0.0   | 6.21    |
+| Script           | Purpose                                              | Config              | Version | Section |
+|------------------|------------------------------------------------------|---------------------|---------|---------|
+| archive.py       | Read database tables and create archive files        | archive.cfg         | 2.0.0*  | 6.2     |
+| ardcomm.py       | Communicating with arduino microcontroller           |                     | 2.0.0*  | 6.3     |
+| backup.py        | Backup configuration                                 |                     | 2.0.0   | 6.4     |
+| basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg       | 2.0.0   | 6.5     |
+| checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |                     | 2.0.0*  | 6.6     |
+| db_truncate.py   | Delete data from all data tables                     | truncate.cfg        | 2.0.0*  | 6.7     |
+| file_download.py | Download files, store them and add to archives       | download-source.cfg | 2.0.0   | 6.8     |
+| file_upload.py   | Upload files                                         | upload.json         | 2.0.0*  | 6.9     |
+| filter.py        | filter data                                          | filter.cfg          | 2.0.0   | 6.10    |
+| gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg           |         | 6.11    |
+| monitor.py       | Monitoring space, data and logfiles                  | monitor.cfg         | 2.0.0*  | 6.12    |
+| obsdaq.py        | Communicate with ObsDAQ ADC                          | obsdaq.cfg          | 2.0.0*  | 6.13    |
+| optimzetables.py | Optimize table disk usages (requires ROOT)           |                     | 2.0.0*  | 6,14    |
+| palmacq.py       | Communicate with PalmAcq datalogger                  | obsdaq.cfg          | 2.0.0*  | 6.15    |
+| serialinit.py    | Sensor initialization uses this method               |                     | 2.0.0*  | 6.16    |
+| speedtest.py     | Test bandwidth of the internet connection            |                     | 2.0.0*  | 6.17    |
+| statemachine.py  | Currently under development - will replace threshold |                     | 1.0.0   | 6.18    |
+| testnote.py      | Send a quick message by mail or telegram             |                     | 2.0.0*  | 6.19    |
+| testserial.py    | test script for serial comm - development tool       |                     | 1.0.0   | 6.20    |
+| threshold.py     | Tests values and send reports                        | threshold.cfg       | 2.0.0   | 6.21    |
 
 Version 2.0.0* means it still needs to be tested
 
@@ -1129,7 +1056,8 @@ blacklist       :    BLV,QUAKES,Sensor2,Sensor3,
 
 ### 6.3 ardcomm
 
-Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands
+Communication program for microcontrollers (here ARDUINO) e.g. used for remote switching commands. Please read section
+for details.
 
 ### 6.4 backup
 
@@ -1830,30 +1758,47 @@ statusdict = {"Average Temperature of TEST001": {
 
 THe keys of each status element refer to the following inputs:
 
-| key           | description                          | default                  | example     |
-|---------------|--------------------------------------|--------------------------|-------------|
-| source        | DataID                               | -                        | -           |
-| key           | column of DataID                     | x                        | t1          |
-| field         | physical property contained in key   | -                        | temperature |
-| group         | primary purpose of Instrument/Sensor | SensorGroup              | magnetism   |
-| type          | specific primary sensor type         | SensorType               | fluxgate    |
-| pierid        | reference to pier                    | PierID                   | A2          |
-| station       | reference to StationID               | StationID                | WIC         |
-| longitude     |                                      | DataAcquisitionLongitude | -           |
-| latitude      |                                      | DataAcquisitionLatitude  | -           |
-| altitude      |                                      | DataElevation            | -           |
-| range         | timerange in minutes                 | 30                       | 30          |
-| mode          | mean,median,max,min,uncert           | mean                     | fluxgate    |
-| value_unit    | unit of key                          | unit-col-KEY             | -           |
-| warning_low   | lower warning level                  | 0                        | -5          |
-| warning_high  | upper warning level                  | 0                        | 10          |
-| critical_low  | lower critical level                 | 0                        | -20         |
-| critical_high | upper critical level                 | 0                        | 20          |
+| key                   | description                          | DB field       | default                  | example       |
+|-----------------------|--------------------------------------|----------------|--------------------------|---------------|
+| source                | DataID                               | source         | -                        | -             |
+| key                   | column of DataID                     |                | x                        | t1            |
+| field                 | physical property contained in key   | status_field   | -                        | temperature   |
+| group                 | primary purpose of Instrument/Sensor | status_group   | SensorGroup              | magnetism     |
+| type                  | specific primary sensor type         | status_type    | SensorType               | fluxgate      |
+| pierid                | reference to pier                    | pierid         | PierID                   | A2            |
+| station               | reference to StationID               | stationid      | StationID                | WIC           |
+| longitude             |                                      | longitude      | DataAcquisitionLongitude | -             |
+| latitude              |                                      | latitude       | DataAcquisitionLatitude  | -             |
+| altitude              |                                      | altitude       | DataElevation            | -             |
+| range                 | timerange in minutes                 |                | 30                       | 30            |
+| mode                  | mean,median,max,min,uncert,gradient  |                | mean                     | fluxgate      |
+| value_unit            | unit of key                          | value_unit     | unit-col-KEY             | -             |
+| warning_low           | lower warning level                  | warning_low    | 0                        | -5            |
+| warning_high          | upper warning level                  | warning_high   | 0                        | 10            |
+| critical_low          | lower critical level                 | critical_low   | 0                        | -20           |
+| critical_high         | upper critical level                 | critical_high  | 0                        | 20            |
+| access                | define access level                  | access         | public                   | public        |
+| notification warning  | list of notification configs         |                | None                     | ["email.cfg"] |
+| notification critical | list of notification configs         |                | None                     | ["email.cfg"] |
+| symbol standard       | URL with png                         |                |                          | icons/st.png  |
+| symbol warning        | URL with png                         |                |                          |               |
+| symbol critical       | URL with png                         |                |                          |               |
+| picture               | URL with png                         |                |                          |               |
+| -                     | filled in DB                         | status_value   |                          | 13.3          |
+| -                     | filled in DB                         | value_min      |                          |               |
+| -                     | filled in DB                         | value_max      |                          |               |
+| -                     | filled in DB                         | value_std      |                          |               |
+| -                     | filled in DB                         | validity_start |                          |               |
+| -                     | filled in DB                         | validity_end   |                          |               |
+| -                     | filled in DB                         | comment        |                          |               |
+| -                     | filled in DB                         | date_added     |                          |               |
+| -                     | filled in DB                         | active         |                          |               |
 
 
 The key values of each status element contained in the status dictionary need to be unique and are ideally human 
 readable. The subdictionary defines parameters of the data set to be extracted. Typically recent data covering the 
-last "range" minutes are extracted and the value as defined by mode (mean, median, max, min, uncert) is obtained. If 
+last "range" minutes are extracted and the value as defined by mode (mean, median, max, min, uncert, gradient (= mean 
+gradient based on numpy.gradient)) is obtained. If 
 no data is found the "active" value of the return dictionary is set to 0. Most properties are obtained from existing
 tables in the database. You can override database contents by providing the corresponding inputs within the status
 elements. Please note: the physical property "field" is not contained in the database and can only be supplied here.
@@ -1998,16 +1943,16 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | Arduino             | 2.0.0    | multiple    | activearduinoprotocol.py | active  |                |                  |
 | AD7714              |          | multiple    | ad7714protocol.py        | active  |                |                  |
 | Arduino             | 2.0.0    | multiple    | arduinoprotocol.py       | passive |                |                  |
-| BM35-pressure       |          | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
-| BME280              |          | pressure    | bme280i2cprotocol.py     | passive |                | adafruit_bme280  |
+| BM35-pressure       | 2.0.0    | pressure    | bm35protocol.py          | passive | bm35init.sh    |                  |
+| BME280              | 2.0.0    | pressure    | bme280i2cprotocol.py     | active  |                | 4.4.13           |
 | CR1000/800          |          | multiple    | cr1000jcprotocol.py      | active  |                | pycampbellcr1000 |
 | Cesium G823         |          | opt.pumped  | csprotocol.py            | passive |                |                  |
-| Thies LNM           |          | laserdisdro | disdroprotocol.py        | active  |                |                  |
-| DSP Ultrasonic wind |          | wind        | dspprotocol.py           | active  |                |                  |
+| Thies LNM           | 2.0.0    | laserdisdro | disdroprotocol.py        | active  |                |                  |
+| DSP Ultrasonic wind | 2.0.0    | wind        | dspprotocol.py           | active  |                |                  |
 | ENV05               | 2.0.0    | temperature | envprotocol.py           | passive |                |                  |
 | FLUKE 289           | 2.0.0    | multiple    | fluke289protocol.py      | active  |                |                  |
 | 4PL Lippmann        |          | geoelec     | fourplprotocol.py        | active  |                |                  |
-| GIC                 |          | special     | gicprotocol.py           | active  |                |                  |
+| GIC                 | 2.0.0    | special     | gicprotocol.py           | active  |                | authentication   |
 | GP20S3              |          | opt.pumped  | gp20s3protocol.py        | passive |                |                  |
 | GSM19               |          | overhauser  | gsm19protocol.py         | passive |                |                  |
 | GSM90               | 2.0.0    | overhauser  | gsm90protocol.py         | passive | gsm90v?init.sh |                  |
@@ -2018,9 +1963,9 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | LORAWAN             | develop  | multiple    | lorawanprotocol.py       |         |                |                  |
 | MySQL               | 2.0.0    | multiple    | mysqlprotocol.py         | active  |                |                  |
 | ObsDaq              |          | multiple    | obsdaqprotocol.py        | active  | obsdaqinit.sh  |                  |
-| OneWire             |          | multiple    | owprotocol.py            | passive |                |                  |
-| POS1                |          | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
-| Test                | 2.0.0    | special     | testprotocol.py          |         |                |                  |
+| OneWire             | 2.0.0    | multiple    | owprotocol.py            | passive |                |                  |
+| POS1                | 2.0.0    | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
+| Test                | 2.0.0    | special     | testprotocol.py          | passive |                |                  |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
@@ -2096,7 +2041,11 @@ B. MARTAS
 
 #### 9.2.3 Quantum POS1
 
+to be written
+
 #### 9.2.4 Meteolabs BM35 pressure
+
+to be written
 
 #### 9.2.5 ObsDAQ / PalmAcq
 
@@ -2114,7 +2063,7 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
 
 #### 9.2.6 LM - TLippmann tilt meter
 
-To be added
+To be added (stalled)
 
 #### 9.2.7 Dallas OW (One wire) support
 
@@ -2187,11 +2136,17 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 The installation is usually straightforward as described in section 2. For some systems, especially ARM systems, you 
 might however require very specific or some additional packages to fulfill required dependencies. Here we summarise 
-some system specific issues and solutions, as well as a full installation cookbook.
+some system specific issues and solutions, as well as a full installation cookbook. Some general hints regarding
+installation problems are listed below:
+
+Sometime occuring on ARM processor systems:
+- llvmlite installation issues: either install llvm or request "geomagpy-minimal" from authors
+- general problem with any python package: check 
+
 
 #### 10.1.1 MARTAS on BeagleBone Black Rev C with system python
 
-For some hardware systems, particularly ARM processors (Beaglebone, Raspberry, etc) problems might occur during the 
+For some hardware systems, particularly ARM processors (Beaglebone, etc) problems might occur during the 
 setup of virtual python environments. Such problems have been experienced while installing scipy inside a virtual
 environment on beaglebone blacks. You might want to consider search engines to find solutions for that. Alternatively 
 you can also switch to system python for running MARTAS. 
@@ -2214,7 +2169,8 @@ packages for your specific system based on apt.
       # eventually install and configure ntp (network time protocol)
       #sudo apt install ntp
       sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-numba python3-pandas
-      sudo pip install --break-system-packages pywavelets==1.8.0
+      ####sudo pip install --break-system-packages pywavelets==1.8.0####
+      sudo pip install --break-system-packages PyWavelets==1.8.0
       sudo pip install --break-system-packages pymysql==1.1.1
       sudo pip install --break-system-packages geomagpy
       # Test MagPy
@@ -2236,10 +2192,68 @@ packages for your specific system based on apt.
 If you do not specify an extended path variable in cron then you likely will need to update the path variable then in 
 the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full path "/usr/local/bin/acquisition" to make
 it available from cron.
+Please read sections 4 for [MARTAS](#4-pmartas) setup.
 
+#### 10.1.2 MARTAS on Raspberry (zero, RP5)
 
-#### 10.1.2 MARTAS on Raspberry 
+For Debian 13 "Trixie" please use the standard installation routine. For older systems proceed as follows.
+The following approach was tested using Debian bookworm with python 3.11. Please note: you can also use the 
+"break-system-packages" approach as in 10.1.1.
 
+        sudo apt update
+        sudo apt upgrade
+
+install MQTT client and broker (if not configured differently, the raspberry acts as broker) and virtualenv
+
+        sudo apt install mosquitto mosquitto-clients
+        sudo apt install python3-virtualenv
+
+Create an environment and install MARTAS
+
+        virtualenv ~/env/martas
+        source ~/env/martas/bin/activate
+
+Get some of the critical python dependencies first. In case of failures please contact the development 
+team for working versions of the specific packages and their dependencies. Typically problems are related 
+to sub-dependencies of numpy, matplotlib and scipy. The following recommendation is valid for bookworm 
+with python 3.11, which might fail because of the matplotlib dependency *contourpy*. So lets choose a 
+working version first:
+
+        pip install numpy==1.26.4
+        pip install contourpy==1.0.7
+        pip install matplotlib==3.6.3
+        #####pip install pywavelet==1.8.0####
+        pip install PyWavelets==1.8.0
+        pip install cryptography==38.0.4
+        pip install geomagpy
+
+In case you get problems related to llvmlite or numba (observed in raspbian bookworm with python 3.11.2), please contact
+the development team for a minimal version of geomagpy without emd support (please note: this will affect KI and 
+activity analysis, which usually is not done on pMARTAS).
+
+Alternatively, you might also try:
+
+        sudo apt install llvm-14
+        LLVM_CONFIG=/usr/bin/llvm-config-14
+        pip install numba==0.59.1
+
+Then install all other modules and their dependencies
+
+        pip install martas
+
+Create a bufferdircetory
+
+        mkdir ~/MARTAS
+
+Eventually add credentials for notifications by e-mail (skip this one if not used)
+
+        addcred -t email -c email -u USER -p PASSWD -h -p 
+
+Run initialization
+
+        martas_init
+
+Please read sections 4 for [MARTAS](#4-pmartas) setup and section 5 for [MARCOS](#5-marcos) setup.
 
 #### 10.1.3 Full installation examples for specific systems
 
@@ -2334,20 +2348,26 @@ Install database support
 
        sudo apt install mariadb-server php php-mysql phpmyadmin
 
-The setup a database:
+The setup a database  and also a optimzing access "sqlmaster":
 
        sudo mysql -u root
        > CREATE DATABASE magpydb;
-       > GRANT ALL PRIVILEGES ON magpydb.* TO 'magpy'@'%' IDENTIFIED BY 'magpy' WITH GRANT OPTION;
+       > GRANT ALL PRIVILEGES ON magpydb.* TO 'user'@'%' IDENTIFIED BY 'password' WITH GRANT OPTION;
+       > GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost' IDENTIFIED BY 'passwd';
        > FLUSH PRIVILEGES;
 
 and finally initialize the database:
 
        python
        >>> from magpy.database import *
-       >>> db=mysql.connect(host="localhost",user="magpy",passwd="magpy",db="magpydb")
+       >>> db=mysql.connect(host="localhost",user="user",passwd="password",db="magpydb")
        >>> dbinit(db)
        >>> exit()
+
+add credentials for database access (please replace dbnames, user and passwords with your choice)
+
+       addcred -t db -c magpydb -u user -p password -o localhost -d magpydb
+       addcred -t db -c sqlmaster -u admin -p passwd -o localhost -d magpydb
 
 
 #### 10.1.4 Installation behind a proxy server
@@ -2357,9 +2377,23 @@ Reconfigure pip to use the proxy server (if necessary)
       pip config set global.proxy http://{host}/{port}
 
 
-#### 10.1.5 enable remote terminal access
+#### 10.1.5 installation problems and their solutions
 
-tmate is not supported any more. instructions
+sslpsk2 cannot be installed -> sudo apt install ssh libssl-dev and retry
+
+#### 10.1.6 Removing MARTAS 1.x and replacing by MARTAS2
+
+Install the MARTAS 2. Copy all essential config information. Then
+
+      sudo /etc/init.d/martas stop
+
+Now start MARTAS2 and test everything.
+
+If successful:
+
+      sudo update-rc.d -f martas remove
+
+      sudo rm /etc/init.d/martas
 
 ### 10.2 Setting up a secure TLS based mosquitto broker for MARTAS
 
@@ -2562,7 +2596,8 @@ tested on Ubuntu 22.04.5 LTS (x86-64, ThinkPad X13 Gen 4) and Raspbian 10 buster
 
 Download the linux Version console 
 
-        wget https://github.com/owenthereal/upterm/releases/download/v0.15.3-upterm_linux_amd64.deb 
+        ###wget https://github.com/owenthereal/upterm/releases/download/v0.15.3-upterm_linux_amd64.deb### 
+        wget https://github.com/owenthereal/upterm/releases/download/v0.17.0/upterm_linux_amd64.deb
 
 and install it
 
@@ -2573,7 +2608,7 @@ and install it
 
 ##### SSH key 
 
-In case of “Permission denied (publickey)” generate and/or add SSH key: 
+In case of “Permission denied (publickey)” generate and/or add SSH key (DO NOT ENTER A PASSPHRASE): 
 
         ssh-keygen -t ed25519 -C "your_email@example.com" 
         eval "$(ssh-agent -s)" 
@@ -2588,21 +2623,46 @@ Run upterm:
         upterm host 
 
 You will see the ssh link. Open a new terminal and copy it: console ssh XXXXXXXXX@uptermd.upterm.dev to end session: 
+for example:
+```
+╭─ Session: bJ5OpbvIMVtyfKlWbmiq ─╮
+┌──────────────────┬─────────────────────────────────────────────┐
+│ Command:         │ /bin/bash                                   │
+│ Force Command:   │ n/a                                         │
+│ Host:            │ ssh://uptermd.upterm.dev:22                 │
+│ Authorized Keys: │ n/a                                         │
+│                  │                                             │
+│ ➤ SSH Command:   │ ssh bJ5OpbvIMVtyfKlWbmiq@uptermd.upterm.dev │
+└──────────────────┴─────────────────────────────────────────────┘
 
+╰─ Run 'upterm session current' to display this again ─╯
+
+🤝 Accept connections? [y/n] (or <ctrl-c> to force exit)
+
+✅ Starting to accept connections...
+```
+
+the last line starting with "ssh bJ5OpbvIM...." is the command you need to enter in your clients terminal - with upterm also installed.
         exit 
 
 #### 10.4.2 Raspberry 
 
 To build a upterm binary for ARM you have to download a new Go tool (at least Go 1.13+):
 
-        wget https://go.dev/dl/go1.21.5.linux-armv6l.tar.gz 
-        sudo tar -C /usr/local -xzf go1.21.5.linux-armv6l.tar.gz 
+        ####wget https://go.dev/dl/go1.21.5.linux-armv6l.tar.gz  # 1.25.3####
+        ####sudo tar -C /usr/local -xzf go1.21.5.linux-armv6l.tar.gz ####
+        wget https://go.dev/dl/go1.21.5.linux-arm64.tar.gz  # 1.25.3
+        sudo tar -C /usr/local -xzf go1.21.5.linux-arm64.tar.gz
         export PATH=$PATH:/usr/local/go/bin 
 
 check console go version Bulid the binary and move it into /usr/local/bin:
 
         git clone https://github.com/owenthereal/upterm.git 
-        cd ~/upterm GOOS=linux GOARCH=arm GOARM=7 go build -o upterm ./cmd/upterm 
+        cd ~/upterm 
+        GOOS=linux 
+        GOARCH=arm 
+        GOARM=7 
+        go build -o upterm ./cmd/upterm 
         sudo mv ~/upterm/upterm/upterm /usr/local/bin/upterm 
         sudo chmod +x /usr/local/bin/upterm 
 
@@ -2628,7 +2688,8 @@ Get new version of Go tool (apt too old):
 go version Build upterm binary: console 
 
         git clone https://github.com/owenthereal/upterm.git 
-        cd upterm GOOS=linux GOARCH=arm GOARM=7 
+        ####cd upterm GOOS=linux GOARCH=arm GOARM=7 ####
+        cd upterm; GOOS=linux; GOARCH=arm; GOARM=7
         go build -o upterm ./cmd/upterm 
         sudo mv upterm/upterm /usr/local/bin/ 
         sudo chmod +x /usr/local/bin/upterm 

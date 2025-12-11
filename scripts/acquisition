@@ -75,7 +75,6 @@ from martas.version import __version__
 import paho.mqtt.client as mqtt
 import paho.mqtt
 import ssl
-from sslpsk2.sslpsk2 import _ssl_set_psk_server_callback, _ssl_set_psk_client_callback
 
 ## Import twisted for serial port communication and web server
 ## -----------------------------------------------------------
@@ -156,63 +155,70 @@ current work              FourPL          : py3 		: active		: 4point light geoel
 current work              BME280I2C       : py3 		: active		: I2C pins on raspberry with BME280 T-humidity-pressure
 """
 
-def _ssl_setup_psk_callbacks(sslobj):
-    psk = sslobj.context.psk
-    hint = sslobj.context.hint
-    identity = sslobj.context.identity
-    if psk:
-        if sslobj.server_side:
-            cb = psk if callable(psk) else lambda _identity: psk
-            _ssl_set_psk_server_callback(sslobj, cb, hint)
-        else:
-            cb = psk if callable(psk) else lambda _hint: psk if isinstance(psk, tuple) else (psk, identity)
-            _ssl_set_psk_client_callback(sslobj, cb)
+try:
+    # if sslpsk2 is available import the moduls and create necessary classes
+    from sslpsk2.sslpsk2 import _ssl_set_psk_server_callback, _ssl_set_psk_client_callback
+
+    def _ssl_setup_psk_callbacks(sslobj):
+        psk = sslobj.context.psk
+        hint = sslobj.context.hint
+        identity = sslobj.context.identity
+        if psk:
+            if sslobj.server_side:
+                cb = psk if callable(psk) else lambda _identity: psk
+                _ssl_set_psk_server_callback(sslobj, cb, hint)
+            else:
+                cb = psk if callable(psk) else lambda _hint: psk if isinstance(psk, tuple) else (psk, identity)
+                _ssl_set_psk_client_callback(sslobj, cb)
 
 
-class SSLPSKContext(ssl.SSLContext):
-    @property
-    def psk(self):
-        return getattr(self, "_psk", None)
+    class SSLPSKContext(ssl.SSLContext):
+        @property
+        def psk(self):
+            return getattr(self, "_psk", None)
 
-    @psk.setter
-    def psk(self, psk):
-        self._psk = psk
+        @psk.setter
+        def psk(self, psk):
+            self._psk = psk
 
-    @property
-    def hint(self):
-        return getattr(self, "_hint", None)
+        @property
+        def hint(self):
+            return getattr(self, "_hint", None)
 
-    @hint.setter
-    def hint(self, hint):
-        self._hint = hint
+        @hint.setter
+        def hint(self, hint):
+            self._hint = hint
 
-    @property
-    def identity(self):
-        return getattr(self, "_identity", None)
+        @property
+        def identity(self):
+            return getattr(self, "_identity", None)
 
-    @identity.setter
-    def identity(self, identity):
-        self._identity = identity
-
-
-class SSLPSKObject(ssl.SSLObject):
-    def do_handshake(self, *args, **kwargs):
-        if not hasattr(self, '_did_psk_setup'):
-            _ssl_setup_psk_callbacks(self)
-            self._did_psk_setup = True
-        super().do_handshake(*args, **kwargs)
+        @identity.setter
+        def identity(self, identity):
+            self._identity = identity
 
 
-class SSLPSKSocket(ssl.SSLSocket):
-    def do_handshake(self, *args, **kwargs):
-        if not hasattr(self, '_did_psk_setup'):
-            _ssl_setup_psk_callbacks(self)
-            self._did_psk_setup = True
-        super().do_handshake(*args, **kwargs)
+    class SSLPSKObject(ssl.SSLObject):
+        def do_handshake(self, *args, **kwargs):
+            if not hasattr(self, '_did_psk_setup'):
+                _ssl_setup_psk_callbacks(self)
+                self._did_psk_setup = True
+            super().do_handshake(*args, **kwargs)
 
 
-SSLPSKContext.sslobject_class = SSLPSKObject
-SSLPSKContext.sslsocket_class = SSLPSKSocket
+    class SSLPSKSocket(ssl.SSLSocket):
+        def do_handshake(self, *args, **kwargs):
+            if not hasattr(self, '_did_psk_setup'):
+                _ssl_setup_psk_callbacks(self)
+                self._did_psk_setup = True
+            super().do_handshake(*args, **kwargs)
+
+
+    SSLPSKContext.sslobject_class = SSLPSKObject
+    SSLPSKContext.sslsocket_class = SSLPSKSocket
+
+except:
+    pass
 
 
 def SendInit(confdict,sensordict):
@@ -282,6 +288,8 @@ def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
     -> do all that in while True
     """
     prot = {}
+    pname = None
+    protocol = None
     sensorid = sensordict.get('sensorid')
     log.msg("Starting passive thread for {}".format(sensorid))
     protocolname = sensordict.get('protocol')
@@ -306,6 +314,8 @@ def passive_thread(confdict,sensordict, mqttclient, establishedconnections):
 
     port = confdict['serialport']+sensordict.get('port')
     log.msg("  -> Connecting to port {} ...".format(port))
+    if confdict.get('debug') == 'True':
+        log.msg("DEBUG -> perameters - protocol {}, port {}, baudrate {}".format(pname, port, int(sensordict.get('baudrate'))))
     serialPort = SerialPort(protocol, port, reactor, baudrate=int(sensordict.get('baudrate')))
 
     passiveconnection = {sensorid: protocolname}
@@ -426,14 +436,15 @@ def main(argv):
         elif opt in ("-D", "--debug"):
             debug = True
 
-
-    if debug:
-        print (" Running acquisition tool in debug mode")
     ##  Load defaults dict
     ##  ----------------------------
     conf = mm.get_conf(martasfile)
-
     conf["station"] = conf.get("station").lower()
+    if conf.get('debug') in ["True","TRUE","true"]:
+        debug = True
+
+    if debug:
+        print (" Running acquisition tool in debug mode")
 
     if test:
         # When running test then conf will be predefined
@@ -513,10 +524,11 @@ def main(argv):
             client.tls_set(ca_certs=mqttcert)
         elif mqttpsk and pskidentity:
             if debug:
-                print("MQTT: TLS encryption based in PSK")
+                print("MQTT: TLS encryption based on PSK - requires the sslpsk2 python module")
             # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
             #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
-            print ("MARTAS: Deprecation warning - but necessary for old clients")
+            if debug:
+                print ("MARTAS TLS: Deprecation warning - but necessary for old clients")
             context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
             context.set_ciphers('PSK')
             context.psk = bytes.fromhex(pskpwd)
@@ -579,21 +591,34 @@ def main(argv):
             except:
                 pass
         if sensor.get('mode') in ['p','passive','Passive','P']:
-            try:
-                connected = passive_thread(conf,sensor,client,establishedconnections)
-                log.msg(" - Passive thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+            if debug:
+                # In case of debug mode do not catch exceptions with try ... except
+                connected = passive_thread(conf, sensor, client, establishedconnections)
+                log.msg(" - Passive thread initiated in debug mode for {}. Ready to receive data ...".format(sensor.get('sensorid')))
                 establishedconnections.update(connected)
-                passive_count +=1
-            except:
-                log.msg(" - !!! Passive thread failed for {} !!!".format(sensor.get('sensorid')))
-                pass
+                passive_count += 1
+            else:
+                try:
+                    connected = passive_thread(conf,sensor,client,establishedconnections)
+                    log.msg(" - Passive thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))
+                    establishedconnections.update(connected)
+                    passive_count +=1
+                except:
+                    log.msg(" - !!! Passive thread failed for {} !!!".format(sensor.get('sensorid')))
+                    pass
         elif sensor.get('mode') in ['a','active','Active','A']:
-            #try:
-            log.msg(" - Active thread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
-            connected_act = active_thread(conf,sensor,client,establishedconnections)
-            #except:
-            #    log.msg(" - !!! Active thread failed for {} !!!".format(sensor.get('sensorid')))
-            #    pass
+            if debug:
+                # In case of debug mode do not catch exceptions with try ... except
+                connected_act = active_thread(conf, sensor, client, establishedconnections)
+                log.msg(" - Active thread initiated in debug mode for {}. Periodically requesting data ...".format(
+                    sensor.get('sensorid')))
+            else:
+                try:
+                    log.msg(" - Active thread initiated for {}. Periodically requesting data ...".format(sensor.get('sensorid')))
+                    connected_act = active_thread(conf,sensor,client,establishedconnections)
+                except:
+                    log.msg(" - !!! Active thread failed for {} !!!".format(sensor.get('sensorid')))
+                    pass
         elif sensor.get('mode') in ['autonomous']:
             try:
                 log.msg(" - Auto thread initiated for {}. Ready to receive data ...".format(sensor.get('sensorid')))

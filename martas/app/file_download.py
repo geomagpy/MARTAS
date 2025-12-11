@@ -207,12 +207,6 @@ Changelog:
 
 """
 
-def get_bool(string):
-    if string in ['true','True','Yes','yes','y','TRUE',True]:
-        return True
-    else:
-        return False
-
 
 def walk_dir(directory_path, filename, date, dateformat, debug=False):
     """
@@ -288,6 +282,17 @@ def dir_extract(lines, filename, date, dateformat):
                     file_path = tokens[8]
                     #print (tokens[8])
                     pathlist.append(file_path)
+        elif not tokens[0][0] == "d":
+            # exception for Geoelectric (Windows FTP)
+            if tokens[2] == '<DIR>':
+                # Not interested in directories
+                continue
+            file_path = tokens[3]
+            if len(tokens) == 5:
+                # TODO blanks in filenames!!!
+                file_path = file_path+' '+tokens[4]
+            if fnmatch.fnmatch(file_path, filepat):
+                pathlist.append(file_path)
     return pathlist
 
 
@@ -406,7 +411,7 @@ def check_configuration(config=None,debug=False):
         print('-- check file_download.py -h for more options and requirements')
         success = False
         #sys.exit()
-    if config.get('archivepath') == '':
+    if config.get('archivepath') == '' or config.get('archivepath') == '/archivepath':
         destination = tempfile.gettempdir()
     else:
         if not os.path.isdir(config.get('archivepath')):
@@ -462,7 +467,7 @@ def check_configuration(config=None,debug=False):
     walk = config.get('walksubdirs')
     if debug:
         print ("   Walk through subdirs: {}".format(walk))
-    if get_bool(walk):
+    if mm.get_bool(walk):
         if not protocol in ['','scp','rsync']: 
             print('   -> Walk mode only works for local directories and scp access.')
             print('   -> Switching walk mode off.')
@@ -471,7 +476,10 @@ def check_configuration(config=None,debug=False):
     if not creddb == '':
         print("   Accessing local data bank ...")
         # required for either writeing to DB or getting meta in case of writing archive
-        db = mm.connect_db(creddb)
+        try:
+            db = mm.connect_db(creddb)
+        except:
+            db = None
     config['db'] = db
 
     # loaded all credential (if started from root permissions are required for that)
@@ -551,6 +559,10 @@ def get_datelist(config=None,current=None,debug=False):
             newcurrent = current-timedelta(days=elem+1)
     else:
         datelist = ['dummy']
+    if depth == 0:
+        #exception for Geoelectric
+        newcurrent = current-timedelta(hours=1)
+        datelist = [newcurrent.strftime('%Y-%m-%d %H')]
 
     #if debug:
     print("   -> Dealing with time range:\n {}".format(datelist))
@@ -688,8 +700,8 @@ def obtain_data_files(config=None,filelist=None,debug=False):
     password = config.get('rmpassword')
     address = config.get('rmaddress')
     port = config.get('rmport',21)
-    zipping = get_bool(config.get('zipdata'))
-    forcelocal = get_bool(config.get('forcedirectory',False))
+    zipping = mm.get_bool(config.get('zipdata'))
+    forcelocal = mm.get_bool(config.get('forcedirectory',False))
     deleteopt = " "
     sensid = ""
     ftp = None
@@ -839,6 +851,7 @@ def write_data(config=None,localpathlist=None,debug=False):
 
     RETURNS
     """
+    success = True
     if not config:
         config={}
     if not localpathlist:
@@ -849,6 +862,7 @@ def write_data(config=None,localpathlist=None,debug=False):
     stationid = config.get('stationid','')
     sensorid = config.get('sensorid','')
     force = config.get('forcerevision','')
+    subdirectory = config.get('writedirectory','')
     writemode = config.get('writemode','replace')
     if not writemode in ['replace','overwrite']:
         # replace will replace existing data and leave the rest unchanged
@@ -868,6 +882,7 @@ def write_data(config=None,localpathlist=None,debug=False):
             if debug:
                 print (" Dealing with {}. Length = {}".format(f,data.length()[0]))
                 print (" -------------------------------")
+                print (" data looks like: ", data.ndarray)
                 #print ("SensorID in file: {}".format(data.header.get('SensorID')))
 
             # Station ID provided?
@@ -883,8 +898,8 @@ def write_data(config=None,localpathlist=None,debug=False):
                     print("   Could not find station ID in datafile")
                     print("   Please provide by using -t stationid")
                     #sys.exit()
-                    # Abort try clause
-                    x= 1/0
+                    success = False
+                    continue
 
             if debug:
                 print("  -> Using StationID", data.header.get('StationID'))
@@ -900,10 +915,10 @@ def write_data(config=None,localpathlist=None,debug=False):
             else:
                 if data.header.get('SensorID','') == '':
                     print("   Could not find sensor ID in datafile")
-                    print("   Please provide by using -s sensorid")
+                    print("   Please provide in configuration or by using -s sensorid")
                     # Abort try clause
-                    x= 1/0
-                    #sys.exit()
+                    success = False
+                    continue
 
             fixsensorid = data.header.get('SensorID')
 
@@ -977,24 +992,28 @@ def write_data(config=None,localpathlist=None,debug=False):
                 data.header = merge_two_dicts(existheader,data.header)
 
             # Writing data
-            if not debug and get_bool(config.get('writedatabase')):
+            if not debug and mm.get_bool(config.get('writedatabase')):
                 print("  {}: Adding {} data points to DB now".format(data.header.get('SensorID'), data.length()[0]))
 
                 if not len(data.ndarray[0]) > 0:
                     data = data.linestruct2ndarray()  # Dealing with very old formats                   
                 if len(data.ndarray[0]) > 0:
-                    if not force == '':
-                        tabname = "{}_{}".format(fixsensorid,str(force).zfill(4))
-                        print (" - Force option chosen: forcing data to table {}".format(tabname))
-                        print ("   IMPORTANT: general database meta information will not be updated") 
-                        db.write(data, tablename=tabname)
-                    else:
-                        db.write(data)
+                    try:
+                        if not force == '':
+                            tabname = "{}_{}".format(fixsensorid,str(force).zfill(4))
+                            print (" - Force option chosen: forcing data to table {}".format(tabname))
+                            print ("   IMPORTANT: general database meta information will not be updated")
+                            db.write(data, tablename=tabname)
+                        else:
+                            db.write(data)
+                    except:
+                        print (" !! Error when writing ", f)
+                        success = False
             elif debug:
                 print ("  DEBUG selected - no database written")
 
             # Writing data
-            if not debug and get_bool(config.get('writearchive')):
+            if not debug and mm.get_bool(config.get('writearchive')):
                 if force:
                     archivepath = os.path.join(config.get('archivepath'),stationid.upper(),fixsensorid,datainfoid)
 
@@ -1009,6 +1028,7 @@ def write_data(config=None,localpathlist=None,debug=False):
                     print ("  Writing to archive requires forcerevision")
             elif debug:
                 print ("  DEBUG selected - no archive written")
+    return success
 
 def main(argv):
     version = "2.0.0"
@@ -1022,6 +1042,7 @@ def main(argv):
     debug = False
     filelist = []
     localpathlist = []
+    proxies = {}
 
     try:
         opts, args = getopt.getopt(argv,"hc:e:d:w:a:D",["configuration=","endtime=","depth=","writedb=","writearchive=","debug=",])
@@ -1102,14 +1123,14 @@ def main(argv):
     config, success = check_configuration(config=config, debug=debug)
 
     if not success:
-        statusmsg[name] = 'invalid cofiguration data - aborting'
+        statusmsg[name] = 'invalid configuration data - aborting'
     else:
         # Override config data with given inputs
         # -----------------------
         if writearchivearg:
-            config['writearchive'] = get_bool(writearchivearg)
+            config['writearchive'] = mm.get_bool(writearchivearg)
         if writedbarg:
-            config['writedatabase'] = get_bool(writedbarg)
+            config['writedatabase'] = mm.get_bool(writedbarg)
         if deptharg:
             config['defaultdepth'] = deptharg
 
@@ -1119,12 +1140,12 @@ def main(argv):
 
         # Obtain list of files to be transferred
         # -----------------------
-        #try:
-        filelist = create_transfer_list(config=config,datelist=datelist,debug=debug)
-        moveon = True
-        #except:
-        #    statusmsg[name] = 'could not obtain remote file list - aborting'
-        #    moveon = False
+        try:
+            filelist = create_transfer_list(config=config,datelist=datelist,debug=debug)
+            moveon = True
+        except:
+            statusmsg[name] = 'could not obtain remote file list - aborting'
+            moveon = False
 
         if moveon:
             # Obtain list of files to be transferred
@@ -1138,8 +1159,10 @@ def main(argv):
             # Write data to specified destinations
             # -----------------------
             #try:
-            if config.get('db') and len(localpathlist) > 0 and (get_bool(config.get('writedatabase')) or get_bool(config.get('writearchive'))):
-                    succ = write_data(config=config,localpathlist=localpathlist,debug=debug)
+            if config.get('db') and len(localpathlist) > 0 and (mm.get_bool(config.get('writedatabase')) or mm.get_bool(config.get('writearchive'))):
+                succ = write_data(config=config,localpathlist=localpathlist,debug=debug)
+                if not succ:
+                    statusmsg[name] = 'could not write data - check logfile'
             #except:
             #    statusmsg[name] = 'problem when writing data'
 
@@ -1149,10 +1172,15 @@ def main(argv):
     receiverconf = config.get('notificationconf')
     logpath = config.get('logpath')
 
+    if config.get('https'):
+        proxies['https'] = config.get('https')
+    if config.get('http'):
+        proxies['http'] = config.get('http')
+
     if debug:   #No update of statusmessages if only a selected sensor list is analyzed
         print (statusmsg)
     else:
-        martaslog = ml(logfile=logpath,receiver=receiver)
+        martaslog = ml(logfile=logpath,receiver=receiver,proxies=proxies)
         martaslog.telegram['config'] = receiverconf
         martaslog.msg(statusmsg)
 

@@ -214,7 +214,7 @@ def main(argv):
         print ("Sensorlist:", sensorlist)
         print ("Blacklist:", blacklist)
 
-    db = mm.connect_db(config.get('credentials','cobsdb'))
+    db = mm.connect_db(config.get('dbcredentials','cobsdb'))
 
     tables = get_table_tist(db, sensorlist=sensorlist, blacklist=blacklist, debug=debug)
 

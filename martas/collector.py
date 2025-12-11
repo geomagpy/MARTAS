@@ -1,37 +1,8 @@
 #!/usr/bin/env python
 """
 MQTT collector routine of MARCOS:
-MQTT protocol to be used in the Conrad Observatory.
-written by by Roman Leonhardt
-
-How should it work:
-PURPOSE:
-collector_mqtt.py subscribes to published data from MQTT clients.
-
-REQUIREMENTS:
-1.) install a MQTT broker (e.g. ubuntu: sudo apt-get install mosquitto mosquitto-clients)
-2.) Secure comm and authencation: https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04
-
-METHODS:
-collector.py contains the following methods:
-
-GetSensors: read a local definition file (sensors.txt) which contains information
-            on SensorID, Port, Bausrate (better Serial communication details), active/passive, 
-            init requirements, optional SensorDesc
-
-GetDefaults: read initialization file with local paths, publishing server, ports, etc.
-
-SendInit: send eventually necessary initialization data as defined in sensors.txt
-
-GetActive: Continuously obtain serial data from instrument and convert it to an binary 
-           information line to be published (using libraries)
-
-GetPassive: Send scheduled request to serial port to obtain serial data from instrument 
-            and convert it to an binary information line to be published (using libraries)
-
-Usage:
-python colector_mqtt.py -x -y -z
-
+MQTT protocol as used at the Conrad Observatory.
+written by Roman Leonhardt
 """
 # ###################################################################
 # Import packages
@@ -440,12 +411,13 @@ def on_message(client, userdata, msg):
         if not msg.topic.startswith(stationid):
             return
 
-    if pyversion.startswith('3'):
+    if not pyversion.startswith('2'):
        msg.payload= msg.payload.decode('ascii')
 
     global qos
     global verifiedlocation
     global debug
+    global stid
     digit = 0
     arrayinterpreted = False
     wsarrayinterpreted = False
@@ -699,7 +671,7 @@ def on_message(client, userdata, msg):
                 pass
         else:
             log.msg("Non-interpreted format: {}  {}".format(msg.topic, str(msg.payload)))
-    elif msg.topic.find('statuslog') > 0:
+    elif msg.topic and msg.topic.find('statuslog') > 0:
         # json style statusinfo is coming
         hostname = msg.topic.split('/')[-1]
         #log.msg("---------------------------------------------------------------")

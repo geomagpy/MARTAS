@@ -202,8 +202,10 @@ def main(argv):
         confpath = os.path.join(homedir,dir,"conf")
     shutil.copyfile(os.path.join(confpath, "archive.cfg"), os.path.join(confpath, "archive.bak"))
     shutil.copyfile(os.path.join(confpath, "basevalue.cfg"), os.path.join(confpath, "basevalue.bak"))
-    shutil.copyfile(os.path.join(confpath, "download-source.cfg"), os.path.join(confpath, "download-source.bak"))
-    shutil.copyfile(os.path.join(confpath, "fileuploadjobs.json"), os.path.join(confpath, "fileuploadjobs.bak"))
+    if os.path.exists(os.path.join(confpath, "download-source.cfg")):
+        shutil.copyfile(os.path.join(confpath, "download-source.cfg"), os.path.join(confpath, "download-source.bak"))
+    if os.path.exists(os.path.join(confpath, "fileuploadjobs.json")):
+        shutil.copyfile(os.path.join(confpath, "fileuploadjobs.json"), os.path.join(confpath, "fileuploadjobs.bak"))
     shutil.copyfile(os.path.join(confpath, "filter.cfg"), os.path.join(confpath, "filter.bak"))
     shutil.copyfile(os.path.join(confpath, "gamma.cfg"), os.path.join(confpath, "gamma.bak"))
     shutil.copyfile(os.path.join(confpath, "mail.cfg"), os.path.join(confpath, "mail.bak"))
@@ -970,7 +972,7 @@ def main(argv):
     files_to_change = {}
     if initjob == "MARTAS":
         replacedict["/mybasedir"] = bufferpath
-        replacedict["space,martas,marcos,logfile"] = "space,martas,logpfile"
+        replacedict["space,martas,marcos,logfile"] = "space,martas,logfile"
         files_to_change["martasconf"] = {"source" : os.path.join(confpath, "martas.bak") ,
                                         "dest" : os.path.join(confpath, "martas.cfg") }
 

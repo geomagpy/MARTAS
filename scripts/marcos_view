@@ -199,7 +199,6 @@ def convert_datainfo_to_idtable(result, debug=False):
     return dtable, dcols
 
 
-
 def get_graph_options(result, actualcrit=1):
     """
     DESCRIPTION
@@ -217,6 +216,7 @@ def get_graph_options(result, actualcrit=1):
     if len(dataoptions) > 0:
         datavalue = random.choice(dataoptions)
     return dataoptions, datavalue
+
 
 def get_graph_keys(tablename, result):
     """
@@ -247,6 +247,7 @@ def get_graph_keys(tablename, result):
 
     return keyoptions, keyvalue
 
+
 def get_data(datatable, keys, datainfo=None, duration=60, cred="cobsdb"):
     mydata = {}
     names = []
@@ -262,6 +263,7 @@ def get_data(datatable, keys, datainfo=None, duration=60, cred="cobsdb"):
         mydata[name] = stream._get_column(key)
         names.append(name)
     return mydata, names
+
 
 # slow methods
 def getspace(path="/srv"): # path = '/srv'
@@ -284,6 +286,7 @@ def get_storage_usage(statusdict=None, cred="cobsdb", archivepath="", logpath=""
     dbused = 0
     db = mm.connect_db(cred, False, False)
     if db:
+        # This line creates a stdout, might be changed to only a return value
         txt = db.info(destination='stdout', level='full')
     if txt:
         dbused = txt.split()[-1]
@@ -394,6 +397,10 @@ def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debu
                         if ctime > datetime.now()-timedelta(days=8):
                             active = True
                         ctime = ctime.strftime("%Y-%m-%dT%H:%M:%S")
+                    except:
+                        logstatus = False
+                        active = False
+                    try:
                         jn = jc.split(".")[0]
                         if jn in ["archive", "monitor"]:
                             jnstat = statusdict.get(jn,{})
@@ -413,9 +420,10 @@ def get_cron_jobs(statusdict=None,cred="cobsdb", archivepath="", logpath="",debu
             crontable.append(resd)
     croncols = ["job", "enabled", "logfile", "last log"]
 
-    return crontable, croncols, marcoslist
+    return crontable, croncols, marcoslist, statusdict
 
-def get_marcos_html(marcos,i):
+
+def get_marcos_html(statusdict,marcos,i):
     htmllist = []
     oncolor = '#008003'
     offcolor = '#FF5E5E'
@@ -458,14 +466,16 @@ if test:
     logpath = "/home/leon/.martas/log"
     dbcred = 'cobsdb'
 
+debug = False
+
 # Initialize basic result dictionary (fast interval, graph and table)
-result = get_datainfo_from_db(cred=dbcred)
+result = get_datainfo_from_db(cred=dbcred, debug=debug)
 dtable, dcols = convert_datainfo_to_datatable(result)
 dataoptions, datavalue = get_graph_options(result)
 keyoptions, keyvalue = get_graph_keys(datavalue, result)
 
 # Initialize status dictionary (slow interval, diskspace, cron and processes)
-crontable, croncols, marcoslist = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath, logpath=logpath,debug=False)
+crontable, croncols, marcoslist, statusdict = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath, logpath=logpath, debug=debug)
 
 app = Dash(__name__, assets_ignore='martas.css')
 
@@ -753,8 +763,14 @@ app.layout = (html.Div(
 @app.callback(Output('live-update-config', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_config(n):
+    #print ("updating config")
+    global statusdict
+    global archivepath
+    global configpath
+    global logpath
+    global dbcred
     style = {'padding': '5px', 'fontSize': '16px'}
-    crontable, croncols, marcoslist = get_cron_jobs(cred=dbcred, archivepath=archivepath,
+    crontable, croncols, marcoslist, statusdict = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath,
                                                      logpath=logpath, debug=False)
     pos = {}
     htmllist = []
@@ -769,7 +785,13 @@ def update_config(n):
 @app.callback(Output('live-update-archivestatus', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_archive_status(n):
+    #print ("updating archive stats")
     htmllist = []
+    global statusdict
+    #global archivepath
+    #global logpath
+    #global dbcred
+    #crontable, croncols, marcoslist, statusdict = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath, logpath=logpath, debug=False)
     oncolor = '#008003'
     offcolor = '#FF5E5E'
     acolor = offcolor
@@ -798,10 +820,17 @@ def update_archive_status(n):
     ]))
     return htmllist
 
+
 @app.callback(Output('live-update-monitorstatus', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_monitor_status(n):
+    #print ("updating monitor stats")
     htmllist = []
+    global statusdict
+    #global archivepath
+    #global logpath
+    #global dbcred
+    #crontable, croncols, marcoslist, statusdict = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath, logpath=logpath, debug=False)
     oncolor = '#008003'
     offcolor = '#FF5E5E'
     acolor = offcolor
@@ -834,7 +863,13 @@ def update_monitor_status(n):
 @app.callback(Output('live-update-dbstatus', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_db_status(n):
+    #print ("updating db stats")
     htmllist = []
+    global statusdict
+    #global archivepath
+    #global logpath
+    #global dbcred
+    #crontable, croncols, marcoslist, statusdict = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath, logpath=logpath, debug=False)
     oncolor = '#008003'
     offcolor = '#FF5E5E'
     acolor = offcolor
@@ -867,10 +902,12 @@ def update_db_status(n):
 @app.callback(Output('live-update-marcos1', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos1_status(n):
+    #print ("updating marcos 1")
     htmllist=[]
+    global statusdict
     if len(marcoslist) > 0:
         m = marcoslist[0]
-        htmllist = get_marcos_html(m, 1)
+        htmllist = get_marcos_html(statusdict,m, 1)
     else:
         htmllist.append(html.P(['empty MARCOS slot']))
     return htmllist
@@ -878,10 +915,14 @@ def update_marcos1_status(n):
 @app.callback(Output('live-update-marcos2', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos2_status(n):
+    #print ("updating marcos 2")
     htmllist=[]
+    global statusdict
+    #crontable, croncols, marcoslist, statusdict = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath,
+    #                                                logpath=logpath, debug=False)
     if len(marcoslist) > 1:
         m = marcoslist[1]
-        htmllist = get_marcos_html(m, 2)
+        htmllist = get_marcos_html(statusdict,m, 2)
     else:
         htmllist.append(html.P(['empty slot']))
     return htmllist
@@ -889,10 +930,12 @@ def update_marcos2_status(n):
 @app.callback(Output('live-update-marcos3', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos3_status(n):
+    #print ("updating marcos 3")
     htmllist=[]
+    global statusdict
     if len(marcoslist) > 2:
         m = marcoslist[2]
-        htmllist = get_marcos_html(m, 3)
+        htmllist = get_marcos_html(statusdict,m, 3)
     else:
         htmllist.append(html.P(['empty slot']))
     return htmllist
@@ -900,10 +943,12 @@ def update_marcos3_status(n):
 @app.callback(Output('live-update-marcos4', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos4_status(n):
+    #print ("updating marcos 4")
     htmllist=[]
+    global statusdict
     if len(marcoslist) > 3:
         m = marcoslist[3]
-        htmllist = get_marcos_html(m, 4)
+        htmllist = get_marcos_html(statusdict,m, 4)
     else:
         htmllist.append(html.P(['empty slot']))
     return htmllist
@@ -911,10 +956,12 @@ def update_marcos4_status(n):
 @app.callback(Output('live-update-marcos5', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos5_status(n):
+    #print ("updating marcos 5")
     htmllist=[]
+    global statusdict
     if len(marcoslist) > 4:
         m = marcoslist[4]
-        htmllist = get_marcos_html(m, 5)
+        htmllist = get_marcos_html(statusdict,m, 5)
     else:
         htmllist.append(html.P(['empty slot']))
     return htmllist
@@ -922,10 +969,12 @@ def update_marcos5_status(n):
 @app.callback(Output('live-update-marcos6', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos6_status(n):
+    #print ("updating marcos 6")
     htmllist=[]
+    global statusdict
     if len(marcoslist) > 5:
         m = marcoslist[5]
-        htmllist = get_marcos_html(m, 6)
+        htmllist = get_marcos_html(statusdict,m, 6)
     else:
         htmllist.append(html.P(['empty slot']))
     return htmllist
@@ -933,10 +982,12 @@ def update_marcos6_status(n):
 @app.callback(Output('live-update-marcos7', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos7_status(n):
+    #print ("updating marcos 7")
     htmllist=[]
+    global statusdict
     if len(marcoslist) > 6:
         m = marcoslist[6]
-        htmllist = get_marcos_html(m, 7)
+        htmllist = get_marcos_html(statusdict,m, 7)
     else:
         htmllist.append(html.P(['empty slot']))
     return htmllist
@@ -954,6 +1005,9 @@ def update_keydrop(datavalue):
 @app.callback(Output('sensors-table', 'data'),Output('sensors-table', 'columns'),
               Input('sensor-dropdown', 'value'))
 def update_table_update(datavalue):
+    #print ("updating table")
+    global dbcred
+    result = get_datainfo_from_db(cred=dbcred)
     if datavalue.startswith("Sensor"):
         dtable, dcols = convert_datainfo_to_datatable(result)
     else:
@@ -972,8 +1026,10 @@ def update_table_update(datavalue):
     prevent_initial_call=True
 )
 def update_graph(n, hvalue, duration, datavalue, keyvalue):
+    #print ("updating graph")
     # read data
     #print ("Get available data sets")
+    global dbcred
     result = get_datainfo_from_db(cred=dbcred)
 
     data, names = get_data(datavalue, [keyvalue], datainfo=result, duration=duration, cred=dbcred)
@@ -1016,4 +1072,4 @@ def update_graph(n, hvalue, duration, datavalue, keyvalue):
     return fig
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="0.0.0.0", debug=False)

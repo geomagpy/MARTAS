@@ -38,7 +38,6 @@ def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
     for line in sensorlist:
         sl.append(line.get('sensorid',''))
     sensorlist = mm.get_sensors(path, "?")
-    print ("?", sensorlist)
     if len(sensorlist) > 0:
         sensorlistmain = [el for el in sensorlistmain if not el.get("sensorid","").find("ARDUINO") > -1]
     for line in sensorlist:
@@ -73,7 +72,7 @@ def get_new_data(path="/home/leon/MARTAS/mqtt", duration=600, debug=False):
             diff = (now-ld).total_seconds()
             if debug:
                 print ("File and time diff from now:", lf, diff, duration)
-            if diff < duration:
+            if diff < duration/2.:
                 data2show.append(lf)
     return data2show
 
@@ -95,8 +94,8 @@ def get_sensor_table(sensorpath="/home/leon/.martas/conf/sensors.cfg", bufferpat
             if d.find(s) >= 0:
                 active = True
                 ndd = nd.get(d)
-                for elem in ndd.get('names'):
-                    values.append(elem)
+                for elem in ndd.get('allnames'):
+                    values.append(str(elem))
         stable.append({'SensorID' : s, 'Components':",".join(values),'Active':str(active)})
     return stable, scols
 
@@ -187,20 +186,36 @@ def get_cron_jobs(debug=False):
 def extract_data(f, duration=600, debug=False):
     if debug:
         print("Extracting data from:", f)
+    mindisplayrate = 5
+    t1 = datetime.now()
     stream = read(f, starttime=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=duration))
+    if stream.samplingrate() < 0.99:
+        mindisplayrate = 60
+        if debug:
+            print ("Sampling rate to high for rendering display - downsampling to 1 sec")
+        stream = stream.filter()
     # convert to pandas
     keys = stream._get_key_headers()
     if debug:
         print(" - got {} datapoints for keys {}".format(len(stream), keys))
     data = {}
     names = []
+    allnames = []
     data['time'] = stream.ndarray[0]
     for key in keys:
+        # Limit to numerical keys for selection
         name = stream.get_key_name(key)
-        data[name] = stream._get_column(key)
-        names.append(name)
+        if key in DataStream().NUMKEYLIST and len(names) < 3:
+            # limit to three components for each sensor
+            data[name] = stream._get_column(key)
+            names.append(name)
+        allnames.append(name)
     # print (data, names)
-    return data, names
+    t2 = datetime.now()
+    tdiff = (t2-t1).total_seconds()
+    if tdiff > mindisplayrate/2:
+        mindisplayrate = int(np.ceil(tdiff*2))
+    return data, names, allnames, mindisplayrate
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
@@ -211,19 +226,20 @@ data2show = get_new_data(path=bufferpath)
 statusdict = get_storage_usage(statusdict=statusdict, mqttpath=bufferpath, logpath=logpath, debug=False)
 
 nd={}
+srate = 5 # displayrate - needs to be large enough, dynamically adjusted
 for d in data2show:
-    data, names = extract_data(d)
-    nd[d] = {'names': names }
+    data, names, anames, mdr = extract_data(d)
+    nd[d] = {'names': names, 'allnames': anames  }
+    if mdr > srate:
+        srate = mdr
 stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
-ctable, ccols = get_cron_jobs(debug=True)
-# Determine the sampling rate for graph
-srate = 10
-for s in stable:
-    if s.get('SensorID','').find('LEMI') > -1:
-        srate = 60
+ctable, ccols = get_cron_jobs(debug=False)
+cron_columns = [{'id': c, 'name': c} for c in ccols]
+sens_columns = [{'id': c, 'name': c} for c in scols]
+
+print ("Display refresh rate: {} sec".format(srate))
 
 app = Dash(__name__, assets_ignore='marcos.css')
-
 
 app.layout = (html.Div(
                  className="wrapper",
@@ -248,10 +264,15 @@ app.layout = (html.Div(
                               html.Div(
                                   className="box sensors",
                                   children=html.Div([
-                                      dash_table.DataTable( data=stable,
-                                                            id='sensors-table',
+                                      dcc.Interval(
+                                          id='sensors-update',
+                                          interval=5*srate*1000,  # in milliseconds - use 60 sec to allow even LEMI 10Hz data to loaded
+                                          n_intervals=0
+                                      ),
+                                      dash_table.DataTable(id='sensors-table',
+                                                            data=stable,
                                                             sort_action='native',
-                                                            columns=[{'id': c, 'name': c} for c in scols],
+                                                            columns=sens_columns,
                                                             style_cell={'minWidth': 95, 'width': 95, 'maxWidth': 95,
                                                                         'padding': '5px'},
                                                             style_cell_conditional=[
@@ -298,6 +319,7 @@ app.layout = (html.Div(
                               html.Div(
                                   className="box gauges",
                                   children=html.Div([
+                                      dcc.Interval('gauge-update', interval=10*srate*1000, n_intervals=0),
                                       daq.Gauge(
                                           id='buffer-gauge',
                                           size=120,
@@ -308,14 +330,9 @@ app.layout = (html.Div(
                                                             "red": [statusdict['mqtt'].get('space') * 0.9,
                                                                     statusdict['mqtt'].get('space')]}},
                                           value=statusdict['mqtt'].get('used'),
-                                          label='Buffer',
+                                          label='Buffer [GB]',
                                           max=statusdict['mqtt'].get('space'),
                                           min=0,
-                                      ),
-                                      dcc.Interval(
-                                          id='gauge-update',
-                                          interval=60 * 1000,  # in milliseconds
-                                          n_intervals=0
                                       )
                                   ])
                               ),
@@ -330,72 +347,73 @@ app.layout = (html.Div(
                                       )
                                   ])
                               ),
-                             html.Div(
-                                 className="box link",
-                                 children=html.Div([
-                                     dash_table.DataTable(ctable,
-                                                          columns=[{'id': c, 'name': c} for c in ccols],
-                                                          sort_action='native',
-                                                          fixed_rows={'headers': True},
-                                                          style_cell={'minWidth': 95, 'width': 95, 'maxWidth': 95,
-                                                                      'padding': '5px'},
-                                                          style_table={'height': 200},  # default is 500
-                                                          style_cell_conditional=[
-                                                              {
-                                                                  'if': {'column_id': c},
-                                                                  'textAlign': 'left'
-                                                              } for c in ['job', 'enabled']
-                                                          ],
-                                                          style_data={
-                                                              'whiteSpace': 'normal',
-                                                              'color': 'rgb(230, 230, 250)',
-                                                              'fontSize': '14px',
-                                                              'backgroundColor': 'rgb(112, 128, 144)'
-                                                          },
-                                                          style_data_conditional=[
-                                                              {
-                                                                  'if': {'row_index': 'odd'},
-                                                                  'backgroundColor': 'rgb(119, 149, 163)',
-                                                              },
-                                                              {
-                                                                  'if': {
-                                                                      'filter_query': '{enabled} = False',
-                                                                      'column_id': 'enabled'
-                                                                  },
-                                                                  'backgroundColor': '#eaf044',
-                                                                  'color': 'black'
-                                                              },
-                                                          ],
-                                                          style_header={
-                                                              'backgroundColor': '#4D4D4D',
-                                                              'color': 'rgb(230, 230, 250)',
-                                                              'fontWeight': 'bold',
-                                                              'fontSize': '16px',
-                                                              'border': '1px solid black'
-                                                          },
-                                                          ),
-
-                                 ])
-                             ),
-                             html.Div(
-                                  className="box about",
+                              html.Div(
+                                  className="box link",
                                   children=html.Div([
-                                      html.H4('MARTAS (MagPys automatic real time acquisition system)'),
-                                      html.P('Version {}'.format(__version__)),
-                                      html.P('written by R. Leonhardt, R. Bailey, R. Mandl, P. Arneitz, V. Haberle'),
-                                      html.P(['MARTAS on GitHUB:',
-                                              html.A('click here', href='https://github.com/geomagpy/MARTAS')]),
-                                      html.P(['MARTAS manual:',
-                                              html.A('click here',
-                                                     href='https://github.com/geomagpy/MARTAS?tab=readme-ov-file#martas')]),
+                                      dcc.Interval('cron-update', interval=10*srate*1000, n_intervals=0),
+                                      dash_table.DataTable(id='cron-table',
+                                                           data=ctable,
+                                                           columns=cron_columns,
+                                                           sort_action='native',
+                                                           fixed_rows={'headers': True},
+                                                           style_cell={'minWidth': 95, 'width': 95, 'maxWidth': 95,
+                                                                       'padding': '5px'},
+                                                           style_table={'height': 200},  # default is 500
+                                                           style_cell_conditional=[
+                                                               {
+                                                                   'if': {'column_id': c},
+                                                                   'textAlign': 'left'
+                                                               } for c in ['job', 'enabled']
+                                                           ],
+                                                           style_data={
+                                                               'whiteSpace': 'normal',
+                                                               'color': 'rgb(230, 230, 250)',
+                                                               'fontSize': '14px',
+                                                               'backgroundColor': 'rgb(112, 128, 144)'
+                                                           },
+                                                           style_data_conditional=[
+                                                               {
+                                                                   'if': {'row_index': 'odd'},
+                                                                   'backgroundColor': 'rgb(119, 149, 163)',
+                                                               },
+                                                               {
+                                                                   'if': {
+                                                                       'filter_query': '{enabled} = False',
+                                                                       'column_id': 'enabled'
+                                                                   },
+                                                                   'backgroundColor': '#eaf044',
+                                                                   'color': 'black'
+                                                               },
+                                                           ],
+                                                           style_header={
+                                                               'backgroundColor': '#4D4D4D',
+                                                               'color': 'rgb(230, 230, 250)',
+                                                               'fontWeight': 'bold',
+                                                               'fontSize': '16px',
+                                                               'border': '1px solid black'
+                                                           },
+                                                           )
                                   ])
                               ),
-                             html.Div(
-                                 className="box stats",
-                                 children=html.Div([
+                              html.Div(
+                                  className="box about",
+                                  children=html.Div([
+                                       html.H4('MARTAS (MagPys automatic real time acquisition system)'),
+                                       html.P('Version {}'.format(__version__)),
+                                       html.P('written by R. Leonhardt, R. Bailey, R. Mandl, N. Kompein, P. Arneitz, V. Haberle'),
+                                       html.P(['MARTAS on GitHUB:',
+                                               html.A('click here', href='https://github.com/geomagpy/MARTAS')]),
+                                       html.P(['MARTAS manual:',
+                                               html.A('click here',
+                                                      href='https://github.com/geomagpy/MARTAS?tab=readme-ov-file#martas')]),
+                                   ])
+                              ),
+                              html.Div(
+                                  className="box stats",
+                                  children=html.Div([
                                      html.H4('Configuration'),
                                      html.Div(id='live-update-config')
-                                 ])
+                                  ])
                              )
                  ]
             )
@@ -403,8 +421,10 @@ app.layout = (html.Div(
 
 
 @app.callback(Output('live-update-config', 'children'),
-              Input('graph-update', 'n_intervals'))
+              Input('gauge-update', 'n_intervals'))
 def update_config(n):
+    #print ("updating conf")
+    global configpath
     style = {'padding': '5px', 'fontSize': '16px'}
     pos = {}
     htmllist = []
@@ -416,18 +436,39 @@ def update_config(n):
     htmllist.append(html.P(['MQTT broker: {}'.format(cfg.get('broker'))]))
     return htmllist
 
-@app.callback(Output('live-update-gauge', 'children'),
+
+@app.callback([Output('sensors-table', 'data'),
+               Output('sensors-table', 'columns')],
+              Input('sensors-update', 'n_intervals'))
+def update_table(n):
+    #print ("updating sensor table")
+    global sensorpath
+    global bufferpath
+    stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
+    sens_columns = [{'id': c, 'name': c} for c in scols]
+    #print ("sens ok")
+    return stable, sens_columns
+
+
+@app.callback(Output('buffer-gauge', 'value'),
               Input('gauge-update', 'n_intervals'))
 def update_gauge_status(n):
-    statusdict = get_storage_usage(statusdict={}, mqttpath=bufferpath, logpath=logpath, debug=False)
-    stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
-    return
+    #print ("updating gauge")
+    global statusdict
+    statusdict = get_storage_usage(statusdict=statusdict, mqttpath=bufferpath, logpath=logpath, debug=False)
+    #print ("gauge ok")
+    return statusdict['mqtt'].get('used')
 
-@app.callback(Output('live-update-text', 'children'),
-              Input('gauge-update', 'n_intervals'))
-def update_metrics(n):
+
+@app.callback([Output('cron-table', 'data'),
+               Output('cron-table', 'columns')],
+              Input('cron-update', 'n_intervals'))
+def update_cron(n):
+    #print ("updating cron table")
     ctable, ccols = get_cron_jobs()
-    return
+    cron_columns = [{'id': c, 'name': c} for c in ccols]
+    #print ("cron ok")
+    return ctable, cron_columns
 
 
 @app.callback(
@@ -439,12 +480,14 @@ def update_metrics(n):
 )
 def update_graph(n, hvalue, duration):
     # read data
+    #print ("Updating graph")
+    global bufferpath
     cov = int(duration)*60
     data2show = get_new_data(path=bufferpath,duration=cov)
     all_names =[]
     for f in data2show:
-        data, names = extract_data(f,duration=cov)
-        nd[f] = {'names': names, 'data':data}
+        data, names, anames, mdr = extract_data(f,duration=cov)
+        nd[f] = {'allnames': anames, 'names': names, 'data':data}
         all_names.extend(names)
 
     fig = make_subplots(rows=len(all_names), cols=1, vertical_spacing=0.1)

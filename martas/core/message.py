@@ -51,7 +51,7 @@ class ActionHandler(object):
 |  ActionHandler  |  set_default_configuration | 2.0.0 | yes |                            | -      |          |
 |  ActionHandler  |  set_default_commands | 2.0.0 |      yes |                            | -      |          |
 |  ActionHandler  |  init_martas       |  2.0.0   |     *yes | by __init__                | -      |          |
-|  ActionHandler  |  interprete        |  2.0.0   |      yes |                            | -      |          |
+|  ActionHandler  |  interpret         |  2.0.0   |      yes |                            | -      |          |
 |  ActionHandler  |  execute_command   |  2.0.0   |      yes |                            | -      |          |
 |  ActionHandler  |  action_help       |  2.0.0   |     *yes |                            | -      |          |
 |  ActionHandler  |  action_hello      |  2.0.0   |     *yes |                            | -      |          |
@@ -59,7 +59,7 @@ class ActionHandler(object):
 |  ActionHandler  |  action_marcos     |  2.0.0   |      yes |                            | -      |          |
 |  ActionHandler  |  action_cam        |  2.0.0   |     *yes |                            | -      |          |
 |  ActionHandler  |  action_reboot     |  2.0.0   |     *yes |                            | -      |          |
-|  ActionHandler  |  action_martasupdate | 2.0.0  |     *yes |                            | -      |          |
+|  ActionHandler  |  action_martasupgrade | 2.0.0  |     *yes |                            | -      |          |
 |  ActionHandler  |  action_system     |  2.0.0   |     *yes |                            | -      |          |
 |  ActionHandler  |  action_martas_sensors | 2.0.0 |    *yes |                            | -      |          |
 |  ActionHandler  |  action_figure     |  2.0.0   |     *yes |                            | -      |          |
@@ -342,18 +342,6 @@ class ActionHandler(object):
                                    'combination' : 'any',
                                    'priority' : 1,
                                    'description': 'get some basic information an the remote system and its software (hardware, magpy version)'},
-                       'martas' : {'commands': ['Martas','martas','MARTAS'], 
-                                   'combination' : 'any',
-                                   'availability': ['MARTAS'],
-                                   'priority' : 1,
-                                   'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
-                                   'description': 'restart-stop-start-update-status : e.g. restart MARTAS process: send - martas restart - to restart a martas process'},
-                       'marcos' : {'commands': ['Marcos','marcos','MARCOS'], 
-                                   'combination' : 'any',
-                                   'availability': ['MARCOS'],
-                                   'priority' : 1,
-                                   'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
-                                   'description': 'restart-stop-start-status : e.g. restart MARCOS processes: if you have a collector called collect-local then - marcos local restart - will restart this process'},
                        'cam' :    {'commands': ['cam','Cam','picture','Picture','photo'],
                                    'combination' : 'any',
                                    'priority' : 1,
@@ -409,16 +397,28 @@ class ActionHandler(object):
                                    'priority' : 1,
                                    'availability': ['hidden'],
                                    'description': 'reboot the remote computer'},
-                       'martasupdate': {'commands': ['martasupdate'],
+                       'martasupgrade': {'commands': ['upgrade'],
                                    'combination' : 'any',
                                    'priority' : 1,
                                    'availability': ['hidden'],
-                                   'description': 'update MARTAS'},
+                                   'description': 'upgrade MARTAS to its newest version'},
                        'version': {'commands': ['version'],
                                         'combination': 'any',
                                         'priority': 1,
                                         'availability': ['all'],
                                         'description': 'library version 2.0.0'},
+                       'martas' : {'commands': ['Martas','martas','MARTAS'],
+                                   'combination' : 'any',
+                                   'availability': ['MARTAS'],
+                                   'priority' : 2,
+                                   'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
+                                   'description': 'restart-stop-start-update-status : e.g. restart MARTAS process: send - martas restart - to restart a martas process'},
+                       'marcos' : {'commands': ['Marcos','marcos','MARCOS'],
+                                   'combination' : 'any',
+                                   'availability': ['MARCOS'],
+                                   'priority' : 2,
+                                   'options' : {'restart':['restart'],'start':['start'],'stop':['stop'],'status':['status']},
+                                   'description': 'restart-stop-start-status : e.g. restart MARCOS processes: if you have a collector called collect-local then - marcos local restart - will restart this process'},
                        'aperta': {'commands': ['aperta', 'Aperta', 'Sesam öffne dich'],
                                         'combination': 'any',
                                         'priority': 1,
@@ -462,7 +462,7 @@ class ActionHandler(object):
         self.messageconfig['martaslog'] = conf.get('logging','')
 
 
-    def interprete(self, input, exclude=None, debug=False):
+    def interpret(self, input, exclude=None, debug=False):
         """
         DESCRIPTION
             Receive any text and identify existing commands and priorities within a command dictionary. Select the
@@ -510,7 +510,7 @@ class ActionHandler(object):
             Takes the action list and performs the requested actions. It will then recieve a result (message)
             dictionary from each action.
         PARAMETERS:
-            actionlist : an actionlist as determined by interprete
+            actionlist : an actionlist as determined by interpret
             input : the original input to identify additional parameters for specific jobs
         RETURNS:
             message dictionary with results for each action
@@ -567,8 +567,8 @@ class ActionHandler(object):
                 msg = self.action_figure(figure="fig2")
             elif action == 'reboot':
                 msg = self.action_reboot(debug=debug)
-            elif action == 'martasupdate':
-                msg = self.action_martasupdate(debug=debug)
+            elif action == 'martasupgrade':
+                msg = self.action_martasupgrade(debug=debug)
             elif action == 'version':
                 msg['text'] = self.commanddict['version'].get('description','')
 
@@ -747,13 +747,13 @@ class ActionHandler(object):
         return message
 
 
-    def action_martasupdate(self, user='cobs', debug=True):
+    def action_martasupgrade(self, debug=True):
         """
         DESCRIPTION:
             updating martas using pip - requires martas 2 to be published on pypi
         """
         message = {}
-        message['call'] = ["pip install -U martas", "martas_init -U"]
+        message['call'] = ["pip install geomagpy", "martas_init -U"] # "pip install -U martas",
         message['text'] = "updating martas...\n"
         return message
 
@@ -905,6 +905,7 @@ class ActionHandler(object):
         return message
 
 
+    # TODO deprecated
     def action_tmate(self, command, debug=False):
         """
         DESCRIPTION
@@ -1177,18 +1178,36 @@ class ActionHandler(object):
         DESCRIPTION
             executes the calls as provided within the message dictionaries
             Actions with calls:
-            getip ??, upload, imbot, cam, martasupdate, reboot, switch, martas, marcos
+            getip ??, upload, imbot, cam, martasupgrade, reboot, switch, martas, marcos
             Methods issueing call already: tmate,
         """
         try:
-            print ("Executing call")
-            p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
-            (output, err) = p.communicate()
-            output = output.decode()
+            if debug:
+                print ("Executing call", call)
+            if call.find("upterm") > -1:
+                # Special treatment required - as terminal needs to be kept open (p.communicate() would close the terminal
+                p = subprocess.Popen([call], stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+                oput = []
+                count = 0
+                line = p.stdout.readline().decode()
+                while count < 10:
+                    if line.find("SSH Command") > -1:
+                        oput.append(line)
+                        break
+                    line = p.stdout.readline().decode()
+                    count += 1
+                output = "".join(oput)
+            else:
+                p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
+                (output, err) = p.communicate()
+                output = output.decode()
             mesg = output
-            print (" ... got", mesg)
+            print (" ... got:", mesg)
+            print (" length:", len(mesg))
+            if len(mesg) > 4000:
+                mesg = "Message too long - showing only last part:\n\n... " + mesg[-3800:]
         except subprocess.CalledProcessError:
-            mesg = " check: call {} didnot work".format(call)
+            mesg = " check: call {} did not work".format(call)
         except:
             mesg = "getip: check_call problem"
         return mesg
@@ -1292,22 +1311,22 @@ class TestActionHandler(unittest.TestCase):
     Test environment for all methods
     """
 
-    def test_interprete(self):
+    def test_interpret(self):
         act = ActionHandler()
-        test = act.interprete("well: an incredibly loud cry for martas help and logging, but preferebly help")
+        test = act.interpret("well: an incredibly loud cry for martas help and logging, but preferebly help")
         self.assertEqual(len(test), 3)
 
     def test_execute_action(self):
         act = ActionHandler()
-        mytext = "hello help sensor imbot system martas marcos cam status getlog getdata plot switch fuck figure1 figure2 reboot martasupdate getip aperta upload"
-        al = act.interprete(mytext)
+        mytext = "hello help sensor imbot system martas marcos cam status getlog getdata plot switch fuck figure1 figure2 reboot martasupgrade getip aperta upload"
+        al = act.interpret(mytext)
         msg = act.execute_action(al, input=mytext, debug=True)
 
 
     def test_action_martas(self):
         act = ActionHandler()
         mytext = ("martas restart")
-        al = act.interprete(mytext)
+        al = act.interpret(mytext)
         msg = act.execute_action(al, input=mytext, debug=True)
         td = msg.get('martas',{})
         self.assertTrue(isinstance(td['message'].get('call'), (list,tuple)))
@@ -1315,7 +1334,7 @@ class TestActionHandler(unittest.TestCase):
     def test_action_marcos(self):
         act = ActionHandler()
         mytext = ("marcos janus restart")
-        al = act.interprete(mytext)
+        al = act.interpret(mytext)
         msg = act.execute_action(al, input=mytext, debug=True)
         td = msg.get('marcos',{})
         self.assertTrue(isinstance(td['message'].get('call'), (list,tuple)))
@@ -1323,7 +1342,7 @@ class TestActionHandler(unittest.TestCase):
     def test_action_getlog(self):
         act = ActionHandler()
         mytext = ("getlog martas 20")
-        al = act.interprete(mytext)
+        al = act.interpret(mytext)
         msg = act.execute_action(al, input=mytext, debug=True)
         td = msg.get('getlog',{})
         self.assertTrue(td['message'].get('text'))
@@ -1331,7 +1350,7 @@ class TestActionHandler(unittest.TestCase):
     def test_action_getdata(self):
         act = ActionHandler()
         mytext = ("data TEST_1234_0001")
-        al = act.interprete(mytext)
+        al = act.interpret(mytext)
         msg = act.execute_action(al, input=mytext, debug=True)
         td = msg.get('getdata',{})
         print ("GET data", td)
@@ -1340,7 +1359,7 @@ class TestActionHandler(unittest.TestCase):
     def test_zaction_plot(self):
         act = ActionHandler()
         mytext = ("plot TEST_1234_0001 2025-07-31")
-        al = act.interprete(mytext)
+        al = act.interpret(mytext)
         msg = act.execute_action(al, input=mytext, debug=True)
         td = msg.get('plot',{})
         print ("Plotting", td)
@@ -1349,13 +1368,13 @@ class TestActionHandler(unittest.TestCase):
 
     def test_execute_call(self):
         act = ActionHandler()
-        #upload, imbot, cam, martasupdate, reboot, switch, martas, marcos
+        #upload, imbot, cam, martasupgrade, reboot, switch, martas, marcos
         callcommands = {"getip" : "getip wlp0s20f3"} #, "marcos" : "marcos local restart"}
         for comm in callcommands:
             fc = callcommands.get(comm)
             lines = []
             msg = ""
-            al = act.interprete(fc)
+            al = act.interpret(fc)
             msg = act.execute_action(al, input=fc, debug=True)
             td = msg.get(comm,{})
             print ("Call command:", td['message'].get('call'))

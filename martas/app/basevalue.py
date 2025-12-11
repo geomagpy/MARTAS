@@ -809,6 +809,7 @@ def main(argv):
     scalars = []
     varios = []
     piers = []
+    proxies = {}
 
     # supported jobs are:
     #   (1) calculate basevalues from DI data and write BLV files/DB
@@ -933,7 +934,11 @@ def main(argv):
     if not debug:
         receiver = config.get('notification')
         notificationcfg = config.get('notificationconfig')
-        martaslog = ml(logfile=config.get('logfile'), receiver=receiver)
+        if config.get('https'):
+            proxies['https'] = config.get('https')
+        if config.get('http'):
+            proxies['http'] = config.get('http')
+        martaslog = ml(logfile=config.get('logfile'), receiver=receiver, proxies=proxies)
         if receiver == 'telegram':
             martaslog.telegram['config'] = notificationcfg
         elif receiver == 'email':

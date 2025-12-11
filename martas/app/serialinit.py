@@ -131,6 +131,7 @@ def main(argv):
     eol = None
     bits = 0
     timeformat = None
+    hwflwctrl = False
     debug = False
 
     try:
@@ -149,7 +150,7 @@ def main(argv):
             print('-h                             help')
             print('-b                             set baudrate - default is 115200')
             print('-p                             set port - default is /dev/ttyS0')
-            print('-f                             set flowcontrol (not yet supported)')
+            print('-f                             set flowcontrol')
             print('-y  e.g. SEVENBITS             set bytesize - default is 8     ') 
             print('-a  e.g. PARITY_EVEN           set parity   - default is N     ')
             print('-s                             set stopbits - default is 1     ')
@@ -173,7 +174,7 @@ def main(argv):
             print('------------------------------------------------------')
             print('Examples:')
             print('1. Initializing POS1:')
-            print('   python serialinit.py -p "/dev/ttyS1" -b 9600 -c "mode text,time datetime,date 11-22-16,range 48500,auto 5" -k "%H:%M:%S" -x -d 0')
+            print('   python serialinit.py -p "/dev/ttyS1" -b 9600 -c "mode text,time datetime,date 11-22-16,range 48500,auto 5" -k "%H:%M:%S" -x -d 0 -f True')
             print('2. Initializing GSM90Sv6:')
             print('   python serialinit.py -p "/dev/ttyUSB0" -c S,5,T048,C,datetime,R -k "%y%m%d%w%H%M%S" -i 1024')
             print('3. Initializing GSM90Sv7:')
@@ -224,6 +225,8 @@ def main(argv):
                 print ("serial-init: warning... integer number expected for (i) - skipping this option")
         elif opt in ("-k", "--timeformat"):
             timeformat = arg
+        elif( opt in ("-f", "--flowcontrol")):
+            hwflwctrl = True
         elif opt in ("-D", "--debug"):
             debug = True
 
@@ -250,9 +253,28 @@ def main(argv):
     try:
         print ("TEST", baudrate,parity,bytesize,stopbits,timeout)
         ser = serial.Serial(port, baudrate=baudrate, parity=parity, bytesize=bytesize, stopbits=stopbits, timeout=timeout)
+
+        ########
+        # checking if output or input buffer contains waiting bytes
+        # if yes reset output buffer
+        ########
+        if( not ( ser.out_waiting == 0)):
+            print( 'Flushing output buffer for initialization...')
+            ser.flushOutput()
+            print( '...done')
+        if( not ( ser.inWaiting() == 0)):
+            print( 'Flushing input buffer for initialization...')
+            ser.flushInput()
+            print( '...done flushing')
+        # activating serial connection hardware flow-control
+        if( hwflwctrl):
+            ser.rts = True
+            ser.dtr = True
+            print( 'Hardware flowcontrol activated by ser.rts and ser.dtr...')
+        ######
         print('.... Connection made.')
-    except: 
-        print('.... Connection flopped.')
+    except Exception as ex: # changed output string to respond with Exception
+        print('.... Connection flopped with Exception:{}.'.format( ex))
         print('--- Aborting ---')
         sys.exit(2)
     print('')
