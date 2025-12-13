@@ -1637,6 +1637,7 @@ class MartasStatus(object):
         stype = statuselem.get("type", res.get('typ',"NULL"))
         group = statuselem.get("group", res.get('group',"NULL"))
         field = statuselem.get("field", res.get('field',"NULL"))
+        key = statuselem.get("key", res.get('key',"NULL"))
         if not field:
             field = "NULL"
         long = statuselem.get("longitude", res.get('longitude',"NULL"))
@@ -1685,16 +1686,16 @@ class MartasStatus(object):
         symbol_standard = statuselem.get("symbol_standard", res.get("symbol_standard","NULL"))
         symbol_warning = statuselem.get("symbol_warning", res.get("symbol_warning","NULL"))
         symbol_critical = statuselem.get("symbol_critical", res.get("symbol_critical","NULL"))
-        picture = statuselem.get("picture", res.get("picture"))
+        picture = statuselem.get("picture", res.get("picture","NULL"))
         if state and not state in ['',None,"NULL"]:
             if state.find("WARNING") >= 0:
                 last_warning = now
             if state.find("CRITICAL") >= 0:
                 last_critical = now
 
-        sql = "INSERT INTO {} (status_notation,displayname,status_type,status_group,status_field,status_key,status_value,value_min,value_max,value_std,value_unit,warning_high,critical_high,warning_low,critical_low,validity_start,validity_end,source,location,pierid,longitude,latitude,elevation,comment,access,notification_warning,notification_critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical,date_added,active) VALUES ('{}','{}','{}','{}','{}',{},{},{},{},'{}',{},{},{},{},'{}','{}','{}','{}','{}',{},{},{},'{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}',{}) ON DUPLICATE KEY UPDATE displayname = '{}',status_type = '{}',status_group = '{}',status_field = '{}',status_value = {},value_min = {},value_max = {},value_std = {},value_unit = '{}',warning_high = {},critical_high = {},warning_low = {},critical_low = {},validity_start = '{}',validity_end = '{}',source = '{}',location = '{}',pierid = '{}',longitude = {},latitude = {},elevation = {},comment='{}',access='{}',notification_warning='{}',notification_critical='{}',symbol_standard='{}',symbol_warning='{}',symbol_critical='{}',picture='{}',last_warning='{}',last_critical='{}',date_added = '{}',active = {} ".format(
-            self.tablename, notation, displayname, stype, group, field, value, value_min, value_max, uncert, value_unit, warning_high, critical_high,
-            warning_low, critical_low, start, end, source, stationid, pierid, long, lat, alt, comment,access,warning,critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical, now, active, displayname, stype, group, field, value,
+        sql = "INSERT INTO {} (status_notation,displayname,status_type,status_group,status_field,status_key,status_value,value_min,value_max,value_std,value_unit,warning_high,critical_high,warning_low,critical_low,validity_start,validity_end,source,location,pierid,longitude,latitude,elevation,comment,access,notification_warning,notification_critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical,date_added,active) VALUES ('{}','{}','{}','{}','{}','{}',{},{},{},{},'{}',{},{},{},{},'{}','{}','{}','{}','{}',{},{},{},'{}','{}','{}','{}','{}','{}','{}','{}','{}','{}','{}',{}) ON DUPLICATE KEY UPDATE displayname = '{}',status_type = '{}',status_group = '{}',status_field = '{}',status_key = '{}',status_value = {},value_min = {},value_max = {},value_std = {},value_unit = '{}',warning_high = {},critical_high = {},warning_low = {},critical_low = {},validity_start = '{}',validity_end = '{}',source = '{}',location = '{}',pierid = '{}',longitude = {},latitude = {},elevation = {},comment='{}',access='{}',notification_warning='{}',notification_critical='{}',symbol_standard='{}',symbol_warning='{}',symbol_critical='{}',picture='{}',last_warning='{}',last_critical='{}',date_added = '{}',active = {} ".format(
+            self.tablename, notation, displayname, stype, group, field, key, value, value_min, value_max, uncert, value_unit, warning_high, critical_high,
+            warning_low, critical_low, start, end, source, stationid, pierid, long, lat, alt, comment,access,warning,critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical, now, active, displayname, stype, group, field, key, value,
             value_min, value_max, uncert, value_unit, warning_high, critical_high, warning_low, critical_low, start,
             end, source, stationid, pierid, long, lat, alt, comment,access,warning,critical,symbol_standard,symbol_warning,symbol_critical,picture,last_warning,last_critical, now, active)
         return sql
@@ -1731,11 +1732,11 @@ class MartasStatus(object):
 
         """
 
-        columns = ['status_notation', 'displayname', 'status_type', 'status_group', 'status_field', 'status_value', 'value_min',
+        columns = ['status_notation', 'displayname', 'status_type', 'status_group', 'status_field', 'status_key', 'status_value', 'value_min',
                    'value_max', 'value_std', 'value_unit', 'warning_high', 'critical_high', 'warning_low',
                    'critical_low', 'validity_start', 'validity_end', 'location', 'pierid', 'latitude', 'longitude', 'elevation', 'source',
                    'comment', 'access', 'notification_warning', 'notification_critical', 'symbol_standard', 'symbol_warning', 'symbol_critical', 'picture', 'last_warning', 'last_critical', 'date_added', 'active']
-        coldef = ['CHAR(100)', 'CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'FLOAT', 'FLOAT',
+        coldef = ['CHAR(100)', 'CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'CHAR(10)', 'FLOAT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'FLOAT', 'FLOAT',
                   'FLOAT', 'FLOAT', 'DATETIME', 'DATETIME', 'TEXT', 'TEXT', 'FLOAT', 'FLOAT', 'FLOAT', 'TEXT', 'TEXT', 'CHAR(100)', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'TEXT', 'DATETIME', 'DATETIME', 'DATETIME', 'INT']
         fulllist = []
         for i, elem in enumerate(columns):
