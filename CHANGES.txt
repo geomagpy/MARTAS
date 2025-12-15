@@ -2,9 +2,9 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
-####v<2.0.0>, <2025-06-xx> --
+####v<2.0.0-rc1>, <2025-12-15> --
 
-v2.0.0 general:
+v2.0.0-rc1 general:
     - created an installable package:
       benefits:
       * simply installed with pip, easy updates
@@ -15,10 +15,6 @@ v2.0.0 general:
     - replaced installer scripts by a "martas_init" method
     - added testsuite based on unittest
     - cleaned up code and used standard python semantics
-
-v2.0.0 additions:
-
-v2.0.0 fixes:
 
 
 

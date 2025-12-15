@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+R. Mandl, R. Bailey, P. Arneitz, V. Haberle, N. Kompein
+authors:
+- family-names: "Leonhardt"
+  given-names: "Roman"
+  orcid: "https://orcid.org/0000-0003-3605-7423"
+- family-names: "Mandl"
+  given-names: "Richard"
+  orcid: ""
+- family-names: "Bailey"
+  given-names: "Rachel"
+  orcid: "https://orcid.org/0000-0003-2021-6557"
+- family-names: "Arneitz"
+  given-names: "Patrick"
+  orcid: ""
+- family-names: "Haberle"
+  given-names: "Veronika"
+  orcid: ""
+- family-names: "Kompein"
+  given-names: "Niko"
+  orcid: ""
+title: "MARTAS – realtime data acquisition, data organization and evaluation."
+version: 2.0.0-rc1
+doi: 10.5281/zenodo.17937902
+date-released: 2025-12-15
+url: "https://github.com/geomagpy/MARTAS"
