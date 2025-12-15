@@ -38,7 +38,7 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey, P. Arneitz, V. Haberle, N. Kompei
 
 MARTAS is a collection of python applications and packages supporting data acquisition, collection, storage, monitoring 
 and analysis in heterogeneous sensor environments. The principle idea is providing a unique platform to obtain data 
-from sensor interfaces, to stream this data though the internet, and record it within a generalized and open format to 
+from sensor interfaces, to stream this data through the internet, and record it within a generalized and open format to 
 a data collection system. Previously any system connected via serial interface to a recording computer was registered 
 by its own software usually in a company specific format. Intercomparison of such data, extraction of meta information, 
 realtime data transport and basically any analysis requiring different sources is significantly hampered.
