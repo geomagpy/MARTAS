@@ -753,7 +753,7 @@ class ActionHandler(object):
             updating martas using pip - requires martas 2 to be published on pypi
         """
         message = {}
-        message['call'] = ["pip install geomagpy", "martas_init -U"] # "pip install -U martas",
+        message['call'] = ["pip install -U martas", "martas_init -U"] # "pip install -U martas",
         message['text'] = "updating martas...\n"
         return message
 
