@@ -742,7 +742,7 @@ class ActionHandler(object):
             Rebooting the system
         """
         message = {}
-        message['call'] = ["/sbin/reboot"]
+        message['call'] = ["sudo /sbin/reboot"]
         message['text'] = "rebooting...\n"
         return message
 
