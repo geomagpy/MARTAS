@@ -15,6 +15,8 @@ observatories. and data sources consisting of timeseries measurements from local
 also be used for many other sensor networks focusing on timeseries measurements from locally fixed instruments. MARTAS 
 is freely available under GNUv3 license. When using MARTAS please cite the software package.   
 
+DOI: 10.5281/zenodo.17937902 
+
 Developers: R. Leonhardt, R. Mandl, R. Bailey, P. Arneitz, V. Haberle, N. Kompein (GeoSphere Austria)
 
 
