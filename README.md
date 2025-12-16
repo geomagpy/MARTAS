@@ -1660,6 +1660,9 @@ You also might need to add the following line to your .bashrc
 
          export PATH=$PATH:/sbin
 
+The *upgrade* option, to be used to remotely update martas based on pip install -U, does not support 
+--break-system-packages.   
+
 
 ## 8. Additional tools
 
