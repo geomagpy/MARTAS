@@ -6,6 +6,7 @@ use crontab or scheduler to apply archive methods
 
 from magpy.stream import *
 from magpy.core import database
+from magpy.core import flagging
 from magpy.core import methods as magpymeth
 
 from magpy.opt import cred as mpcred
@@ -384,10 +385,10 @@ def main(argv):
 
                 if af and sr > 0.9:
                     print ("You selected to apply flags and save them along with the cdf archive.")
-                    flaglist = db.flags_from_db(sensorid=stream.header['SensorID'],begin=tup[0],end=tup[1])
+                    flaglist = db.flags_from_db(sensorid=stream.header['SensorID'],starttime=tup[0],endtime=tup[1])
                     if len(flaglist) > 0:
                         print ("  Found {} flags in database for the selected time range - adding them to the archive file".format(len(flaglist)))
-                        stream = stream.flag(flaglist)
+                        stream = flaglist.apply_flags(stream, mode='insert')
 
                 if not debug and wa and archivepath:
                     stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=fo,mode=writemode,subdirectory=subdirectory)

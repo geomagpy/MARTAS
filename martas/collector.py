@@ -79,6 +79,7 @@ stid = stationid
 webpath = './web'
 webport = 8080
 socketport = 5000
+diffsens = "G823"
 blacklist = []
 counter = 0
 
@@ -579,62 +580,63 @@ def on_message(client, userdata, msg):
                     wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
             if 'diff' in destination:
                 global counter
-                counter+=1
                 global number
+                counter+=1
                 amount = int(number)
                 cover = 5
-                if not diarrayinterpreted:
-                    ar = interprete_data(msg.payload, sensorid)
-                    if not sensorid in senslst:
-                        senslst.append(sensorid)
-                        st.append(DataStream([],{},ar))
-                    idx = senslst.index(sensorid)
-                    st[idx].extend(stream.container,{'SensorID':sensorid},ar)
-                    diarrayinterpreted = True
-                st[idx].ndarray = np.asarray([np.asarray(el[-cover:]) for el in st[idx].ndarray])
-                if len(st) < 2:
-                     print ("Not enough streams for subtraction yet")
-                try:
-                    if counter > amount:
-                        counter = 0
-                        sub = subtract_streams(st[0],st[1])
-                        try:
-                            part1 = (st[0].header.get('SensorID').split('_')[1])
-                        except:
-                            part1 = 'unkown'
-                        try:
-                            part2 = (st[1].header.get('SensorID').split('_')[1])
-                        except:
-                            part2 = 'unkown'
-                        name = "Diff_{}{}_0001".format(part1,part2)
-                        # get head line for pub
-                        #name = "diff_xxx_0001"
-                        keys = sub._get_key_headers(numerical=True)
-                        ilst = [KEYLIST.index(key) for key in keys]
-                        keystr = "[{}]".format(",".join(keys))
-                        #takeunits =  ### take from st[0]
-                        packcode = "6hL{}".format("".join(['l']*len(keys)))
-                        multi = "[{}]".format(",".join(['1000']*len(keys)))
-                        unit = "[{}]".format(",".join(['arb']*len(keys)))
-                        head = "# MagPyBin {} {} {} {} {} {} {}".format(name, keystr, keystr, unit, multi, packcode, struct.calcsize('<'+packcode))
-                        #print (head)
-                        # get data line for pub
-                        time = sub.ndarray[0][-1]
-                        timestr = (datetime.strftime(num2date(float(time)).replace(tzinfo=None), "%Y,%m,%d,%H,%M,%S,%f"))
-                        val = [sub.ndarray[i][-1] for i in ilst]
-                        if len(val) > 1:
-                            valstr = ",".join(int(val*1000))
-                        else:
-                            valstr = int(val[0]*1000)
-                        data = "{},{}".format(timestr,valstr)
-                        #print (data)
-                        topic = "{}/{}".format(stid,name)
-                        client.publish(topic+"/data", data, qos=qos)
-                        client.publish(topic+"/meta", head, qos=qos)
-                        if debug:
-                            print (" -> diff {} published".format(name))
-                except:
-                    print ("Found error in subtraction")
+                if sensorid.find(diffsens) >= 0:
+                    if not diarrayinterpreted:
+                        ar = interprete_data(msg.payload, sensorid)
+                        if not sensorid in senslst:
+                            senslst.append(sensorid)
+                            ds = DataStream(header={"SensorID":sensorid}, ndarray=ar)
+                            ds = ds.cut(5,1,0)
+                            st.append(ds)
+                        diarrayinterpreted = True
+
+                    if len(st) < 2:
+                         print ("Not enough streams for subtraction yet")
+                    try:
+                        if counter > amount and len(st) > 2:
+                            counter = 0
+                            sub = subtract_streams(st[0],st[1])
+                            print (sub)
+                            try:
+                                part1 = (st[0].header.get('SensorID').split('_')[1])
+                            except:
+                                part1 = 'unkown'
+                            try:
+                                part2 = (st[1].header.get('SensorID').split('_')[1])
+                            except:
+                                part2 = 'unkown'
+                            name = "Diff_{}{}_0001".format(part1,part2)
+                            # get head line for pub
+                            keys = sub._get_key_headers(numerical=True)
+                            ilst = [KEYLIST.index(key) for key in keys]
+                            keystr = "[{}]".format(",".join(keys))
+                            #takeunits =  ### take from st[0]
+                            packcode = "6hL{}".format("".join(['l']*len(keys)))
+                            multi = "[{}]".format(",".join(['1000']*len(keys)))
+                            unit = "[{}]".format(",".join(['arb']*len(keys)))
+                            head = "# MagPyBin {} {} {} {} {} {} {}".format(name, keystr, keystr, unit, multi, packcode, struct.calcsize('<'+packcode))
+                            #print (head)
+                            # get data line for pub
+                            time = sub.ndarray[0][-1]
+                            timestr = (datetime.strftime(time, "%Y,%m,%d,%H,%M,%S,%f"))
+                            val = [sub.ndarray[i][-1] for i in ilst]
+                            if len(val) > 1:
+                                valstr = ",".join(int(val*1000))
+                            else:
+                                valstr = int(val[0]*1000)
+                            data = "{},{}".format(timestr,valstr)
+                            #print (data)
+                            topic = "{}/{}".format(stid,name)
+                            client.publish(topic+"/data", data, qos=qos)
+                            client.publish(topic+"/meta", head, qos=qos)
+                            if debug:
+                                print (" -> diff {} published".format(name))
+                    except:
+                        print ("Found error in subtraction")
             if 'stdout' in destination:
                 if not soarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, sensorid)
@@ -767,11 +769,12 @@ def main(argv):
     dictcheck = False
     global socketport
     global number
-    number=1
+    number = 1
     global qos
     qos=0
     global blacklist
     blacklist = []
+    global diffsens
     global concount
     concount = 0
     conf = {}
@@ -960,6 +963,7 @@ def main(argv):
         elif opt in ("-U", "--debug"):
             debug = True
 
+    diffsens = conf.get('differencesensors',"G823")
     if debug:
         print ("collector starting with the following parameters:")
         print ("Logs: {}; Broker: {}; Topic/StationID: {}; QOS: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, qos, port, user, credentials, destination, location, dbcred, offset))
@@ -1005,7 +1009,7 @@ def main(argv):
     log.msg("----------------")
 
     if not qos in [0,1,2]:
-        qos = 0
+        qos = 1
 
     if 'stringio' in destination:
         #TODO seems to be unfinished - started that long ago without documentation and need to find out why ;)
