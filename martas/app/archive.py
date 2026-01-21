@@ -391,7 +391,9 @@ def main(argv):
                         stream = flaglist.apply_flags(stream, mode='insert')
 
                 if not debug and wa and archivepath:
+                    print ("Writing data to:", archivepath)
                     stream.write(archivepath,filenamebegins=datainfoid+'_',format_type=fo,mode=writemode,subdirectory=subdirectory)
+                    print ("... success")
                 else:
                     print ("   Debug: skip writing")
                     print ("    -> without debug a file with {} inputs would be written to {}".format(stream.length()[0],archivepath))

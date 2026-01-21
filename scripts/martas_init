@@ -273,8 +273,8 @@ def main(argv):
     if int(mqttport) >= 8883:
         print(" MQTT security based on TLS:")
         print(" please choose: (1) TLS-PSK encryption, (2) TLS on certificate basis")
-        print(" (1) requires an available PSK identity and password - AND - pip install sslpsk2")
-        print(" (2) to be used for IM MQTT service")
+        print(" (1) EXPERIMENTAL ---- requires an available PSK identity and password - AND - pip install sslpsk2")
+        print(" (2) VERIFIED ---- also to be used for INTERMAGNET MQTT service")
         secsel = input()
         if secsel in ["1"]:
             print("  TLS-PSK: please insert a credential shortcut for a valid psk identity.")
@@ -295,7 +295,7 @@ def main(argv):
                 cred.cc("transfer", pskcredentials, user=pskuser, passwd=pskpwd, address=mqttbroker, port=int(mqttport))
             print(" -> MQTT psk identifier: {}".format(pskcredentials))
         elif secsel in ["2"]:
-            print("  TLS with certificate: please insert path to ca.cert; leave empty for IM MQTT service")
+            print("  TLS with certificate: please insert path to ca.cert; leave empty for IM MQTT service or if you do not know what I am talking about")
             newmqttcert = input()
             if newmqttcert:
                 if not os.path.isfile(newmqttcert):
