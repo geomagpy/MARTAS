@@ -748,6 +748,8 @@ class MartasAnalysis(object):
         if debug:
             print ("Splitting database at ", splitter)
         for dbel in connectdict:
+            if debug:
+                 print ("Testing database at ", dbel)
             dbt = connectdict[dbel]
             fl1 = dbt.flags_from_db(endtime=splitter)
             fl2 = dbt.flags_from_db(starttime=splitter)
@@ -756,7 +758,7 @@ class MartasAnalysis(object):
                 fy = datetime.now().year - keepyears
                 archivename = os.path.join(archivepath,"flags_{}.json".format(fy))
                 if os.path.isfile(archivename):
-                    print ("archivefile {} already existing - skipping archiving")
+                    print ("archivefile {} already existing - skipping archiving".format(archivename))
                     cont = False
                     success = False
                 else:
@@ -770,6 +772,7 @@ class MartasAnalysis(object):
                     out = fl2.stats(level=0, intensive=True, output=None)
                     print(out)
             else:
+                print ("No data before {} to be archived".format(splitter))
                 success = False
         return success
 
@@ -1601,7 +1604,7 @@ class MartasStatus(object):
         msg = ''
         if value:
             if critical_high and value >= critical_high:
-                msg = "CRITCAL state: value exceeding {} {}".format(critical_high, value_unit)
+                msg = "CRITICAL state: value exceeding {} {}".format(critical_high, value_unit)
             elif warning_high and value >= warning_high:
                 msg = "WARNING state: value exceeding {} {}".format(warning_high, value_unit)
             elif critical_low and value <= critical_low:
@@ -1661,15 +1664,15 @@ class MartasStatus(object):
         warning_low = statuselem.get("warning_low", res.get('warning_low',"NULL"))
         if not warning_low:
             warning_low = "NULL"
-        critical_low = statuselem.get("critical_low", res.get('critical_high',"NULL"))
+        critical_low = statuselem.get("critical_low", res.get('critical_low',"NULL"))
         if not critical_low:
             critical_low = "NULL"
-        source = statuselem.get("source", "")
+        source = statuselem.get("source", res.get('source',"NULL"))
         stationid = statuselem.get("stationid", res.get('location',"NULL"))
         if not stationid:
             stationid = "NULL"
         pierid = statuselem.get("pierid", res.get('pierid',"NULL"))
-        comment = statuselem.get("comment", "")
+        comment = statuselem.get("comment", res.get('comment',"NULL"))
         if not comment:
             comment = "NULL"
         access = statuselem.get("access","")
