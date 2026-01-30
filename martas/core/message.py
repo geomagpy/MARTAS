@@ -740,6 +740,11 @@ class ActionHandler(object):
         """
         DESCRIPTION:
             Rebooting the system
+            In order to activate:
+            $ sudo visudo
+            add the following line at the bottom
+            $USER ALL=(ALL) NOPASSWD: ALL
+            where $USER is your username
         """
         message = {}
         message['call'] = ["sudo /sbin/reboot"]
