@@ -1194,6 +1194,8 @@ class ActionHandler(object):
                     if line.find("SSH Command") > -1:
                         oput.append(line)
                         break
+                    elif line.find("ssh") > -1: #required for new upterm (Jan 2026)
+                        oput.append(line+"\n")
                     line = p.stdout.readline().decode()
                     count += 1
                 output = "".join(oput)
