@@ -2597,6 +2597,10 @@ two libraries. Please configure sensors.cfg accordingly and use a stationID diff
 
 tested on Ubuntu 22.04.5 LTS (x86-64, ThinkPad X13 Gen 4) and Raspbian 10 buster (arm, v7l) 
 
+Please note: in order to use 2way communication and uterm together you need to add the PATH variable into your crontab
+
+       PATH=/bin:/usr/bin:/usr/local/bin
+
 #### 10.4.1 Ubuntu 22 
 
 Download the linux Version console 

@@ -118,7 +118,7 @@ def handle(msg):
     if not str(chat_id) in ah.configuration.get('allowed_users'):
         bot.sendMessage(chat_id, "My mother told me not to speak to strangers, sorry...")
         tglogger.warning('--------------------- Unauthorized access -------------------------')
-        tglogger.warning('!!! unauthorized access ({}) from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname))
+        tglogger.warning('!!! unauthorized access attempt ({}) from ChatID {} (User: {}) !!!'.format(command,chat_id,firstname))
         tglogger.warning('-------------------------------------------------------------------')
     else:
         if content_type == 'text':
@@ -154,4 +154,4 @@ while 1:
         tglogger.info('\n Program interrupted')
         exit()
     except:
-        tglogger.error('Other error or exception occured!')
+        tglogger.error('Other error or exception occurred!')

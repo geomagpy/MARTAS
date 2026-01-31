@@ -1204,6 +1204,10 @@ class ActionHandler(object):
                     line = p.stdout.readline().decode()
                     count += 1
                 output = "".join(oput)
+            elif call.find("martas") > -1 or call.find("collect") > -1:
+                # Special treatment required - as terminal needs to be kept open (p.communicate() would close the terminal
+                p = subprocess.Popen([call], stdout=subprocess.PIPE, stdin=subprocess.PIPE, shell=True)
+                output = "your wish is my command"
             else:
                 p = subprocess.Popen(call, stdout=subprocess.PIPE, shell=True)
                 (output, err) = p.communicate()

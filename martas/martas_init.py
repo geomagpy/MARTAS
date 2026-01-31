@@ -257,7 +257,7 @@ def main(argv):
 
     print (" ------------------------------------------- ")
     print (" Please insert the address of the MQTT broker:")
-    print ("  MARTAS: the brocker on which you publish data")
+    print ("  MARTAS: the broker on which you publish data")
     print ("  MARCOS: the broker to which you subscribe")
     print (" (press return for accepting default: {})".format(mqttbroker))
     newmqttbroker = input()
@@ -274,7 +274,7 @@ def main(argv):
         print(" MQTT security based on TLS:")
         print(" please choose: (1) TLS-PSK encryption, (2) TLS on certificate basis")
         print(" (1) EXPERIMENTAL ---- requires an available PSK identity and password - AND - pip install sslpsk2")
-        print(" (2) VERIFIED ---- also to be used for INTERMAGNET MQTT service")
+        print(" (2) VERIFIED ---- most cases, also to be used for INTERMAGNET MQTT service")
         secsel = input()
         if secsel in ["1"]:
             print("  TLS-PSK: please insert a credential shortcut for a valid psk identity.")
@@ -623,7 +623,7 @@ def main(argv):
                 fout.write(line+"\n")
 
         cronlist.append("# Running MARTAS ")
-        cronlist.append("15  0,6,12,18  * * *    /usr/bin/bash -i {} start > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
+        cronlist.append("15 * * * *    /usr/bin/bash -i {} start > {} 2>&1".format(os.path.join(homedir, dir,"runmartas.sh"),os.path.join(homedir, dir, "log","runmartas.log")))
         cronlist.append("# Monitoring {} - hourly".format(jobname)) # jobname only for MARTAS
 
         with CronTab(user=True) as cron:
@@ -632,7 +632,7 @@ def main(argv):
                                                           os.path.join(logpath, "runmartas.log"))
             if not list(cron.find_comment(comment)):
                 job = cron.new(command=line, comment=comment)
-                job.setall('15 0 * * *')
+                job.setall('15 * * * *')
             macomment2 = "Start MARTAS viewer"
             maline2 = "/usr/bin/bash -i {} > {} 2>&1".format(os.path.join(homedir, dir, "martas_view"),
                                                           os.path.join(logpath, "martas_view.log"))
@@ -848,7 +848,7 @@ def main(argv):
             line1 = "/usr/bin/bash -i {} start > {} 2>&1".format(os.path.join(homedir, dir, marcosjob+".sh"),os.path.join(logpath, marcosjob+".log"))
             if not list(cron.find_comment(comment1)):
                 job1 = cron.new(command=line1, comment=comment1)
-                job1.setall('17 0 * * *')
+                job1.setall('17 * * * *')
             comment2 = "Archiving"
             line2 = "{} {} -c {} > {} 2>&1".format(sys.executable, os.path.join(homedir, dir,"app","archive.py"),os.path.join(confpath,"archive.cfg"), os.path.join(logpath,"archive.log"))
             if not list(cron.find_comment(comment2)):
@@ -922,12 +922,16 @@ def main(argv):
 
         if addtelegrambot:
             comment10 = "Telegram two-way communication bot"
+            comment10c = "Telegram two-way communication bot - restart"
             line10 = "/usr/bin/bash -i {} start 2>&1".format(os.path.join(homedir, dir, "runbot.sh"))
+            line10c = "/usr/bin/bash -i {} restart 2>&1".format(os.path.join(homedir, dir, "runbot.sh"))
             if not list(cron.find_comment(comment10)):
                 job10a = cron.new(command=line10, comment=comment10)
                 job10a.setall('0 8 * * *')
                 job10b = cron.new(command=line10, comment=comment10)
                 job10b.setall('0 16 * * *')
+                job10c = cron.new(command=line10c, comment=comment10c)
+                job10c.setall('15 1 * * *')
 
 
     replacedict = { "/logpath" : malogpath,
@@ -1038,6 +1042,8 @@ def main(argv):
         print("  keep running for a few minutes. This will update the meta information in your database.")
     print("- you might want to add job restarts after rebooting into crontab:")
     print("  @reboot sleep 60 && bash -i /jobpath/runmartas.sh start > /logpath/runmartas.log 2>&1")
+    print("- you also might want to add paths to crontab PATH=/bin:/usr/bin:/usr/local/bin")
+    print("  which at least is necessary if you are using 2-way comm")
 
 if __name__ == "__main__":
    main(sys.argv[1:])
