@@ -639,6 +639,8 @@ Finally add a sensor line like the following.
 
 GNSS data will contain location, altitude, prescission, quality, number of satellites, and other parameters. It will
 also record GPS and NTP time. The primary timestamp will be the one selected in the sensor line above. 
+Please note: you might need to reset the hat on the side button next to the gnss antenna, to get it running (if only
+a single red light is on).
 
 
 ### 4.5 Running the acquisition system

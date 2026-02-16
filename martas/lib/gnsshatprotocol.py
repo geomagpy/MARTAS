@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 import struct # for binary representation
 import socket # for hostname identification
 import string # for ascii selection
+
+from magpy.core.methods import is_number
 from twisted.python import log
 from martas.core import methods as mm
 import subprocess
@@ -29,6 +31,9 @@ class GNSSHATProtocol(object):
     """
     Protocol to read Waveshare GNSS HAT data attached to a raspberry.
     https://www.waveshare.com/wiki/GSM/GPRS/GNSS_HAT
+
+    Please note: you might need to reset the hat on the side button next to the gnss antenna
+
     """
 
     def __init__(self, client, sensordict, confdict):
@@ -149,6 +154,8 @@ class GNSSHATProtocol(object):
                 log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
         for key in numkeylist:
             dat = res.get(key, 0.000)
+            if not is_number(dat):
+                dat = 0.000
             try:
                 values.append(float(dat))
                 datearray.append(int(float(dat)*1000))
@@ -312,8 +319,11 @@ class GNSSHATProtocol(object):
             res = self.get_nmea(result)
             if self.debug:
                 print ("Obtained:", res)
-            time.sleep(0.1)
-            self.serwrite(ser,self.commands[4])
+            time.sleep(0.5)
+            self.num = self.num + 1
+            if self.num > 4:
+                self.num = 4
+            self.serwrite(ser,self.commands[self.num])
             self.data = b""
             #publish it
             self.publish_data(res)
