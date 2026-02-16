@@ -1971,6 +1971,8 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | OneWire             | 2.0.0    | multiple    | owprotocol.py            | passive |                |                  |
 | POS1                | 2.0.0    | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
 | Test                | 2.0.0    | special     | testprotocol.py          | passive |                |                  |
+| wavehare GNSS HAT   | develop  | gnss        | gnsshatprotocol.py       | active  |                |                  |
+| MMC5603             | develop  | magnetic    | mmc5603i2cprotocol.py    | passive |                |                  |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
@@ -2199,7 +2201,7 @@ the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full pat
 it available from cron.
 Please read sections 4 for [MARTAS](#4-pmartas) setup.
 
-#### 10.1.2 MARTAS on Raspberry (zero, RP5)
+#### 10.1.2 MARTAS on Raspberry (tested on Zero W, RPi5)
 
 For Debian 13 "Trixie" please use the standard installation routine. For older systems proceed as follows.
 The following approach was tested using Debian bookworm with python 3.11. Please note: you can also use the 
@@ -2218,29 +2220,40 @@ Create an environment and install MARTAS
         virtualenv ~/env/martas
         source ~/env/martas/bin/activate
 
-Get some of the critical python dependencies first. In case of failures please contact the development 
+Get some of the critical python dependencies first. It is strongly recommended to select versions with already existing
+pre-compiled wheels, especially for low-power systems like the Zero W. In case of failures please contact the development 
 team for working versions of the specific packages and their dependencies. Typically problems are related 
 to sub-dependencies of numpy, matplotlib and scipy. The following recommendation is valid for bookworm 
 with python 3.11, which might fail because of the matplotlib dependency *contourpy*. So lets choose a 
 working version first:
 
+        # pillow requirements (matplotlib)
+        sudo apt-get install libjpeg-dev zlib1g-dev
+        sudo apt-get install libopenblas-dev
+
         pip install numpy==1.26.4
         pip install contourpy==1.0.7
+        pip install --extra-index-url=https://www.piwheels.org/simple Pillow
         pip install matplotlib==3.6.3
         #####pip install pywavelet==1.8.0####
         pip install PyWavelets==1.8.0
         pip install cryptography==38.0.4
-        pip install geomagpy
 
-In case you get problems related to llvmlite or numba (observed in raspbian bookworm with python 3.11.2), please contact
-the development team for a minimal version of geomagpy without emd support (please note: this will affect KI and 
+32 bit ARM systems like the raspberry Zero W are not supported by llvmlite. For those systems a minimal package of
+geomagpy is required and can be obtained here (link). In any case of other problems related to llvmlite or numba 
+(observed in raspbian bookworm with python 3.11.2), please contact
+the development team for a minimal version of geomagpy without emd support (please note: this will affect AI and 
 activity analysis, which usually is not done on pMARTAS).
 
-Alternatively, you might also try:
+Alternatively, on 64bit systems, you might also try:
 
         sudo apt install llvm-14
         LLVM_CONFIG=/usr/bin/llvm-config-14
         pip install numba==0.59.1
+
+Then install
+
+        pip install geomagpy
 
 Then install all other modules and their dependencies
 

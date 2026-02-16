@@ -422,6 +422,7 @@ def on_message(client, userdata, msg):
     global verifiedlocation
     global debug
     global stid
+    global senslst
     digit = 0
     arrayinterpreted = False
     wsarrayinterpreted = False
@@ -597,10 +598,11 @@ def on_message(client, userdata, msg):
                     if len(st) < 2:
                          print ("Not enough streams for subtraction yet")
                     try:
-                        if counter > amount and len(st) > 2:
+                        if counter > amount and len(st) > 1:
                             counter = 0
+                            senslst = []
                             sub = subtract_streams(st[0],st[1])
-                            print (sub)
+                            #print (sub)
                             try:
                                 part1 = (st[0].header.get('SensorID').split('_')[1])
                             except:

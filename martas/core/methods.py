@@ -649,7 +649,7 @@ def sendtelegram(message, configpath="", proxies=None, debug=True):
     config.read(configpath)
     token = config.get('telegram', 'token')
     chat_id = config.get('telegram', 'chat_id')
-    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={rep}"
+    url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={rep}&parse_mode=markdown"
     print(requests.get(url, proxies=proxies).json())  # this sends the message
     return True
 
@@ -744,8 +744,15 @@ class martaslog(object):
 
         return changes
 
-    def msg(self, dictionary):
+    def msg(self, dictionary, ignore=None):
         changes = self.updatelog(self.logfile, dictionary)
+        if ignore:
+            newchanges = {}
+            for el in changes:
+                cont = changes.get(el)
+                if not ignore in cont:
+                    newchanges[el] = cont
+            changes = newchanges
         if len(changes) > 0:
             self.notify(changes)
         return changes

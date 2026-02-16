@@ -6,7 +6,9 @@ and collection from many different sources.
 
 v2.0.0-rc3 general:
     - updated two way communication issues
-
+    - updated install instructions for RPi Zero W
+    - added library: mmc5603 I2C low cost magnetic compass
+    - added library: GSM/GPRS/GNSS HAT
 
 ####v<2.0.0-rc1>, <2025-12-15> --
 

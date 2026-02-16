@@ -756,10 +756,11 @@ class ActionHandler(object):
         """
         DESCRIPTION:
             updating martas using pip - requires martas 2 to be published on pypi
+            ! will not work on system python as sudo and --break-systempackages are required
         """
         message = {}
         message['call'] = ["pip install -U martas", "martas_init -U"] # "pip install -U martas",
-        message['text'] = "updating martas...\n"
+        message['text'] = "upgrading martas...\n"
         return message
 
 

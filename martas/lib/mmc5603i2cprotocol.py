@@ -15,21 +15,19 @@ import subprocess
 
 try:
     import board
-    import busio
-    from adafruit_bme280 import basic as adafruit_bme280
+    import adafruit_mmc56x3
 except:
-    log.msg("   bme280 ic2 requires the following packages: board, adafruit-blinka and adafruit-circuitpython-bme280")
+    log.msg("   mmc5603 i2c requires the following packages: board, adafruit-blinka and adafruit-circuitpython-mmc56x3")
 
-## I2C BME280 protocol
+    ## I2C MMC5603 protocol
 ## -----------------------
 
-class BME280I2CProtocol(object):
+class MMC5603I2CProtocol(object):
     """
-    Protocol to read BME280 data attached to I2C pins of i.e. an raspberry
+    Protocol to read MMC5603 data attached to I2C pins of i.e. an raspberry
     This protocol makes use of the Adafruit library.
+    pip3 install adafruit-circuitpython-mmc56x3
 
-    special configuration data:
-    sea_level_pressure  :  1013.25  # to correctly determine altitude
     """
 
     def __init__(self, client, sensordict, confdict):
@@ -55,11 +53,6 @@ class BME280I2CProtocol(object):
             self.qos = 0
         log.msg("  -> setting QOS:", self.qos)
 
-        # Obtain sea level:
-        try:
-            self.sea_level_p = float(confdict.get('sea_level_pressure',1013.25))
-        except:
-            self.sea_level_p = 1013.25
 
         # switch on debug mode
         self.debug = False
@@ -69,22 +62,25 @@ class BME280I2CProtocol(object):
         else:
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
+        # connect to i2c
+        conn = self.open_connection()
+
 
     def datetime2array(self,t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
     def open_connection(self):
         #log.msg("connecting to I2C ...")
-        i2c = busio.I2C(board.SCL, board.SDA)
-        bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c,address=0x76)
-        bme280.mode = adafruit_bme280.MODE_NORMAL
-        time.sleep(1)
-        #log.msg("... done")
-        return bme280
-
-    def define_sea_level(self,bme280,sea_level_pressure=1013.25):
-        bme280.sea_level_pressure = sea_level_pressure
-        return bme280
+        i2c = board.I2C()  # uses board.SCL and board.SDA
+        # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
+        sensor = adafruit_mmc56x3.MMC5603(i2c)
+        sensor.data_rate = 10  # in Hz, from 1-255 or 1000
+        sensor.continuous_mode = True
+        while True:
+            data = self.get_mmc5603_data(sensor)
+            # request meta
+            meta = self.define_mmc5603_meta()
+            self.publish_data(data,meta)
 
     def restart(self):
         try:
@@ -98,7 +94,7 @@ class BME280I2CProtocol(object):
         log.msg('SerialCall: Restarted martas process')
 
 
-    def processBME280Data(self, sensorid, meta, data):
+    def processMMC5603Data(self, sensorid, meta, data):
         """Convert raw ADC counts into SI units as per datasheets"""
         currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         outdate = datetime.strftime(currenttime, "%Y-%m-%d")
@@ -139,39 +135,25 @@ class BME280I2CProtocol(object):
 
         return ','.join(list(map(str,datearray))), header
 
-    def get_bme280_data(self,bme280):
-        temp = bme280.temperature
-        hum = bme280.humidity
-        relhum = bme280.relative_humidity
-        pressure = bme280.pressure
-        altitude = bme280.altitude
-        data = [temp,hum,relhum,pressure,altitude]
+    def get_mmc5603_data(self,sensor):
+        mag_x, mag_y, mag_z = sensor.magnetic
+        print(f"X:{mag_x:10.2f}, Y:{mag_y:10.2f}, Z:{mag_z:10.2f} uT")
+
+        data = [mag_x, mag_y, mag_z]
         return data
 
-    def define_bme280_meta(self):
+    def define_mmc5603_meta(self):
         meta = {}
-        meta['SensorKeys'] = 't1,var1,var2,var3,var4'
-        meta['SensorElements'] = 'T,Humidity,rh,P,altitude'
-        meta['SensorUnits'] = 'degC,percent,percent,hPa,m'
+        meta['SensorKeys'] = 'x,y,z'
+        meta['SensorElements'] = 'X,Y,Z'
+        meta['SensorUnits'] = 'uT,uT,uT'
         return meta
-
-    def sendRequest(self):
-
-        # connect to i2c
-        conn = self.open_connection()
-        # define sea level
-        conn = self.define_sea_level(conn,self.sea_level_p)
-        # request data
-        data = self.get_bme280_data(conn)
-        # request meta
-        meta = self.define_bme280_meta()
-        self.publish_data(data,meta)
 
     def publish_data(self, data, meta):
 
         if len(data) > 0:
             topic = self.confdict.get('station') + '/' + self.sensor
-            pdata, head = self.processBME280Data(self.sensor, meta, data)
+            pdata, head = self.processMMC5603Data(self.sensor, meta, data)
 
             senddata = False
             try:
