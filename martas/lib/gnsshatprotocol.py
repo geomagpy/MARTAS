@@ -78,7 +78,7 @@ class GNSSHATProtocol(object):
     def datetime2array(self,t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
-    def serwrite(ser, command, eol="\r\n"):
+    def serwrite(self, ser, command, eol="\r\n"):
         fc = command + eol
         ffc = fc.encode()
         if sys.version.startswith('3'):
