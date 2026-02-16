@@ -236,12 +236,16 @@ class GNSSHATProtocol(object):
         Checking NMEA strings by checksum
         """
         tline = line.strip("$\n")
-        nmea, cont_checksum = tline.split("*", 1)
-        calc_checksum = reduce(operator.xor, (ord(s) for s in nmea), 0)
-        if int(cont_checksum, base=16) == calc_checksum:
-            return True
-        else:
-            print("NMEA: calculated and contained checksums differ")
+        try:
+            nmea, cont_checksum = tline.split("*", 1)
+            calc_checksum = reduce(operator.xor, (ord(s) for s in nmea), 0)
+            if int(cont_checksum, base=16) == calc_checksum:
+                return True
+            else:
+                print("NMEA: calculated and contained checksums differ")
+                return False
+        except:
+            print("NMEA: checksums problem")
             return False
 
     def convert_ddmm(self, ddmm, orientation="", debug=False):

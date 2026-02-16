@@ -63,7 +63,7 @@ class MMC5603I2CProtocol(object):
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
         # connect to i2c
-        conn = self.open_connection()
+        self.conn = self.open_connection()
 
 
     def datetime2array(self,t):
@@ -76,22 +76,14 @@ class MMC5603I2CProtocol(object):
         sensor = adafruit_mmc56x3.MMC5603(i2c)
         sensor.data_rate = 10  # in Hz, from 1-255 or 1000
         sensor.continuous_mode = True
+        return sensor
+        """
         while True:
             data = self.get_mmc5603_data(sensor)
             # request meta
             meta = self.define_mmc5603_meta()
             self.publish_data(data,meta)
-
-    def restart(self):
-        try:
-            subprocess.check_call(['/etc/init.d/martas', 'restart'])
-        except subprocess.CalledProcessError:
-            log.msg('SerialCall: check_call did not work')
-            pass # handle errors in the called executable
-        except:
-            log.msg('SerialCall: check call problem')
-            pass # executable not found
-        log.msg('SerialCall: Restarted martas process')
+        """
 
 
     def processMMC5603Data(self, sensorid, meta, data):
@@ -137,9 +129,11 @@ class MMC5603I2CProtocol(object):
 
     def get_mmc5603_data(self,sensor):
         mag_x, mag_y, mag_z = sensor.magnetic
-        print(f"X:{mag_x:10.2f}, Y:{mag_y:10.2f}, Z:{mag_z:10.2f} uT")
+        temp = sensor.temperature
 
-        data = [mag_x, mag_y, mag_z]
+        print(f"X:{mag_x:10.2f}, Y:{mag_y:10.2f}, Z:{mag_z:10.2f} uT, T:{temp:10.2f} degC")
+
+        data = [mag_x, mag_y, mag_z, temp]
         return data
 
     def define_mmc5603_meta(self):
@@ -148,6 +142,19 @@ class MMC5603I2CProtocol(object):
         meta['SensorElements'] = 'X,Y,Z'
         meta['SensorUnits'] = 'uT,uT,uT'
         return meta
+
+    def lineReceived(self, line):
+        topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
+        if self.pvers > 2:
+            line=line.decode('latin')
+        line = ''.join(filter(lambda x: x in string.printable, str(line)))
+        print (line)
+
+        data = self.get_mmc5603_data(self.conn)
+        print (data)
+    ## request meta
+    #meta = self.define_mmc5603_meta()
+    #self.publish_data(data, meta)
 
     def publish_data(self, data, meta):
 
