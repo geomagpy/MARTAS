@@ -620,6 +620,27 @@ and then add a sensor line like the following
          WICadjusted,/home/leon/Cloud/Daten,-,-,-,-,active,None,30,1,IMfile,*.min,-,0001,-,-,-,magnetism,-
 
 
+#### 4.4.17 Waveshare GSM/GPRS/GNSS Hat
+
+For this hat, to be used with a Raspberry Pi, the GNSS mode is supported by MARTAS acquisition. In our example the hat 
+is connected to UART pins and thus to ttyS0. In order to access this port with user permission you firstly need to
+use
+
+         sudo raspi-config
+
+Go to interface options and modify serial communication as follows: serial console -> NO, serial port -> YES. The add 
+your user to the groups dialout (and eventually tty).
+
+         sudo adduser $USER dialout
+
+Finally add a sensor line like the following. 
+
+         GNSSHAT_1234_0001,S0,115200,8,1,N,active,None,1,1,GNSSHAT,GNSSHAT,1234,0001,-,OnBoard,GPS,environment,bme environment sensor
+
+GNSS data will contain location, altitude, prescission, quality, number of satellites, and other parameters. It will
+also record GPS and NTP time. The primary timestamp will be the one selected in the sensor line above. 
+
+
 ### 4.5 Running the acquisition system
 
 Please note: the steps described within this section have already been preconfigured during martas_init. You can 
@@ -1971,7 +1992,7 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | OneWire             | 2.0.0    | multiple    | owprotocol.py            | passive |                |                  |
 | POS1                | 2.0.0    | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
 | Test                | 2.0.0    | special     | testprotocol.py          | passive |                |                  |
-| wavehare GNSS HAT   | develop  | gnss        | gnsshatprotocol.py       | active  |                |                  |
+| wavehare GNSS HAT   | 2.0.0    | gnss        | gnsshatprotocol.py       | active  |                |                  |
 | MMC5603             | develop  | magnetic    | mmc5603i2cprotocol.py    | passive |                |                  |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 

@@ -43,9 +43,19 @@ class GNSSHATProtocol(object):
         self.datacnt = 0
         self.metacnt = 10
         self.counter = {}
+        self.ser = None
 
+        # used are currently on command 0 and 4
         self.commands = ["AT+CGNSPWR=1", "AT+CGNSSEQ=\"RMC\"", "AT+CGNSINF", "AT+CGNSURC=2", "AT+CGNSTST=1"]
         self.eol = "\r\n"
+
+        # Serial communication data (from confdict)
+        self.baudrate=int(sensordict.get('baudrate'))
+        self.port = confdict['serialport']+sensordict.get('port')
+        self.parity=sensordict.get('parity')
+        self.bytesize=sensordict.get('bytesize')
+        self.stopbits=sensordict.get('stopbits')
+        self.timeout=2 # should be rate depended
 
         # extract data from configuration dictionary
         debugtest = confdict.get('debug')
@@ -84,21 +94,8 @@ class GNSSHATProtocol(object):
         ser.flushInput()
         self.data = b""
         self.num = 0
-
         self.ser = ser
         return ser
-
-
-    def restart(self):
-        try:
-            subprocess.check_call(['/etc/init.d/martas', 'restart'])
-        except subprocess.CalledProcessError:
-            log.msg('SerialCall: check_call didnt work')
-            pass # handle errors in the called executable
-        except:
-            log.msg('SerialCall: check call problem')
-            pass # executable not found
-        log.msg('SerialCall: Restarted martas process')
 
 
     def processGNSSData(self, sensorid, res):
@@ -112,22 +109,31 @@ class GNSSHATProtocol(object):
         """
         currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         gnsstime = res.get("datetime", currenttime)
-        outdate = datetime.strftime(gnsstime,"%Y-%m-%d")
+
+        if self.sensordict.get('ptime','') in ['NTP','ntp']:
+            secondtime = gnsstime
+            maintime = currenttime
+            sectimename = "GPS"
+        else:
+            maintime = gnsstime
+            secondtime = currenttime
+            sectimename = "NTP"
+
+        outdate = datetime.strftime(maintime,"%Y-%m-%d")
         filename = outdate
 
-        datearray = self.datetime2array(gnsstime)
+        datearray = self.datetime2array(maintime)
+
         fullkeylist = ['lat', 'lon']  # 1000000000
         numkeylist = ['altitude', 'speed', 'course', 'horizontal_prescision', 'geoidal_separation'] # 1000
-        intkeylist = ['quality', 'N'] # 1
-        strkeylist = ['dgps_reference', 'status', 'integrity']
-        keys = '[x,y,z,f,var1,dx,dz,var2,var3,str1,str2,str3]'
+        intkeylist = ['quality', 'N', 'status'] # 1
+        #strkeylist = ['dgps_reference', 'status', 'integrity']
+        keys = '[x,y,z,f,var1,dx,dz,var2,var3,var4,sectime]'
 
         packcode = '6hL'
 
         values = []
         multiplier = []
-
-        keys = []
         unit = []
         data_bin = None
 
@@ -136,7 +142,7 @@ class GNSSHATProtocol(object):
             try:
                 values.append(float(dat))
                 datearray.append(int(float(dat)*1000000000))
-                packcode = packcode + 'l'
+                packcode = packcode + 'q'
                 multiplier.append(1000000000)
                 unit.append("deg")
             except:
@@ -153,12 +159,17 @@ class GNSSHATProtocol(object):
                 elif key == "geoidal_separation":
                     unit.append(res.get('geoidal_separation_unit', '').lower())
                 else:
-                    unit.append("-")
+                    unit.append("")
             except:
                 log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
         for key in intkeylist:
             dat = res.get(key, 0)
             try:
+                if key == 'status':
+                    if dat == 'A':
+                        dat = 1
+                    else:
+                        dat = 0
                 values.append(int(dat))
                 datearray.append(int(dat))
                 packcode = packcode + 'l'
@@ -166,16 +177,9 @@ class GNSSHATProtocol(object):
                 unit.append("")
             except:
                 log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
-        for key in strkeylist:
-            dat = res.get(key, "")
-            try:
-                values.append(int(dat))
-                datearray.append(int(dat))
-                packcode = packcode + 's'
-                multiplier.append(0)
-                unit.append("-")
-            except:
-                log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
+
+        packcode = packcode + '6hL'
+        datearray.extend(self.datetime2array(secondtime))
 
         try:
             data_bin = struct.pack('<'+packcode,*datearray) #little endian
@@ -183,11 +187,15 @@ class GNSSHATProtocol(object):
             log.msg('{} protocol: Error while packing binary data'.format(self.sensordict.get('protocol')))
             pass
 
-        ele = str(fullkeylist+numkeylist+strkeylist+strkeylist).replace(" ","")
-        unit = str(unit).replace(" ","")
+        intkeylist.append('{}time'.format(sectimename.lower()))
+        unit.append("")
+        multiplier.append(0)
+        ele = str(fullkeylist+numkeylist+intkeylist).replace(" ","").replace("'", "").strip()
+        unit = str(unit).replace(" ","").replace("'", "").strip()
         multplier = str(multiplier).replace(" ","")
         # Correct some common old problem
         unit = unit.replace('deg C', 'degC')
+        #print (ele,multiplier,unit)
 
         header = "# MagPyBin %s %s %s %s %s %s %d" % (sensorid, keys, ele, unit, multplier, packcode, struct.calcsize(packcode))
 
@@ -285,12 +293,12 @@ class GNSSHATProtocol(object):
             rd['integrity'] = rmcsplit[12]
             datetime_str = "{} {}".format(rmcsplit[9], rmcsplit[1])
             datetime_obj = datetime.strptime(datetime_str, '%d%m%y %H%M%S.%f')
-            rd['datetime'] = datetime.strftime(datetime_obj, '%Y-%m-%dT%H:%M:%S.%f')
+            #rd['datetime'] = datetime.strftime(datetime_obj, '%Y-%m-%dT%H:%M:%S.%f')
+            rd['datetime'] = datetime_obj
         return rd
 
 
     def sendRequest(self):
-
         # connect to serial
         ser = self.ser
         if not ser or not ser.isOpen():
@@ -302,19 +310,13 @@ class GNSSHATProtocol(object):
         if not self.data == b"":
             result = self.data.decode()
             res = self.get_nmea(result)
-            print ("Obtained:", res)
-            time.sleep(0.5)
-            print ("Sending next command:", self.num+1)
-            self.serwrite(ser,self.commands[self.num+1])
-            self.num = self.num+1
-            if self.num == 4:
-                num = 0
-                time.sleep(0.5)
-                print ("Sending final command 4")
-                self.serwrite(ser,self.commands[4])
+            if self.debug:
+                print ("Obtained:", res)
+            time.sleep(0.1)
+            self.serwrite(ser,self.commands[4])
             self.data = b""
             #publish it
-            #self.publish_data(res)
+            self.publish_data(res)
 
     def publish_data(self, res):
 

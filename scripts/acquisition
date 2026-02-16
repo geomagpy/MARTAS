@@ -126,6 +126,8 @@ SUPPORTED_PROTOCOLS = {'Env' : {"name" : "Envrionement 05 sensor", "type" : "pas
                        'IMfile' : {"name" : "MagPy readable data files"},
                        'FourPL' : {"name" : "Lippmann 4PL geoelectric sensor", "status" : "productive"},
                        'BME280I2C' : {"name" : "BME280 T/P/rh probe on I2C", "status" : "productive"},
+                       'GNSSHAT' : {"name" : "Waveshare GSM/GPRS/GNSS Hat", "status" : "develop"},
+                       'MMC5603I2C' : {"name" : "MMC5603 magnetic probe on I2C", "status" : "develop"},
                        }
 
 #SUPPORTED_PROTOCOLS = ['Env','Ow','Lemi','Arduino','GSM90','GSM19','Cs','POS1','MySQL','Lm','Lnm','BM35','Test','GP20S3','Active','ActiveArduino','DSP','Disdro','ad7714','fluke289','cr1000jc','GIC','obsdaq','imfile','FourPL','BME280I2C'] # should be provided by MagPy
@@ -153,6 +155,8 @@ ok              AD7714          : py2 		: autonomous		: general ADC
 current work              IMFile          : py3 		: active		: read files
 current work              FourPL          : py3 		: active		: 4point light geoelectric
 current work              BME280I2C       : py3 		: active		: I2C pins on raspberry with BME280 T-humidity-pressure
+current work              GNSSHAT       : py3 		: active		: I2C pins on raspberry with BME280 T-humidity-pressure
+current work              MMC5603I2C       : py3 		: active		: I2C pins on raspberry with BME280 T-humidity-pressure
 """
 
 try:
