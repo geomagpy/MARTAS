@@ -319,8 +319,11 @@ class GNSSHATProtocol(object):
             self.data += ser.read(ser.inWaiting())
         #print ("data", data.decode())
         if not self.data == b"":
-            result = self.data.decode()
-            res = self.get_nmea(result)
+            try:
+                result = self.data.decode()
+                res = self.get_nmea(result)
+            except:
+                res = {}
             if self.debug:
                 print ("Obtained:", res)
             time.sleep(0.5)

@@ -63,27 +63,21 @@ class MMC5603I2CProtocol(object):
             log.msg('  -> Debug mode = {}'.format(debugtest))
 
         # connect to i2c
-        self.conn = self.open_connection()
+        self.conn = self.init_sensor()
 
 
     def datetime2array(self,t):
         return [t.year,t.month,t.day,t.hour,t.minute,t.second,t.microsecond]
 
-    def open_connection(self):
+    def init_sensor(self):
         #log.msg("connecting to I2C ...")
         i2c = board.I2C()  # uses board.SCL and board.SDA
         # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
         sensor = adafruit_mmc56x3.MMC5603(i2c)
-        sensor.data_rate = 10  # in Hz, from 1-255 or 1000
-        sensor.continuous_mode = True
+        sensor.reset()  # in Hz, from 1-255 or 1000
+        #sensor.data_rate = 10  # in Hz, from 1-255 or 1000
+        #sensor.continuous_mode = True
         return sensor
-        """
-        while True:
-            data = self.get_mmc5603_data(sensor)
-            # request meta
-            meta = self.define_mmc5603_meta()
-            self.publish_data(data,meta)
-        """
 
 
     def processMMC5603Data(self, sensorid, meta, data):
@@ -130,9 +124,7 @@ class MMC5603I2CProtocol(object):
     def get_mmc5603_data(self,sensor):
         mag_x, mag_y, mag_z = sensor.magnetic
         temp = sensor.temperature
-
         print(f"X:{mag_x:10.2f}, Y:{mag_y:10.2f}, Z:{mag_z:10.2f} uT, T:{temp:10.2f} degC")
-
         data = [mag_x, mag_y, mag_z, temp]
         return data
 
@@ -143,18 +135,16 @@ class MMC5603I2CProtocol(object):
         meta['SensorUnits'] = 'uT,uT,uT'
         return meta
 
-    def lineReceived(self, line):
-        topic = self.confdict.get('station') + '/' + self.sensordict.get('sensorid')
-        if self.pvers > 2:
-            line=line.decode('latin')
-        line = ''.join(filter(lambda x: x in string.printable, str(line)))
-        print (line)
+    def sendRequest(self):
 
+        print (self.conn)
+        if not self.conn:
+            self.conn = self.init_sensor()
+            # or put everything in a try except and reconnect on except
+        # connect to i2c
         data = self.get_mmc5603_data(self.conn)
-        print (data)
-    ## request meta
-    #meta = self.define_mmc5603_meta()
-    #self.publish_data(data, meta)
+        meta = self.define_mmc5603_meta()
+        self.publish_data(data,meta)
 
     def publish_data(self, data, meta):
 

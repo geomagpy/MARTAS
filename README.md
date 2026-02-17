@@ -593,8 +593,9 @@ Then you can use the following line in sensors.cfg
 
 #### 4.4.13 BME280 I2C sensors
 
-Using I2C senosrs requires the additional installation of adafruit python packages. Currently a library for BM280 
-temperature, humidity and pressure senosr is included. Other I2C senosrs could easily be added in future.
+Using I2C sensors requires the additional installation of adafruit python packages. Currently a library for BM280 
+temperature, humidity and pressure sensor is included. Other I2C sensors could easily be added in future.
+Raspberry Pi Zero W: detect address of I2C sensor: sudo i2cdetect -y 1
 
 Install the following packages first:
 
@@ -631,7 +632,8 @@ use
 Go to interface options and modify serial communication as follows: serial console -> NO, serial port -> YES. The add 
 your user to the groups dialout (and eventually tty).
 
-         sudo adduser $USER dialout
+         sudo usermod -a -G dialout $USER
+         sudo usermod -a -G tty $USER
 
 Finally add a sensor line like the following. 
 
@@ -641,6 +643,23 @@ GNSS data will contain location, altitude, prescission, quality, number of satel
 also record GPS and NTP time. The primary timestamp will be the one selected in the sensor line above. 
 Please note: you might need to reset the hat on the side button next to the gnss antenna, to get it running (if only
 a single red light is on).
+
+#### 4.4.18 MMC5603 I2C sensors
+
+Using I2C sensors requires the additional installation of adafruit python packages. Beside the BME280 environment
+senser for temperature, humidity and pressure, pMARTAS also supports the MMC5603 sensor. In difference to the BME280,
+which is actively triggered for readings, the MMC5603 will be set to *continuous* mode during init and thus act as a 
+passive sensors.
+
+
+Install the following package first:
+
+         pip install adafruit-circuitpython-mmc56x3
+
+and then add a sensor line like the following
+
+         MMC5603_1234_0001,I2C,-,-,-,-,active,None,1,1,MMC5603IC2,MMC5603,1234,0001,-,OnBoard,NTP,magnetism,mmc magnetic sensor
+
 
 
 ### 4.5 Running the acquisition system
@@ -1995,7 +2014,7 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 | POS1                | 2.0.0    | overhauser  | pos1protocol.py          | passive | pos1init.sh    |                  |
 | Test                | 2.0.0    | special     | testprotocol.py          | passive |                |                  |
 | wavehare GNSS HAT   | 2.0.0    | gnss        | gnsshatprotocol.py       | active  |                |                  |
-| MMC5603             | develop  | magnetic    | mmc5603i2cprotocol.py    | passive |                |                  |
+| MMC5603             | develop  | magnetic    | mmc5603i2cprotocol.py    | active  |                | 4.4.17           |
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
