@@ -2287,7 +2287,7 @@ working version first:
         pip install cryptography==38.0.4
 
 32 bit ARM systems like the raspberry Zero W are not supported by llvmlite. For those systems a minimal package of
-geomagpy is required and can be obtained (here: geomagpy_2.0.2_minimal)[]. Please note: the minimal version has 
+geomagpy is required and can be obtained [here: geomagpy_2.0.2min](https://github.com/geomagpy/MARTAS/blob/master/martas/doc/geomagpy-2.0.2min.tar.gz). Please note: the minimal version has 
 no support for AI and limited support for activity analysis, which usually is not done on pMARTAS.
 
         pip install geomagpy_2.0.2min.tar.gz
@@ -2360,7 +2360,7 @@ working version first:
         pip install cryptography==38.0.4
 
 In case of problems related to llvmlite or numba (observed in raspbian bookworm with python 3.11.2), please use the 
-[minimal version of geomagpy]() without emd support (please note: this will affect AI and 
+[minimal version of geomagpy](https://github.com/geomagpy/MARTAS/blob/master/martas/doc/geomagpy-2.0.2min.tar.gz) without emd support (please note: this will affect AI and 
 activity analysis, which usually is not done on pMARTAS).
 
 Alternatively you might also try:
