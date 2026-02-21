@@ -2209,16 +2209,21 @@ packages for your specific system based on apt.
       # install am335x-debian-12.11-base-vscode-v6.15-armhf-2025-06-30-4gb.img.xz
       # change name and reboot
       # check size (SD card should be recognized) 
-      # seems as if only SD <= 32 GB are working
+
       sudo apt update
       sudo apt upgrade
+
       # install MQTT client and broker (if not configured differently, the beaglebone acts as broker)
       sudo apt install mosquitto mosquitto-clients
       # configure mosquitto (see 2.3)
+
       # eventually install and configure ntp (network time protocol)
       #sudo apt install ntp
+
+      # install basic python system packages 
       sudo apt install python3-numpy python3-scipy python3-matplotlib python3-twisted python3-serial python3-numba python3-pandas
-      ####sudo pip install --break-system-packages pywavelets==1.8.0####
+
+      # install additional python packages on system level
       sudo pip install --break-system-packages PyWavelets==1.8.0
       sudo pip install --break-system-packages pymysql==1.1.1
       sudo pip install --break-system-packages geomagpy
@@ -2226,14 +2231,14 @@ packages for your specific system based on apt.
       sudo pip install --break-system-packages plotly==6.2.0
       sudo pip install --break-system-packages dash==3.1.1
       # there might be an error message related to uninstall blinker: ignore
-      # Test MagPy
       sudo pip install --break-system-packages sslpsk2==1.0.2
-      sudo pip install --break-system-packages MARTAS-develop.zip
+      sudo pip install --break-system-packages martas
       # eventually hash errors occur - just retry
-      # Test MagPy
+
       sudo mkdir /srv/mqtt
       sudo chown debian:debian /srv/mqtt
       martas_init
+
       # add PATH to crontab: PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
       # add reboot command: @reboot sleep 60 && /usr/bin/bash -i /home/debian/.martas/runmartas.sh start > /home/debian/.martas/log/runmartas.log 2>&1
       # activate TEST
@@ -2243,10 +2248,83 @@ the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full pat
 it available from cron.
 Please read sections 4 for [MARTAS](#4-pmartas) setup.
 
-#### 10.1.2 MARTAS on Raspberry (tested on Zero W, RPi5)
+#### 10.1.2 MARTAS on Raspberry Zero W (32bit)
 
-For Debian 13 "Trixie" please use the standard installation routine. For older systems proceed as follows.
-The following approach was tested using Debian bookworm with python 3.11. Please note: you can also use the 
+Tested for Debian 13 "Trixie" and Debian "Bookworm" (python 3.11). It is recommended to use a python environment for 
+installation. You can, however, also use the "break-system-packages" approach as in 10.1.1.
+
+        sudo apt update
+        sudo apt upgrade
+
+install MQTT client and broker (if not configured differently, the raspberry acts as broker) and virtualenv
+
+        sudo apt install mosquitto mosquitto-clients
+        sudo apt install python3-virtualenv
+
+Configure mosquitto as shown in Section [2.3](#23-configure-mqtt).
+
+Create a python environment and then install MARTAS with specific packages
+
+        virtualenv ~/env/martas
+        source ~/env/martas/bin/activate
+
+Get some of the critical python dependencies first. It is strongly recommended to select versions with already existing
+pre-compiled wheels, especially for low-power systems like the Zero W. In case of failures please contact the development 
+team for working versions of the specific packages and their dependencies. Typically, problems are related 
+to sub-dependencies of numpy, matplotlib and scipy. The following recommendation is valid for trixie and bookworm 
+with python 3.11, for which default installation might fail because of the matplotlib dependency *contourpy*. So lets choose a 
+working version first:
+
+        # pillow requirements (matplotlib)
+        sudo apt-get install libjpeg-dev zlib1g-dev
+        sudo apt-get install libopenblas-dev
+
+        pip install numpy==1.26.4
+        pip install contourpy==1.0.7
+        pip install --extra-index-url=https://www.piwheels.org/simple Pillow
+        pip install matplotlib==3.6.3
+        pip install PyWavelets==1.8.0
+        pip install cryptography==38.0.4
+
+32 bit ARM systems like the raspberry Zero W are not supported by llvmlite. For those systems a minimal package of
+geomagpy is required and can be obtained (here: geomagpy_2.0.2_minimal)[]. Please note: the minimal version has 
+no support for AI and limited support for activity analysis, which usually is not done on pMARTAS.
+
+        pip install geomagpy_2.0.2min.tar.gz
+
+Then install all other modules and their dependencies
+
+        pip install martas
+
+Configure the system to your needs using "sudo raspi-config" or the graphical interface. The following options are 
+necessary (n) or recommended (r):
+
+        (n): Interface options - Serial console = NO , Serial port = YES
+        (r): Interface options - ssh = YES
+        (r): Interface options - i2c = YES, (n) if you are planning to use I2C sesnors
+        (r): Localization - timezon - UTC
+
+Create a bufferdircetory
+
+        mkdir ~/MARTAS
+
+Eventually add credentials for notifications by e-mail (skip this one if not used)
+
+        addcred -t email -c email -u USER -p PASSWD -h -p 
+
+Run initialization
+
+        martas_init
+
+Please read sections 4 for [MARTAS](#4-pmartas) setup. It is not recommended to use a Raspberry Zero W for [MARCOS](#5-marcos) 
+although it will work if you limit the amount of incoming data.
+
+#### 10.1.3 MARTAS on Raspberry (RPi5, Zero 2 W and all other 64bit systems)
+
+For Debian 13 "Trixie" please use the [standard installation routine](#22-installing-martas). 
+
+For older systems proceed as follows.
+The approach below was tested using Debian Bookworm with python 3.11. Please note: you can also use the 
 "break-system-packages" approach as in 10.1.1.
 
         sudo apt update
@@ -2281,13 +2359,11 @@ working version first:
         pip install PyWavelets==1.8.0
         pip install cryptography==38.0.4
 
-32 bit ARM systems like the raspberry Zero W are not supported by llvmlite. For those systems a minimal package of
-geomagpy is required and can be obtained here (link). In any case of other problems related to llvmlite or numba 
-(observed in raspbian bookworm with python 3.11.2), please contact
-the development team for a minimal version of geomagpy without emd support (please note: this will affect AI and 
+In case of problems related to llvmlite or numba (observed in raspbian bookworm with python 3.11.2), please use the 
+[minimal version of geomagpy]() without emd support (please note: this will affect AI and 
 activity analysis, which usually is not done on pMARTAS).
 
-Alternatively, on 64bit systems, you might also try:
+Alternatively you might also try:
 
         sudo apt install llvm-14
         LLVM_CONFIG=/usr/bin/llvm-config-14
@@ -2297,9 +2373,17 @@ Then install
 
         pip install geomagpy
 
-Then install all other modules and their dependencies
+Install all other modules and their dependencies
 
         pip install martas
+
+Configure the system to your needs using "sudo raspi-config" or the graphical interface. The following options are 
+necessary (n) or recommended (r):
+
+        (n): Interface options - Serial console = NO , Serial port = YES
+        (r): Interface options - ssh = YES
+        (r): Interface options - i2c = YES, (n) if you are planning to use I2C sesnors
+        (r): Localization - timezon - UTC
 
 Create a bufferdircetory
 
@@ -2313,9 +2397,8 @@ Run initialization
 
         martas_init
 
-Please read sections 4 for [MARTAS](#4-pmartas) setup and section 5 for [MARCOS](#5-marcos) setup.
 
-#### 10.1.3 Full installation examples for specific systems
+#### 10.1.4 Full installation examples for specific systems
 
 Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian 
 like system. Please follow the installation instructions given for the specific operating system. In the following we

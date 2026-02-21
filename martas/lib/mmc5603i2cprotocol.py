@@ -74,7 +74,10 @@ class MMC5603I2CProtocol(object):
         i2c = board.I2C()  # uses board.SCL and board.SDA
         # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
         sensor = adafruit_mmc56x3.MMC5603(i2c)
+        time.sleep(0.5)
         sensor.reset()  # in Hz, from 1-255 or 1000
+        time.sleep(0.5)
+        sensor.set_reset()  # in Hz, from 1-255 or 1000
         #sensor.data_rate = 10  # in Hz, from 1-255 or 1000
         #sensor.continuous_mode = True
         return sensor
@@ -96,7 +99,7 @@ class MMC5603I2CProtocol(object):
             try:
                 values.append(float(dat))
                 datearray.append(int(float(dat)*10000))
-                packcode = packcode + 'l'
+                packcode = packcode + 'q'
                 multiplier.append(10000)
             except:
                 log.msg('{} protocol: Error while appending data to file (non-float?): {}'.format(self.sensordict.get('protocol'),dat) )
@@ -121,28 +124,39 @@ class MMC5603I2CProtocol(object):
 
         return ','.join(list(map(str,datearray))), header
 
-    def get_mmc5603_data(self,sensor):
+    def get_mmc5603_data(self,sensor, debug=False):
         mag_x, mag_y, mag_z = sensor.magnetic
         temp = sensor.temperature
-        print(f"X:{mag_x:10.2f}, Y:{mag_y:10.2f}, Z:{mag_z:10.2f} uT, T:{temp:10.2f} degC")
-        data = [mag_x, mag_y, mag_z, temp]
+        if debug:
+             print(f"X:{mag_x:10.3f}, Y:{mag_y:10.3f}, Z:{mag_z:10.3f} uT, T:{temp:10.3f} degC")
+        data = [float(mag_x)*1000., float(mag_y)*1000., float(mag_z)*1000., temp]
+        return data
+
+    def calibrate_mmc5603_data(self, data, offsets=None, scales=None, debug=False):
+        if not offsets:
+            offsets=[0,0,0,0]
+        if not scales:
+            scales=[1,1,1,1]
+        for i, el in enumerate(data):
+            data[i] = el+offsets[i]
+            data[i] = data[i]*scales[i]
         return data
 
     def define_mmc5603_meta(self):
         meta = {}
-        meta['SensorKeys'] = 'x,y,z'
-        meta['SensorElements'] = 'X,Y,Z'
-        meta['SensorUnits'] = 'uT,uT,uT'
+        meta['SensorKeys'] = 'x,y,z,t1'
+        meta['SensorElements'] = 'X,Y,Z,Ts'
+        meta['SensorUnits'] = 'nT,nT,nT,C'
         return meta
 
     def sendRequest(self):
 
-        print (self.conn)
         if not self.conn:
             self.conn = self.init_sensor()
             # or put everything in a try except and reconnect on except
         # connect to i2c
-        data = self.get_mmc5603_data(self.conn)
+        data = self.get_mmc5603_data(self.conn, debug=self.debug)
+        data = self.calibrate_mmc5603_data(data, offsets=[0,0,550000,9])
         meta = self.define_mmc5603_meta()
         self.publish_data(data,meta)
 
@@ -182,7 +196,7 @@ class MMC5603I2CProtocol(object):
                 if cnt == 0:
                     ## 'Add' is a string containing dict info like:
                     ## SensorID:ENV05_2_0001,StationID:wic, PierID:xxx,SensorGroup:environment,...
-                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
+                    add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDescription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
 
