@@ -291,9 +291,9 @@ Please checkout the [appendix](#102-setting-up-a-secure-tls-based-mosquitto-brok
 
 #### 2.3.4 Testing MQTT data transfer
 
-Issue the following subscription command:
+Issue the following subscription command (if you want to access a specific topic us -t test/#):
 
-        mosquitto_sub -h IPADDRESS_OF_MARTAS -t test/#
+        mosquitto_sub -h IPADDRESS_OF_MARTAS -t '#'
 
 On a freshly installed MARTAS machine issue the following command:
 
@@ -2398,7 +2398,7 @@ Run initialization
         martas_init
 
 
-#### 10.1.4 Full installation examples for specific systems
+#### 10.1.4 Full installation example with all options
 
 Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian 
 like system. Please follow the installation instructions given for the specific operating system. In the following we
@@ -2413,7 +2413,7 @@ partitions on SD card (sudo apt install gparted), proxy configurations (/etc/env
 enable ssh (raspberry PI configuration).
 
 
-##### install necessary packages for all MARTAS applications:
+##### install necessary packages for all MARTAS applications
 
 
 Packages for MARTAS (including support for all modules including icinga/nagios monitoring):
@@ -2460,13 +2460,14 @@ Activate the environment
 
 Install MARTAS:
 
-        pip install ~/Downloads/MARTAS-master.zip
+        pip install martas
 
-Create a bufferdircetory
+Create a bufferdircetory. Replace USER with your username
 
-        mkdir ~/MARTAS
+        sudo mkdir /srv/mqtt
+        sudo chown USER:USER /srv/mqtt
 
-Eventually add credentials for notifications by e-mail (skip this one if not used)
+Add credentials for notifications by e-mail (skip this if not used)
 
         addcred -t email -c email -u USER -p PASSWD -h -p 
 
@@ -2474,7 +2475,7 @@ Run initialization
 
         martas_init
 
-Check crontab (crontab -l):
+Check crontab (crontab -l) and extend with all additional iteme (crontab -e):
 
         crontab -l
 
@@ -2513,18 +2514,18 @@ add credentials for database access (please replace dbnames, user and passwords 
        addcred -t db -c sqlmaster -u admin -p passwd -o localhost -d magpydb
 
 
-#### 10.1.4 Installation behind a proxy server
+#### 10.1.5 Installation behind a proxy server
 
 Reconfigure pip to use the proxy server (if necessary)
 
       pip config set global.proxy http://{host}/{port}
 
 
-#### 10.1.5 installation problems and their solutions
+#### 10.1.6 installation problems and their solutions
 
 sslpsk2 cannot be installed -> sudo apt install ssh libssl-dev and retry
 
-#### 10.1.6 Removing MARTAS 1.x and replacing by MARTAS2
+#### 10.1.7 Removing MARTAS 1.x and replacing by MARTAS2
 
 Install the MARTAS 2. Copy all essential config information. Then
 

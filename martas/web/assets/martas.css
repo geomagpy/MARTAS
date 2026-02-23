@@ -1,4 +1,22 @@
+:root {
+	  --background-color: #fff;
+	  --text-color: black;
+	  --menu-color: #888888;
+	  --wrap-bgcolor: #fff;
+	  --wrap-color: #EDE9E8;
+	  --box-bgcolor: #EDE9E8;
+	  --box-color: #444;
+	  --shadow-color: #999;
+	  --highlight: #cdcdcd;
+	  --primary: hsl(12, 70%, 40%);
+	}
+
+.navbar-light .navbar-brand {
+  color: var(--menu-color);
+}
+
 body {
+	background-color: var(--background-color);
 	margin: 10px;
 	font-family: sans-serif;
 }
@@ -7,13 +25,13 @@ body {
 	display: grid;
 	grid-gap: 10px;
 	grid-template-columns: 1fr 1fr 1fr;
-	background-color: #fff;
-	color: #EDE9E8;
+	background-color: var(--wrap-bgcolor);
+	color: var(--wrap-color);
 	}
 
 .box {
-	background-color: #EDE9E8;
-	color: #444;
+	background-color: var(--box-bgcolor);
+	color: var(--box-color);
 	border-radius: 5px;
 	padding: 20px;
 	font-size: 90%;

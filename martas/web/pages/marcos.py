@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 from magpy.stream import *
-from martas.core import methods as mm
 from martas.version import __version__
-from dash import Dash, html, dash_table, dcc, Output, Input
+import martas.core.methods as mm
+import dash
+from dash import html, dash_table, dcc, Output, Input, callback
 import dash_daq as daq
 from plotly.subplots import make_subplots
 from martas.app.monitor import _latestfile
@@ -39,7 +40,11 @@ pip install dash_daq
 """
 # Configuration information
 mainpath = os.path.dirname(os.path.realpath(__file__))
-configpath = os.path.join(mainpath,"..","conf","archive.cfg")
+configpath = os.path.join(mainpath, "", "..", "..", "conf", "archive.cfg")
+defaultpage = None # "/" if default
+
+#configpath = "/home/leon/.martas/conf/archive.cfg"
+
 
 statusdict = {"archive" : {"space" : 400, "used": 150, "cronenabled": False, "active": False, "logstatus":False },
               "monitor" : {"space" : 100, "used": 100, "cronenabled": False, "active": False, "logstatus":False },
@@ -436,22 +441,24 @@ def get_marcos_html(statusdict,marcos,i):
         ecolor = oncolor
     if statusdict[marcos].get('logstatus'):
         lcolor = oncolor
-    htmllist.append(html.Div([
+    #html.Ul([html.Li("Item 1"), html.Li("Item 2")])
+
+    htmllist.append(html.Tr([html.Td(
         daq.Indicator(id='marcos{}active'.format(i), value=True, color=acolor,
-                      style={"float": "left", "margin-right": "10px"}),
-        html.B("{}".format(marcos)),
-    ]))
-    htmllist.append(html.Div([
+                      style={"float": "left", "margin-right": "10px"})),
+        html.Td(html.B("{}".format(marcos)))]
+    ))
+    htmllist.append(html.Tr([html.Td(
         daq.Indicator(id='marcos{}enabled'.format(i), value=True, color=ecolor,
-                      style={"float": "left", "margin-right": "10px"}),
-        html.P("cron enabled"),
-    ]))
-    htmllist.append(html.Div([
+                      style={"float": "left", "margin-right": "10px"})),
+        html.Td(html.P("scheduled"))],
+    ))
+    htmllist.append(html.Tr([html.Td(
         daq.Indicator(id='marcos{}log'.format(i), value=True, color=lcolor,
-                      style={"float": "left", "margin-right": "10px"}),
-        html.P("log status"),
-    ]))
-    return htmllist
+                      style={"float": "left", "margin-right": "10px"})),
+        html.Td(html.P("log status"))],
+    ))
+    return html.Table(htmllist)
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
@@ -477,9 +484,10 @@ keyoptions, keyvalue = get_graph_keys(datavalue, result)
 # Initialize status dictionary (slow interval, diskspace, cron and processes)
 crontable, croncols, marcoslist, statusdict = get_cron_jobs(statusdict=statusdict, cred=dbcred, archivepath=archivepath, logpath=logpath, debug=debug)
 
-app = Dash(__name__, assets_ignore='martas.css')
+dash.register_page(__name__, path=defaultpage, top_nav=True, assets_ignore='martas.css')
+#app = Dash(__name__, assets_ignore='martas.css')
 
-app.layout = (html.Div(
+layout = (html.Div(
                  className="mwrap",
                  children=[
                               html.Div(
@@ -740,7 +748,7 @@ app.layout = (html.Div(
                              html.Div(
                                  className="mbox mt",
                                  children=html.Div([
-                                     html.H4('Configuration'),
+                                     html.B('Configuration'),
                                      html.Div(id='live-update-config')
                                  ])
                              ),
@@ -760,7 +768,7 @@ app.layout = (html.Div(
 )
 
 
-@app.callback(Output('live-update-config', 'children'),
+@callback(Output('live-update-config', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_config(n):
     #print ("updating config")
@@ -782,7 +790,7 @@ def update_config(n):
     return htmllist
 
 
-@app.callback(Output('live-update-archivestatus', 'children'),
+@callback(Output('live-update-archivestatus', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_archive_status(n):
     #print ("updating archive stats")
@@ -821,7 +829,7 @@ def update_archive_status(n):
     return htmllist
 
 
-@app.callback(Output('live-update-monitorstatus', 'children'),
+@callback(Output('live-update-monitorstatus', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_monitor_status(n):
     #print ("updating monitor stats")
@@ -860,7 +868,7 @@ def update_monitor_status(n):
     return htmllist
 
 
-@app.callback(Output('live-update-dbstatus', 'children'),
+@callback(Output('live-update-dbstatus', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_db_status(n):
     #print ("updating db stats")
@@ -899,7 +907,7 @@ def update_db_status(n):
     return htmllist
 
 
-@app.callback(Output('live-update-marcos1', 'children'),
+@callback(Output('live-update-marcos1', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos1_status(n):
     #print ("updating marcos 1")
@@ -912,7 +920,7 @@ def update_marcos1_status(n):
         htmllist.append(html.P(['empty MARCOS slot']))
     return htmllist
 
-@app.callback(Output('live-update-marcos2', 'children'),
+@callback(Output('live-update-marcos2', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos2_status(n):
     #print ("updating marcos 2")
@@ -927,7 +935,7 @@ def update_marcos2_status(n):
         htmllist.append(html.P(['empty slot']))
     return htmllist
 
-@app.callback(Output('live-update-marcos3', 'children'),
+@callback(Output('live-update-marcos3', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos3_status(n):
     #print ("updating marcos 3")
@@ -940,7 +948,7 @@ def update_marcos3_status(n):
         htmllist.append(html.P(['empty slot']))
     return htmllist
 
-@app.callback(Output('live-update-marcos4', 'children'),
+@callback(Output('live-update-marcos4', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos4_status(n):
     #print ("updating marcos 4")
@@ -953,7 +961,7 @@ def update_marcos4_status(n):
         htmllist.append(html.P(['empty slot']))
     return htmllist
 
-@app.callback(Output('live-update-marcos5', 'children'),
+@callback(Output('live-update-marcos5', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos5_status(n):
     #print ("updating marcos 5")
@@ -966,7 +974,7 @@ def update_marcos5_status(n):
         htmllist.append(html.P(['empty slot']))
     return htmllist
 
-@app.callback(Output('live-update-marcos6', 'children'),
+@callback(Output('live-update-marcos6', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos6_status(n):
     #print ("updating marcos 6")
@@ -979,7 +987,7 @@ def update_marcos6_status(n):
         htmllist.append(html.P(['empty slot']))
     return htmllist
 
-@app.callback(Output('live-update-marcos7', 'children'),
+@callback(Output('live-update-marcos7', 'children'),
               Input('gauge-update', 'n_intervals'))
 def update_marcos7_status(n):
     #print ("updating marcos 7")
@@ -993,7 +1001,7 @@ def update_marcos7_status(n):
     return htmllist
 
 
-@app.callback(Output('key-dropdown', 'options'),
+@callback(Output('key-dropdown', 'options'),
               Output('key-dropdown', 'value'),
               Input('data-dropdown', 'value'))
 def update_keydrop(datavalue):
@@ -1002,7 +1010,7 @@ def update_keydrop(datavalue):
     return keyoptions, keyvalue
 
 
-@app.callback(Output('sensors-table', 'data'),Output('sensors-table', 'columns'),
+@callback(Output('sensors-table', 'data'),Output('sensors-table', 'columns'),
               Input('sensor-dropdown', 'value'))
 def update_table_update(datavalue):
     #print ("updating table")
@@ -1016,7 +1024,7 @@ def update_table_update(datavalue):
     return dtable, cols
 
 
-@app.callback(
+@callback(
     Output('live-graph', 'figure'),
     Input('graph-update', 'n_intervals'),
     Input('heightslider', 'value'),
@@ -1071,5 +1079,5 @@ def update_graph(n, hvalue, duration, datavalue, keyvalue):
 
     return fig
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", debug=False)
+#if __name__ == '__main__':
+#    app.run(host="0.0.0.0", debug=False)
