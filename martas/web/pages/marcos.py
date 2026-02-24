@@ -50,7 +50,7 @@ archivepath = cfg.get('archivepath')
 logpath = cfg.get('logpath')
 dbcred = cfg.get('dbcredentials')
 
-tester = False
+tester = True
 if tester:
     print(cfg)
     archivepath = "/srv"

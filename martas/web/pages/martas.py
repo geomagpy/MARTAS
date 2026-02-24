@@ -30,9 +30,12 @@ mainpath = os.path.dirname(os.path.realpath(__file__))
 configpath = os.path.join(mainpath, "..", "..", "conf", "martas.cfg")
 webconfigpath = os.path.join(mainpath, "..", "..", "conf", "web.cfg")
 
-tester = False
+tester = True
 if tester:
     configpath = "/home/leon/.martas/conf/martas.cfg"
+    debug = True
+else:
+    debug = False
 
 # Read configuration data and initialize amount of plots
 cfg = mm.get_conf(configpath)
@@ -44,7 +47,6 @@ bufferpath = cfg.get('bufferdirectory')
 # import a webpage config: darkmode, defaultpage, default limits, displayrate, read file first
 read_initial_buffer = True
 defaultpage = None  # set default # get from config
-debug = False
 if webcfg.get('defaultpage','martas') in ['martas','Martas','MARTAS','homedirectory']:
     defaultpage = "/" # set default # get from config
 srate = int(webcfg.get('refreshrate',5)) # displayrate - needs to be large enough, dynamically adjusted
