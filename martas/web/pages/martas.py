@@ -9,6 +9,7 @@ from martas.version import __version__
 import dash
 from dash import html, dash_table, dcc, Output, Input, callback
 import dash_daq as daq
+import dash_bootstrap_components as dbc
 from plotly.subplots import make_subplots
 from martas.app.monitor import _latestfile
 from crontab import CronTab
@@ -699,6 +700,13 @@ layout = (html.Div(
                                                       href='https://github.com/geomagpy/MARTAS?tab=readme-ov-file#martas')]),
                                    ])
                               ),
+                              dbc.Button(
+                                            "Open collapse",
+                                            id="horizontal-collapse-button",
+                                            className="mb-3",
+                                            color="primary",
+                                            n_clicks=0,
+                                        ),
                               html.Div(
                                   className="box stats",
                                   children=html.Div([
