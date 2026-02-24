@@ -4,6 +4,7 @@ from magpy.stream import *
 from magpy.core.methods import is_number
 from magpy.opt import cred as mpcred
 from martas.core import methods as mm
+from martas import collector as mcoll
 from martas.version import __version__
 import dash
 from dash import html, dash_table, dcc, Output, Input, callback
@@ -27,19 +28,41 @@ pip install dash_daq
 # Configuration information
 mainpath = os.path.dirname(os.path.realpath(__file__))
 configpath = os.path.join(mainpath, "..", "..", "conf", "martas.cfg")
-defaultpage = "/" # set default
+webconfigpath = os.path.join(mainpath, "..", "..", "conf", "web.cfg")
+
+tester = False
+if tester:
+    configpath = "/home/leon/.martas/conf/martas.cfg"
+
+# Read configuration data and initialize amount of plots
+cfg = mm.get_conf(configpath)
+webcfg = mm.get_conf(webconfigpath)
+logpath = os.path.dirname(cfg.get('logging'))
+sensorpath = cfg.get('sensorsconf')
+bufferpath = cfg.get('bufferdirectory')
+
+# import a webpage config: darkmode, defaultpage, default limits, displayrate, read file first
+read_initial_buffer = True
+defaultpage = None  # set default # get from config
+debug = False
+if webcfg.get('defaultpage','martas') in ['martas','Martas','MARTAS','homedirectory']:
+    defaultpage = "/" # set default # get from config
+srate = int(webcfg.get('refreshrate',5)) # displayrate - needs to be large enough, dynamically adjusted
+if webcfg.get('read_initial_buffer',False) in ['False','false','FALSE', False]:
+    read_initial_buffer = False
+if webcfg.get('debug',False) in ['True','true','TRUE', True]:
+    read_initial_buffer = True
+
+print ("Display refresh rate: {} sec".format(srate))
 
 livedata = {}
 # livedata = { sensorid : { data : { 'x' : array, 'y' : array, ... },
 #                           head
 
-#configpath = "/home/leon/.martas/conf/martas.cfg"
-
 
 statusdict = {"mqtt" : {"space" : 400, "used": 150 },
               "base" : {"space" : 100, "used": 100 }
               }
-
 
 def get_sensors(path="/home/leon/.martas/conf/sensors.cfg", debug=False):
     """
@@ -256,15 +279,15 @@ def live_timer(client, stop_event, stream):
         client.loop_stop()
 
 
-def martas_live_monitor(config=None, debug=False):
+def martas_live_monitor(config=None, linelimit=36000, debug=False):
         """
         DEFINITION:
             embbed matplotlib figure in canvas for mointoring
 
         PARAMETERS:
-            kwargs:  - all plot args
+            linelimit:  store this amount of data within the array: 36000 would contain 1hour in 10Hz/0.1sec resolution
         """
-        global livedata
+        #global livedata
         values = []
         if not config:
             config = {}
@@ -284,218 +307,212 @@ def martas_live_monitor(config=None, debug=False):
         martaspsk = config.get("mqttpsk","")
         dbcred = ""
 
-        print ("Sensors", sl, martastopic)
-
-        #dataid = livedatadict.get("id")
-        #coverage = livedatadict.get("coverage")
-        #keys = livedatadict.get("keys")
-        #limit = livedatadict.get("limit")
-        
+        if debug:
+            print ("Sensors", sl, martastopic)
 
         # start monitoring parameters
-        ok =True
-        if ok:
+        def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='',
+                          qos=0, mqttcert="", mqttpsk="", mqttversion=2, destinationid='', debug=False):
+            """
+            connectclient method
+            used to connect to a specific client as defined by the input variables
+            eventually add multiple client -> {"clients":[{"broker":"192.168.178.42","port":"1883"}]} # json type
+                    import json
+                    altbro = json.loads(altbrocker)
+            """
+            ## create a unique clientid consisting of broker, client and destination
+            client = None
+            hostname = socket.gethostname()
+            clientid = "{}{}{}".format(broker, hostname, destinationid)
 
-                def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='',
-                                  qos=0, mqttcert="", mqttpsk="", mqttversion=2, destinationid='', debug=False):
-                    """
-                    connectclient method
-                    used to connect to a specific client as defined by the input variables
-                    eventually add multiple client -> {"clients":[{"broker":"192.168.178.42","port":"1883"}]} # json type
-                            import json
-                            altbro = json.loads(altbrocker)
-                    """
-                    ## create a unique clientid consisting of broker, client and destination
-                    client = None
-                    hostname = socket.gethostname()
-                    clientid = "{}{}{}".format(broker, hostname, destinationid)
+            ## create MQTT client
+            ##  ----------------------------
+            pahovers = paho.mqtt.__version__
+            pahomajor = int(pahovers[0])
+            print(" paho-mqtt version ", pahovers)
+            try:
+                client = mqtt.Client(clientid, False)
+            except:
+                try:
+                    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientid)
+                except:
+                    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=clientid)
 
-                    ## create MQTT client
-                    ##  ----------------------------
-                    pahovers = paho.mqtt.__version__
-                    pahomajor = int(pahovers[0])
-                    print(" paho-mqtt version ", pahovers)
-                    try:
-                        client = mqtt.Client(clientid, False)
-                    except:
-                        try:
-                            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientid)
-                        except:
-                            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=clientid)
-
-                    # TLS encryption part
-                    if int(port) == 8883 and not mqttpsk:
-                        if mqttcert:
-                            if debug:
-                                print("MQTT: TLS encryption based on certificate")
-                                print(mqttcert)
-                            client.tls_set(ca_certs=mqttcert)
-                        else:
-                            if debug:
-                                print("MQTT: basic TLS")
-                            client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED,
-                                           tls_version=ssl.PROTOCOL_TLS,
-                                           ciphers=None)
-                    if int(port) in [8884, 8883] and mqttpsk:
-                        if debug:
-                            print("MQTT: TLS encrytion based in PSK")
-                        # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
-                        pskidentity = mpcred.lc(mqttpsk, 'user')
-                        pskpwd = mpcred.lc(mqttpsk, 'passwd')
-                        # context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
-                        print("MARTAS: Deprecation warning - but necessary for old clients")
-                        print ("PSK to be included")
-                        """
-                        context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
-                        context.set_ciphers('PSK')
-                        context.psk = bytes.fromhex(pskpwd)
-                        context.identity = pskidentity.encode()
-                        client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
-                        """
-
-                    # Authentication part
-                    if not credentials in ['', '-']:
-                        # use user and pwd from credential data if not yet set
-                        if user in ['', None, 'None', '-']:
-                            user = mpcred.lc(credentials, 'user')
-                        if password in ['', '-']:
-                            password = mpcred.lc(credentials, 'passwd')
-                    if not user in ['', None, 'None', '-']:
-                        # client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
-                        client.username_pw_set(user,
-                                               password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
-                    client.on_connect = on_connect
-                    # on message needs: stationid, destination, location
-                    client.on_message = on_message
-                    client.connect(broker, port, timeout)
-
-                    return client
-
-                # Version 1 (valid for xxx)
-                # -------------------------
-                # The callback for when the client receives a CONNACK response from the server.
-                # signature suitable for MQTT v5.0 client:
-                def on_connect(client, userdata, flags, reason_code, properties=None):
-                    # Subscribing in on_connect() means that if we lose the connection and
-                    # reconnect then subscriptions will be renewed.
-                    client.subscribe("{}/#".format(martastopic), qos)
-
-                # The callback for when a PUBLISH message is received from the server.
-                def on_message(client, userdata, msg):
-                    #if debug:
-                    #    print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
-                    # create a result dictionary
-
-                    sensorid = "{}".format(msg.topic).replace("{}/".format(martastopic),'')[:-5]
-                    content = "{}".format(msg.topic)[-4:]
-                    payload = "{}".format(msg.payload.decode())
-                    #print ("DDD", sensorid, content)
-                    if sensorid in sl:
-                        sensorcont = {}
-                        namelst = []
-                        if not livedata.get(sensorid, {}) == {}:
-                            sensorcont = livedata.get(sensorid)
-                        keys = sensorcont.get('SensorKeys', '').split(',')
-                        multi = sensorcont.get('Multipliers', '').split(',')
-                        els = sensorcont.get('SensorElements','').split(',')
-                        shown = sensorcont.get('shown_names',[])
-                        uns = sensorcont.get('SensorUnits','').split(',')
-                        sr = sensorcont.get("samplingrate",1)
-                        pc = sensorcont.get('PackingCode', '')
-                        array = sensorcont.get('Data', [[] for key in DataStream().KEYLIST])
-                        datacont = sensorcont.get('data', {})
-                        if content == 'meta':
-                            #print ("FOUND META ---------------------------")
-                            if not keys or keys == ['']:
-                                payloadlist1 = payload.split(sensorid)
-                                payloadlist2 = payloadlist1[1].split()
-                                sensorcont['SensorKeys'] = payloadlist2[0][1:-1]
-                                sensorcont['SensorElements'] = payloadlist2[1][1:-1]
-                                sensorcont['SensorUnits'] = payloadlist2[2][1:-1]
-                                sensorcont['Multipliers'] = payloadlist2[3][1:-1]
-                                sensorcont['PackingCode'] = payloadlist2[4]
-                                keys = sensorcont.get('SensorKeys').split(',')
-                                els = sensorcont.get('SensorElements').split(',')
-                                uns = sensorcont.get('SensorUnits').split(',')
-                                for i, el in enumerate(keys):
-                                    sensorcont[f"col-{el}"] = els[i]
-                                    sensorcont[f"unit-col-{el}"] = uns[i]
-                        elif content == 'dict':
-                            payloadlist = payload.split(',')
-                            for pl in payloadlist:
-                                plc = pl.replace("\n", "").split(":")
-                                sensorcont[plc[0]] = plc[1].replace('-', '')
-                        elif content == 'data' and len(keys) > 0 and not keys==['']:
-                            payloadlist = payload.split(';')
-                            for dataline in payloadlist:
-                                datalist = dataline.split(',')
-                                datalist = [int(el) if is_number(el) else el for el in datalist]
-                                #print (datalist, array)
-                                timel = [int(t) for t in datalist[:7]]
-                                ti = list(datacont.get('time',[]))
-                                ti.append(datetime(*timel))
-                                ti = ti[-36000:]
-                                datacont['time'] = np.asarray(ti)
-                                if pc.endswith('6hL'):
-                                    sectimel = [int(t) for t in datalist[-7:]]
-                                    sti = list(datacont.get('sectime',[]))
-                                    sti.append(datetime(*sectimel))
-                                    sti = sti[-36000:]
-                                    datacont['time'] = np.asarray(sti)
-                                for i, k in enumerate(keys):
-                                    if not k == "sectime" and k in DataStream().KEYLIST:
-                                        nam = els[i]
-                                        namelst.append(nam)
-                                        if k in DataStream().NUMKEYLIST:
-                                            dat = list(datacont.get(nam, []))
-                                            dat.append(float(datalist[7 + i]) / float(multi[i]))
-                                            dat = dat[-36000:]
-                                            datacont[nam] = np.asarray(dat)
-                                        else:
-                                            dat = list(datacont.get(nam, []))
-                                            dat.append(datalist[7 + i])
-                                            dat = dat[-36000:]
-                                            datacont[nam] = np.asarray(dat)
-                            # limit length of array
-                            sensorcont['allnames'] = namelst
-                            if not shown: # by default limit to three shown diagrams for each sensor
-                                sensorcont['names'] = namelst[:3]
-                            sensorcont['data'] = datacont
-                        livedata[sensorid] = sensorcont
-                        #print ("Live data", len(livedata))
-
-                mqttversion = int(config.get("mqttversion", 2))
-                mqttcert = config.get("mqttcert", "")
-                mqttpsk = config.get("mqttpsk", "")
-                client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttcert=mqttcert,
-                                           mqttpsk=mqttpsk, mqttversion=mqttversion, destinationid=dbcred,
-                                           debug=debug)  # dbcred is used for clientid
-
+            # TLS encryption part
+            if int(port) == 8883 and not mqttpsk:
+                if mqttcert:
+                    if debug:
+                        print("MQTT: TLS encryption based on certificate")
+                        print(mqttcert)
+                    client.tls_set(ca_certs=mqttcert)
+                else:
+                    if debug:
+                        print("MQTT: basic TLS")
+                    client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED,
+                                   tls_version=ssl.PROTOCOL_TLS,
+                                   ciphers=None)
+            if int(port) in [8884, 8883] and mqttpsk:
                 if debug:
-                    print ("Connecting to:", broker, int(port), int(timeout))
+                    print("MQTT: TLS encrytion based in PSK")
+                # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
+                pskidentity = mpcred.lc(mqttpsk, 'user')
+                pskpwd = mpcred.lc(mqttpsk, 'passwd')
+                # context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
+                print("MARTAS: Deprecation warning - but necessary for old clients")
+                try:
+                    context = mcoll.SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
+                    context.set_ciphers('PSK')
+                    context.psk = bytes.fromhex(pskpwd)
+                    context.identity = pskidentity.encode()
+                    client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
+                except:
+                    print("PSK to be included")
 
-                t1 = threading.Thread(target=live_timer, args=(client, t1_stop, DataStream()))
-                t1.start()
-                client.loop_start()
-                # Display the plot
+            # Authentication part
+            if not credentials in ['', '-']:
+                # use user and pwd from credential data if not yet set
+                if user in ['', None, 'None', '-']:
+                    user = mpcred.lc(credentials, 'user')
+                if password in ['', '-']:
+                    password = mpcred.lc(credentials, 'passwd')
+            if not user in ['', None, 'None', '-']:
+                # client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
+                client.username_pw_set(user,
+                                       password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
+            client.on_connect = on_connect
+            # on message needs: stationid, destination, location
+            client.on_message = on_message
+            client.connect(broker, port, timeout)
+
+            return client
+
+        # Version 1 (valid for xxx)
+        # -------------------------
+        # The callback for when the client receives a CONNACK response from the server.
+        # signature suitable for MQTT v5.0 client:
+        def on_connect(client, userdata, flags, reason_code, properties=None):
+            # Subscribing in on_connect() means that if we lose the connection and
+            # reconnect then subscriptions will be renewed.
+            client.subscribe("{}/#".format(martastopic), qos)
+
+        # The callback for when a PUBLISH message is received from the server.
+        def on_message(client, userdata, msg):
+            #if debug:
+            #    print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+            # create a result dictionary
+            global livedata
+            #print("LIVE data onmessage:", sensors_to_plot, livedata)
+
+            sensorid = "{}".format(msg.topic).replace("{}/".format(martastopic),'')[:-5]
+            content = "{}".format(msg.topic)[-4:]
+            payload = "{}".format(msg.payload.decode())
+            #print ("DDD", sensorid, content)
+            if sensorid in sl:
+                sensorcont = {}
+                namelst = []
+                if not livedata.get(sensorid, {}) == {}:
+                    sensorcont = livedata.get(sensorid)
+                keys = sensorcont.get('SensorKeys', '').split(',')
+                multi = sensorcont.get('Multipliers', '').split(',')
+                els = sensorcont.get('SensorElements','').split(',')
+                uns = sensorcont.get('SensorUnits','').split(',')
+                sr = sensorcont.get("samplingrate",1)
+                pc = sensorcont.get('PackingCode', '')
+                array = sensorcont.get('Data', [[] for key in DataStream().KEYLIST])
+                datacont = sensorcont.get('data', {})
+                if content == 'meta':
+                    #print ("FOUND META ---------------------------")
+                    if not keys or keys == ['']:
+                        payloadlist1 = payload.split(sensorid)
+                        payloadlist2 = payloadlist1[1].split()
+                        sensorcont['SensorKeys'] = payloadlist2[0][1:-1]
+                        sensorcont['SensorElements'] = payloadlist2[1][1:-1]
+                        sensorcont['SensorUnits'] = payloadlist2[2][1:-1]
+                        sensorcont['Multipliers'] = payloadlist2[3][1:-1]
+                        sensorcont['PackingCode'] = payloadlist2[4]
+                        keys = sensorcont.get('SensorKeys').split(',')
+                        els = sensorcont.get('SensorElements').split(',')
+                        uns = sensorcont.get('SensorUnits').split(',')
+                        for i, el in enumerate(keys):
+                            sensorcont[f"col-{el}"] = els[i]
+                            sensorcont[f"unit-col-{el}"] = uns[i]
+                elif content == 'dict':
+                    payloadlist = payload.split(',')
+                    for pl in payloadlist:
+                        plc = pl.replace("\n", "").split(":")
+                        sensorcont[plc[0]] = plc[1].replace('-', '')
+                elif content == 'data' and len(keys) > 0 and not keys==['']:
+                    payloadlist = payload.split(';')
+                    for dataline in payloadlist:
+                        datalist = dataline.split(',')
+                        datalist = [int(el) if is_number(el) else el for el in datalist]
+                        #print (datalist, array)
+                        timel = [int(t) for t in datalist[:7]]
+                        ti = list(datacont.get('time',[]))
+                        ti.append(datetime(*timel))
+                        ti = ti[-linelimit:]
+                        if len(ti) > 10 and not sensorcont.get("samplingrate",None):
+                            # determine sampling rate if not set already from file data - needed for maximum display range
+                            #print ("TTTTTTT Determining sanmpling rate for ", sensorid)
+                            sensorcont["samplingrate"] = np.median(np.diff(ti)).total_seconds()
+                            #print("got", sensorcont["samplingrate"])
+                        datacont['time'] = np.asarray(ti)
+                        if pc.endswith('6hL'):
+                            sectimel = [int(t) for t in datalist[-7:]]
+                            sti = list(datacont.get('sectime',[]))
+                            sti.append(datetime(*sectimel))
+                            sti = sti[-linelimit:]
+                            datacont['time'] = np.asarray(sti)
+                        for i, k in enumerate(keys):
+                            if not k == "sectime" and k in DataStream().KEYLIST:
+                                nam = els[i]
+                                namelst.append(nam)
+                                if k in DataStream().NUMKEYLIST:
+                                    dat = list(datacont.get(nam, []))
+                                    dat.append(float(datalist[7 + i]) / float(multi[i]))
+                                    dat = dat[-linelimit:]
+                                    datacont[nam] = np.asarray(dat)
+                                else:
+                                    dat = list(datacont.get(nam, []))
+                                    dat.append(datalist[7 + i])
+                                    dat = dat[-linelimit:]
+                                    datacont[nam] = np.asarray(dat)
+                    # limit length of array
+                    sensorcont['allnames'] = namelst
+                    # by default limit to three shown diagrams for each sensor
+                    sensorcont['names'] = namelst[:3]
+                    sensorcont['data'] = datacont
+                livedata[sensorid] = sensorcont
+
+        mqttversion = int(config.get("mqttversion", 2))
+        mqttcert = config.get("mqttcert", "")
+        mqttpsk = config.get("mqttpsk", "")
+        client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttcert=mqttcert,
+                                   mqttpsk=mqttpsk, mqttversion=mqttversion, destinationid=dbcred,
+                                   debug=debug)  # dbcred is used for clientid
+
+        if debug:
+            print ("Connecting to:", broker, int(port), int(timeout))
+
+        t1 = threading.Thread(target=live_timer, args=(client, t1_stop, DataStream()))
+        t1.start()
+        client.loop_start()
+        # Display the plot
 
 
-# Read configuration data and initialize amount of plots
-cfg = mm.get_conf(configpath)
-logpath = os.path.dirname(cfg.get('logging'))
-sensorpath = cfg.get('sensorsconf')
-bufferpath = cfg.get('bufferdirectory')
+
 data2show = get_new_data(path=bufferpath)
-
 sensors_to_plot = get_sensors(path=sensorpath, debug=False)
-
 statusdict = get_storage_usage(statusdict=statusdict, mqttpath=bufferpath, logpath=logpath, debug=False)
 
 #nd={}
-srate = 5 # displayrate - needs to be large enough, dynamically adjusted
-for d in data2show:
-    data, names, anames, sr, sensorid = extract_data(d)
-    livedata[sensorid] = {'samplingrate': sr, 'names': names, 'allnames': anames, 'data': data }
+# initial file reading
+if read_initial_buffer:
+    # if True, then the data display starts with altready existing data from buffer
+    # might be slow for 10Hz data on low power systems
+    for d in data2show:
+        data, names, anames, sr, sensorid = extract_data(d)
+        livedata[sensorid] = {'samplingrate': sr, 'names': names, 'allnames': anames, 'data': data }
 
 stable, scols = get_sensor_table(sensorpath=sensorpath, bufferpath=bufferpath)
 ctable, ccols = get_cron_jobs(debug=False)
@@ -503,17 +520,13 @@ cron_columns = [{'id': c, 'name': c} for c in ccols]
 sens_columns = [{'id': c, 'name': c} for c in scols]
 initially_selected_rows = list(range(0,len(stable)))
 
-print ("Display refresh rate: {} sec".format(srate))
-
 
 # The following method will update the global variable livedata with new mqtt readings
 t1_stop = threading.Event()
-martas_live_monitor(config=cfg, debug=True)
+martas_live_monitor(config=cfg, debug=debug)
 
 
 dash.register_page(__name__, path=defaultpage, top_nav=True, assets_ignore='marcos.css')
-
-#app = Dash(__name__, assets_ignore='marcos.css')
 
 layout = (html.Div(
                  className="wrapper",
@@ -711,9 +724,9 @@ def update_graphs(rows, derived_virtual_selected_rows):
     if derived_virtual_selected_rows is None:
         derived_virtual_selected_rows = []
     global sensors_to_plot
-    print (rows, derived_virtual_selected_rows)
+    #print (rows, derived_virtual_selected_rows)
     sensors_to_plot = [rows[i].get('SensorID','') for i in derived_virtual_selected_rows]
-    print (sensors_to_plot)
+    #print (sensors_to_plot)
 
 
 @callback(Output('martas-live-update-config', 'children'),
@@ -775,20 +788,7 @@ def martas_update_cron(n):
     prevent_initial_call=True
 )
 def martas_update_graph(n, hvalue, duration):
-    # read data
     #print ("Updating graph")
-    """
-    global bufferpath
-    cov = int(duration)*60
-    data2show = get_new_data(path=bufferpath,duration=cov)
-    print ("Data2show", data2show)
-    all_names =[]
-    for f in data2show:
-        data, names, anames, mdr = extract_data(f,duration=cov)
-        nd[f] = {'allnames': anames, 'names': names, 'data':data}
-        all_names.extend(names)
-    print (nd)
-    """
     global livedata
     global sr
     global sensors_to_plot
@@ -796,11 +796,14 @@ def martas_update_graph(n, hvalue, duration):
     cov = int(duration) * 60
     #print ("Coverage ", cov)
     nd = livedata
+    #print ("LIVE data", livedata)
     all_names = []
     for el in livedata:
-        sensdict = livedata.get(el)
-        shown = sensdict.get('names',[])
-        all_names.extend(shown)
+        if el in sensors_to_plot:
+            sensdict = livedata.get(el, {})
+            if sensdict.get('samplingrate',None):
+                shown = sensdict.get('names',[])
+                all_names.extend(shown)
 
     if len(all_names)>0:
         fig = make_subplots(rows=len(all_names), cols=1, vertical_spacing=0.1)
@@ -832,20 +835,21 @@ def martas_update_graph(n, hvalue, duration):
         for f in nd:
             if f in sensors_to_plot:
                 ndd = nd[f]
-                sr = ndd.get('samplingrate')
-                amount = int(cov/sr)
-                #print (amount)
-                data = ndd.get('data')
-                names = ndd.get('names')
-                for name in names:
-                    i += 1
-                    fig.add_trace({
-                        'x': data['time'][-amount:],
-                        'y': data[name][-amount:],
-                        'name': name,
-                        'mode': 'lines+markers',
-                        'type': 'scatter'
-                    }, i, 1)
+                sr = ndd.get('samplingrate',None)
+                if sr:
+                    amount = int(cov/sr)
+                    #print (amount)
+                    data = ndd.get('data')
+                    names = ndd.get('names')
+                    for name in names:
+                        i += 1
+                        fig.add_trace({
+                            'x': data['time'][-amount:],
+                            'y': data[name][-amount:],
+                            'name': name,
+                            'mode': 'lines+markers',
+                            'type': 'scatter'
+                        }, i, 1)
 
         return fig
 

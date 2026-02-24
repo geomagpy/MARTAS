@@ -10,7 +10,7 @@ shutil.copyfile('martas/acquisition.py','scripts/acquisition')
 shutil.copyfile('martas/collector.py','scripts/collector')
 shutil.copyfile('martas/martas_init.py', 'scripts/martas_init')
 shutil.copyfile('martas/web/martas_view.py', 'scripts/martas_view')
-shutil.copyfile('martas/web/marcos_view.py', 'scripts/marcos_view')
+shutil.copyfile('martas/web/martas_view.py', 'scripts/marcos_view')
 
 # modules:
 # paramiko : file_upload
@@ -28,6 +28,7 @@ install_requires=[
             "plotly",
             "dash",
             "dash_daq",
+            "dash-bootstrap-components",
             "psutil",
             "setuptools >= 61.0.0"
           ]
@@ -37,13 +38,13 @@ setup(
     version=__version__,
     author='R. Leonhardt, R. Bailey, R. Mandl, V. Haberle',
     author_email='roman.leonhardt@geosphere.at',
-    packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.lib', 'martas.logrotate', 'martas.scripts','martas.web', 'martas.web.assets'],
+    packages=['martas', 'martas.app', 'martas.conf', 'martas.core', 'martas.doc', 'martas.init', 'martas.lib', 'martas.logrotate', 'martas.scripts','martas.web', 'martas.web.assets', 'martas.web.pages'],
     scripts=['scripts/collector','scripts/acquisition', 'scripts/martas_init', 'scripts/martas_view', 'scripts/marcos_view'],
     url='',
     license='LICENSE.txt',
     description='MARTAS',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
-    package_data={'martas': ['conf/*.cfg', 'conf/*.json', 'doc/*.png', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'scripts/*.sh', 'web/*.js', 'web/*.html', 'web/*.py', 'web/assets/*']  },
+    package_data={'martas': ['conf/*.cfg', 'conf/*.json', 'doc/*.png', 'doc/*.pdf', 'doc/*.md', 'init/*.sh', 'init/*.json', 'install/*.sh', 'logrotate/*.logrotate', 'scripts/*.sh', 'web/*.js', 'web/*.html', 'web/*.py', 'web/assets/*', 'web/pages/*']  },
     install_requires=install_requires,
 )

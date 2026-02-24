@@ -217,6 +217,7 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "telegram.cfg"), os.path.join(confpath, "telegram.bak"))
     shutil.copyfile(os.path.join(confpath, "threshold.cfg"), os.path.join(confpath, "threshold.bak"))
     shutil.copyfile(os.path.join(confpath, "telegrambot.cfg"), os.path.join(confpath, "telegrambot.bak"))
+    shutil.copyfile(os.path.join(confpath, "web.cfg"), os.path.join(confpath, "web.bak"))
     shutil.copyfile(os.path.join(homedir, dir, "scripts", "cleanup.sh"), os.path.join(homedir, dir, "scripts", "cleanup.bak"))
 
     print (" ------------------------------------------- ")
@@ -979,6 +980,9 @@ def main(argv):
         replacedict["space,martas,marcos,logfile"] = "space,martas,logfile"
         files_to_change["martasconf"] = {"source" : os.path.join(confpath, "martas.bak") ,
                                         "dest" : os.path.join(confpath, "martas.cfg") }
+        replacedict["homedirectory"] = 'martas'
+        files_to_change["webconf"] = {"source" : os.path.join(confpath, "web.bak") ,
+                                        "dest" : os.path.join(confpath, "web.cfg") }
 
     if initjob == "MARCOS":
         replacedict["/mybasedir"] = archivepath
@@ -993,6 +997,9 @@ def main(argv):
                                          "dest": os.path.join(confpath, "filter.cfg")}
         files_to_change["downloadconf"] = {"source": os.path.join(confpath, "download-source.bak"),
                                            "dest": os.path.join(confpath, "download-{}.cfg".format(jobname))}
+        replacedict["homedirectory"] = 'marcos'
+        files_to_change["webconf"] = {"source" : os.path.join(confpath, "web.bak") ,
+                                        "dest" : os.path.join(confpath, "web.cfg") }
         # file for which replacements will happen and new names
     files_to_change["skeletonlogrotate"] = {"source": os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
                               "dest": os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))}

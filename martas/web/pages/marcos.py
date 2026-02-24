@@ -41,9 +41,33 @@ pip install dash_daq
 # Configuration information
 mainpath = os.path.dirname(os.path.realpath(__file__))
 configpath = os.path.join(mainpath, "", "..", "..", "conf", "archive.cfg")
-defaultpage = None # "/" if default
+webconfigpath = os.path.join(mainpath, "..", "..", "conf", "web.cfg")
 
-#configpath = "/home/leon/.martas/conf/archive.cfg"
+# Read configuration data and initialize amount of plots
+cfg = mm.get_conf(configpath)
+webcfg = mm.get_conf(webconfigpath)
+archivepath = cfg.get('archivepath')
+logpath = cfg.get('logpath')
+dbcred = cfg.get('dbcredentials')
+
+tester = False
+if tester:
+    print(cfg)
+    archivepath = "/srv"
+    logpath = "/home/leon/.martas/log"
+    dbcred = 'cobsdb'
+    configpath = "/home/leon/.martas/conf/archive.cfg"
+
+# import a webpage config: darkmode, defaultpage, default limits, displayrate, read file first
+defaultpage = None  # set default # get from config
+debug = False
+if webcfg.get('defaultpage','martas') in ['marcos','Marcos','MARCOS']:
+    defaultpage = "/" # set default # get from config
+srate = int(webcfg.get('refreshrate',5)) # displayrate - needs to be large enough, dynamically adjusted
+if webcfg.get('read_initial_buffer',False) in ['False','false','FALSE', False]:
+    read_initial_buffer = False
+if webcfg.get('debug',False) in ['True','true','TRUE', True]:
+    debug = True
 
 
 statusdict = {"archive" : {"space" : 400, "used": 150, "cronenabled": False, "active": False, "logstatus":False },
@@ -460,20 +484,6 @@ def get_marcos_html(statusdict,marcos,i):
     ))
     return html.Table(htmllist)
 
-# Read configuration data and initialize amount of plots
-cfg = mm.get_conf(configpath)
-archivepath = cfg.get('archivepath')
-logpath = cfg.get('logpath')
-dbcred = cfg.get('dbcredentials')
-
-test = False
-if test:
-    print(cfg)
-    archivepath = "/srv"
-    logpath = "/home/leon/.martas/log"
-    dbcred = 'cobsdb'
-
-debug = False
 
 # Initialize basic result dictionary (fast interval, graph and table)
 result = get_datainfo_from_db(cred=dbcred, debug=debug)
