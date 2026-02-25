@@ -7,7 +7,7 @@ from martas.core import methods as mm
 from martas import collector as mcoll
 from martas.version import __version__
 import dash
-from dash import html, dash_table, dcc, Output, Input, callback
+from dash import html, dash_table, dcc, Output, Input, State, callback
 import dash_daq as daq
 import dash_bootstrap_components as dbc
 from plotly.subplots import make_subplots
@@ -538,7 +538,7 @@ layout = (html.Div(
                                   className="box martas",
                                   children=html.Div([
                                       html.Img(src='/assets/header.png',style={'width': '30%'}),
-                                      ])
+                                      ]),
                               ),
                               html.Div(
                                   className="box setup",
@@ -553,7 +553,7 @@ layout = (html.Div(
                               ),
                               html.Div(
                                   className="box sensors",
-                                  children=html.Div([
+                                  children=html.Div(dbc.Collapse([
                                       dcc.Interval(
                                           id='martas-sensors-update',
                                           interval=5*srate*1000,  # in milliseconds - use 60 sec to allow even LEMI 10Hz data to loaded
@@ -606,11 +606,15 @@ layout = (html.Div(
                                                                 'border': '1px solid black'
                                                             }
                                       )
-                                  ])
+                                  ],
+                                  id="horizontal-collapse1",
+                                  is_open=True,
+                                  dimension="width",
+                                  )),
                               ),
                               html.Div(
                                   className="box gauges",
-                                  children=html.Div([
+                                  children=html.Div(dbc.Collapse([
                                       dcc.Interval('martas-gauge-update', interval=10*srate*1000, n_intervals=0),
                                       daq.Gauge(
                                           id='martas-buffer-gauge',
@@ -626,9 +630,14 @@ layout = (html.Div(
                                           max=statusdict['mqtt'].get('space'),
                                           min=0,
                                       )
-                                  ])
+                                  ],
+                                  id="horizontal-collapse2",
+                                  is_open=True,
+                                  dimension="width",
+                                  )),
                               ),
                               html.Div(
+                                  id="grid-graphs",
                                   className='box graphs',
                                   children=html.Div([
                                       dcc.Graph(id='martas-live-graph', animate=False),
@@ -700,23 +709,43 @@ layout = (html.Div(
                                                       href='https://github.com/geomagpy/MARTAS?tab=readme-ov-file#martas')]),
                                    ])
                               ),
-                              dbc.Button(
-                                            "Open collapse",
-                                            id="horizontal-collapse-button",
-                                            className="mb-3",
-                                            color="primary",
-                                            n_clicks=0,
-                                        ),
                               html.Div(
                                   className="box stats",
                                   children=html.Div([
                                      html.B('Configuration'),
-                                     html.Div(id='martas-live-update-config')
+                                     html.Div(id='martas-live-update-config'),
+                                      dbc.Button(
+                                          "Change graph view",
+                                          id="horizontal-collapse-button",
+                                          className="mb-3",
+                                          color="primary",
+                                          n_clicks=0,
+                                      ),
+
                                   ])
                              )
                  ]
             )
 )
+
+@callback(
+    Output("horizontal-collapse1", "is_open"),
+     Output("horizontal-collapse2", "is_open"),
+    Output("grid-graphs", "style"),
+    [Input("horizontal-collapse-button", "n_clicks")],
+    [State("horizontal-collapse1", "is_open"),
+    State("horizontal-collapse2", "is_open"),],
+)
+def toggle_collapse(n, is_open, is_open2):
+    print (n)
+    if n % 2 == 1:
+        sty = {'grid-column' : '1 / 4','grid-row' : '1 / 4'}
+    else:
+        sty = {'grid-column' : '2 / 4','grid-row' : '2 / 4'}
+    if n:
+        return not is_open, not is_open2, sty
+    return is_open, is_open2, sty
+
 
 @callback(
     Input('martas-sensors-table', "derived_virtual_data"),
