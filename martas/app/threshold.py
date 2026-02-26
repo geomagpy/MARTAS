@@ -126,6 +126,7 @@ from martas.core.methods import martaslog as ml
 from datetime import datetime, timedelta, timezone
 import sys, getopt, os
 import paho.mqtt.client as mqtt
+import socket
 
 pyvers = '3'
 
@@ -330,6 +331,8 @@ def main(argv):
     travistestrun = False
     changes = []
     proxies = {}
+    hostname = socket.gethostname().upper()
+
 
     usagestring = 'threshold.py -h <help> -m <configpath>'
     try:
@@ -460,7 +463,7 @@ def main(argv):
                 if conf.get('reportlevel') == 'partial' and content == "fine":
                     content = ""
                     # evetually replace content="fine" with content="" for "partial"
-                statinput = 'Sensor {} and key {}'.format(valuedict.get('sensorid'),valuedict.get('key'))
+                statinput = '{}-{}-threshold of key {}'.format(hostname, valuedict.get('sensorid'),valuedict.get('key'))
                 if statinput in statusdict:
                     if not content in ["fine","",None]:
                         statusdict[statinput] = content

@@ -877,18 +877,20 @@ def martas_update_graph(n, hvalue, duration):
                 sr = ndd.get('samplingrate',None)
                 if sr:
                     amount = int(cov/sr)
-                    #print (amount)
-                    data = ndd.get('data')
-                    names = ndd.get('names')
-                    for name in names:
-                        i += 1
-                        fig.add_trace({
-                            'x': data['time'][-amount:],
-                            'y': data[name][-amount:],
-                            'name': name,
-                            'mode': 'lines+markers',
-                            'type': 'scatter'
-                        }, i, 1)
+                    print ("Cutting down to", amount, cov, sr)
+                else:
+                    amount = cov ## assuming 1Hz
+                data = ndd.get('data')
+                names = ndd.get('names')
+                for name in names:
+                    i += 1
+                    fig.add_trace({
+                        'x': data['time'][-amount:],
+                        'y': data[name][-amount:],
+                        'name': name,
+                        'mode': 'lines+markers',
+                        'type': 'scatter'
+                    }, i, 1)
 
         return fig
 
