@@ -2,6 +2,15 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
+####v<2.0.0-rc4>, <2025-03-xx> --
+
+v2.0.0-rc4 general:
+    - updated pMARTAS live diagram and switched to pages view so that MARCOS and MARTAS require only a single call
+    - selection of sensor is possible (keys not yet)
+
+v2.0.0-rc4 fixes:
+    - collector diff for real time caluclation of gradients
+
 ####v<2.0.0-rc2 and rc3>, <2025-01-31> --
 
 v2.0.0-rc3 general:
