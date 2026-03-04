@@ -1,5 +1,5 @@
+#!/usr/bin/env python
 import dash
-
 import dash_bootstrap_components as dbc
 
 
@@ -8,7 +8,6 @@ app = dash.Dash(
     use_pages=True,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
 )
-
 
 navbar = dbc.NavbarSimple(
     dbc.Nav(
@@ -32,4 +31,4 @@ app.layout = dbc.Container(
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="0.0.0.0", debug=False)

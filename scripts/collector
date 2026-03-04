@@ -11,7 +11,7 @@ written by Roman Leonhardt
 ## Import MagPy
 ## -----------------------------------------------------------
 
-from magpy.stream import DataStream, KEYLIST, NUMKEYLIST, subtract_streams
+from magpy.stream import DataStream, join_streams, KEYLIST, NUMKEYLIST, subtract_streams
 from magpy.core import database
 from magpy.opt import cred as mpcred
 
@@ -66,6 +66,7 @@ ws_available = True
 qos = 0
 streamdict = {}
 stream = DataStream()
+diffstruct = {}
 st = []
 senslst = []
 headdict = {} # store headerlines for all sensors (headerline are firstline for BIN files)
@@ -420,9 +421,11 @@ def on_message(client, userdata, msg):
 
     global qos
     global verifiedlocation
+    global stream
     global debug
     global stid
     global senslst
+    global diffstruct
     digit = 0
     arrayinterpreted = False
     wsarrayinterpreted = False
@@ -580,65 +583,61 @@ def on_message(client, userdata, msg):
                         print ("Sending {}: {},{} to webserver".format(sensorid, msecSince1970,datastring))
                     wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
             if 'diff' in destination:
-                global counter
-                global number
-                counter+=1
-                amount = int(number)
+                """
+                How does it work:
+                - add AMOUNT of recent data to array for each fitting sensor
+                - create dictionary with data streams of length "cover" - default is 5 
+                - subtract all stream 
+                """
                 cover = 5
                 if sensorid.find(diffsens) >= 0:
-                    if not diarrayinterpreted:
-                        ar = interprete_data(msg.payload, sensorid)
-                        if not sensorid in senslst:
-                            senslst.append(sensorid)
-                            ds = DataStream(header={"SensorID":sensorid}, ndarray=ar)
-                            ds = ds.cut(5,1,0)
-                            st.append(ds)
-                        diarrayinterpreted = True
-
-                    if len(st) < 2:
-                         print ("Not enough streams for subtraction yet")
-                    try:
-                        if counter > amount and len(st) > 1:
-                            counter = 0
-                            senslst = []
-                            sub = subtract_streams(st[0],st[1])
-                            #print (sub)
-                            try:
-                                part1 = (st[0].header.get('SensorID').split('_')[1])
-                            except:
-                                part1 = 'unkown'
-                            try:
-                                part2 = (st[1].header.get('SensorID').split('_')[1])
-                            except:
-                                part2 = 'unkown'
-                            name = "Diff_{}{}_0001".format(part1,part2)
-                            # get head line for pub
-                            keys = sub._get_key_headers(numerical=True)
-                            ilst = [KEYLIST.index(key) for key in keys]
-                            keystr = "[{}]".format(",".join(keys))
-                            #takeunits =  ### take from st[0]
-                            packcode = "6hL{}".format("".join(['l']*len(keys)))
-                            multi = "[{}]".format(",".join(['1000']*len(keys)))
-                            unit = "[{}]".format(",".join(['arb']*len(keys)))
-                            head = "# MagPyBin {} {} {} {} {} {} {}".format(name, keystr, keystr, unit, multi, packcode, struct.calcsize('<'+packcode))
-                            #print (head)
-                            # get data line for pub
-                            time = sub.ndarray[0][-1]
-                            timestr = (datetime.strftime(time, "%Y,%m,%d,%H,%M,%S,%f"))
-                            val = [sub.ndarray[i][-1] for i in ilst]
-                            if len(val) > 1:
-                                valstr = ",".join(int(val*1000))
-                            else:
-                                valstr = int(val[0]*1000)
-                            data = "{},{}".format(timestr,valstr)
-                            #print (data)
-                            topic = "{}/{}".format(stid,name)
-                            client.publish(topic+"/data", data, qos=qos)
-                            client.publish(topic+"/meta", head, qos=qos)
-                            if debug:
-                                print (" -> diff {} published".format(name))
-                    except:
-                        print ("Found error in subtraction")
+                    st = diffstruct.get(sensorid, DataStream())
+                    ar = interprete_data(msg.payload, sensorid)
+                    ds = DataStream(header={"SensorID": sensorid}, ndarray=ar)
+                    st = join_streams(ds,st)
+                    st = st.cut(cover, 1, 0)
+                    diffstruct[sensorid] = st
+                if len(diffstruct) >= 2:
+                    names = sorted(diffstruct.keys())
+                    for i,name in enumerate(names):
+                        if i > 0:
+                            prim = diffstruct.get(names[i-1])
+                            seco = diffstruct.get(name)
+                            if len(prim) >= cover and len(seco) >= cover:
+                                # Sub has been verified - please note: has half of the original resolution - why?
+                                sub = subtract_streams(prim, seco)
+                                # now get a new sensorid name
+                                #try:
+                                primname = prim.header.get("SensorID", "TEST_unkown").split("_")[1]
+                                seconame = seco.header.get("SensorID", "TEST_unkown").split("_")[1]
+                                name = "Diff_{}{}_0001".format(primname, seconame)
+                                # get head line for pub
+                                keys = sub._get_key_headers(numerical=True)
+                                #print (sub.header)
+                                ilst = [KEYLIST.index(key) for key in keys]
+                                keystr = "[{}]".format(",".join(keys))
+                                # takeunits =  ### take from st[0]
+                                packcode = "6hL{}".format("".join(['l'] * len(keys)))
+                                multi = "[{}]".format(",".join(['1000'] * len(keys)))
+                                unit = "[{}]".format(",".join(['arb'] * len(keys)))
+                                head = "# MagPyBin {} {} {} {} {} {} {}".format(name, keystr, keystr, unit, multi, packcode,
+                                                                                struct.calcsize('<' + packcode))
+                                # print (head)
+                                # get data line for pub
+                                time = sub.ndarray[0][-1]
+                                timestr = (datetime.strftime(time, "%Y,%m,%d,%H,%M,%S,%f"))
+                                val = [sub.ndarray[i][-1] for i in ilst]
+                                if len(val) > 1:
+                                    valstr = ",".join(int(val * 1000))
+                                else:
+                                    valstr = int(val[0] * 1000)
+                                data = "{},{}".format(timestr, valstr)
+                                # print (data)
+                                topic = "{}/{}".format(stid, name)
+                                client.publish(topic + "/data", data, qos=qos)
+                                client.publish(topic + "/meta", head, qos=qos)
+                                if debug:
+                                    print(" -> diff {} published: {}".format(name, data))
             if 'stdout' in destination:
                 if not soarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, sensorid)

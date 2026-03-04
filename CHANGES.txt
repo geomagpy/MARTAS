@@ -9,7 +9,7 @@ v2.0.0-rc4 general:
     - selection of sensor is possible (keys not yet)
 
 v2.0.0-rc4 fixes:
-    - collector diff for real time caluclation of gradients
+    - collector diff for real time calculation of gradients
 
 ####v<2.0.0-rc2 and rc3>, <2025-01-31> --
 
