@@ -59,6 +59,8 @@ class MartasPage(object):
             self.defaultpage = "/" # set default # get from config
         self.srate = int(webcfg.get('refreshrate',5)) # displayrate - needs to be large enough, dynamically adjusted
 
+        self.defaultheight = int(webcfg.get('defaultheight', 450))
+        self.defaultduration = int(webcfg.get('defaultcoverage', 10))
         self.data2show = self.get_new_data()
         self.cfg = cfg
         self.livedata = livedata
@@ -543,10 +545,10 @@ layout = (html.Div(
                                   className="box setup",
                                   children=html.Div([
                                       html.P('Time coverage (minutes):'),
-                                      dcc.Slider(id='martas-durationslider', min=5, max=60, step=5, value=10,
+                                      dcc.Slider(id='martas-durationslider', min=5, max=60, step=5, value=mapa.defaultduration,
                                                  marks={x: str(x) for x in [10, 20, 30, 40, 50, 60]}),
                                       html.P('Height of the graph display (px):'),
-                                      dcc.Slider(id='martas-heightslider', min=200, max=1000, step=25, value=450,
+                                      dcc.Slider(id='martas-heightslider', min=200, max=1000, step=25, value=mapa.defaultheight,
                                                  marks={x: str(x) for x in [200, 400, 600, 800, 1000]}),
                                   ])
                               ),
@@ -831,6 +833,7 @@ def martas_update_graph(n, hvalue, duration):
     cov = int(duration) * 60
     #print ("Coverage ", cov)
     #print ("------------------------------ PLOTTING DATA ")
+
     #nd = livedata
     all_names = []
     for el in mapa.livedata:
