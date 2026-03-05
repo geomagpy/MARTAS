@@ -61,6 +61,8 @@ class MartasPage(object):
 
         self.defaultheight = int(webcfg.get('defaultheight', 450))
         self.defaultduration = int(webcfg.get('defaultcoverage', 10))
+        if self.defaultduration > 60:
+            self.defaultduration = 60
         self.data2show = self.get_new_data()
         self.cfg = cfg
         self.livedata = livedata
@@ -516,7 +518,7 @@ class MartasPage(object):
             # Display the plot
 
 configpath = None
-tester = True
+tester = False
 if tester:
     configpath = "/home/leon/.martas/conf/martas.cfg"
 
