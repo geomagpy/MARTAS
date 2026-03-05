@@ -636,11 +636,24 @@ def on_message(client, userdata, msg):
                                             # now get a new sensorid name
                                             # get head line for pub
                                             keystr = "[{}]".format(",".join(keys))
+                                            headtemplate = headdict.get(names[0])
+                                            headtemplatelist = headtemplate.split()
+                                            if keystr == headtemplatelist[3]:
+                                                # then use column names and units from data header and add delta to names
+                                                try:
+                                                    keynamestr = "[{}]".format(",".join(["delta_{}".format(el) for el in headtemplatelist[4].replace("[","").replace("]","").split(",")]))
+                                                except:
+                                                    keynamestr = keystr
+                                                unit = headtemplatelist[5]
+                                            else:
+                                                #use keys as names and arbitrary units
+                                                unit = "[{}]".format(",".join(['arb'] * len(keys)))
+                                                keynamestr = keystr
+
                                             # takeunits =  ### take from st[0]
                                             packcode = "6hL{}".format("".join(['l'] * len(keys)))
                                             multi = "[{}]".format(",".join(['1000'] * len(keys)))
-                                            unit = "[{}]".format(",".join(['arb'] * len(keys)))
-                                            head = "# MagPyBin {} {} {} {} {} {} {}".format(diffname, keystr, keystr, unit,
+                                            head = "# MagPyBin {} {} {} {} {} {} {}".format(diffname, keystr, keynamestr, unit,
                                                                                             multi, packcode,
                                                                                             struct.calcsize('<' + packcode))
                                             client.publish(topic + "/meta", head, qos=qos)

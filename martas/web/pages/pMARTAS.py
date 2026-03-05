@@ -141,7 +141,7 @@ class MartasPage(object):
         DESCRIPTION
             Get all current data files from mqtt path
         """
-        sl = self.get_sensors(debug=False)
+        sl = self.sl
         scols = ['SensorID','Components','Active']
         stable = []
         if len(sl) > 0:
@@ -154,7 +154,6 @@ class MartasPage(object):
                     if d.find(s) >= 0:
                         active = True
                         if self.livedata.get(d):
-                            print ("HERE - stable")
                             ndd = self.livedata.get(d)
                             for elem in ndd.get('allnames',''):
                                 values.append(str(elem))
@@ -491,6 +490,9 @@ class MartasPage(object):
                         sensorcont['names'] = namelst[:3]
                         sensorcont['data'] = datacont
                     self.livedata[sensorid] = sensorcont
+                else:
+                    print ("NEW SensorID: ", sensorid)
+                    self.sl.append(sensorid)
 
             mqttversion = int(config.get("mqttversion", 2))
             mqttcert = config.get("mqttcert", "")
@@ -510,7 +512,7 @@ class MartasPage(object):
             # Display the plot
 
 configpath = None
-tester = False
+tester = True
 if tester:
     configpath = "/home/leon/.martas/conf/martas.cfg"
 
@@ -524,6 +526,9 @@ cron_columns = [{'id': c, 'name': c} for c in ccols]
 sens_columns = [{'id': c, 'name': c} for c in scols]
 initially_selected_rows = list(range(0, len(stable)))
 print ("Update rate of webpage", mapa.srate)
+
+print (mapa.sl)
+
 
 dash.register_page(__name__, path=mapa.defaultpage, top_nav=True, assets_ignore='marcos.css')
 
