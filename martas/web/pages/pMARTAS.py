@@ -77,7 +77,7 @@ class MartasPage(object):
         if self.read_initial_buffer:
             print("Using buffer to get initial data")
             for d in self.data2show:
-                data, names, anames, sr, sensorid = self.extract_data(d)
+                data, names, anames, sr, sensorid = self.extract_data(d,duration=self.defaultduration*60)
                 self.livedata[sensorid] = {'samplingrate': sr, 'names': names, 'allnames': anames, 'data': data}
         print ("Display refresh rate: {} sec".format(self.srate))
         # now create initial outputs:
