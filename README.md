@@ -2844,9 +2844,80 @@ go version Build upterm binary: console
 
 In case of “Permission denied (publickey)” check 1.1
 
-### 10.5 Setup examples for automatic analysis processes
+### 10.5 Fixing switching of USB ports on reboot
 
-#### 10.5.1 continuous, automatic DI analysis 
+This answer is a summary of a Gemini request:
+
+This is a common headache when working with microcontrollers or serial devices: today it's /dev/ttyUSB0, and tomorrow, 
+after a reboot or a quick unplug, it suddenly shifts to /dev/ttyUSB1.
+
+On Linux (Ubuntu, Debian), the solution is to use udev rules. Instead of relying on the dynamic name assigned by the 
+kernel, we create a static symbolic link (a "nickname") that always points to the correct hardware.
+
+Here is your step-by-step guide:
+1. Identify Your Hardware IDs
+
+First, we need to find out how your adapter identifies itself to the system. Plug the adapter in and run:
+
+        lsusb
+
+Look for the line corresponding to your adapter. It usually looks like this:
+Bus 001 Device 004: ID 0403:6001 Future Technology Devices International, Ltd FT232 USB-Serial (UART) IC
+
+Note the ID (in this example 0403:6001):
+
+    Vendor ID (idVendor): 0403
+
+    Product ID (idProduct): 6001
+
+2. Extract Detailed Attributes (Recommended)
+
+If you have two identical adapters, the Vendor and Product IDs won't be enough to distinguish them. You will need the 
+serial number:
+
+        udevadm info -a -n /dev/ttyUSB0 | grep '{serial}'
+
+3. Create the udev Rule
+
+Create a new rule file in the /etc/udev/rules.d/ directory. You can name it 99-usb-serial.rules:
+
+        sudo nano /etc/udev/rules.d/99-usb-serial.rules
+
+Add the following line (replace the IDs with your actual values):
+Bash
+
+        SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="ttyMYDEVICE"
+
+If you are using a serial number to distinguish between identical devices, use this format:
+
+        SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A6008S4L", SYMLINK+="ttyMYDEVICE"
+
+Replace "ttyMYDEVICE" with a name of your choice. For working properly in MARTAS make sure it starts with tty.
+
+4. Apply the Changes
+
+To make the system recognize the new rule immediately without a reboot, run these commands:
+Bash
+
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger
+
+Verify the result by checking 
+
+        ls -al /dev
+
+Now, whenever you plug in the adapter, Linux will automatically create a link at /dev/ttyMYDEVICE. You can verify this by 
+running:
+
+        ls -l /dev/ttyMYDEVICE
+
+Within sensors.cfg in MARTAS configuration directory you then need to point to /dev/ttyMYDEVICE by inserting MYDEVICE 
+instead of the unpredictable USBx.
+
+
+### 10.6 Setup examples for automatic analysis processes
+
+#### 10.6.1 continuous, automatic DI analysis 
 
 The automatic DI analysis makes use of the basevalue application.
 ```
