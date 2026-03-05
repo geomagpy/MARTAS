@@ -83,6 +83,8 @@ socketport = 5000
 diffsens = "G823"
 blacklist = []
 counter = 0
+diffcounter = 0
+prevlasttimestamp_prim = None
 
 ## SSL PSK tools
 def _ssl_setup_psk_callbacks(sslobj):
@@ -589,6 +591,8 @@ def on_message(client, userdata, msg):
                 - create dictionary with data streams of length "cover" - default is 5 
                 - subtract all stream 
                 """
+                global diffcounter # used to send meta information not every step
+                global prevlasttimestamp_prim
                 cover = 5
                 if sensorid.find(diffsens) >= 0:
                     st = diffstruct.get(sensorid, DataStream())
@@ -599,47 +603,53 @@ def on_message(client, userdata, msg):
                     diffstruct[sensorid] = st
                 if len(diffstruct) >= 2:
                     names = sorted(diffstruct.keys())
-                    lastval = diffstruct.get(names[0]).timerange()[1]
-
+                    lasttimestamp_prim = diffstruct.get(names[0]).timerange()[1]
+                    #print (lasttimestamp_prim, prevlasttimestamp_prim)
                     for i,name in enumerate(names):
                         if i > 0:
                             prim = diffstruct.get(names[i-1])
                             seco = diffstruct.get(name)
                             if len(prim) >= cover and len(seco) >= cover:
                                 # Sub has been verified - please note: has half of the original resolution - why?
-                                sub = subtract_streams(prim, seco)
-                                # now get a new sensorid name
-                                #try:
-                                primname = prim.header.get("SensorID", "TEST_unkown").split("_")[1]
-                                seconame = seco.header.get("SensorID", "TEST_unkown").split("_")[1]
-                                name = "Diff_{}{}_0001".format(primname, seconame)
-                                # get head line for pub
-                                keys = sub._get_key_headers(numerical=True)
-                                #print (sub.header)
-                                ilst = [KEYLIST.index(key) for key in keys]
-                                keystr = "[{}]".format(",".join(keys))
-                                # takeunits =  ### take from st[0]
-                                packcode = "6hL{}".format("".join(['l'] * len(keys)))
-                                multi = "[{}]".format(",".join(['1000'] * len(keys)))
-                                unit = "[{}]".format(",".join(['arb'] * len(keys)))
-                                head = "# MagPyBin {} {} {} {} {} {} {}".format(name, keystr, keystr, unit, multi, packcode,
-                                                                                struct.calcsize('<' + packcode))
-                                # print (head)
-                                # get data line for pub
-                                time = sub.ndarray[0][-1]
-                                timestr = (datetime.strftime(time, "%Y,%m,%d,%H,%M,%S,%f"))
-                                val = [sub.ndarray[i][-1] for i in ilst]
-                                if len(val) > 1:
-                                    valstr = ",".join(int(val * 1000))
-                                else:
-                                    valstr = int(val[0] * 1000)
-                                data = "{},{}".format(timestr, valstr)
-                                # print (data)
-                                topic = "{}/{}".format(stid, name)
-                                client.publish(topic + "/data", data, qos=qos)
-                                client.publish(topic + "/meta", head, qos=qos)
-                                if debug:
-                                    print(" -> diff {} published: {}".format(name, data))
+                                if not lasttimestamp_prim == prevlasttimestamp_prim:
+                                    try:
+                                        sub = subtract_streams(prim, seco)
+                                        primname = prim.header.get("SensorID", "TEST_unkown").split("_")[1]
+                                        seconame = seco.header.get("SensorID", "TEST_unkown").split("_")[1]
+                                        diffname = "Diff_{}{}_0001".format(primname, seconame)
+                                        keys = sub._get_key_headers(numerical=True)
+                                        ilst = [KEYLIST.index(key) for key in keys]
+                                        # get data line for pub
+                                        time = sub.ndarray[0][-1]
+                                        timestr = ",".join(str(t) for t in [time.year, time.month, time.day, time.hour, time.minute, time.second, time.microsecond])
+                                        val = [sub.ndarray[i][-1] for i in ilst]
+                                        if len(val) > 1:
+                                            valstr = ",".join(int(val * 1000))
+                                        else:
+                                            valstr = int(val[0] * 1000)
+                                        data = "{},{}".format(timestr, valstr)
+                                        # print (data)
+                                        topic = "{}/{}".format(stid, diffname)
+                                        diffcounter += 1
+                                        client.publish(topic + "/data", data, qos=qos)
+                                        if diffcounter > 5:
+                                            # now get a new sensorid name
+                                            # get head line for pub
+                                            keystr = "[{}]".format(",".join(keys))
+                                            # takeunits =  ### take from st[0]
+                                            packcode = "6hL{}".format("".join(['l'] * len(keys)))
+                                            multi = "[{}]".format(",".join(['1000'] * len(keys)))
+                                            unit = "[{}]".format(",".join(['arb'] * len(keys)))
+                                            head = "# MagPyBin {} {} {} {} {} {} {}".format(diffname, keystr, keystr, unit,
+                                                                                            multi, packcode,
+                                                                                            struct.calcsize('<' + packcode))
+                                            client.publish(topic + "/meta", head, qos=qos)
+                                            diffcounter = 0
+                                        prevlasttimestamp_prim = lasttimestamp_prim
+                                        if debug:
+                                            print(" -> diff {} published: {}".format(diffname, data))
+                                    except:
+                                        print (" -> diff failed")
             if 'stdout' in destination:
                 if not soarrayinterpreted:
                     stream.ndarray = interprete_data(msg.payload, sensorid)

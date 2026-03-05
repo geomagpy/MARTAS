@@ -509,21 +509,12 @@ class MartasPage(object):
             #client.loop_forever()
             # Display the plot
 
-
-# Configuration information
-mainpath = os.path.dirname(os.path.realpath(__file__))
-configpath = os.path.join(mainpath, "..", "..", "conf", "martas.cfg")
-webconfigpath = os.path.join(mainpath, "..", "..", "conf", "web.cfg")
-
-tester = True
+configpath = None
+tester = False
 if tester:
     configpath = "/home/leon/.martas/conf/martas.cfg"
-    debug = True
-else:
-    debug = False
 
 # Initialize the MARTAS page class and start MQTT recording
-print ("Calling init")
 mapa = MartasPage(configpath)
 
 statusdict = mapa.get_storage_usage(debug=False)
