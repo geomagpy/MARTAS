@@ -69,7 +69,9 @@ class MartasPage(object):
         if webcfg.get('read_initial_buffer',False) in ['False','false','FALSE', False]:
             self.read_initial_buffer = False
         if webcfg.get('debug',False) in ['True','true','TRUE', True]:
-            self.read_initial_buffer = True
+            self.debug = True
+        if self.read_initial_buffer:
+            print("Using buffer to get initial data")
             for d in self.data2show:
                 data, names, anames, sr, sensorid = self.extract_data(d)
                 self.livedata[sensorid] = {'samplingrate': sr, 'names': names, 'allnames': anames, 'data': data}
@@ -512,7 +514,7 @@ class MartasPage(object):
             # Display the plot
 
 configpath = None
-tester = False
+tester = True
 if tester:
     configpath = "/home/leon/.martas/conf/martas.cfg"
 
@@ -525,10 +527,6 @@ ctable, ccols = mapa.get_cron_jobs(debug=False)
 cron_columns = [{'id': c, 'name': c} for c in ccols]
 sens_columns = [{'id': c, 'name': c} for c in scols]
 initially_selected_rows = list(range(0, len(stable)))
-print ("Update rate of webpage", mapa.srate)
-
-print (mapa.sl)
-
 
 dash.register_page(__name__, path=mapa.defaultpage, top_nav=True, assets_ignore='marcos.css')
 
