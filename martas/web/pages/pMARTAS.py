@@ -512,7 +512,7 @@ class MartasPage(object):
             # Display the plot
 
 configpath = None
-tester = True
+tester = False
 if tester:
     configpath = "/home/leon/.martas/conf/martas.cfg"
 
