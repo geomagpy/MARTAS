@@ -2,7 +2,7 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
-####v<2.0.0-rc4>, <2025-03-xx> --
+####v<2.0.0-rc4>, <2025-03-05> --
 
 v2.0.0-rc4 general:
     - updated pMARTAS live diagram and switched to pages view so that MARCOS and MARTAS require only a single call

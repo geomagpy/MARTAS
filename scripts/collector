@@ -599,6 +599,8 @@ def on_message(client, userdata, msg):
                     diffstruct[sensorid] = st
                 if len(diffstruct) >= 2:
                     names = sorted(diffstruct.keys())
+                    lastval = diffstruct.get(names[0]).timerange()[1]
+
                     for i,name in enumerate(names):
                         if i > 0:
                             prim = diffstruct.get(names[i-1])
