@@ -2248,7 +2248,7 @@ the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full pat
 it available from cron.
 Please read sections 4 for [MARTAS](#4-pmartas) setup.
 
-#### 10.1.2 MARTAS on Raspberry Zero W (32bit)
+#### 10.1.2 MARTAS on Raspberry Zero W (32bit) and Zero 2 W (32bit recommended)
 
 Tested for Debian 13 "Trixie" and Debian "Bookworm" (python 3.11). It is recommended to use a python environment for 
 installation. You can, however, also use the "break-system-packages" approach as in 10.1.1.
@@ -2271,7 +2271,7 @@ Create a python environment and then install MARTAS with specific packages
 Get some of the critical python dependencies first. It is strongly recommended to select versions with already existing
 pre-compiled wheels, especially for low-power systems like the Zero W. In case of failures please contact the development 
 team for working versions of the specific packages and their dependencies. Typically, problems are related 
-to sub-dependencies of numpy, matplotlib and scipy. The following recommendation is valid for trixie and bookworm 
+to sub-dependencies of numpy, matplotlib and scipy. The following recommendation is valid for trixie (py 3.13) and bookworm 
 with python 3.11, for which default installation might fail because of the matplotlib dependency *contourpy*. So lets choose a 
 working version first:
 
@@ -2288,10 +2288,13 @@ working version first:
 
 32 bit ARM systems like the raspberry Zero W are not supported by llvmlite. For those systems a minimal package of
 geomagpy is required and can be obtained [here: geomagpy_2.0.2min](https://github.com/geomagpy/MARTAS/blob/master/martas/doc/geomagpy-2.0.2min.tar.gz). Please note: the minimal version has 
-no support for AI and limited support for activity analysis, which usually is not done on pMARTAS.
+no support for AI and limited support for activity analysis, which usually is not done on pMARTAS. 
 
         pip install geomagpy_2.0.2min.tar.gz
 
+If you run in to problems with compyling certain python packages you might try precompiled wheels for your system 
+(i.e. https://www.piwheels.org/simple/scipy/). If storage/space issues are observed on Zeros then either temporarly or
+permanently increase the temp memory size (temporary: sudo mount -o remount,size=1G /tmp).
 Then install all other modules and their dependencies
 
         pip install martas
@@ -2306,7 +2309,7 @@ necessary (n) or recommended (r):
 
 Create a bufferdircetory
 
-        mkdir ~/MARTAS
+        mkdir ~/MARTAS/mqtt
 
 Eventually add credentials for notifications by e-mail (skip this one if not used)
 
@@ -2316,10 +2319,16 @@ Run initialization
 
         martas_init
 
+Add some post-installation things 
+
+      # add PATH to crontab: PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
+      # add reboot command: @reboot sleep 60 && /usr/bin/bash -i /home/debian/.martas/runmartas.sh start > /home/debian/.martas/log/runmartas.log 2>&1
+      # activate TEST
+
 Please read sections 4 for [MARTAS](#4-pmartas) setup. It is not recommended to use a Raspberry Zero W for [MARCOS](#5-marcos) 
 although it will work if you limit the amount of incoming data.
 
-#### 10.1.3 MARTAS on Raspberry (RPi5, Zero 2 W and all other 64bit systems)
+#### 10.1.3 MARTAS on Raspberry (RPi5, and all other 64bit systems)
 
 For Debian 13 "Trixie" please use the [standard installation routine](#22-installing-martas). 
 
@@ -2387,7 +2396,7 @@ necessary (n) or recommended (r):
 
 Create a bufferdircetory
 
-        mkdir ~/MARTAS
+        mkdir ~/MARTAS/mqtt
 
 Eventually add credentials for notifications by e-mail (skip this one if not used)
 
@@ -2396,6 +2405,12 @@ Eventually add credentials for notifications by e-mail (skip this one if not use
 Run initialization
 
         martas_init
+
+Add some post-installation things 
+
+      # add PATH to crontab: PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin
+      # add reboot command: @reboot sleep 60 && /usr/bin/bash -i /home/debian/.martas/runmartas.sh start > /home/debian/.martas/log/runmartas.log 2>&1
+      # activate TEST
 
 
 #### 10.1.4 Full installation example with all options
@@ -2795,7 +2810,8 @@ the last line starting with "ssh bJ5OpbvIM...." is the command you need to enter
 
 #### 10.4.2 Raspberry 
 
-To build a upterm binary for ARM you have to download a new Go tool (at least Go 1.13+):
+To build a upterm binary for ARM you have to download a new Go tool (at least Go 1.13+). For 32bit systems you need to 
+change "arm64.tar.gz" to "armv6l.tar.gz and use "GOARM=6":
 
         ####wget https://go.dev/dl/go1.21.5.linux-armv6l.tar.gz  # 1.25.3####
         ####sudo tar -C /usr/local -xzf go1.21.5.linux-armv6l.tar.gz ####
@@ -2811,7 +2827,7 @@ check console go version Bulid the binary and move it into /usr/local/bin:
         GOARCH=arm 
         GOARM=7 
         go build -o upterm ./cmd/upterm 
-        sudo mv ~/upterm/upterm/upterm /usr/local/bin/upterm 
+        sudo mv upterm/upterm /usr/local/bin/ 
         sudo chmod +x /usr/local/bin/upterm 
 
 check 
