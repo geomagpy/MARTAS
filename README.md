@@ -2292,8 +2292,8 @@ no support for AI and limited support for activity analysis, which usually is no
 
         pip install geomagpy_2.0.2min.tar.gz
 
-If you run in to problems with compyling certain python packages you might try precompiled wheels for your system 
-(i.e. https://www.piwheels.org/simple/scipy/). If storage/space issues are observed on Zeros then either temporarly or
+If you run in to problems with compiling certain python packages you might try precompiled wheels for your system 
+(i.e. https://www.piwheels.org/simple/scipy/). If storage/space issues are observed on Zeros then either temporarily or
 permanently increase the temp memory size (temporary: sudo mount -o remount,size=1G /tmp).
 Then install all other modules and their dependencies
 
