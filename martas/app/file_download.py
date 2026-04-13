@@ -442,10 +442,14 @@ def check_configuration(config=None,debug=False):
     protocol = config.get('protocol')
     if not protocol in ['','ftp','FTP']:
         source += protocol + "://"
-        if not user == '' and not password=='':
+        if user and not user == '' and not password=='':
             source += user + ":" + password + "@"
-        if not address == '':
+        else:
+            print (" file_download: did not find an appropriate user in credentials")
+        if address and not address == '':
             source += address
+        else:
+            print (" file_download: did not find an appropriate address in credentials")
 
     remotepath = config.get('sourcedatapath')
     if not remotepath == '':
