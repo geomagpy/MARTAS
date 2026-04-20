@@ -16,7 +16,7 @@ v2.0.1 fixes:
 
 Version 2.0.0 finally published containing all updates included in v2.0.0-rc4
 
-####v<2.0.0-rc4>, <2025-03-05> --
+####v<2.0.0-rc4>, <2026-03-05> --
 
 v2.0.0-rc4 general:
     - updated pMARTAS live diagram and switched to pages view so that MARCOS and MARTAS require only a single call
@@ -25,7 +25,7 @@ v2.0.0-rc4 general:
 v2.0.0-rc4 fixes:
     - collector diff for real time calculation of gradients
 
-####v<2.0.0-rc2 and rc3>, <2025-01-31> --
+####v<2.0.0-rc2 and rc3>, <2026-01-31> --
 
 v2.0.0-rc3 general:
     - updated two way communication issues
