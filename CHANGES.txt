@@ -2,10 +2,17 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
-####v<2.0.1>, <2025-xx-xx> --
+####v<2.0.1>, <2026-04-xx> --
+
+v2.0.1 general:
+    - added new I2C sensors
+    - updated README
+
+v2.0.1 fixes:
+    - app/basevalue.py - accept stationid in blv filees required to save di data to DB
 
 
-####v<2.0.0>, <2025-03-05> --
+####v<2.0.0>, <2026-03-05> --
 
 Version 2.0.0 finally published containing all updates included in v2.0.0-rc4
 

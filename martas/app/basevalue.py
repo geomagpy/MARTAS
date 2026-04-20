@@ -291,7 +291,7 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
     blvdatapath = config.get('blvdatapath')
     flagfile = config.get('diflagfile')
     db = config.get('primaryDB')
-    obscode = config.get('obscode')
+    obscode = config.get('obscode','')
     writemode = config.get('writemode')
     writeflags = config.get('writeflags')
     didatapath = config.get('didatapath')
@@ -508,7 +508,7 @@ def basevalue_recalc(runmode, config=None, startdate=None, enddate=None, debug=F
                                                  expD=expectedD, expI=expectedI, starttime=startdate, endtime=enddate,
                                                  db=db, skipscalardb=skipscalardb, compensation=compensation,
                                                  magrotation=magrotation, alpha=alpha, beta=beta, abstype=abstype,
-                                                 azimuth=azimuth, deltaD=deltaD, deltaI=deltaI, dbadd=dbadd,
+                                                 azimuth=azimuth, deltaD=deltaD, deltaI=deltaI, dbadd=dbadd, stationid=obscode,
                                                  movetoarchive=movetoarchivenow, flagfile=contflagfile, debug=debug)
                 # TODO addDB
                 # How is addDB working? -> Append new DI files? Replace existing?
