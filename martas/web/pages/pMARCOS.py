@@ -40,7 +40,7 @@ pip install dash_daq
 """
 # Configuration information
 mainpath = os.path.dirname(os.path.realpath(__file__))
-configpath = os.path.join(mainpath, "", "..", "..", "conf", "archive.cfg")
+configpath = os.path.join(mainpath, "..", "..", "conf", "archive.cfg")
 webconfigpath = os.path.join(mainpath, "..", "..", "conf", "web.cfg")
 
 # Read configuration data and initialize amount of plots
@@ -50,7 +50,7 @@ archivepath = cfg.get('archivepath')
 logpath = cfg.get('logpath')
 dbcred = cfg.get('dbcredentials')
 
-tester = True
+tester = False
 if tester:
     print(cfg)
     archivepath = "/srv"
@@ -61,7 +61,7 @@ if tester:
 # import a webpage config: darkmode, defaultpage, default limits, displayrate, read file first
 defaultpage = None  # set default # get from config
 debug = False
-if webcfg.get('defaultpage','martas') in ['marcos','Marcos','MARCOS']:
+if webcfg.get('defaultpage','martas') in ['marcos','Marcos','MARCOS','pMARCOS']:
     defaultpage = "/" # set default # get from config
 srate = int(webcfg.get('refreshrate',5)) # displayrate - needs to be large enough, dynamically adjusted
 if webcfg.get('read_initial_buffer',False) in ['False','false','FALSE', False]:

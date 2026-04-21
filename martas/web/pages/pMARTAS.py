@@ -55,7 +55,7 @@ class MartasPage(object):
         # import a webpage config: darkmode, defaultpage, default limits, displayrate, read file first
         self.read_initial_buffer = True
         self.defaultpage = None  # set default # get from config
-        if webcfg.get('defaultpage','martas') in ['martas','Martas','MARTAS','homedirectory']:
+        if webcfg.get('defaultpage','martas') in ['martas','Martas','MARTAS','pMARTAS','homedirectory']:
             self.defaultpage = "/" # set default # get from config
         self.srate = int(webcfg.get('refreshrate',5)) # displayrate - needs to be large enough, dynamically adjusted
 
@@ -84,9 +84,11 @@ class MartasPage(object):
         self.sl = self.get_sensors(debug=False)
         self.sensors_to_plot = self.get_sensors(debug=False) # will be updated eventually
 
-
-        self.t1_stop = threading.Event()
-        self.martas_live_monitor(debug=self.debug)
+        try:
+            self.t1_stop = threading.Event()
+            self.martas_live_monitor(debug=self.debug)
+        except:
+            pass
 
     def get_sensors(self, debug=False):
         """
