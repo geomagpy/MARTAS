@@ -660,7 +660,17 @@ and then add a sensor line like the following
 
          MMC5603_1234_0001,I2C,-,-,-,-,active,None,1,1,MMC5603IC2,MMC5603,1234,0001,-,OnBoard,NTP,magnetism,mmc magnetic sensor
 
+#### 4.4.19 BNO08x I2C sensors
 
+pMARTAS also supports the BNO08x 9-DoF sensor providing 3 axis magnetic vector, acceleration and gyro information. Installation is similar to the MMC5603 and requires the installation of adafruit python packages.  
+
+Install the following package first:
+
+         pip install adafruit-circuitpython-bno08x
+
+and then add a sensor line like the following
+
+         BNO085_1234_0001,I2C,-,-,-,-,active,None,1,1,BNO085IC2,BNO085,1234,0001,-,OnBoard,NTP,magnetism,bno 9-dof sensor
 
 ### 4.5 Running the acquisition system
 
