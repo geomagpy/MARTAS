@@ -7,9 +7,11 @@ and collection from many different sources.
 v2.0.1 general:
     - added new I2C sensors
     - updated README
+    - added new send-telegram method
 
 v2.0.1 fixes:
-    - app/basevalue.py - accept stationid in blv filees required to save di data to DB
+    - app/basevalue.py - accept stationid in blv files required to save di data to DB
+    - fixed proxy configuration for testnote
 
 
 ####v<2.0.0>, <2026-03-05> --
