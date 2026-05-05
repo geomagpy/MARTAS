@@ -654,6 +654,90 @@ def sendtelegram(message, configpath="", proxies=None, debug=True):
     return True
 
 
+def sendtelegram2(messageblock, configpath="", proxies=None, debug=True):
+    """
+    DESCRIPTION
+        Sending a telegram message provided that token and chat_id are provided
+        Requires configuartion data read by configparser of the following form:
+
+    VARIABLES
+        messageblock = {1 : {"messages" : messagelist1, "images" : imagelist1, 'parse_mode' : 'Markdown', 'disable_notification' : False},
+                2 : {"messages" : messagelist2, "images" : imagelist2, 'parse_mode' : 'MarkdownV2'},
+                "files" : filelist}
+
+        configpath  :
+        proxies   :  should look similar to { "http" : "http://10.10.10.10:3128",
+                                        "https" : "https://10.10.10.10:3128",
+                                        }
+    SUPPORTED FEATURES:
+        parse_mode : can be either "HTML", "MarkdownV2" or "Markdown" - check Telegram BOT API for details
+        disable_notification  :  no sound on receiver side
+
+    """
+
+    if not proxies:
+        proxies = {}
+
+    if debug:
+        print("Sending via telegram:", configpath, messageblock, proxies)
+    if not messageblock or not configpath or not os.path.isfile(configpath):
+        return False
+
+    config = configparser.ConfigParser()
+    config.read(configpath)
+    token = config.get('telegram', 'token')
+    chat_id = config.get('telegram', 'chat_id')
+
+    # start with figures, then messages, then files
+    blockelements = sort([el for el in messageblock if isinstance(el, int)])
+    # contruct message:
+    for block in blockelements:
+        msgcontent = messageblock.get(block)
+        messages = msgcontent.get('messages', [])
+        images = msgcontent.get('images', [])
+        parse_mode = msgcontent.get('parse_mode', 'Markdown')
+        if not parse_mode in ['MarkdownV2', 'Markdown', 'HTML']:
+            parse_mode = 'Markdown'
+        dn = msgcontent.get('disable_notification')
+        disnote = ""
+        if dn:
+            disnote = "&disable_notification=true"
+        for message in messages:
+            # telegram notifications - replace and cut
+            rep = message.replace('&', 'and').replace('/', '')[:4000]
+            if debug:
+                print("Sending by telegram:", rep)
+            # Send report to the specific user i.e. by telegram
+            url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={rep}&parse_mode={parse_mode}"
+            if debug:
+                print("Would send this one without debug: ", url)
+            else:
+                print(requests.get(url, proxies=proxies).json())  # this sends the message
+        for image in images:
+            # telegram notifications - replace and cut
+            if debug:
+                print("Sending image by telegram:", image)
+            # Send report to the specific user i.e. by telegram
+            if os.path.isfile(image):
+                photos = {"photo": open(image, "rb")}
+                url = f"https://api.telegram.org/bot{token}/sendPhoto?chat_id={chat_id}"
+                if debug:
+                    print(url)
+                else:
+                    print(requests.get(url, files=photos, proxies=proxies).json())  # this sends the message
+
+    docs = messageblock.get("files", [])
+    for doc in docs:
+        if os.path.isfile(doc):
+            files = {"document": open(doc, "rb")}
+            url = f"https://api.telegram.org/bot{token}/sendDocument?chat_id={chat_id}"
+            if debug:
+                print(url)
+            else:
+                print(requests.get(url, files=files, proxies=proxies).json())  # this sends the message
+    return True
+
+
 def time_to_array(timestring):
     """
     DESCRIPTION
