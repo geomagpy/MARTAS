@@ -282,6 +282,7 @@ def blv(config=None, results=None, debug=False):
     # Modify the absresult:
     # a) add pierdiff to baseline
     val = db.select('DataDeltaValues', 'DATAINFO', 'DataID="{}"'.format(scinstlist[0]))[0]
+    #TODO - new format - chechout observatory_analysis jupyter notebook
     dic = string2dict(val, typ='listofdict')
     # get all inputs with starttime <= end of year and endtime either missing or >= start of year
     dflist = []

@@ -25,9 +25,9 @@ def main(argv):
     debug = False
 
     try:
-        opts, args = getopt.getopt(argv,"hn:m:c:l:p:D",["notificationtype=","message=","logname=","logpath=","debug=",])
+        opts, args = getopt.getopt(argv,"hn:m:c:l:p:o:D",["notificationtype=","message=","logname=","logpath=","proxy=","debug=",])
     except getopt.GetoptError:
-        print ('testnote.py -n <notificationtype> -m <message> -c <configpath> -l <logname> -p <logpath>')
+        print ('testnote.py -n <notificationtype> -m <message> -c <configpath> -l <logname> -p <logpath> -o <proxy')
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
@@ -48,6 +48,7 @@ def main(argv):
             print ('-c            : configuration path')
             print ('-l            : logname')
             print ('-p            : logpath')
+            print ('-o            : proxy')
             print ('-------------------------------------')
             print ('Example of memory:')
             print ('-------------------------------------')
@@ -68,7 +69,7 @@ def main(argv):
         elif opt in ("-p", "--logpath"):
             logpath = os.path.abspath(arg)
         elif opt in ("-o", "--proxy"):
-            proxies = {'https', arg}
+            proxies = {'https' : arg}
         elif opt in ("-D", "--debug"):
             debug = True
 
