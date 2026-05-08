@@ -704,15 +704,21 @@ def sendtelegram2(messageblock, configpath="", proxies=None, debug=True):
             disnote = "&disable_notification=true"
         for message in messages:
             # telegram notifications - replace and cut
-            rep = message.replace('&', 'and').replace('/', '')[:4000]
+            # rep = message.replace('&', 'and').replace('/', '')[:4000]
             if debug:
-                print("Sending by telegram:", rep)
+                print("Sending by telegram:", message)
+            params = {"chat_id": chat_id,
+                      "text": message,
+                      "parse_mode": parse_mode,
+                      }
             # Send report to the specific user i.e. by telegram
-            url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={rep}&parse_mode={parse_mode}"
+            # url = f"https://api.telegram.org/bot{token}/sendMessage?chat_id={chat_id}&text={rep}&parse_mode={parse_mode}"
             if debug:
-                print("Would send this one without debug: ", url)
+                print("Would send this one without debug: ", params)
             else:
-                print(requests.get(url, proxies=proxies).json())  # this sends the message
+                print(requests.get("https://api.telegram.org/bot{}/sendMessage".format(token),
+                                   params=params,
+                                   proxies=proxies).json())  # this sends the message
         for image in images:
             # telegram notifications - replace and cut
             if debug:
