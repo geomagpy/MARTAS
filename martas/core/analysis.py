@@ -674,6 +674,7 @@ class MartasAnalysis(object):
             # run the flagging procedure
             for dataid in datadict:
                 # get existing flags
+                print ("Flagging ", dataid)
                 cont = datadict.get(dataid)
                 data = cont.get('data')
                 existfl = self.db.flags_from_db(dataid[:-5], starttime=starttime, endtime=endtime )

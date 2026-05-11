@@ -689,7 +689,7 @@ def sendtelegram2(messageblock, configpath="", proxies=None, debug=True):
     chat_id = config.get('telegram', 'chat_id')
 
     # start with figures, then messages, then files
-    blockelements = sort([el for el in messageblock if isinstance(el, int)])
+    blockelements = sorted([el for el in messageblock if isinstance(el, int)])
     # contruct message:
     for block in blockelements:
         msgcontent = messageblock.get(block)
