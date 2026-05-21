@@ -251,7 +251,7 @@ def main(argv):
     print (" (press return for accepting default: {})".format(os.path.join(homedir,"backups")))
     newbackuppath = input()
     if newstationname and not newstationname in ["NONE","none","no","n","NO","None","N"]:
-        backupath = newbackuppath
+        backuppath = newbackuppath
     elif newstationname in ["NONE","none","no","n","NO","None","N"]:
         backuppath = ""
     print (" -> Station ID: {}".format(stationname))
