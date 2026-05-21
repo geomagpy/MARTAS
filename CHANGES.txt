@@ -4,6 +4,9 @@ and collection from many different sources.
 
 ####v<2.0.2>, <2026-xx-xx> --
 
+v2.0.1 fixes:
+    - analysis.py - status relevant error are corrected
+
 
 ####v<2.0.1>, <2026-05-21> --
 

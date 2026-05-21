@@ -1486,6 +1486,7 @@ class MartasStatus(object):
         value_min = 0
         value_max = 0
         uncert = 0
+        starttime = None
         startload = endtime - timedelta(hours=maxcoverage) # get two days of data at maximum
         newendtime = endtime  # will be changes for mode "last"
         ok = True
@@ -1493,69 +1494,37 @@ class MartasStatus(object):
             maan = MartasAnalysis(config=self.config)
             data = maan.get_marcos_data(source, starttime=startload, endtime=endtime, config=self.config,
                             debug=debug)
-            enddata = data.end()
-            starttime = enddata - timedelta(minutes=trange)
-            data = data.trim(starttime=starttime, endtime=enddata) # get the real last recorded range
-            ndata = data._drop_nans(key)
-            cleandata = ndata._get_column(key)
-            """
-            # check what happens if no data is present or no valid data is found
-            if source.find('/') > -1:
-                if debug:
-                    print("Reading data: found path or url:", source, starttime, endtime)
-                try:
-                    fdata = read(source, starttime=starttime, endtime=endtime)
-                except:
-                    if debug:
-                        print("Just try to load at least the current day")
-                    fbdate = endtime.strftime("%Y-%m-%d")
-                    source = source.replace("*", "*" + fbdate)
-                    fdata = read(source)
-                if debug:
-                    print(" - found {} datapoints".format(fdata.length()[0]))
-                ndata = fdata._drop_nans(key)
-                if debug:
-                    print(" - dropped nans -> remaining datapoints: {}".format(ndata.length()[0]))
+            if len(data) > 0:
+                enddata = data.end()
+                starttime = enddata - timedelta(minutes=trange)
+                data = data.trim(starttime=starttime, endtime=enddata) # get the real last recorded range
+                ndata = data._drop_nans(key)
                 cleandata = ndata._get_column(key)
+                newendtime = ndata.end()
                 if debug:
-                    print(" - got key", key)
-                    # print (fdata.ndarray[0])
-                if debug:
-                    print(" - Done")
-            else:
-                if debug:
-                    print("Reading data: accessing database table")
-                ddata = self.db.read(source, starttime=starttime, endtime=endtime)
-                if debug and len(ddata) > 0:
-                    print(" -> reading done: got {} datapoints for {}".format(len(ddata), key))
-                ndata = ddata._drop_nans(key)
-                cleandata = ndata._get_column(key)
-            """
-            newendtime = ndata.end()
-            if debug:
-                print(" -> {} datapoints remaining after cleaning NaN".format(len(cleandata)))
-                #print("Cleandata", cleandata)
-            if len(cleandata) > 0 and not isnan(cleandata[0]):
-                value_min = np.min(cleandata)
-                value_max = np.max(cleandata)
-                uncert = np.std(cleandata)
-                if mode == "median":
-                    value = np.median(cleandata)
-                elif mode == "min":
-                    value = value_min
-                elif mode == "max":
-                    value = value_max
-                elif mode == "std":
-                    value = np.std(cleandata)
-                elif mode == "gradient":
-                    gr = np.gradient(cleandata)
-                    value = np.mean(gr)
-                elif mode == "last":  # if mode.startswith(last) allow last1, last2 etc
-                    value = cleandata[-1]
-                    endtime = newendtime
-                else:  # mode == mean
-                    value = np.mean(cleandata)
-                active = 1
+                    print(" -> {} datapoints remaining after cleaning NaN".format(len(cleandata)))
+                    #print("Cleandata", cleandata)
+                if len(cleandata) > 0 and not isnan(cleandata[0]):
+                    value_min = np.min(cleandata)
+                    value_max = np.max(cleandata)
+                    uncert = np.std(cleandata)
+                    if mode == "median":
+                        value = np.median(cleandata)
+                    elif mode == "min":
+                        value = value_min
+                    elif mode == "max":
+                        value = value_max
+                    elif mode == "std":
+                        value = np.std(cleandata)
+                    elif mode == "gradient":
+                        gr = np.gradient(cleandata)
+                        value = np.mean(gr)
+                    elif mode == "last":  # if mode.startswith(last) allow last1, last2 etc
+                        value = cleandata[-1]
+                        endtime = newendtime
+                    else:  # mode == mean
+                        value = np.mean(cleandata)
+                    active = 1
 
         # get existing statusdict info and use
 
@@ -1566,6 +1535,8 @@ class MartasStatus(object):
         result['min'] = value_min
         result['max'] = value_max
         result['uncert'] = uncert
+        if not starttime:
+            starttime = startload
         result['starttime'] = starttime
         result['endtime'] = endtime
         if not result.get('lonitude'):
