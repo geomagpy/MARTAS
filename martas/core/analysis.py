@@ -380,7 +380,7 @@ class MartasAnalysis(object):
 
         data = DataStream()
         selectedsensor = ''
-        sel_sr = 9999
+        sel_sr = 99999
         for dataid in datadict:
             if debug:
                 print (" _data_from_db: part (b) - scanning {}".format(dataid))
@@ -404,12 +404,15 @@ class MartasAnalysis(object):
                     print(" _data_from_db: part (c) now checking whether the timerange is fitting to {} - {}".format(starttime,endtime))
                 if len(data) > 0:
                     st, et = data.timerange()
+                    boundary = 3600
+                    if sel_sr > boundary:
+                        boundary = sel_sr
                     if starttime:
-                        # assume everything within oe hour to be OK
-                        if np.abs((starttime - st).total_seconds()) < 3600:
+                        # assume everything within one hour or within samplingrate distance if larger to be OK
+                        if np.abs((starttime - st).total_seconds()) < boundary:
                             success = True
                     if endtime:
-                        if np.abs((endtime - et).total_seconds()) < 3600:
+                        if np.abs((endtime - et).total_seconds()) < boundary:
                             success = True
                     if debug:
                         print ("      -> Starttime {}, Endtime {}, Success {}".format(st, et,success))
@@ -1474,11 +1477,12 @@ class MartasStatus(object):
         if not statuselem:
             statuselem = {}
         if not endtime:
-            endtime = datetime.now(timezone.utc).replace(tzinfo=None)
+            # eventually also get future data i.e. for K nowcasts
+            endtime = datetime.now(timezone.utc).replace(tzinfo=None)+timedelta(hours=3)
         ndata = DataStream()
         source = statuselem.get('source','')
         key = statuselem.get('key','x')
-        trange = statuselem.get('trange', 30)
+        trange = statuselem.get('range', 30)
         mode = statuselem.get('mode',"mean")
         result = statuselem.copy()
         active = 0
@@ -1494,11 +1498,11 @@ class MartasStatus(object):
             maan = MartasAnalysis(config=self.config)
             data = maan.get_marcos_data(source, starttime=startload, endtime=endtime, config=self.config,
                             debug=debug)
-            if len(data) > 0:
-                enddata = data.end()
+            ndata = data._drop_nans(key)
+            if len(ndata) > 0:
+                enddata = ndata.end()
                 starttime = enddata - timedelta(minutes=trange)
-                data = data.trim(starttime=starttime, endtime=enddata) # get the real last recorded range
-                ndata = data._drop_nans(key)
+                ndata = ndata.trim(starttime=starttime) # get the real last recorded range
                 cleandata = ndata._get_column(key)
                 newendtime = ndata.end()
                 if debug:
