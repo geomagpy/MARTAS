@@ -1461,7 +1461,7 @@ class MartasStatus(object):
         self.db = self.config.get('primaryDB')
 
 
-    def read_data(self, statuselem=None, endtime=None, debug=False):
+    def read_data(self, statuselem=None, endtime=None, maxcoverage=48, debug=False):
         """
         DESCRIPTION
             Read date for a certain table, a given key and timerange from the database.
@@ -1486,13 +1486,16 @@ class MartasStatus(object):
         value_min = 0
         value_max = 0
         uncert = 0
-        starttime = endtime - timedelta(minutes=trange)
+        startload = endtime - timedelta(hours=maxcoverage) # get two days of data at maximum
         newendtime = endtime  # will be changes for mode "last"
         ok = True
         if ok:
             maan = MartasAnalysis(config=self.config)
-            data = maan.get_marcos_data(source, starttime=starttime, endtime=endtime, config=self.config,
+            data = maan.get_marcos_data(source, starttime=startload, endtime=endtime, config=self.config,
                             debug=debug)
+            enddata = data.end()
+            starttime = enddata - timedelta(minutes=trange)
+            data = data.trim(starttime=starttime, endtime=enddata) # get the real last recorded range
             ndata = data._drop_nans(key)
             cleandata = ndata._get_column(key)
             """
@@ -1785,7 +1788,7 @@ class TestAnalysis(unittest.TestCase):
                             debug=True)
         self.assertFalse(data)
 
-    def test_zzz_db_table_exists(self):
+    def test_db_table_exists(self):
         mf = MartasAnalysis()
         connectdict = mf.config.get('conncetedDB')
         dbw = connectdict.get('cobsdb')
@@ -1804,6 +1807,7 @@ class TestAnalysis(unittest.TestCase):
     def test_zarchive(self):
         mf = MartasAnalysis()
         success = mf.archive(archivepath="/tmp", debug=True)
+        # shouldn't that be true?
         self.assertFalse(success)
 
     def test_update_flags_db(self):
