@@ -636,6 +636,32 @@ def definitivefiles_sec(config=None, startmonth=0, endmonth=12, results=None, ru
     return results
 
 
+def get_all_flags(db, header, start, end):
+    """
+    DECRIPTION
+        helper function to obtain group flags from data base
+        used by scalarcorr and variocorr
+    """
+    # flaglist = db.flags_from_db(scinst[:-5], starttime=dstarttime, endtime=dendtime) #data.header['SensorID'])
+    fl = db.flags_from_db(starttime=start, endtime=end)  # sensorid=self.sensorid,
+    # keep only flags matching sensorid and group
+    newflagdict = {}
+    for d in fl.flagdict:
+        flagcont = fl.flagdict[d]
+        # test, if sensorid is fitting or sensorid/group is part of groups
+        valid, comps = fl._match_groups(header, flagcont.get('sensorid'),
+                                        flag_keys=flagcont.get('components'),
+                                        flag_groups=flagcont.get('groups'))
+        # test validity parameter for d or h
+        if flagcont.get('validity') in ['d', 'h']:
+            valid = False
+        if valid:
+            newflagdict[d] = flagcont
+    fl.flagdict = newflagdict
+
+    return fl
+
+
 def pier_diff(runmode, config=None, debug=False):
     """
     REQUIREMENT:
@@ -1054,7 +1080,12 @@ def scalarcomb(runmode, config=None, startmonth=-1, endmonth=13, debug=False):
             ref.write(os.path.join(outpath,'magpy'),filenamebegins='CobsF_sec_{}_'.format(runmode),dateformat='%Y%m',coverage='month',mode='replace',format_type='PYCDF')
 
 
-def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, skipsec=False, debug=False):
+def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, skipsec=False, clearflag=True, debug=False):
+    """
+    DESCRIPTION
+    PARAMETER
+        clearflag : bool : if True, remove any flags loaded with file structure, use only database contents
+    """
     if debug:
         print (" ----------------------------------------- ")
         print (" --- Checking and Filtering F --- ")
@@ -1124,6 +1155,10 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                 # get header from db
                 if debug:
                     print ("  Obtained {} data points".format(sc.length()[0]))
+                # 1) clear existing flags in file
+                #if clearflag:
+                #    print ("  Clearing flags in file structure - ")
+                #    print ("REALLY necessary??")
                 # 2) Remove duplicates
                 if debug:
                     print ("  Removing duplicates")
@@ -1140,8 +1175,9 @@ def scalarcorr(runmode, config=None, startmonth=-1, endmonth=13, flagfile=None, 
                     # flag it
                     if debug:
                         print ("  Flagging with existing flags:")
-                        print ("  a) from DB:")
-                    flaglist = db.flags_from_db(scinst[:-5], starttime=dstarttime, endtime=dendtime) #data.header['SensorID'])
+                        print ("  a) from DB (including group flags):")
+                    #flaglist = db.flags_from_db(scinst[:-5], starttime=dstarttime, endtime=dendtime) #data.header['SensorID'])
+                    flaglist = get_all_flags(db, sc.header, dstarttime, dendtime)
                     if debug:
                         print ("     Length of DB flaglist: {}".format(len(flaglist)))
                         print ("  b) from file:")
@@ -1453,7 +1489,8 @@ def variocorr(runmode, config=None, startmonth=0, endmonth=12, skipsec=False, fl
                 if debug:
                     print ("  Flagging")
                 vaflagsdropped = False
-                vaflaglist = db.flags_from_db(va.header['SensorID'], starttime=dstarttime, endtime=dendtime)
+                #vaflaglist = db.flags_from_db(va.header['SensorID'], starttime=dstarttime, endtime=dendtime)
+                vaflaglist = get_all_flags(db, va.header, dstarttime, dendtime)
                 if debug:
                     print("  Loaded {} flags from DB for this time range".format(len(vaflaglist)))
                 #  --b. add flaglist from file
