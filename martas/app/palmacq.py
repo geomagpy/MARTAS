@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 """
-a small tool for PalmAcq and ObsDAQ (Mingeo, Hungary)
-palmobs.py has these options:
-    forwarding mode
-        get data from obsDAQ
+a small tool for PalmAcq and ObsDaq (Mingeo, Hungary)
+palmacq.py has these modes:
     command mode
-        talk to Palmdacq
+        talk to PalmAcq
     transparent mode
-        talk to ObsDAQ
+        talk to ObsDaq
+    forwarding mode
+        get data from ObsDaq
     -h for help
 """
 
@@ -15,7 +15,7 @@ from __future__ import print_function
 import sys, time, os, socket, getopt
 import serial
 import struct, binascii, re, csv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from matplotlib.dates import date2num, num2date
 import numpy as np
 import time
@@ -29,7 +29,10 @@ PORT = '/dev/ttyUSB0'
 BAUDRATE='57600'
 eol = '\r'
 # since beginning of 2017 there are 18 leap seconds. PalmAcq starts with 15 leap seconds.
-LEAPSECOND = 18
+#LEAPSECOND = 18
+# for older hardware enter up-to-date leap seconds and uncomment line above
+# for hardware since v3.2 leap seconds are not used any more, set leap seconds to 0
+LEAPSECOND = 0
 
 # settings for ObsDAQ
 #   only baudrate 19200 supported here 
@@ -80,7 +83,9 @@ def send_command(ser,command,eol,hex=False):
 
     command = command+eol
     #print 'Command:  %s \n ' % command.replace(eol,'')
-    sendtime = date2num(datetime.utcnow())
+    #deprecated: sendtime = date2num(datetime.utcnow())
+    sendtime = datetime.now(timezone.utc).replace(tzinfo=None)
+    sendtime = date2num(sendtime)
     #print "Sending"
     if sys.version_info >= (3, 0):
         ser.write(command.encode('ascii'))
@@ -89,7 +94,9 @@ def send_command(ser,command,eol,hex=False):
     #print "Received something - interpretation"
     response = lineread(ser,eol)
     #print "interprete"
-    receivetime = date2num(datetime.utcnow())
+    #deprecated: receivetime = date2num(datetime.utcnow())
+    receivetime = datetime.now(timezone.utc).replace(tzinfo=None)
+    receivetime = date2num(receivetime)
     meantime = np.mean([receivetime,sendtime])
     #print "Timediff", (receivetime-sendtime)*3600*24
     return response, num2date(meantime).replace(tzinfo=None)
@@ -109,7 +116,7 @@ def command(call):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv,"hvm:tpfd:gsoiq",[])
+        opts, args = getopt.getopt(argv,"hvm:tpfd:gzrsoiq",[])
     except getopt.GetoptError:
         print ('unknown option')
         sys.exit(2)
@@ -125,7 +132,7 @@ def main(argv):
             print ('Sending data to PalmAcq resp. ObsDAQ')
             print ('-------------------------------------')
             print ('Usage:')
-            print ('palmobs.py -q -v -t -m config-file -p -f -d [R/P/G] -g -s -i -o')
+            print ('palmobs.py -q -v -t -m config-file -p -f -d [R/P/G] -g -z -r -s -i -o')
             print ('-------------------------------------')
             print ('Options:')
             print ('-v          : show version of PalmAcq and quit')
@@ -137,7 +144,9 @@ def main(argv):
             print ('    -d R    : enter to ObsDAQ stream') 
             print ('    -d G    : enter to GPS info') 
             print ('    -d P    : enter to PPS') 
-            print ('-g          : get GPS leap seconds')
+            print ('-g          : wait for valid GPS time (old: leap seconds; since v3.2: year>2000)')
+            print ('-z          : show GPS time (hardware since v3.2), if valid')
+            print ('-r          : reset GPS module (only hardware since v3.2)')
             print ('') 
             print ('-s          : show output from serial line')
             print ('-o          : show the formatted output')
@@ -205,21 +214,57 @@ def main(argv):
                 print ('PalmAcq: forward mode: SF: '+arg+': bad argument')
                 quit()
         elif opt in ("-g", "--gpsinfo"):
-            # GPS sends amount of leap seconds, 2017 it was 18
-            leapsecond = 0
-            while leapsecond < targetleapsecond:
-                command('TP:G:L,$PMTK457*34')
-                command('GB')
-                result = ''
-                while not result == ':END':
-                    result = lineread(ser,eol)
-                    l = result.split('$PMTK557,')
-                    if len(l) == 2:
-                        leapsecond = int(l[1].split('.')[0])
-                        print ('PalmAcq: Leapsecond according to GPS signal: '+ str(leapsecond))
-                time.sleep(2)
-                if leapsecond < targetleapsecond:
-                    print ('..trying once again')
+            if targetleapsecond > 0:
+                # use old algorithm to wait for correct GPS time (hardware < v3.2)
+                # GPS sends amount of leap seconds, 2017 it was 18
+                leapsecond = 0
+                print('PalmAcq: waiting for correct GPS time (leapsecond >= '+ str(targetleapsecond)+')')
+                while leapsecond < targetleapsecond:
+                    command('TP:G:L,$PMTK457*34')
+                    command('GB')
+                    result = ''
+                    while not result == ':END':
+                        result = lineread(ser,eol)
+                        l = result.split('$PMTK557,')
+                        if len(l) == 2:
+                            leapsecond = int(l[1].split('.')[0])
+                            print ('PalmAcq: Leapsecond according to GPS signal: '+ str(leapsecond))
+                    time.sleep(2)
+                    if leapsecond < targetleapsecond:
+                        print ('..trying once again')
+            else:
+                # use new algorithm to wait for correct GPS time (hardware >= v3.2)
+                gpsok = False
+                print('PalmAcq: waiting for correct GPS time (until year>2000)')
+                while not gpsok:
+                    result = command('GT')
+                    result = result.split('GT:C,00,')
+                    if len(result) > 1:
+                        if result[1][0].isdigit():
+                            if int(result[1][0]) > 1:
+                                # year > 2019, everythig is fine
+                                r=result[1]
+                                rString='20'+r[0:2]+'-'+r[2:4]+'-'+r[4:6]+'T'+r[7:9]+':'+r[9:11]+':'+r[11:]
+                                print('PalmAcq: time according to GPS receiver: '+rString)
+                                gpsok = True
+                    time.sleep(2)
+        elif opt in ("-z", "--gpstime"):
+            # only for hardware since v3.2
+            result = command('GT')
+            result = result.split('GT:C,00,')
+            if len(result) > 1:
+                if result[1][0].isdigit():
+                    if int(result[1][0]) > 1:
+                        # year > 2019, everythig is fine
+                        r=result[1]
+                        rString='20'+r[0:2]+'-'+r[2:4]+'-'+r[4:6]+'T'+r[7:9]+':'+r[9:11]+':'+r[11:]
+                        print(rString)
+                    else:
+                        print('no valid GPS time yet...')
+        elif opt in ("-r", "--resetgps"):
+            # only for hardware since v3.2
+            print('resetting GPS module...')
+            command('RG')
         elif opt in ("-i", "--info"):
             command('GI:PORTS')
             command('GI:MC')

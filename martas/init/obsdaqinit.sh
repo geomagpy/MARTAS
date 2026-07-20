@@ -1,18 +1,18 @@
 #!/bin/sh
 
 PYTHON="/usr/bin/python"
-MARTASPATH="/home/pi/MARTAS"
+MARTASPATH="/my/home/MARTAS"
 APPPATH=$MARTASPATH"/app"
 # run without config file: CONF="" otherwise CONF="-m /config/file"
 #CONF=""
-CONF="-m /etc/martas/obsdaq.cfg"
+CONF="-m /my/home/.martas/conf/obsdaq.cfg"
 
 # set PalmAcq into idle mode (command mode)
 $PYTHON $APPPATH/palmacq.py $CONF -qp
 sleep 2
 $PYTHON $APPPATH/palmacq.py $CONF -qp
 sleep 2
-# wait for GPS loopseconds=18
+# wait for valid GPS time (old: leapsecond=18)
 $PYTHON $APPPATH/palmacq.py $CONF -qg
 
 # set PalmAcq into Transparent mode to access ObsDAQ
