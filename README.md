@@ -1397,7 +1397,35 @@ Application:
 
 ### 6.13 obsdaq and palmacq
 
-Richard, please...
+Two small tools for PalmAcq and ObsDAQ (Mingeo, Hungary) facilitate communication for testing and checking the settings in the config files. Communication to ObsDaq can be established over PalmAcq using the 3,5mm jacks or using the RS485 interface. ObsDaq can also be connected directly by USB.
+###### app/palmacq.py
+Edit code according to the USB port:
+```
+PORT = '/dev/ttyUSB0'
+```
+Palmacq has three modes, run option -h for details
+1. command mode: talk to Palmacq
+2. transparent mode: talk to ObsDAQ
+3. forwarding mode: get data from obsDAQ
+ * Option -z prints time from GPS module
+ * Option -s prints output from serial line (useful for ObsDaq's output)
+###### app/obsdaq.py
+Edit code according to the USB port, default baudrate 19200:
+```
+PORT = '/dev/ttyUSB0'
+BAUDRATE='19200'
+```
+For further settings please refer to Mingeo manuals
+###### init/obsdaqinit.sh
+This script is used to initialize MARTAS acquisition for PalmAcq and ObsDaq. It needs palmacq.py and obsdaq.py to be set up properly.
+Edit code and set directories used
+```
+PYTHON="/usr/bin/python"
+MARTASPATH="/my/home/MARTAS"
+CONF="-m /my/home/.martas/conf/obsdaq.cfg"
+```
+
+
 
 
 ### 6.14 optimizetables

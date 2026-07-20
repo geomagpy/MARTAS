@@ -8,7 +8,7 @@ a script to communicate with ObsDAQ assuming:
 import sys, os, socket, getopt
 import serial
 import struct, binascii, re, csv
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from matplotlib.dates import date2num, num2date
 import numpy as np
 import time
@@ -16,16 +16,17 @@ import time
 from martas.core import methods as mm
 
 
-# settings for PalmDaq
+# settings for PalmAcq
 PORT = '/dev/ttyUSB0'
 BAUDRATE='57600'
 eol = '\r'
 
-
-# settings for ObsDAQ:
-
+# settings for ObsDaq if connected directly over USB
 #   baudrate 19200 is the default after power on
 #   test e.g. by minicom after plugged in
+#PORT = '/dev/ttyUSB0'
+#BAUDRATE='19200'
+#eol = '\r'
 
 # default clock frequency. There'll be a warning if it is different
     #   98 .. 9.8304MHz
@@ -124,7 +125,9 @@ def send_command(ser,command,eol,hex=False):
     #command = eol+command+eol
     command = command+eol
     #print 'Command:  %s \n ' % command.replace(eol,'')
-    sendtime = date2num(datetime.utcnow())
+    #deprecated: sendtime = date2num(datetime.utcnow())
+    sendtime = datetime.now(timezone.utc).replace(tzinfo=None)
+    sendtime = date2num(sendtime)
     #print "Sending"
     if sys.version_info >= (3, 0):
         ser.write(command.encode('ascii'))
@@ -133,7 +136,9 @@ def send_command(ser,command,eol,hex=False):
     #print "Received something - interpretation"
     response = lineread(ser,eol)
     #print "interprete"
-    receivetime = date2num(datetime.utcnow())
+    #deprecated: receivetime = date2num(datetime.utcnow())
+    receivetime = datetime.now(timezone.utc).replace(tzinfo=None)
+    receivetime = date2num(receivetime)
     meantime = np.mean([receivetime,sendtime])
     #print "Timediff", (receivetime-sendtime)*3600*24
     return response, num2date(meantime).replace(tzinfo=None)
@@ -251,7 +256,10 @@ def main(argv):
                     print (answer)
                     print ('ObsDaq: please wait!')
                     for i in range(100):
-                        ser.write('|||||||||||||||||||||||||||||||||||\r')
+                        if sys.version_info >= (3, 0):
+                            ser.write('|||||||||||||||||||||||||||||||||||\r'.encode('ascii'))
+                        else:
+                            ser.write('|||||||||||||||||||||||||||||||||||\r')
                 else:
                     print ('ObsDaq: stopped')
                     stopped = True    
