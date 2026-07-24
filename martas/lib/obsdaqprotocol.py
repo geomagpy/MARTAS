@@ -71,6 +71,8 @@ class obsdaqProtocol(LineReceiver):
         self.datalstSup = []
         self.datacnt = 0
         self.metacnt = 10
+        self.supcount = 0
+        self.supmetacnt = 10
         self.errorcnt = {'time':0}
 
         self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
@@ -339,7 +341,7 @@ class obsdaqProtocol(LineReceiver):
         line = ''.join(filter(lambda x: x in string.printable, line))
         ok = True
         try:
-            data, head, dataSup, headSup = self.processData(line)
+            data, head, dataSup, self.supmeta = self.processData(line)
         except:
             print('{}: Data seems not to be PalmAcq data: Looks like {}'.format(self.sensordict.get('protocol'),line))
             ok = False
@@ -369,12 +371,14 @@ class obsdaqProtocol(LineReceiver):
                 self.client.publish(topic+"/data", data, qos=self.qos)
                 if dataSup:
                     self.client.publish(topicSup+"/data", dataSup, qos=self.qos)
+                    self.supcount += 1
+                if self.supcount >= self.supmetacnt:
+                    self.client.publish(topicSup+"/meta", self.supmeta, qos=self.qos)
+                    self.supcount = 0
                 if self.count == 0:
                     add = "SensorID:{},StationID:{},DataPier:{},SensorModule:{},SensorGroup:{},SensorDecription:{},DataTimeProtocol:{}".format( self.sensordict.get('sensorid',''),self.confdict.get('station',''),self.sensordict.get('pierid',''),self.sensordict.get('protocol',''),self.sensordict.get('sensorgroup',''),self.sensordict.get('sensordesc',''),self.sensordict.get('ptime','') )
                     self.client.publish(topic+"/dict", add, qos=self.qos)
                     self.client.publish(topic+"/meta", head, qos=self.qos)
-                    if headSup:
-                        self.client.publish(topicSup+"/meta", headSup, qos=self.qos)
                 self.count += 1
                 if self.count >= self.metacnt:
                     self.count = 0
