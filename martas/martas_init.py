@@ -126,8 +126,8 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "scripts"), os.path.join(homedir, dir, "scripts"))
     if not os.path.isdir(os.path.join(homedir,dir,"web")):
         shutil.copytree(os.path.join(file_path, "web"), os.path.join(homedir, dir, "web"))
-    if not os.path.isfile(os.path.join(homedir,dir,"web","web.cfg")):
-        shutil.copyfile(os.path.join(file_path, "web", "web.cfg"), os.path.join(homedir, dir, "web.cfg"))
+    if not os.path.isfile(os.path.join(homedir,dir,"conf","web.cfg")):
+        shutil.copyfile(os.path.join(file_path, "conf", "web.cfg"), os.path.join(homedir, dir, "conf", "web.cfg"))
     #shutil.copyfile(os.path.join(file_path, "collector.py"), os.path.join(homedir, dir, "collector.py"))
     #shutil.copyfile(os.path.join(file_path, "acquisition.py"), os.path.join(homedir, dir, "acquisition.py"))
     #

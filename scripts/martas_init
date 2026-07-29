@@ -126,6 +126,8 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "scripts"), os.path.join(homedir, dir, "scripts"))
     if not os.path.isdir(os.path.join(homedir,dir,"web")):
         shutil.copytree(os.path.join(file_path, "web"), os.path.join(homedir, dir, "web"))
+    if not os.path.isfile(os.path.join(homedir,dir,"web","web.cfg")):
+        shutil.copyfile(os.path.join(file_path, "web", "web.cfg"), os.path.join(homedir, dir, "web.cfg"))
     #shutil.copyfile(os.path.join(file_path, "collector.py"), os.path.join(homedir, dir, "collector.py"))
     #shutil.copyfile(os.path.join(file_path, "acquisition.py"), os.path.join(homedir, dir, "acquisition.py"))
     #
@@ -217,7 +219,8 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "telegram.cfg"), os.path.join(confpath, "telegram.bak"))
     shutil.copyfile(os.path.join(confpath, "threshold.cfg"), os.path.join(confpath, "threshold.bak"))
     shutil.copyfile(os.path.join(confpath, "telegrambot.cfg"), os.path.join(confpath, "telegrambot.bak"))
-    shutil.copyfile(os.path.join(confpath, "web.cfg"), os.path.join(confpath, "web.bak"))
+    if os.path.exists(os.path.join(confpath, "web.cfg")):
+        shutil.copyfile(os.path.join(confpath, "web.cfg"), os.path.join(confpath, "web.bak"))
     shutil.copyfile(os.path.join(homedir, dir, "scripts", "cleanup.sh"), os.path.join(homedir, dir, "scripts", "cleanup.bak"))
 
     print (" ------------------------------------------- ")
