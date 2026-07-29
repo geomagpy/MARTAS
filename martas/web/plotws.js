@@ -3,7 +3,7 @@
 
     var serveraddr= location.host.split(':')[0];
     console.log(serveraddr);
-    var wsconnection = new WebSocket('ws://' +serveraddr+ ':5000/');
+    var wsconnection = new WebSocket('ws://' +serveraddr+ ':5000/','echo-protocol');
     var signals = {};
     var descrFields = {};
     var table;
