@@ -8,6 +8,7 @@
     var descrFields = {};
     var table;
     var smoothieloaded = 0;
+    var sensorblacklist = ['','']
 
     console.log("plotws.js started");
 
@@ -107,7 +108,7 @@
             var data = e.data.split('# ')[1];
             var head = JSON.parse(data);
             signalid = head.sensorid + '#' + head.nr;
-            if (signals[signalid] == null && smoothieloaded == 1) {
+            if (signals[signalid] == null && smoothieloaded == 1 && !sensorblacklist.includes(head.sensorid)) {
                 // new header
                 signals[signalid] = head;
                 signals[signalid].chart = addChart(signalid);
@@ -121,7 +122,7 @@
             // sensorid: timestamp,data0,data1...
             var data = e.data.split(': ');
             var sensor = data[0];
-            if (signals[sensor+'#0'] == null) {
+            if (signals[sensor+'#0'] == null || sensorblacklist.includes(sensor)) {
                 // no header yet
             } else {
                 var data_arr = data[1].split(',');
