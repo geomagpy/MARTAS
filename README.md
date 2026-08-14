@@ -2217,8 +2217,14 @@ packages for your specific system based on apt.
 
       # BEAGLE BONE BLACK REV C
       # install am335x-debian-12.11-base-vscode-v6.15-armhf-2025-06-30-4gb.img.xz
-      # change name and reboot
-      # check size (SD card should be recognized) 
+      # look for a beaglebone image for am335x debian 12.xy base armhf with microSD support --- filename should contain some 4gb at the end
+      # flash it using balena etcher ( https://etcher.balena.io/#download-etcher) - download and start the appimage
+      # Flash the exact image above or a newer version of this one with debian 12 ( further is not tested yet)
+      # to a microSD card with 32GB using balena etcher. 
+      # ssh debian@beaglebone.local or (192.168.6.2 if you use linux) and you are connected via USB to the beagelbone
+      # change name and reboot ( sudo nano /etc/hostname )
+      # check size (SD card should be recognized) should be approx. 32GB use, df -h and look for something like
+      # /dev/mmcblk0p3   29G  1.3G   27G   5% / --- less would be bad
 
       sudo apt update
       sudo apt upgrade
