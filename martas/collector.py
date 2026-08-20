@@ -898,6 +898,9 @@ def main(argv):
                     qos = int(conf.get('mqttqos'))
                 except:
                     qos = 0
+            if not conf.get('mqttcred','') in ['','-']:
+                print ("will be deprecated: please use mqttcredentials")
+                credentials=conf.get('mqttcred').strip()
             if not conf.get('mqttcredentials','') in ['','-']:
                 credentials=conf.get('mqttcredentials').strip()
             if not conf.get('blacklist','') in ['','-']:
