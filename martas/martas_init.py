@@ -836,10 +836,10 @@ def main(argv):
         viewscript.append("#! /bin/bash")
         viewscript.append("# MARCOS viewer")
         viewscript.append("")
-        viewscript.append("pkill -f marcos_view.py")
+        viewscript.append("pkill -f martas_view.py")
         viewscript.append('cd {}'.format(os.path.join(homedir,dir,"web")))
         viewscript.append('PYTHON={}'.format(sys.executable))
-        viewscript.append('VIEW="{}"'.format(os.path.join(homedir,dir,"web","marcos_view.py")))
+        viewscript.append('VIEW="{}"'.format(os.path.join(homedir,dir,"web","martas_view.py")))
         viewscript.append("$PYTHON $VIEW")
         viewscript.append("xdg-open http://127.0.0.1:8050")
         with open(os.path.join(homedir, dir, "marcos_view"), "wt") as fout:
@@ -1045,6 +1045,8 @@ def main(argv):
     if initjob == "MARTAS":
         print("- update sensors.cfg and add your connected sensors in {}".format(os.path.join(homedir,dir,"conf")))
         print("- eventually update your sensors initialization script if required")
+        print("- you might want to add job restarts after rebooting into crontab:")
+        print("  @reboot sleep 60 && bash -i /jobpath/runmartas.sh start > /logpath/runmartas.log 2>&1")
     print("- check configuration files in {}".format(os.path.join(homedir,dir,"conf")))
     if initjob == "MARCOS":
         print("- update filter.cfg and activate filter job in crontab in case of > 1Hz data")
@@ -1053,8 +1055,8 @@ def main(argv):
         print("- your collector job will be started tonight. Please start manually with upload option:")
         print("  bash collect-{}.sh update".format(jobname))
         print("  keep running for a few minutes. This will update the meta information in your database.")
-    print("- you might want to add job restarts after rebooting into crontab:")
-    print("  @reboot sleep 60 && bash -i /jobpath/runmartas.sh start > /logpath/runmartas.log 2>&1")
+        print("- you might want to add job restarts after rebooting into crontab:")
+        print("  @reboot sleep 60 && bash -i {a}/collect.sh start > {a}/log/collect.log 2>&1".format(a=os.path.join(homedir,dir)))
     print("- you also might want to add paths to crontab PATH=/bin:/usr/bin:/usr/local/bin")
     print("  which at least is necessary if you are using 2-way comm")
 

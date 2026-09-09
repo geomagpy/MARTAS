@@ -81,8 +81,12 @@ class MartasPage(object):
                 self.livedata[sensorid] = {'samplingrate': sr, 'names': names, 'allnames': anames, 'data': data}
         print ("Display refresh rate: {} sec".format(self.srate))
         # now create initial outputs:
-        self.sl = self.get_sensors(debug=False)
-        self.sensors_to_plot = self.get_sensors(debug=False) # will be updated eventually
+        try:
+            self.sl = self.get_sensors(debug=False)
+            self.sensors_to_plot = self.get_sensors(debug=False) # will be updated eventually
+        except:
+            # will fail if only MARCOS is used
+            self.sl, self.sensors_to_plot = [], []
 
         try:
             self.t1_stop = threading.Event()
