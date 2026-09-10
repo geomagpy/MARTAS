@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mariadb:
+    image: mariadb:10.11
+    container_name: martas_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: RootSicheresPasswort123!
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - martas_network
+
+  martas:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: martas_server
+    restart: unless-stopped
+    depends_on:
+      - mariadb
+    environment:
+      DB_HOST: mariadb
+      DB_PORT: 3306
+      DB_NAME: martas_db
+      DB_USER: martas_user
+      DB_PASS: MartasPasswort123!
+    volumes:
+      - martas_config:/app/martas_config
+      - martas_data:/app/martas_data
+    networks:
+      - martas_network
+    ports:
+      - "8050:8050"
+
+networks:
+  martas_network:
+    driver: bridge
+
+volumes:
+  mariadb_data:
+  martas_config:
+  martas_data:
