@@ -8,7 +8,7 @@ done
 echo "Datenbank ist erreichbar!"
 
 # 2. MagPy Datenbank-Initialisierung über db.dbinit()
-echo "2. Führe MagPy dbinit() aus..."
+echo "2. Führe MagPy dbinit() aus und lege dort auch die credentials an ..."
 python /app/init_magpy.py
 
 # 3. martas_init mit automatischen Antworten ausführen (falls noch nicht geschehen)

@@ -8,6 +8,8 @@ dbname = os.getenv("DB_NAME", "martas_db")
 user = os.getenv("DB_USER", "martas_user")
 passwd = os.getenv("DB_PASS", "MartasPasswort123!")
 
+# TODO: Lege die credentials an
+
 try:
     db = DataBank(
         host=host,
