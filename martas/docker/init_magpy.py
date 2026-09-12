@@ -13,10 +13,9 @@ passwd = os.getenv("DB_PASS", "MartasPasswort123!")
 try:
     db = DataBank(
         host=host,
-        port=port,
-        dbname=dbname,
+        database=dbname,
         user=user,
-        passwd=passwd,
+        password=passwd,
         dbtype="mysql"
     )
     db.dbinit()
