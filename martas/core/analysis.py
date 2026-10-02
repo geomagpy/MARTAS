@@ -940,9 +940,9 @@ class MartasAnalysis(object):
             publevel = 2
             variosource = {'db' : prim_v}
             scalarsource = {'db' : prim_s}
-            vario = self.adjust_vario(variosource, basemode='constant', flagfile=None, drop_flagged=True, bc=True,
+            vario = self.adjust_vario(variosource, basemode='constant', starttime=starttime, endtime=endtime, flagfile=None, drop_flagged=True, bc=True,
                                       basefile=basefile, basestart=basestart, baseend=baseend, debug=debug)
-            scalar = self.adjust_scalar(scalarsource, flagfile=None, debug=debug)
+            scalar = self.adjust_scalar(scalarsource, starttime=starttime, endtime=endtime, flagfile=None, debug=debug)
         elif runmode == 'quasidefinitive':
             # Check if new flags are available since last run (or whether data has been checked by an observer)
             publevel = 3
