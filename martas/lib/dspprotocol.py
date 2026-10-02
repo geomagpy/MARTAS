@@ -180,29 +180,33 @@ class DSPProtocol(object):
         ser = serial.Serial(self.port, baudrate=int(self.baudrate), parity=self.parity, bytesize=int(self.bytesize), stopbits=int(self.stopbits), timeout=int(self.timeout))
         for commdict in self.commands:
             for item in sorted(commdict):
-                comm = commdict.get(item)
-                if self.debug:
-                    print ("sending item {} with command {}".format(item, comm))
-                # eventually more frequently ask for 'data'
-                answer, actime = send_command_ascii(ser,comm,self.eol)
-                # disconnect from serial
-                ser.close()
-                if self.debug:
-                    print ("got answer: {}".format(answer))
-                self.serialnum = self.serial1+self.serial2
-                if item == 'data': #  and len(self.serialnum) > 7: # removed serial number check as serial number is taken from sensors.cfg
-                    #sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
-                    sensorid = self.sensorid
+                try:
+                    comm = commdict.get(item)
                     if self.debug:
-                        print ("Processing data for {}". format(sensorid))
-                    data, head = self.processData(sensorid, answer, actime)
-                    # send data via mqtt
-                    if not data == '':
-                        self.sendmqtt(sensorid,data,head)
-                if item == 'c2':
-                    self.serial2 = answer.replace('!'+comm,'').strip()
-                if item == 'c1':
-                    self.serial1 = answer.replace('!'+comm,'').strip()
+                        print ("sending item {} with command {}".format(item, comm))
+                    # eventually more frequently ask for 'data'
+                    answer, actime = send_command_ascii(ser,comm,self.eol)
+                    # disconnect from serial
+                    ser.close()
+                    if self.debug:
+                        print ("got answer: {}".format(answer))
+                    self.serialnum = self.serial1+self.serial2
+                    if item == 'data': #  and len(self.serialnum) > 7: # removed serial number check as serial number is taken from sensors.cfg
+                        #sensorid = "{}_{}_0001".format(str(self.sensorname),str(self.serialnum))
+                        sensorid = self.sensorid
+                        if self.debug:
+                            print ("Processing data for {}". format(sensorid))
+                        data, head = self.processData(sensorid, answer, actime)
+                        # send data via mqtt
+                        if not data == '':
+                            self.sendmqtt(sensorid,data,head)
+                    if item == 'c2':
+                        self.serial2 = answer.replace('!'+comm,'').strip()
+                    if item == 'c1':
+                        self.serial1 = answer.replace('!'+comm,'').strip()
+                except:
+                    print("Error requesting data - continuing and closing serial")
+                    pass
 
                 # ##########################################################
                 # answer is a string block with eventually multiple lines
