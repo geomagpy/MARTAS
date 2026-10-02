@@ -1416,6 +1416,7 @@ class MartasAnalysis(object):
                 hsc = sc.copy()
                 if debug:
                     print (" - adding high resolution data to result")
+                hsc = hsc.resample(['f'],period=sr)
                 result[sr] = hsc
             if 0.8 < sr < 58:
                 if debug:
