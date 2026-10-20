@@ -1,0 +1,20 @@
+site_name: MARTAS Documentation
+theme:
+  name: material
+  features:
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Overview: index.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [martas] # Pfad zu deinem Python-Package/Code-Ordner
+          options:
+            docstring_style: google # oder numpy / sphinx
+            show_root_heading: true
+            show_source: true
