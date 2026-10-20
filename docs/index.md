@@ -24,13 +24,13 @@ Developers: R. Leonhardt, R. Mandl, R. Bailey, P. Arneitz, V. Haberle, N. Kompei
 
 1. [About](#1-about)
 2. [Installation](#2-installation)
-3. [Initialization of MARTAS/MARCOS](#3-initialization-of-martasmarcos)
-4. [MARTAS](#4-martas)
+3. [Initialization of MARTAS/MARCOS](#3-initialization-of-pmartas-and-pmarcos)
+4. [MARTAS](#4-pmartas)
 5. [MARCOS](#5-marcos)
-6. [Applications](#6-applcations)
-7. [Logging and notifications](#7-logging-and-notifications)
+6. [Applications](#6-applications)
+7. [Logging and notifications](#7-notifications-and-advanced-monitoring)
 8. [Additional tools for flagging and analysis](#8-additional-tools)
-9. [Instruments and library](#9-instruments-and-library-)
+9. [Instruments and library](#9-instruments-and-library)
 10. [Appendix](#10-appendix)
 
 
@@ -59,7 +59,7 @@ methods. Each MARTAS process can run independently from the other on the same or
 MARTAS applications are summarized in Figure 1.1.0.
 
 
-![1.1.0](./martas/doc/martas_concept.png "The MARTAS concept")
+![1.1.0](./img/martas_concept.png "The MARTAS concept")
 
 Figure 1.1.0: MARTAS consists of up to three processes which can be separated on different hardwares or combined in all
 ways, even on a single machine. pMARTAS is performing data acquisition tasks, publishing data on a MQTT broker. pMARCOS is 
@@ -135,7 +135,7 @@ DATAINFO, including location coordinates and references to station and eventuall
 collected in table STATION, defined by a **StationID** i.e. an observatory defined by its observatory code. Pier 
 information might by collected in table PIERS, referring to a specific **PierID**.
  
-![1.2.0](./martas/doc/namingconvention.png "Naming convention and database organization")
+![1.2.0](./img/namingconvention.png "Naming convention and database organization")
 Figure 1.2.0: An overview about the naming convention. The naming convention is directly used for structuring the 
 MARCOS database. Each bold name corresponds to a table within the database. It is strongly recommended to keep the
 general structure of the naming convention ( SensorName_SerialNumber_SensorRevision_DataRevision ) even if not using data
@@ -706,7 +706,7 @@ about the MARTAS system, its connected sensors and data. You can start and open 
 
 Open webpage http://127.0.0.1:8050 will give you something like:
 
-![4.6.1](./martas/doc/martas_viewer.png "The pMARTAS viewer")
+![4.6.1](./img/martas_viewer.png "The pMARTAS viewer")
 Figure 4.6.1: The pMARTAS viewer provides a quick overview about live data, connected sensors, and some configuration
 information. In this example two sensors are connected, one of which is a testing device. The available recorded 
 elements are shown on the left side, a "live" image of acquired data is shown on the right side. On the upper right
@@ -1036,7 +1036,7 @@ system. You can start and open the MARCOS viewer as follows:
 
 Open webpage http://127.0.0.1:8050 will give you something like:
 
-![5.5.1](./martas/doc/marcos_viewer.png "The MARCOS viewer")
+![5.5.1](./img/marcos_viewer.png "The MARCOS viewer")
 Figure 5.5.1: The MARCOS viewer provides a quick overview about collection jobs (top), live data (center right), 
 database, archive and monitoring state plus storage consumption (center left), as well as scheduled jobs (bottom left) and
 sensors, data records in the database (table right). 
@@ -2017,7 +2017,7 @@ data files/ database  written
           ls -al /my/file/destination/
 
 
-## 9. Instruments and library 
+## 9. Instruments and library
 
 ### 9.1 Sensor communication libraries
 
