@@ -244,6 +244,11 @@ class TestFileDownload(unittest.TestCase):
         filelist = file_download.create_transfer_list(config=config, datelist=datelist, debug=True)
         self.assertTrue(isinstance(filelist, (list,tuple)))
 
+    #def test_ssh_getlist(self):
+    #    source = "~/MARTAS/mqtt/TEST_1234_0001"
+    #    filename = "TEST_1234_0001"
+    #    testlist = file_download.ssh_getlist(source, filename, date, dateformat, maxdate, cred=None, pwd_required=True, timeout=60, debug=False)
+
     # missing are file_download.obtain_data_files(config=None,filelist=None,debug=False)
     # and file_download.write_data(config=None,localpathlist=None,debug=False)
 
