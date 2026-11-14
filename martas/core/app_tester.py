@@ -243,14 +243,25 @@ class TestFileDownload(unittest.TestCase):
         datelist = file_download.get_datelist(config=config,current=current,debug=False)
         filelist = file_download.create_transfer_list(config=config, datelist=datelist, debug=True)
         self.assertTrue(isinstance(filelist, (list,tuple)))
+        # in this test filelist will be empty - lets try some real data if a credentials are available (on my machine
+        testcred = "test2"
+        if mpcred.fc(testcred):
+            print("Running real copy test - with local directory and scp")
+            print("--------------------------------------------------------------")
+            config['sourcecredentials'] = testcred
+            config['protocol'] = 'scp'
+            #config['sourcedatapath'] = '/home/leon/MARTAS/mqtt'
+            config['sourcedatapath'] = '/srv/mqtt'
+            config['writedatabase'] =  'False'
+            config['walksubdirs'] = 'True'
+            config['archivepath'] = '/tmp/archive'
+            config, success = file_download.check_configuration(config=config, debug=False)
+            datelist = ['2026-07-20']
+            filelist = file_download.create_transfer_list(config=config, datelist=datelist, debug=False)
+            localpathlist = file_download.obtain_data_files(config=config, filelist=filelist, debug=True)
+            self.assertTrue(isinstance(localpathlist, (list, tuple)))
 
-    #def test_ssh_getlist(self):
-    #    source = "~/MARTAS/mqtt/TEST_1234_0001"
-    #    filename = "TEST_1234_0001"
-    #    testlist = file_download.ssh_getlist(source, filename, date, dateformat, maxdate, cred=None, pwd_required=True, timeout=60, debug=False)
-
-    # missing are file_download.obtain_data_files(config=None,filelist=None,debug=False)
-    # and file_download.write_data(config=None,localpathlist=None,debug=False)
+    # still to test: file_download.write_data(config=None,localpathlist=None,debug=False)
 
 
 class TestFilter(unittest.TestCase):

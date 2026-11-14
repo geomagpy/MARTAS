@@ -126,8 +126,8 @@ def main(argv):
         shutil.copytree(os.path.join(file_path, "scripts"), os.path.join(homedir, dir, "scripts"))
     if not os.path.isdir(os.path.join(homedir,dir,"web")):
         shutil.copytree(os.path.join(file_path, "web"), os.path.join(homedir, dir, "web"))
-    if not os.path.isfile(os.path.join(homedir,dir,"web","web.cfg")):
-        shutil.copyfile(os.path.join(file_path, "web", "web.cfg"), os.path.join(homedir, dir, "web.cfg"))
+    if not os.path.isfile(os.path.join(homedir,dir,"conf","web.cfg")):
+        shutil.copyfile(os.path.join(file_path, "conf", "web.cfg"), os.path.join(homedir, dir, "conf", "web.cfg"))
     #shutil.copyfile(os.path.join(file_path, "collector.py"), os.path.join(homedir, dir, "collector.py"))
     #shutil.copyfile(os.path.join(file_path, "acquisition.py"), os.path.join(homedir, dir, "acquisition.py"))
     #
@@ -219,7 +219,7 @@ def main(argv):
     shutil.copyfile(os.path.join(confpath, "telegram.cfg"), os.path.join(confpath, "telegram.bak"))
     shutil.copyfile(os.path.join(confpath, "threshold.cfg"), os.path.join(confpath, "threshold.bak"))
     shutil.copyfile(os.path.join(confpath, "telegrambot.cfg"), os.path.join(confpath, "telegrambot.bak"))
-    if os.path.exists(os.path.join(confpath, "web.cfg")):
+    if os.path.isfile(os.path.join(confpath, "web.cfg")):
         shutil.copyfile(os.path.join(confpath, "web.cfg"), os.path.join(confpath, "web.bak"))
     shutil.copyfile(os.path.join(homedir, dir, "scripts", "cleanup.sh"), os.path.join(homedir, dir, "scripts", "cleanup.bak"))
 
@@ -836,10 +836,10 @@ def main(argv):
         viewscript.append("#! /bin/bash")
         viewscript.append("# MARCOS viewer")
         viewscript.append("")
-        viewscript.append("pkill -f marcos_view.py")
+        viewscript.append("pkill -f martas_view.py")
         viewscript.append('cd {}'.format(os.path.join(homedir,dir,"web")))
         viewscript.append('PYTHON={}'.format(sys.executable))
-        viewscript.append('VIEW="{}"'.format(os.path.join(homedir,dir,"web","marcos_view.py")))
+        viewscript.append('VIEW="{}"'.format(os.path.join(homedir,dir,"web","martas_view.py")))
         viewscript.append("$PYTHON $VIEW")
         viewscript.append("xdg-open http://127.0.0.1:8050")
         with open(os.path.join(homedir, dir, "marcos_view"), "wt") as fout:
@@ -1001,8 +1001,11 @@ def main(argv):
         files_to_change["downloadconf"] = {"source": os.path.join(confpath, "download-source.bak"),
                                            "dest": os.path.join(confpath, "download-{}.cfg".format(jobname))}
         replacedict["homedirectory"] = 'marcos'
-        files_to_change["webconf"] = {"source" : os.path.join(confpath, "web.bak") ,
+        try:
+            files_to_change["webconf"] = {"source" : os.path.join(confpath, "web.bak") ,
                                         "dest" : os.path.join(confpath, "web.cfg") }
+        except:
+            pass
         # file for which replacements will happen and new names
     files_to_change["skeletonlogrotate"] = {"source": os.path.join(homedir, dir, "logrotate", "skeleton.logrotate"),
                               "dest": os.path.join(homedir, dir, "logrotate", "{}.logrotate".format(jobname))}
@@ -1042,6 +1045,8 @@ def main(argv):
     if initjob == "MARTAS":
         print("- update sensors.cfg and add your connected sensors in {}".format(os.path.join(homedir,dir,"conf")))
         print("- eventually update your sensors initialization script if required")
+        print("- you might want to add job restarts after rebooting into crontab:")
+        print("  @reboot sleep 60 && bash -i /jobpath/runmartas.sh start > /logpath/runmartas.log 2>&1")
     print("- check configuration files in {}".format(os.path.join(homedir,dir,"conf")))
     if initjob == "MARCOS":
         print("- update filter.cfg and activate filter job in crontab in case of > 1Hz data")
@@ -1050,8 +1055,8 @@ def main(argv):
         print("- your collector job will be started tonight. Please start manually with upload option:")
         print("  bash collect-{}.sh update".format(jobname))
         print("  keep running for a few minutes. This will update the meta information in your database.")
-    print("- you might want to add job restarts after rebooting into crontab:")
-    print("  @reboot sleep 60 && bash -i /jobpath/runmartas.sh start > /logpath/runmartas.log 2>&1")
+        print("- you might want to add job restarts after rebooting into crontab:")
+        print("  @reboot sleep 60 && bash -i {a}/collect.sh start > {a}/log/collect.log 2>&1".format(a=os.path.join(homedir,dir)))
     print("- you also might want to add paths to crontab PATH=/bin:/usr/bin:/usr/local/bin")
     print("  which at least is necessary if you are using 2-way comm")
 

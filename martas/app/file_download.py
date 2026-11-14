@@ -308,7 +308,7 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=None, pwd_requ
     Method to extract filename with wildcards or date patterns from a directory listing
     """
     if not cred:
-        cred = []
+        cred = {}
     pathlist = []
     #filename = filename.replace('*','')
     print (filename, date)
@@ -362,14 +362,16 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=None, pwd_requ
     if debug:
         print ("Searchstring to indentify files to copy: {}".format(searchstr))
 
-    COMMAND= "ssh %s@%s '%s';" % (cred[0],cred[2],searchstr)
+    COMMAND= "ssh {}@{} -p {} '{}';".format(cred.get("user",''),cred.get("address",''),cred.get("port",22),searchstr)
+    if debug:
+        print ("Sending command: {}".format(COMMAND))
     child = pexpect.spawn(COMMAND)
     result = ""
     if timeout:
         child.timeout=timeout
     if pwd_required:
         i = child.expect([pexpect.TIMEOUT, 'assword: '])
-        child.sendline(cred[1])
+        child.sendline(cred.get("password",""))
     i = child.expect([pexpect.TIMEOUT, 'Permission denied', pexpect.EOF])
     if i == 0:
         die(child, 'ERROR!\nSSH timed out. Here is what SSH said:')
@@ -605,6 +607,11 @@ def create_transfer_list(config=None,datelist=None,debug=False):
     password = config.get('rmpassword')
     address = config.get('rmaddress')
     port = config.get('rmport', 21)
+    creddict = {}
+    creddict['user'] = user
+    creddict['password'] = password
+    creddict['address'] = address
+    creddict['port'] = port
 
     dateformat = config.get('dateformat')
 
@@ -643,11 +650,11 @@ def create_transfer_list(config=None,datelist=None,debug=False):
         import pexpect
         if not dateformat in ['','ctime','mtime']:
             for date in datelist:
-                path = ssh_getlist(remotepath, filename, date, dateformat, now, cred=[user,password,address],pwd_required=pwd_required,debug=debug)
+                path = ssh_getlist(remotepath, filename, date, dateformat, now, cred=creddict,pwd_required=pwd_required,debug=debug)
                 if len(path) > 0:
                     filelist.extend(path)
         else:
-            filelist = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=[user,password,address],pwd_required=pwd_required,debug=debug)
+            filelist = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=creddict,pwd_required=pwd_required,debug=debug)
     elif protocol == '':
         if debug:
             print (" Local directory access ") 

@@ -308,6 +308,10 @@ In case you are using secure TLS access (OS encrypted) use the following additio
 
         mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 -d
 
+Sometimes it might be necessary to specify the certs directory:
+
+        mosquitto_sub -h remote-brocker.xx -t '#' -u USERNAME -P SECRET -p 8883 --capath /etc/ssl/certs/
+
 In case you are using secure TLS access with CA file use the following additional options:
 
         mosquitto_pub -h localhost -m "test message" -t test -u USERNAME -P SECRET -p 8883 --cafile /path/to/ca.crt -d
