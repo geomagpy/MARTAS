@@ -244,19 +244,19 @@ class TestFileDownload(unittest.TestCase):
         filelist = file_download.create_transfer_list(config=config, datelist=datelist, debug=True)
         self.assertTrue(isinstance(filelist, (list,tuple)))
         # in this test filelist will be empty - lets try some real data if a credentials are available (on my machine
-        testcred = "test2"
+        testcred = "test"
         if mpcred.fc(testcred):
             print("Running real copy test - with local directory and scp")
             print("--------------------------------------------------------------")
             config['sourcecredentials'] = testcred
             config['protocol'] = 'scp'
-            #config['sourcedatapath'] = '/home/leon/MARTAS/mqtt'
             config['sourcedatapath'] = '/srv/mqtt'
             config['writedatabase'] =  'False'
             config['walksubdirs'] = 'True'
             config['archivepath'] = '/tmp/archive'
             config, success = file_download.check_configuration(config=config, debug=False)
             datelist = ['2026-07-20']
+            print (config)
             filelist = file_download.create_transfer_list(config=config, datelist=datelist, debug=False)
             localpathlist = file_download.obtain_data_files(config=config, filelist=filelist, debug=True)
             self.assertTrue(isinstance(localpathlist, (list, tuple)))

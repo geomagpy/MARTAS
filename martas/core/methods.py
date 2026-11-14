@@ -531,8 +531,11 @@ def scptransfer(src,dest,passwd,**kwargs):
        cleanup
     """
     timeout = kwargs.get('timeout')
+    port = kwargs.get('port')
+    if not port:
+        port = 22
 
-    COMMAND="scp -oPubKeyAuthentication=no %s %s" % (src, dest)
+    COMMAND="scp -oPubKeyAuthentication=no -P {} {} {}".format(port, src, dest)
 
     child = pexpect.spawn(COMMAND)
     if timeout:

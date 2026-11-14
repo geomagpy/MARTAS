@@ -807,7 +807,10 @@ def obtain_data_files(config=None,filelist=None,debug=False):
                 if deleteremote in [True,'True']:
                     ftp.delete(f)
             elif protocol in ['scp','SCP']:
-                mm.scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600)
+                #print (user+'@'+address+':'+f)
+                if port==21:
+                    port = 22
+                mm.scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600,port=port)
             elif protocol in ['rsync']:
                 # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
                 if deleteremote in [True,'True']:
