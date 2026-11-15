@@ -2,18 +2,19 @@ MARTAS provides tools and libraries for data acquisition
 and collection from many different sources.
 -------------------------------------------------
 
-####v<2.0.2>, <2026-11-xx> --
+####v<2.0.2>, <2026-11-15> --
 
 v2.0.2 fixes:
     - file_download: prevent to submit ssh-banner
     - GSM19/90: corrected issue with wrong date submission
     - analysis.py - status relevant error are corrected
+    - mqttcredentials vs mqttcred in configuration files
 
 v2.0.2 additions:
     - library for GP20SL sensor available (not included in default package)
 
 v2.0.2 general:
-    - Manual moved to separate, searchable webpage
+    - manual moved to separate, searchable webpage
     - support for true encryption: requires MagPy 2.0.4
 
 

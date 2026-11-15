@@ -970,6 +970,8 @@ def main(argv):
                     }
     if mqttcred:
         replacedict["#mqttcred  :  shortcut"] = "mqttcred  :  {}".format(mqttcred)
+    if mqttcred:
+        replacedict["#mqttcredentials  :  shortcut"] = "mqttcredentials  :  {}".format(mqttcred)
     if mqttcert:
         replacedict["#mqttcert  :  /path/to/ca.crt"] = "mqttcert  :  {}".format(mqttcert)
     if pskcredentials:

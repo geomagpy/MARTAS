@@ -438,11 +438,13 @@ def check_configuration(config=None,debug=False):
     config['rmuser'] = user
     config['rmpassword'] = password
     config['rmaddress'] = address
-    config['rmport'] = port
 
     source = ''
     protocol = config.get('protocol')
     if not protocol in ['','ftp','FTP']:
+        if not port or port == 21:
+            # assume default port for ssh
+            port = 22
         source += protocol + "://"
         if user and not user == '' and not password=='':
             source += user + ":" + password + "@"
@@ -453,6 +455,7 @@ def check_configuration(config=None,debug=False):
         else:
             print (" file_download: did not find an appropriate address in credentials")
 
+    config['rmport'] = port
     remotepath = config.get('sourcedatapath')
     if not remotepath == '':
         s = ""
