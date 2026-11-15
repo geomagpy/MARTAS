@@ -362,7 +362,7 @@ def ssh_getlist(source, filename, date, dateformat, maxdate, cred=None, pwd_requ
     if debug:
         print ("Searchstring to indentify files to copy: {}".format(searchstr))
 
-    COMMAND= "ssh {}@{} -p {} '{}';".format(cred.get("user",''),cred.get("address",''),cred.get("port",22),searchstr)
+    COMMAND= "ssh {}@{} -o LogLevel=ERROR -p {} '{}';".format(cred.get("user",''),cred.get("address",''),cred.get("port",22),searchstr)
     if debug:
         print ("Sending command: {}".format(COMMAND))
     child = pexpect.spawn(COMMAND)
@@ -648,13 +648,19 @@ def create_transfer_list(config=None,datelist=None,debug=False):
             pwd_required=False
             print ("   Rsync requires passwordless ssh connection to remote system")
         import pexpect
+        # Check for the remote path prefix
+        base_prefix = remotepath.rstrip('/') if remotepath else '/'
         if not dateformat in ['','ctime','mtime']:
             for date in datelist:
                 path = ssh_getlist(remotepath, filename, date, dateformat, now, cred=creddict,pwd_required=pwd_required,debug=debug)
-                if len(path) > 0:
-                    filelist.extend(path)
+                # Only take lines which correspond to the remote path beginning
+                clean_path = [p.strip() for p in path if p.strip().startswith(base_prefix)]
+                if len(clean_path) > 0:
+                    filelist.extend(clean_path)
         else:
-            filelist = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=creddict,pwd_required=pwd_required,debug=debug)
+            raw_list = ssh_getlist(remotepath, filename, min(datelist), dateformat, max(datelist), cred=creddict,
+                                   pwd_required=pwd_required, debug=debug)
+            filelist = [p.strip() for p in raw_list if p.strip().startswith(base_prefix)]
     elif protocol == '':
         if debug:
             print (" Local directory access ") 
