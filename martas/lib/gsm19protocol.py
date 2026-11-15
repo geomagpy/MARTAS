@@ -7,7 +7,7 @@ import socket # for hostname identification
 import string # for ascii selection
 import sys
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from martas.core import methods as mm
@@ -62,7 +62,7 @@ class GSM19Protocol(LineReceiver):
         self.delaylist = []  # delaylist contains up to 1000 diffs between gps and ntp
                              # the median of this values is used for ntp timedelay
         self.timedelay = 0.0
-        self.timethreshold = 3 # secs - waring if timedifference is larger the 3 seconds
+        self.timethreshold = 3 # secs - warning if timedifference is larger the 3 seconds
 
         # QOS
         self.qos=int(confdict.get('mqttqos',0))
@@ -71,6 +71,16 @@ class GSM19Protocol(LineReceiver):
         log.msg("  -> setting QOS:", self.qos)
         # PYTHON version
         self.pvers = sys.version_info[0]
+
+        # extract data from configuration dictionary
+        debugtest = confdict.get('debug')
+        # switch on debug mode
+        self.debug = False
+        if debugtest in ['true','True','TRUE']:
+            log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            self.debug = True    # prints many test messages
+        else:
+            log.msg('  -> Debug mode = {}'.format(debugtest))
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -82,7 +92,7 @@ class GSM19Protocol(LineReceiver):
 
         currenttime = datetime.now(timezone.utc).replace(tzinfo=None)
         date = datetime.strftime(currenttime, "%Y-%m-%d")
-        actualtime = datetime.strftime(currenttime, "%Y-%m-%dT%H:%M:%S.%f")
+        systemtime = currenttime
         outtime = datetime.strftime(currenttime, "%H:%M:%S")
         filename = date
         timestamp = datetime.strftime(currenttime, "%Y-%m-%d %H:%M:%S.%f")
@@ -93,9 +103,9 @@ class GSM19Protocol(LineReceiver):
         packcode = '6hLLl6hL'
         header = "# MagPyBin %s %s %s %s %s %s %d" % (self.sensor, '[f,var1,sectime]', '[f,err,sectime]', '[nT,none,none]', '[1000,1000,1]', packcode, struct.calcsize('<'+packcode))
 
+        # Extract data
+        data_array = data
         try:
-            # Extract data
-            data_array = data
             if len(data_array) == 2:
                 typ = "oldbase"
             elif len(data_array) == 3:
@@ -156,9 +166,24 @@ class GSM19Protocol(LineReceiver):
                 except:
                     self.timedelay = 0.0
             if delta > self.timethreshold:
-                self.errorcnt['time'] +=1
-                if self.errorcnt.get('time') < 2:
-                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), self.sensor, delta))
+                """
+                Issue with GSM19 and GSM90:
+                - the binary transmission does only contain time but no date
+                - thus, if data from GPS time 23:59:59.x arrives at the PC with PC time 00:00:00.x
+                  then using PC date to complete GPS timestamp leads to a wrong datetime with delta == 86399+-1 sec
+                - solution: ideal -> convince GEM System to provide full datetime with serial output
+                            non-ideal -> correct datetime if above delta is observed (currently implemented)
+                """
+                if 86398 <= delta <= 86400:
+                    if self.debug:
+                        log.msg("{} protocol: apparently got record with wrongly inserted PC date into GPS time: {} - correcting to {}".format(
+                            self.sensordict.get('protocol'), systemtime, (currenttime-timedelta(seconds=2)).date()))
+                    nsystemtime = systemtime-timedelta(days=1)
+                    gpstime = datetime.strftime(nsystemtime, "%Y-%m-%d %H:%M:%S.%f")
+                else:
+                    self.errorcnt['time'] +=1
+                    if self.errorcnt.get('time') < 2:
+                        log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), self.sensor, delta))
             else:
                 self.errorcnt['time'] = 0
         except:

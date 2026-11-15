@@ -8,7 +8,7 @@ import socket # for hostname identification
 import string # for ascii selection
 import sys
 import numpy as np
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from twisted.protocols.basic import LineReceiver
 from twisted.python import log
 from martas.core import methods as mm
@@ -65,6 +65,17 @@ class GSM90Protocol(LineReceiver):
         log.msg("  -> setting QOS:", self.qos)
         # PYTHON version
         self.pvers = sys.version_info[0]
+
+        # extract data from configuration dictionary
+        debugtest = confdict.get('debug')
+        # switch on debug mode
+        self.debug = False
+        if debugtest in ['true','True','TRUE']:
+            log.msg('DEBUG - {}: Debug mode activated.'.format(self.sensordict.get('protocol')))
+            self.debug = True    # prints many test messages
+        else:
+            log.msg('  -> Debug mode = {}'.format(debugtest))
+
 
     def connectionMade(self):
         log.msg('  -> {} connected.'.format(self.sensor))
@@ -132,9 +143,24 @@ class GSM90Protocol(LineReceiver):
                     self.timedelay = 0.0
             #if secdiff > timethreshold:
             if delta > self.timethreshold:
-                self.errorcnt['time'] +=1
-                if self.errorcnt.get('time') < 2:
-                    log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, delta))
+                """
+                Issue with GSM19 and GSM90:
+                - the binary transmission does only contain time but no date
+                - thus, if data from GPS time 23:59:59.x arrives at the PC with PC time 00:00:00.x
+                  then using PC date to complete GPS timestamp leads to a wrong datetime with delta == 86399+-1 sec
+                - solution: ideal -> convince GEM System to provide full datetime with serial output
+                            non-ideal -> correct datetime if above delta is observed (currently implemented)
+                """
+                if 86398 <= delta <= 86400:
+                    if self.debug:
+                        log.msg("{} protocol: apparently got record with wrongly inserted PC date into GPS time: {} - correcting to {}".format(
+                            self.sensordict.get('protocol'), internal_t, (currenttime-timedelta(seconds=2)).date()))
+                    nsystemtime = internal_t-timedelta(days=1)
+                    internal_time = datetime.strftime(nsystemtime, "%Y-%m-%d %H:%M:%S.%f")
+                else:
+                    self.errorcnt['time'] +=1
+                    if self.errorcnt.get('time') < 2:
+                        log.msg("{} protocol: large time difference observed for {}: {} sec".format(self.sensordict.get('protocol'), sensorid, delta))
             else:
                 self.errorcnt['time'] = 0
         except:
