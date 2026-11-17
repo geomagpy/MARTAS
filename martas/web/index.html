@@ -1,13 +1,386 @@
-<html>
-<meta charset="utf-8">
+<!DOCTYPE html>
+<html lang="de">
 <head>
-    <title>Live Signals</title>
-    <script type="text/javascript" src="plotws.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MARCOS Live Stream Monitor</title>
+    <script src="smoothie.js"></script>
+    <script src="smoothiesettings.js"></script>
+    <style>
+        :root {
+            --bg-main: #0f1117;
+            --bg-panel: #161b22;
+            --bg-card: #1c212b;
+            --border-color: #2d333b;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --success: #3fb950;
+            --danger: #f85149;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header / Toolbar */
+        header {
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+
+        .status-badge.connected {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--success);
+            border-color: rgba(63, 185, 80, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        select, input[type="range"], button {
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        select:hover, button:hover {
+            border-color: var(--accent);
+        }
+
+        button.active {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: 600;
+            border-color: var(--accent);
+        }
+
+        /* Main Layout */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar for Signal Selection */
+        aside {
+            width: 270px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 15px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h2 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        .sidebar-actions button {
+            padding: 2px 7px;
+            font-size: 0.75rem;
+        }
+
+        .sensor-group {
+            margin-bottom: 14px;
+        }
+
+        .sensor-group-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+
+        .signal-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .signal-item:hover {
+            background-color: var(--bg-card);
+        }
+
+        .signal-item input[type="checkbox"] {
+            accent-color: var(--accent);
+            width: 15px;
+            height: 15px;
+            cursor: pointer;
+        }
+
+        .color-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* Charts Container */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+            gap: 16px;
+            align-content: start;
+        }
+
+        main.single-column {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .chart-card.hidden {
+            display: none;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chart-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .chart-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-left: 6px;
+        }
+
+        .chart-value {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .canvas-wrapper {
+            width: 100%;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            display: block;
+            border-radius: 4px;
+            background-color: #11141c;
+        }
+
+        /* Footer / Debug Bar */
+        footer {
+            background-color: var(--bg-panel);
+            border-top: 1px solid var(--border-color);
+            padding: 6px 20px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #debug {
+            font-family: monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
 </head>
-
 <body>
-    <h1>Real Time Acquisition</h1>
-    <div id='maindiv'></div>
-    <div id='debug'></div>
-</body>
 
+<header>
+    <div class="brand">
+        <h1>MARCOS Live Monitor</h1>
+        <span id="ws-status" class="status-badge">
+            <span class="status-dot"></span>
+            <span id="ws-status-text">Connecting...</span>
+        </span>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="timeWindowSelect">Zeitbereich:</label>
+            <select id="timeWindowSelect">
+                <option value="30">30 Sek.</option>
+                <option value="60">1 Min.</option>
+                <option value="180" selected>3 Min.</option>
+                <option value="300">5 Min.</option>
+                <option value="900">15 Min.</option>
+                <option value="3600">1 Std.</option>
+                <option value="21600">6 Std.</option>
+                <option value="43200">12 Std.</option>
+                <option value="86400">24 Std.</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="heightSlider">Höhe:</label>
+            <input type="range" id="heightSlider" min="100" max="450" step="10" value="180">
+            <span id="heightValue">180px</span>
+        </div>
+
+        <div class="control-group">
+            <label for="layoutSelect">Layout:</label>
+            <select id="layoutSelect">
+                <option value="grid" selected>Raster (2 Spalten)</option>
+                <option value="single">1 Spalte (Vollbreite)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="yPaddingSelect">Y-Puffer:</label>
+            <select id="yPaddingSelect">
+                <option value="0" selected>Auto (Exakt)</option>
+                <option value="0.5">± 0.5</option>
+                <option value="3">± 3.0</option>
+                <option value="10">± 10.0</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="interpolationSelect">Linie:</label>
+            <select id="interpolationSelect">
+                <option value="bezier" selected>Spline (Bezier)</option>
+                <option value="linear">Linear</option>
+                <option value="step">Stufen (Step)</option>
+            </select>
+        </div>
+
+        <button id="pauseBtn" title="Darstellung anhalten/fortsetzen">⏸ Pause</button>
+    </div>
+</header>
+
+<div class="workspace">
+    <aside>
+        <div class="sidebar-header">
+            <h2>Kanäle</h2>
+            <div class="sidebar-actions">
+                <button id="selectAllBtn">Alle</button>
+                <button id="selectNoneBtn">Keine</button>
+            </div>
+        </div>
+        <div id="sensor-list">
+            <p style="font-size: 0.8rem; color: var(--text-secondary);">Warte auf Sensor-Metadaten...</p>
+        </div>
+    </aside>
+
+    <main id="maindiv"></main>
+</div>
+
+<footer>
+    <div id="debug">Bereit.</div>
+    <div id="server-info"></div>
+</footer>
+
+<script src="plotws.js"></script>
+</body>
+</html>

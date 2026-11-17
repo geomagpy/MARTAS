@@ -1,165 +1,337 @@
-// TODO make a class out of it , use jquery...
-// plot magpy data coming over websocket from collector
+// plotws.js - MARCOS WebSocket Live Plotter (Darkmode & Interactive Controls)
 
-    var serveraddr= location.host.split(':')[0];
-    console.log(serveraddr);
-    var wsconnection = new WebSocket('ws://' +serveraddr+ ':5000/');
-    var signals = {};
-    var descrFields = {};
-    var table;
-    var smoothieloaded = 0;
-    var sensorblacklist = ['','']
+(function () {
+    const serveraddr = location.host ? location.host.split(':')[0] : 'localhost';
+    const wsUrl = `ws://${serveraddr}:5000/`;
+    const sensorblacklist = ['', 'none'];
 
-    console.log("plotws.js started");
+    let wsconnection = null;
+    let isPaused = false;
+    let chartHeight = 180;
+    let timeWindowSeconds = 180;
 
-// "import" smoothiechart javascripts
-//    var importsmoothie = document.createElement('script');
-//    importsmoothie.src = 'smoothie.js';
-//    document.head.appendChild(importsmoothie);
-//    var importsmoothiesettings = document.createElement('script');
-//    importsmoothiesettings.src = 'smoothiesettings.js';
-//    document.head.appendChild(importsmoothiesettings);
+    // Speichert alle Signale: signals["SENSORID#0"] = { head, chart, timeSeries, card, checkbox, valueEl, visible }
+    const signals = {};
+    const sensorGroups = {};
 
-// Modidied import by leon May 2018
-// https://stackoverflow.com/questions/950087/how-do-i-include-a-javascript-file-in-another-javascript-file
-// Modified import my rmandl Sept 2018, importJs launches the nextFunction, when a js-File is loaded
-// smoothieloaded will be 1, when both files are loaded
+    // DOM-Elemente
+    const maindiv = document.getElementById('maindiv');
+    const sensorListEl = document.getElementById('sensor-list');
+    const debugEl = document.getElementById('debug');
+    const wsStatusBadge = document.getElementById('ws-status');
+    const wsStatusText = document.getElementById('ws-status-text');
+    const serverInfoEl = document.getElementById('server-info');
 
-    function jsImport(toBeLoaded, nextFunction) {
-        var importJs = document.createElement('script');
-        importJs.src = toBeLoaded;
-        // bind the event to callback (nextFunction)
-        //importJs.onreadystatechange = nextFunction; // don't need that here(?)
-        importJs.onload = nextFunction;
-        // Fire loading
-        document.head.appendChild(importJs);
+    const timeWindowSelect = document.getElementById('timeWindowSelect');
+    const heightSlider = document.getElementById('heightSlider');
+    const heightValueEl = document.getElementById('heightValue');
+    const layoutSelect = document.getElementById('layoutSelect');
+    const yPaddingSelect = document.getElementById('yPaddingSelect');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const selectNoneBtn = document.getElementById('selectNoneBtn');
+    const interpolationSelect = document.getElementById('interpolationSelect');
+
+    serverInfoEl.textContent = `WebSocket: ${wsUrl}`;
+
+    /**
+     * Berechnet millisPerPixel basierend auf der aktuellen Canvas-Breite und dem gewählten Zeitfenster
+     */
+    function updateTimeScale() {
+        timeWindowSeconds = Number(timeWindowSelect.value);
+        const totalMs = timeWindowSeconds * 1000;
+
+        // Sinnvolles Raster-Intervall für vertikale Zeitlinien wählen
+        let millisPerLine = 10000;
+        if (timeWindowSeconds <= 30) millisPerLine = 5000;
+        else if (timeWindowSeconds <= 60) millisPerLine = 10000;
+        else if (timeWindowSeconds <= 300) millisPerLine = 30000;
+        else if (timeWindowSeconds <= 900) millisPerLine = 120000;
+        else if (timeWindowSeconds <= 3600) millisPerLine = 600000;     // 10 Min.
+        else if (timeWindowSeconds <= 43200) millisPerLine = 3600000;   // 1 Std.
+        else millisPerLine = 7200000;                                   // 2 Std.
+
+        Object.values(signals).forEach(sig => {
+            const width = sig.canvas.clientWidth || sig.canvas.width || 800;
+            sig.chart.options.millisPerPixel = totalMs / width;
+            sig.chart.options.grid.millisPerLine = millisPerLine;
+        });
     }
 
-    var smoothieLoaded = function () {
-        smoothieloaded = 1;
-    }
-
-    var loadSmoothie = function () {
-        jsImport('smoothie.js', smoothieLoaded);
-    }
-
-    jsImport('smoothiesettings.js',loadSmoothie);
-
-    function getCanvas(signalid) {
-        try {
-            canvas = makeCanvas(signalid);
-            row = null;
-        }
-        catch (e) {
-            canvas = null;
-        }
-        // default is table in maindiv, or we get a canvas from somewhere else
-        if (canvas == null) {
-            var row = document.createElement('tr');
-            table.appendChild(row);
-            var cell = document.createElement('td');
-            row.appendChild(cell);
-            var canvas = document.createElement('canvas');
-            // TODO replace arbitrary number by settings or derive from screen width etc.
-            canvas.width = "1000";
-            cell.appendChild(canvas);
-        }
-        return [canvas,row];
-    }
-
-    function getDescrField(signalid,row) {
-        try {
-            descrField = makeDescrField(signalid,signals);
-        }
-        catch (e) {
-            // only if canvas was created by default
-            if (row) {
-                // a new cell in the table
-                var descrField = document.createElement('td');
-                row.appendChild(descrField);
-                descrFields[signalid] = descrField;
-                iH = signals[signalid];
-                descrField.innerHTML = iH.sensorid +'<BR>'+ iH.key +' : '+ iH.elem +' ['+ signals[signalid].unit +']';
+    /**
+     * Passt die Canvas-Auflösung (Pixel) exakt an die dargestellte CSS-Größe an
+     */
+    function resizeCanvases() {
+        Object.values(signals).forEach(sig => {
+            if (!sig.visible) return;
+            const rect = sig.canvas.parentElement.getBoundingClientRect();
+            if (rect.width > 0) {
+                sig.canvas.width = Math.floor(rect.width);
+                sig.canvas.height = chartHeight;
             }
-        }
-        return descrField;
+        });
+        updateTimeScale();
     }
 
-
-    function addChart(signalid) {
-        var [canvas,row] = getCanvas(signalid);
-        // if there is a non default selection, other signals are not shown
-        if (canvas) {
-            var descrField = getDescrField(signalid,row);
-            var chart = {};
-            chart.smoothie = new SmoothieChart(smoothiesettings);
-            chart.timeSeries = new TimeSeries();
-            chart.smoothie.addTimeSeries(chart.timeSeries,timeseriessettings);
-            chart.smoothie.streamTo(canvas,streamtosettings.Delay);
-            return chart;
+    /**
+     * Erzeugt einen neuen Eintrag in der Seitenleiste (Checkbox)
+     */
+    function addSidebarItem(head, signalid) {
+        if (Object.keys(sensorGroups).length === 0) {
+            sensorListEl.innerHTML = '';
         }
-    };
 
+        if (!sensorGroups[head.sensorid]) {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'sensor-group';
 
-    wsconnection.onmessage = function (e) {
-        if (e.data[0] == '#') {
-            // header
-            // # json
-            var data = e.data.split('# ')[1];
-            var head = JSON.parse(data);
-            signalid = head.sensorid + '#' + head.nr;
-            if (signals[signalid] == null && smoothieloaded == 1 && !sensorblacklist.includes(head.sensorid)) {
-                // new header
-                signals[signalid] = head;
-                signals[signalid].chart = addChart(signalid);
-                // result might look like:
-                // { sensorid: "AD7714_0001_0001", nr: 0, unit: "mV", elem: "U", key: "var1", chart: Object }
-                console.log('new header: sensor ' + signals[signalid].sensorid);
-                //debug.innerHTML = 'new header: sensor ' + signals[signalid].sensorid;
-            }
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'sensor-group-title';
+            titleDiv.textContent = head.sensorid;
+            groupDiv.appendChild(titleDiv);
+
+            sensorListEl.appendChild(groupDiv);
+            sensorGroups[head.sensorid] = groupDiv;
+        }
+
+        const color = signalColors[head.nr % signalColors.length];
+        const label = document.createElement('label');
+        label.className = 'signal-item';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+
+        const colorDot = document.createElement('span');
+        colorDot.className = 'color-indicator';
+        colorDot.style.backgroundColor = color;
+
+        const textSpan = document.createElement('span');
+        const unitStr = head.unit ? ` [${head.unit}]` : '';
+        textSpan.textContent = `${head.elem} (${head.key})${unitStr}`;
+
+        label.appendChild(checkbox);
+        label.appendChild(colorDot);
+        label.appendChild(textSpan);
+        sensorGroups[head.sensorid].appendChild(label);
+
+        checkbox.addEventListener('change', () => {
+            setSignalVisibility(signalid, checkbox.checked);
+        });
+
+        return checkbox;
+    }
+
+    /**
+     * Schaltet die Sichtbarkeit eines Charts um
+     */
+    function setSignalVisibility(signalid, isVisible) {
+        const sig = signals[signalid];
+        if (!sig) return;
+        sig.visible = isVisible;
+        sig.checkbox.checked = isVisible;
+        if (isVisible) {
+            sig.card.classList.remove('hidden');
+            resizeCanvases();
         } else {
-            // data
-            // sensorid: timestamp,data0,data1...
-            var data = e.data.split(': ');
-            var sensor = data[0];
-            if (signals[sensor+'#0'] == null || sensorblacklist.includes(sensor)) {
-                // no header yet
-            } else {
-                var data_arr = data[1].split(',');
-                for (i=0; i < data_arr.length-1; i++) {
-                    var signalid = sensor +'#'+ i.toString();
-                    // catch not selected signals in non default mode
-                    try {
-                        signals[signalid].chart.timeSeries.append((data_arr[0]),Number(data_arr[i+1]));
-                        var mydate = new Date(Number(data_arr[0]));
-                        debug.innerHTML = mydate.toString()+'  '+data_arr.slice(1);
-			iH = signals[signalid];
-			text = iH.sensorid +'<BR>'+ iH.key +' : '+ iH.elem +' ['+ signals[signalid].unit +']<BR>';
-			text = text + data_arr[1+i] + ' ' + signals[signalid].unit;
-                        descrFields[signalid].innerHTML = text;
+            sig.card.classList.add('hidden');
+        }
+    }
 
+    /**
+     * Erstellt Chart-Karte, Canvas, SmoothieChart und TimeSeries für ein Signal
+     */
+    function createSignalChart(head, signalid) {
+        const card = document.createElement('div');
+        card.className = 'chart-card';
+
+        const header = document.createElement('div');
+        header.className = 'chart-header';
+
+        const titleWrap = document.createElement('div');
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'chart-title';
+        titleSpan.textContent = `${head.elem} (${head.key})`;
+
+        const subSpan = document.createElement('span');
+        subSpan.className = 'chart-subtitle';
+        subSpan.textContent = `${head.sensorid}${head.unit ? ' • ' + head.unit : ''}`;
+
+        titleWrap.appendChild(titleSpan);
+        titleWrap.appendChild(subSpan);
+
+        const valueEl = document.createElement('div');
+        valueEl.className = 'chart-value';
+        valueEl.textContent = '--';
+
+        header.appendChild(titleWrap);
+        header.appendChild(valueEl);
+
+        const canvasWrapper = document.createElement('div');
+        canvasWrapper.className = 'canvas-wrapper';
+
+        const canvas = document.createElement('canvas');
+        canvas.height = chartHeight;
+        canvasWrapper.appendChild(canvas);
+
+        card.appendChild(header);
+        card.appendChild(canvasWrapper);
+        maindiv.appendChild(card);
+
+        const checkbox = addSidebarItem(head, signalid);
+
+        // SmoothieChart initialisieren
+        const chart = new SmoothieChart(Object.assign({}, smoothiesettings, {
+            maxDataSetLength: 86400
+        }));
+        const timeSeries = new TimeSeries();
+        chart.addTimeSeries(timeSeries, getTimeSeriesSettings(head.nr));
+        chart.streamTo(canvas, streamtosettings.Delay);
+
+        signals[signalid] = {
+            head,
+            chart,
+            timeSeries,
+            card,
+            canvas,
+            checkbox,
+            valueEl,
+            visible: true
+        };
+
+        // Direkt nach dem Einfügen ins DOM Größe & Zeitskala berechnen
+        requestAnimationFrame(() => resizeCanvases());
+    }
+
+    /**
+     * WebSocket-Verbindung aufbauen (inkl. automatischem Reconnect)
+     */
+    function connectWebSocket() {
+        wsconnection = new WebSocket(wsUrl);
+
+        wsconnection.onopen = function () {
+            wsStatusBadge.classList.add('connected');
+            wsStatusText.textContent = 'Verbunden';
+            debugEl.textContent = 'WebSocket-Verbindung aktiv.';
+        };
+
+        wsconnection.onmessage = function (e) {
+            if (e.data[0] === '#') {
+                // Header / Metadaten: # {"sensorid": ..., "nr": 0, "key": ..., "elem": ..., "unit": ...}
+                try {
+                    const jsonStr = e.data.substring(2);
+                    const head = JSON.parse(jsonStr);
+                    const signalid = `${head.sensorid}#${head.nr}`;
+
+                    if (!signals[signalid] && !sensorblacklist.includes(head.sensorid)) {
+                        createSignalChart(head, signalid);
                     }
-                    catch (e) {}
-                    //debug.innerHTML = data_arr[i+1];
+                } catch (err) {
+                    console.error('Fehler beim Parsen der Metadaten:', err, e.data);
+                }
+            } else {
+                // Messdaten: sensorid: timestamp,val0,val1...
+                const sepIdx = e.data.indexOf(': ');
+                if (sepIdx === -1) return;
+
+                const sensor = e.data.substring(0, sepIdx);
+                if (sensorblacklist.includes(sensor)) return;
+
+                const dataArr = e.data.substring(sepIdx + 2).split(',');
+                const timestamp = Number(dataArr[0]);
+                if (isNaN(timestamp)) return;
+
+                for (let i = 0; i < dataArr.length - 1; i++) {
+                    const signalid = `${sensor}#${i}`;
+                    const sig = signals[signalid];
+                    if (sig) {
+                        const val = Number(dataArr[i + 1]);
+                        if (!isNaN(val)) {
+                            // Daten immer puffern, damit beim Einblenden/Fortsetzen keine Lücken entstehen
+                            sig.timeSeries.append(timestamp, val);
+
+                            if (!isPaused && sig.visible) {
+                                const unitStr = sig.head.unit ? ` ${sig.head.unit}` : '';
+                                sig.valueEl.textContent = `${dataArr[i + 1]}${unitStr}`;
+                            }
+                        }
+                    }
+                }
+
+                if (!isPaused) {
+                    const dt = new Date(timestamp);
+                    debugEl.textContent = `Letztes Paket (${sensor}): ${dt.toLocaleTimeString()} | Werte: ${dataArr.slice(1).join(', ')}`;
                 }
             }
+        };
+
+        wsconnection.onclose = function () {
+            wsStatusBadge.classList.remove('connected');
+            wsStatusText.textContent = 'Getrennt (Reconnect...)';
+            setTimeout(connectWebSocket, 3000);
+        };
+
+        wsconnection.onerror = function (error) {
+            console.error('WebSocket error:', error);
+            wsconnection.close();
+        };
+    }
+
+    // --- Event-Listener für die UI-Steuerung ---
+
+    timeWindowSelect.addEventListener('change', updateTimeScale);
+
+    heightSlider.addEventListener('input', () => {
+        chartHeight = Number(heightSlider.value);
+        heightValueEl.textContent = `${chartHeight}px`;
+        resizeCanvases();
+    });
+
+    layoutSelect.addEventListener('change', () => {
+        if (layoutSelect.value === 'single') {
+            maindiv.classList.add('single-column');
+        } else {
+            maindiv.classList.remove('single-column');
         }
-        // console.log('data from collector: ' + e.data);
-    };
-    wsconnection.onopen = function (){
-        console.log('websocket connection open');
-    };
-    wsconnection.onerror = function (error){
-        console.log('error: ' + error);
-        connection.close();
-    };
+        resizeCanvases();
+    });
 
-window.onload = function() {
+    yPaddingSelect.addEventListener('change', () => {
+        currentYPadding = Number(yPaddingSelect.value);
+    });
 
-    var maindiv = document.getElementById('maindiv');
-    // TODO no need for a table, when no default
-    table = document.createElement('table');
-    maindiv.appendChild(table);
+    interpolationSelect.addEventListener('change', () => {
+        const mode = interpolationSelect.value;
+        smoothiesettings.interpolation = mode;
+        Object.values(signals).forEach(sig => {
+            sig.chart.options.interpolation = mode;
+        });
+    });
 
-    debug1 = document.getElementById('debug');
-}
+    pauseBtn.addEventListener('click', () => {
+        isPaused = !isPaused;
+        pauseBtn.classList.toggle('active', isPaused);
+        pauseBtn.textContent = isPaused ? '▶ Fortsetzen' : '⏸ Pause';
+
+        Object.values(signals).forEach(sig => {
+            if (isPaused) {
+                sig.chart.stop();
+            } else {
+                sig.chart.start();
+            }
+        });
+    });
+
+    selectAllBtn.addEventListener('click', () => {
+        Object.keys(signals).forEach(id => setSignalVisibility(id, true));
+    });
+
+    selectNoneBtn.addEventListener('click', () => {
+        Object.keys(signals).forEach(id => setSignalVisibility(id, false));
+    });
+
+    window.addEventListener('resize', resizeCanvases);
+
+    // Start
+    connectWebSocket();
+})();

@@ -9,13 +9,16 @@ v2.0.2 fixes:
     - GSM19/90: corrected issue with wrong date submission
     - analysis.py - status relevant error are corrected
     - mqttcredentials vs mqttcred in configuration files
+    - selected non-default backup path accepted
+    - switched from multiprocssing.Process to threading.Thread for websocket collector display
 
 v2.0.2 additions:
     - library for GP20SL sensor available (not included in default package)
 
 v2.0.2 general:
     - manual moved to separate, searchable webpage
-    - support for true encryption: requires MagPy 2.0.4
+    - support for true encryption of credentials: requires MagPy 2.0.4
+    - modified the collector method: non-global stream treatment, py3.14 compatibility, removed multiple parsing
 
 
 ####v<2.0.1>, <2026-05-21> --

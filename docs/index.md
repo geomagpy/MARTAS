@@ -989,7 +989,6 @@ Select destination "websocket"
 Open the following page in a webbrowser
         http://ip_of_marcos:8080
 
-
 a) Starting websocket transfer on MARCOS from commandline
 
       Manually you can also do that as follows:
