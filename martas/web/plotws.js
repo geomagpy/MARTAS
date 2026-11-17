@@ -1,4 +1,4 @@
-// plotws.js - MARCOS WebSocket Live Plotter (Darkmode & Interactive Controls)
+// plotws.js - MARCOS WebSocket Live Plotter (Dark Mode & Interactive Controls)
 
 (function () {
     const serveraddr = location.host ? location.host.split(':')[0] : 'localhost';
@@ -10,11 +10,11 @@
     let chartHeight = 180;
     let timeWindowSeconds = 180;
 
-    // Speichert alle Signale: signals["SENSORID#0"] = { head, chart, timeSeries, card, checkbox, valueEl, visible }
+    // Stores all active signals: signals["SENSORID#0"] = { head, chart, timeSeries, card, canvas, checkbox, valueEl, visible }
     const signals = {};
     const sensorGroups = {};
 
-    // DOM-Elemente
+    // DOM Elements
     const maindiv = document.getElementById('maindiv');
     const sensorListEl = document.getElementById('sensor-list');
     const debugEl = document.getElementById('debug');
@@ -27,29 +27,28 @@
     const heightValueEl = document.getElementById('heightValue');
     const layoutSelect = document.getElementById('layoutSelect');
     const yPaddingSelect = document.getElementById('yPaddingSelect');
+    const interpolationSelect = document.getElementById('interpolationSelect');
     const pauseBtn = document.getElementById('pauseBtn');
     const selectAllBtn = document.getElementById('selectAllBtn');
     const selectNoneBtn = document.getElementById('selectNoneBtn');
-    const interpolationSelect = document.getElementById('interpolationSelect');
 
     serverInfoEl.textContent = `WebSocket: ${wsUrl}`;
 
     /**
-     * Berechnet millisPerPixel basierend auf der aktuellen Canvas-Breite und dem gewählten Zeitfenster
+     * Updates millisPerPixel and grid intervals based on current canvas width and selected time window
      */
     function updateTimeScale() {
         timeWindowSeconds = Number(timeWindowSelect.value);
         const totalMs = timeWindowSeconds * 1000;
 
-        // Sinnvolles Raster-Intervall für vertikale Zeitlinien wählen
         let millisPerLine = 10000;
         if (timeWindowSeconds <= 30) millisPerLine = 5000;
         else if (timeWindowSeconds <= 60) millisPerLine = 10000;
         else if (timeWindowSeconds <= 300) millisPerLine = 30000;
         else if (timeWindowSeconds <= 900) millisPerLine = 120000;
-        else if (timeWindowSeconds <= 3600) millisPerLine = 600000;     // 10 Min.
-        else if (timeWindowSeconds <= 43200) millisPerLine = 3600000;   // 1 Std.
-        else millisPerLine = 7200000;                                   // 2 Std.
+        else if (timeWindowSeconds <= 3600) millisPerLine = 600000;     // 10 min
+        else if (timeWindowSeconds <= 43200) millisPerLine = 3600000;   // 1 h
+        else millisPerLine = 7200000;                                   // 2 h
 
         Object.values(signals).forEach(sig => {
             const width = sig.canvas.clientWidth || sig.canvas.width || 800;
@@ -59,7 +58,7 @@
     }
 
     /**
-     * Passt die Canvas-Auflösung (Pixel) exakt an die dargestellte CSS-Größe an
+     * Matches internal canvas pixel resolution to its rendered CSS dimensions
      */
     function resizeCanvases() {
         Object.values(signals).forEach(sig => {
@@ -74,7 +73,7 @@
     }
 
     /**
-     * Erzeugt einen neuen Eintrag in der Seitenleiste (Checkbox)
+     * Adds a sensor channel toggle checkbox to the sidebar
      */
     function addSidebarItem(head, signalid) {
         if (Object.keys(sensorGroups).length === 0) {
@@ -123,7 +122,7 @@
     }
 
     /**
-     * Schaltet die Sichtbarkeit eines Charts um
+     * Shows or hides a chart card
      */
     function setSignalVisibility(signalid, isVisible) {
         const sig = signals[signalid];
@@ -139,7 +138,7 @@
     }
 
     /**
-     * Erstellt Chart-Karte, Canvas, SmoothieChart und TimeSeries für ein Signal
+     * Creates chart card, canvas, SmoothieChart, and TimeSeries for a signal
      */
     function createSignalChart(head, signalid) {
         const card = document.createElement('div');
@@ -180,9 +179,9 @@
 
         const checkbox = addSidebarItem(head, signalid);
 
-        // SmoothieChart initialisieren
+        // Initialize SmoothieChart (keep historical points in memory for up to 24h switching)
         const chart = new SmoothieChart(Object.assign({}, smoothiesettings, {
-            maxDataSetLength: 86400
+            maxDataSetLength: 0
         }));
         const timeSeries = new TimeSeries();
         chart.addTimeSeries(timeSeries, getTimeSeriesSettings(head.nr));
@@ -199,25 +198,24 @@
             visible: true
         };
 
-        // Direkt nach dem Einfügen ins DOM Größe & Zeitskala berechnen
         requestAnimationFrame(() => resizeCanvases());
     }
 
     /**
-     * WebSocket-Verbindung aufbauen (inkl. automatischem Reconnect)
+     * Establishes WebSocket connection with automatic reconnect
      */
     function connectWebSocket() {
         wsconnection = new WebSocket(wsUrl);
 
         wsconnection.onopen = function () {
             wsStatusBadge.classList.add('connected');
-            wsStatusText.textContent = 'Verbunden';
-            debugEl.textContent = 'WebSocket-Verbindung aktiv.';
+            wsStatusText.textContent = 'Connected';
+            debugEl.textContent = 'WebSocket connection active.';
         };
 
         wsconnection.onmessage = function (e) {
             if (e.data[0] === '#') {
-                // Header / Metadaten: # {"sensorid": ..., "nr": 0, "key": ..., "elem": ..., "unit": ...}
+                // Header / Metadata: # {"sensorid": ..., "nr": 0, "key": ..., "elem": ..., "unit": ...}
                 try {
                     const jsonStr = e.data.substring(2);
                     const head = JSON.parse(jsonStr);
@@ -227,10 +225,10 @@
                         createSignalChart(head, signalid);
                     }
                 } catch (err) {
-                    console.error('Fehler beim Parsen der Metadaten:', err, e.data);
+                    console.error('Error parsing metadata:', err, e.data);
                 }
             } else {
-                // Messdaten: sensorid: timestamp,val0,val1...
+                // Measurement data: sensorid: timestamp,val0,val1...
                 const sepIdx = e.data.indexOf(': ');
                 if (sepIdx === -1) return;
 
@@ -247,7 +245,6 @@
                     if (sig) {
                         const val = Number(dataArr[i + 1]);
                         if (!isNaN(val)) {
-                            // Daten immer puffern, damit beim Einblenden/Fortsetzen keine Lücken entstehen
                             sig.timeSeries.append(timestamp, val);
 
                             if (!isPaused && sig.visible) {
@@ -260,14 +257,14 @@
 
                 if (!isPaused) {
                     const dt = new Date(timestamp);
-                    debugEl.textContent = `Letztes Paket (${sensor}): ${dt.toLocaleTimeString()} | Werte: ${dataArr.slice(1).join(', ')}`;
+                    debugEl.textContent = `Last packet (${sensor}): ${dt.toLocaleTimeString()} | Values: ${dataArr.slice(1).join(', ')}`;
                 }
             }
         };
 
         wsconnection.onclose = function () {
             wsStatusBadge.classList.remove('connected');
-            wsStatusText.textContent = 'Getrennt (Reconnect...)';
+            wsStatusText.textContent = 'Disconnected (Reconnecting...)';
             setTimeout(connectWebSocket, 3000);
         };
 
@@ -277,7 +274,7 @@
         };
     }
 
-    // --- Event-Listener für die UI-Steuerung ---
+    // --- UI Control Event Listeners ---
 
     timeWindowSelect.addEventListener('change', updateTimeScale);
 
@@ -311,7 +308,7 @@
     pauseBtn.addEventListener('click', () => {
         isPaused = !isPaused;
         pauseBtn.classList.toggle('active', isPaused);
-        pauseBtn.textContent = isPaused ? '▶ Fortsetzen' : '⏸ Pause';
+        pauseBtn.textContent = isPaused ? '▶ Resume' : '⏸ Pause';
 
         Object.values(signals).forEach(sig => {
             if (isPaused) {
@@ -332,6 +329,6 @@
 
     window.addEventListener('resize', resizeCanvases);
 
-    // Start
+    // Initialize
     connectWebSocket();
 })();

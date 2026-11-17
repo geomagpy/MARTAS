@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -308,22 +308,22 @@
 
     <div class="controls">
         <div class="control-group">
-            <label for="timeWindowSelect">Zeitbereich:</label>
+            <label for="timeWindowSelect">Time Window:</label>
             <select id="timeWindowSelect">
-                <option value="30">30 Sek.</option>
-                <option value="60">1 Min.</option>
-                <option value="180" selected>3 Min.</option>
-                <option value="300">5 Min.</option>
-                <option value="900">15 Min.</option>
-                <option value="3600">1 Std.</option>
-                <option value="21600">6 Std.</option>
-                <option value="43200">12 Std.</option>
-                <option value="86400">24 Std.</option>
+                <option value="30">30 sec</option>
+                <option value="60">1 min</option>
+                <option value="180" selected>3 min</option>
+                <option value="300">5 min</option>
+                <option value="900">15 min</option>
+                <option value="3600">1 h</option>
+                <option value="21600">6 h</option>
+                <option value="43200">12 h</option>
+                <option value="86400">24 h</option>
             </select>
         </div>
 
         <div class="control-group">
-            <label for="heightSlider">Höhe:</label>
+            <label for="heightSlider">Height:</label>
             <input type="range" id="heightSlider" min="100" max="450" step="10" value="180">
             <span id="heightValue">180px</span>
         </div>
@@ -331,15 +331,15 @@
         <div class="control-group">
             <label for="layoutSelect">Layout:</label>
             <select id="layoutSelect">
-                <option value="grid" selected>Raster (2 Spalten)</option>
-                <option value="single">1 Spalte (Vollbreite)</option>
+                <option value="grid" selected>Grid (2 Columns)</option>
+                <option value="single">Single Column (Full Width)</option>
             </select>
         </div>
 
         <div class="control-group">
-            <label for="yPaddingSelect">Y-Puffer:</label>
+            <label for="yPaddingSelect">Y-Padding:</label>
             <select id="yPaddingSelect">
-                <option value="0" selected>Auto (Exakt)</option>
+                <option value="0" selected>Auto (Exact)</option>
                 <option value="0.5">± 0.5</option>
                 <option value="3">± 3.0</option>
                 <option value="10">± 10.0</option>
@@ -347,29 +347,29 @@
         </div>
 
         <div class="control-group">
-            <label for="interpolationSelect">Linie:</label>
+            <label for="interpolationSelect">Line:</label>
             <select id="interpolationSelect">
                 <option value="bezier" selected>Spline (Bezier)</option>
                 <option value="linear">Linear</option>
-                <option value="step">Stufen (Step)</option>
+                <option value="step">Step</option>
             </select>
         </div>
 
-        <button id="pauseBtn" title="Darstellung anhalten/fortsetzen">⏸ Pause</button>
+        <button id="pauseBtn" title="Pause or resume chart rendering">⏸ Pause</button>
     </div>
 </header>
 
 <div class="workspace">
     <aside>
         <div class="sidebar-header">
-            <h2>Kanäle</h2>
+            <h2>Channels</h2>
             <div class="sidebar-actions">
-                <button id="selectAllBtn">Alle</button>
-                <button id="selectNoneBtn">Keine</button>
+                <button id="selectAllBtn">All</button>
+                <button id="selectNoneBtn">None</button>
             </div>
         </div>
         <div id="sensor-list">
-            <p style="font-size: 0.8rem; color: var(--text-secondary);">Warte auf Sensor-Metadaten...</p>
+            <p style="font-size: 0.8rem; color: var(--text-secondary);">Waiting for sensor metadata...</p>
         </div>
     </aside>
 
@@ -377,7 +377,7 @@
 </div>
 
 <footer>
-    <div id="debug">Bereit.</div>
+    <div id="debug">Ready.</div>
     <div id="server-info"></div>
 </footer>
 

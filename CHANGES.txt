@@ -19,6 +19,7 @@ v2.0.2 general:
     - manual moved to separate, searchable webpage
     - support for true encryption of credentials: requires MagPy 2.0.4
     - modified the collector method: non-global stream treatment, py3.14 compatibility, removed multiple parsing
+    - modernized websocket communication and its display, quicker reaction and customizeable - give it a try
 
 
 ####v<2.0.1>, <2026-05-21> --
