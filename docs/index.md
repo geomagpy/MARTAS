@@ -15,7 +15,7 @@ observatories. and data sources consisting of timeseries measurements from local
 also be used for many other sensor networks focusing on timeseries measurements from locally fixed instruments. MARTAS 
 is freely available under GNUv3 license. When using MARTAS please cite the software package.   
 
-DOI: 
+DOI: 10.5281/zenodo.24305707
 
 Developers: R. Leonhardt, R. Mandl, R. Bailey, P. Arneitz, V. Haberle, N. Kompein (GeoSphere Austria)
 
@@ -988,6 +988,9 @@ Select destination "websocket"
 
 Open the following page in a webbrowser
         http://ip_of_marcos:8080
+
+![5.4.0](./img/liveview.png "Lightweight live data viewer")
+
 
 a) Starting websocket transfer on MARCOS from commandline
 

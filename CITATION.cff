@@ -20,7 +20,7 @@ authors:
   given-names: "Niko"
   orcid: ""
 title: "MARTAS – realtime data acquisition, data organization and evaluation."
-version: v2.0.1
-doi: 10.5281/zenodo.17937902
-date-released: 2025-12-15
+version: v2.0.2
+doi: 10.5281/zenodo.24305707
+date-released: 2026-11-17
 url: "https://github.com/geomagpy/MARTAS"

@@ -17,7 +17,7 @@ is freely available under GNUv3 license. When using MARTAS please cite the softw
 
 Installation instructions and a full manual can be found here: [https://geomagpy.github.io/MARTAS](https://geomagpy.github.io/MARTAS)
 
-DOI: 10.5281/zenodo.17937902
+DOI: 10.5281/zenodo.24305707
 
 Developers: R. Leonhardt, R. Mandl, R. Bailey,
 Code contribution: P. Arneitz, V. Haberle, N. Kompein (GeoSphere Austria), Ina Rusch (Leomagnetics)
