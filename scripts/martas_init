@@ -253,11 +253,11 @@ def main(argv):
     print (' (please insert "none" if you do not want regular backups of the martas system)')
     print (" (press return for accepting default: {})".format(os.path.join(homedir,"backups")))
     newbackuppath = input()
-    if newstationname and not newstationname in ["NONE","none","no","n","NO","None","N"]:
+    if  newbackuppath and not newbackuppath in ["NONE","none","no","n","NO","None","N"]:
         backuppath = newbackuppath
-    elif newstationname in ["NONE","none","no","n","NO","None","N"]:
+    elif newbackuppath in ["NONE","none","no","n","NO","None","N"]:
         backuppath = ""
-    print (" -> Station ID: {}".format(stationname))
+    print (" -> Backups written to: {}".format(newbackuppath))
 
     print (" ------------------------------------------- ")
     print (" Please insert the address of the MQTT broker:")

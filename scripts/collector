@@ -22,7 +22,7 @@ from twisted.web.static import File
 from twisted.internet import reactor
 
 import threading
-from multiprocessing import Process
+#from multiprocessing import Process
 import struct
 from datetime import datetime
 from matplotlib.dates import num2date
@@ -65,11 +65,10 @@ ws_available = True
 
 qos = 0
 streamdict = {}
-stream = DataStream()
 diffstruct = {}
 st = []
 senslst = []
-headdict = {} # store headerlines for all sensors (headerline are firstline for BIN files)
+headdict = {}  # store headerlines for all sensors (headerline are firstline for BIN files)
 headstream = {}
 verifiedlocation = False
 destination = 'stdout'
@@ -86,8 +85,19 @@ counter = 0
 diffcounter = 0
 prevlasttimestamp_prim = None
 
+
 ## SSL PSK tools
 def _ssl_setup_psk_callbacks(sslobj):
+    """
+    DESCRIPTION
+        Configures Pre-Shared Key (PSK) server or client callbacks on an SSL object
+        based on the PSK attributes stored in its SSL context.
+    PARAMETERS
+        sslobj : ssl.SSLObject or ssl.SSLSocket
+            The SSL instance whose context provides `psk`, `hint`, and `identity`.
+    RETURNS
+        None
+    """
     psk = sslobj.context.psk
     hint = sslobj.context.hint
     identity = sslobj.context.identity
@@ -103,31 +113,93 @@ def _ssl_setup_psk_callbacks(sslobj):
 class SSLPSKContext(ssl.SSLContext):
     @property
     def psk(self):
+        """
+        DESCRIPTION
+            Retrieves the Pre-Shared Key (PSK) configured on this SSL context.
+        PARAMETERS
+            None
+        RETURNS
+            bytes, tuple, callable, or None : The configured PSK value or callback.
+        """
         return getattr(self, "_psk", None)
 
     @psk.setter
     def psk(self, psk):
+        """
+        DESCRIPTION
+            Sets the Pre-Shared Key (PSK) on this SSL context.
+        PARAMETERS
+            psk : bytes, tuple, or callable
+                The PSK secret or callback function.
+        RETURNS
+            None
+        """
         self._psk = psk
 
     @property
     def hint(self):
+        """
+        DESCRIPTION
+            Retrieves the PSK identity hint configured on this SSL context.
+        PARAMETERS
+            None
+        RETURNS
+            str, bytes, or None : The configured PSK identity hint.
+        """
         return getattr(self, "_hint", None)
 
     @hint.setter
     def hint(self, hint):
+        """
+        DESCRIPTION
+            Sets the PSK identity hint on this SSL context.
+        PARAMETERS
+            hint : str or bytes
+                The PSK identity hint sent by the server.
+        RETURNS
+            None
+        """
         self._hint = hint
 
     @property
     def identity(self):
+        """
+        DESCRIPTION
+            Retrieves the PSK client identity configured on this SSL context.
+        PARAMETERS
+            None
+        RETURNS
+            bytes, str, or None : The configured PSK identity.
+        """
         return getattr(self, "_identity", None)
 
     @identity.setter
     def identity(self, identity):
+        """
+        DESCRIPTION
+            Sets the PSK client identity on this SSL context.
+        PARAMETERS
+            identity : bytes or str
+                The client identity used for PSK authentication.
+        RETURNS
+            None
+        """
         self._identity = identity
 
 
 class SSLPSKObject(ssl.SSLObject):
     def do_handshake(self, *args, **kwargs):
+        """
+        DESCRIPTION
+            Performs the TLS/SSL handshake after ensuring PSK callbacks are initialized.
+        PARAMETERS
+            *args : tuple
+                Positional arguments forwarded to `ssl.SSLObject.do_handshake`.
+            **kwargs : dict
+                Keyword arguments forwarded to `ssl.SSLObject.do_handshake`.
+        RETURNS
+            None
+        """
         if not hasattr(self, '_did_psk_setup'):
             _ssl_setup_psk_callbacks(self)
             self._did_psk_setup = True
@@ -136,6 +208,17 @@ class SSLPSKObject(ssl.SSLObject):
 
 class SSLPSKSocket(ssl.SSLSocket):
     def do_handshake(self, *args, **kwargs):
+        """
+        DESCRIPTION
+            Performs the TLS/SSL socket handshake after ensuring PSK callbacks are initialized.
+        PARAMETERS
+            *args : tuple
+                Positional arguments forwarded to `ssl.SSLSocket.do_handshake`.
+            **kwargs : dict
+                Keyword arguments forwarded to `ssl.SSLSocket.do_handshake`.
+        RETURNS
+            None
+        """
         if not hasattr(self, '_did_psk_setup'):
             _ssl_setup_psk_callbacks(self)
             self._did_psk_setup = True
@@ -148,184 +231,323 @@ SSLPSKContext.sslsocket_class = SSLPSKSocket
 
 class protocolparameter(object):
     def __init__(self):
+        """
+        DESCRIPTION
+            Initializes the protocol parameter container holding sensor metadata mappings.
+        PARAMETERS
+            None
+        RETURNS
+            None
+        """
         self.identifier = {}
         #self.counter = 0
 
+
 po = protocolparameter()
+
 
 ## WebServer Methods
 ## -----------------------------------------------------------
 def wsThread(wsserver):
+    """
+    DESCRIPTION
+        Registers WebSocket event callbacks and starts the WebSocket server loop.
+    PARAMETERS
+        wsserver : WebsocketServer
+            The WebSocket server instance to configure and run.
+    RETURNS
+        None
+    """
     wsserver.set_fn_new_client(new_wsclient)
     wsserver.set_fn_message_received(message_received)
     wsserver.run_forever()
 
+
 if ws_available:
     global wsserver
 
-# TODO: find a way how to use these two functions:
-def new_wsclient(ws_client,server):
-    pass
-    # for debug: see which threads are running:
-    #print(str(threading.enumerate()))
 
-def message_received(ws_client,server,message):
-    pass
-
-def webProcess(webpath,webport):
+def send_ws_meta(sensorid, client=None):
     """
-    These few lines will be started as an own process.
-    When the main process is killed, also this child process is killed
-    because of having it started as a daemon
+    DESCRIPTION
+        Sends header metadata (key, element name, unit) of a sensor as JSON messages
+        to a specific WebSocket client or broadcasts them to all connected clients.
+    PARAMETERS
+        sensorid : str
+            Unique identifier of the sensor whose metadata should be transmitted.
+    OPTIONS
+        client : dict or None, optional
+            Target WebSocket client dictionary. If None, broadcasts to all connected clients (default: None).
+    RETURNS
+        None
+    """
+    keylist = po.identifier.get(sensorid + ':keylist')
+    elemlist = po.identifier.get(sensorid + ':elemlist')
+    unitlist = po.identifier.get(sensorid + ':unitlist')
+    if not keylist:
+        return
+    for i in range(len(keylist)):
+        jsonstr = {
+            'sensorid': sensorid,
+            'nr': i,
+            'key': keylist[i],
+            'elem': elemlist[i] if i < len(elemlist) else keylist[i],
+            'unit': unitlist[i] if i < len(unitlist) else ''
+        }
+        msg = '# ' + json.dumps(jsonstr)
+        try:
+            if client:
+                wsserver.send_message(client, msg)
+            else:
+                wsserver.send_message_to_all(msg)
+        except Exception as e:
+            if debug:
+                log.msg(f"WebSocket meta send error: {e}")
+
+
+def new_wsclient(ws_client, server):
+    """
+    DESCRIPTION
+        Callback invoked when a new WebSocket client connects; replays all known
+        sensor metadata headers to the newly connected client.
+    PARAMETERS
+        ws_client : dict
+            Dictionary describing the newly connected WebSocket client.
+        server : WebsocketServer
+            The WebSocket server instance handling the connection.
+    RETURNS
+        None
+    """
+    if debug:
+        log.msg(f"New WebSocket client connected: {ws_client['address']}")
+    known_sensors = [k.replace(':keylist', '') for k in list(po.identifier.keys()) if k.endswith(':keylist')]
+    for sid in known_sensors:
+        send_ws_meta(sid, client=ws_client)
+
+
+def message_received(ws_client, server, message):
+    """
+    DESCRIPTION
+        Callback invoked when a message is received from a WebSocket client.
+    PARAMETERS
+        ws_client : dict
+            Dictionary describing the sending WebSocket client.
+        server : WebsocketServer
+            The WebSocket server instance receiving the message.
+        message : str
+            The received payload string.
+    RETURNS
+        None
+    """
+    pass
+
+
+def webProcess(webpath, webport):
+    """
+    DESCRIPTION
+        Starts a Twisted static file web server serving files from `webpath` on `webport`.
+        Intended to be run inside a background daemon thread or child process.
+    PARAMETERS
+        webpath : str
+            Filesystem directory path to serve via HTTP.
+        webport : int or str
+            TCP port number on which the HTTP server listens.
+    RETURNS
+        None
     """
     resource = File(webpath)
-    print ("TESTING", webpath, resource)
+    print("TESTING", webpath, resource)
     factory = Site(resource)
     #endpoint = endpoints.TCP4ServerEndpoint(reactor, 8888)
     #endpoint.listen(factory)
     # args! -> make an integer out of it
     webport = int(webport)
-    reactor.listenTCP(webport,factory)
-    reactor.run()
-
-def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, mqttcert="", mqttpsk="", mqttversion=2, destinationid='',debug=False):
-        """
-    connectclient method
-    used to connect to a specific client as defined by the input variables
-    eventually add multiple client -> {"clients":[{"broker":"192.168.178.42","port":"1883"}]} # json type
-                import json
-                altbro = json.loads(altbrocker)
-        """
-        ## create a unique clientid consisting of broker, client and destination
-        client = None
-        hostname = socket.gethostname()
-        clientid = "{}{}{}".format(broker,hostname,destinationid)
-
-        ## create MQTT client
-        ##  ----------------------------
-        pahovers = paho.mqtt.__version__
-        pahomajor = int(pahovers[0])
-        print(" paho-mqtt version ", pahovers)
-        try:
-            client = mqtt.Client(clientid, False)
-        except:
-            try:
-                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientid)
-            except:
-                client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=clientid)
-
-        # TLS encryption part
-        if int(port) == 8883 and not mqttpsk:
-            if mqttcert:
-                if debug:
-                    print("MQTT: TLS encryption based on certificate")
-                    print(mqttcert)
-                client.tls_set(ca_certs=mqttcert)
-            else:
-                if debug:
-                    print("MQTT: basic TLS")
-                client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED,
-                               tls_version=ssl.PROTOCOL_TLS,
-                               ciphers=None)
-        if int(port) in [8884, 8883] and mqttpsk:
-            if debug:
-                print("MQTT: TLS encrytion based in PSK")
-            # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
-            pskidentity = mpcred.lc(mqttpsk, 'user')
-            pskpwd = mpcred.lc(mqttpsk, 'passwd')
-            #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does bot work for beaglebone (python3.11 clients)
-            print ("MARTAS: Deprecation warning - but necessary for old clients")
-            context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
-            context.set_ciphers('PSK')
-            context.psk = bytes.fromhex(pskpwd)
-            context.identity = pskidentity.encode()
-            client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
-
-        # Authentication part
-        if not credentials in ['','-']:
-            # use user and pwd from credential data if not yet set
-            if user in ['',None,'None','-']:
-                user = mpcred.lc(credentials,'user')
-            if password  in ['','-']:
-                password = mpcred.lc(credentials,'passwd')
-        if not user in ['',None,'None','-']:
-            #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
-            client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
-        client.on_connect = on_connect
-        # on message needs: stationid, destination, location
-        client.on_message = on_message
-        client.connect(broker, port, timeout)
-
-        return client
+    reactor.listenTCP(webport, factory)
+    reactor.run(installSignalHandlers=False)
 
 
-def analyse_meta(header,sensorid,debug=False):
+def connectclient(broker='localhost', port=1883, timeout=60, credentials='', user='', password='', qos=0, mqttcert="", mqttpsk="", mqttversion=2, destinationid='', debug=False):
     """
-    source:mqtt:
-    Interprete header information
+    DESCRIPTION
+        Creates, configures (TLS/PSK encryption, authentication, callbacks), and connects
+        a Paho MQTT client to the specified broker.
+    OPTIONS
+        broker : str, optional
+            Hostname or IP address of the MQTT broker (default: 'localhost').
+        port : int, optional
+            Network port of the MQTT broker (default: 1883).
+        timeout : int, optional
+            Keepalive timeout in seconds (default: 60).
+        credentials : str, optional
+            Credential identifier key used to look up username and password via `mpcred` (default: '').
+        user : str, optional
+            MQTT username; overrides credentials lookup if provided (default: '').
+        password : str, optional
+            MQTT password; overrides credentials lookup if provided (default: '').
+        qos : int, optional
+            MQTT Quality of Service level (default: 0).
+        mqttcert : str, optional
+            Path to CA certificate file for TLS connections on port 8883 (default: "").
+        mqttpsk : str, optional
+            Credential identifier key for TLS-PSK identity and secret on ports 8883/8884 (default: "").
+        mqttversion : int, optional
+            MQTT protocol/callback API version indicator (default: 2).
+        destinationid : str, optional
+            Additional identifier suffix appended to construct a unique MQTT client ID (default: '').
+        debug : bool, optional
+            Enables verbose debug output if True (default: False).
+    RETURNS
+        paho.mqtt.client.Client : Connected and configured MQTT client instance.
+    """
+    ## create a unique clientid consisting of broker, client and destination
+    client = None
+    hostname = socket.gethostname()
+    clientid = "{}{}{}".format(broker, hostname, destinationid)
+
+    ## create MQTT client
+    ##  ----------------------------
+    pahovers = paho.mqtt.__version__
+    pahomajor = int(pahovers[0])
+    print(" paho-mqtt version ", pahovers)
+    try:
+        client = mqtt.Client(clientid, False)
+    except:
+        try:
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=clientid)
+        except:
+            client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, client_id=clientid)
+
+    # TLS encryption part
+    if int(port) == 8883 and not mqttpsk:
+        if mqttcert:
+            if debug:
+                print("MQTT: TLS encryption based on certificate")
+                print(mqttcert)
+            client.tls_set(ca_certs=mqttcert)
+        else:
+            if debug:
+                print("MQTT: basic TLS")
+            client.tls_set(ca_certs=None, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED,
+                           tls_version=ssl.PROTOCOL_TLS,
+                           ciphers=None)
+    if int(port) in [8884, 8883] and mqttpsk:
+        if debug:
+            print("MQTT: TLS encrytion based in PSK")
+        # making use of discussions in https://github.com/eclipse-paho/paho.mqtt.python/issues/451
+        pskidentity = mpcred.lc(mqttpsk, 'user')
+        pskpwd = mpcred.lc(mqttpsk, 'passwd')
+        #context = SSLPSKContext(ssl.PROTOCOL_TLS_CLIENT) # This does not work for beaglebone (python3.11 clients)
+        print("MARTAS: Deprecation warning - but necessary for old clients")
+        context = SSLPSKContext(ssl.PROTOCOL_TLSv1_2)
+        context.set_ciphers('PSK')
+        context.psk = bytes.fromhex(pskpwd)
+        context.identity = pskidentity.encode()
+        client.tls_set_context(context)  # Here we apply the new `SSLPSKContext`
+
+    # Authentication part
+    if not credentials in ['', '-']:
+        # use user and pwd from credential data if not yet set
+        if user in ['', None, 'None', '-']:
+            user = mpcred.lc(credentials, 'user')
+        if password in ['', '-']:
+            password = mpcred.lc(credentials, 'passwd')
+    if not user in ['', None, 'None', '-']:
+        #client.tls_set(tlspath)  # check http://www.steves-internet-guide.com/mosquitto-tls/
+        client.username_pw_set(user, password=password)  # defined on broker by mosquitto_passwd -c passwordfile user
+    client.on_connect = on_connect
+    # on message needs: stationid, destination, location
+    client.on_message = on_message
+    client.connect(broker, port, timeout)
+
+    return client
+
+
+def analyse_meta(header, sensorid, debug=False):
+    """
+    DESCRIPTION
+        Parses a MARTAS/MagPyBin MQTT metadata header string and stores packing code,
+        key list, element names, units, and multipliers in `po.identifier`.
+    PARAMETERS
+        header : str or bytes
+            Raw MQTT meta payload string describing binary format and sensor columns.
+        sensorid : str
+            Expected sensor identifier extracted from the MQTT topic.
+    OPTIONS
+        debug : bool, optional
+            Logs parsed packing code and key list if True (default: False).
+    RETURNS
+        None
     """
     if debug:
-        print ("Analyzing {}: {}".format(sensorid,header))
+        print("Analyzing {}: {}".format(sensorid, header))
     if pyversion.startswith('2'):
         header = header.decode('utf-8')
     # some cleaning actions for false header inputs
-    header = header.replace(', ',',')
-    header = header.replace('deg C','deg')
-    header = header.replace('T (out','T(out')
+    header = header.replace(', ', ',')
+    header = header.replace('deg C', 'deg')
+    header = header.replace('T (out', 'T(out')
     h_elem = header.strip().split()
-    if not h_elem[-2].startswith('<'): # e.g. LEMI
-        packstr = '<'+h_elem[-2]+'B'
+    if not h_elem[-2].startswith('<'):  # e.g. LEMI
+        packstr = '<' + h_elem[-2] + 'B'
     else:
         packstr = h_elem[-2]
-    packstr = packstr.encode('ascii','ignore')
+    packstr = packstr.encode('ascii', 'ignore')
     lengthcode = struct.calcsize(packstr)
     si = h_elem[2]
     if not si == sensorid:
-        log.msg("Different sensorids in publish address {} and header {} - please check - aborting".format(sensorid,si))
+        log.msg("Different sensorids in publish address {} and header {} - please check - aborting".format(sensorid, si))
         sys.exit()
     keylist = h_elem[3].strip('[').strip(']').split(',')
     elemlist = h_elem[4].strip('[').strip(']').split(',')
     unitlist = h_elem[5].strip('[').strip(']').split(',')
-    multilist = list(map(float,h_elem[6].strip('[').strip(']').split(',')))
+    multilist = list(map(float, h_elem[6].strip('[').strip(']').split(',')))
     if debug:
         log.msg("Packing code: {}".format(packstr))
         log.msg("keylist: {}".format(keylist))
-    po.identifier[sensorid+':packingcode'] = packstr
-    po.identifier[sensorid+':keylist'] = keylist
-    po.identifier[sensorid+':elemlist'] = elemlist
-    po.identifier[sensorid+':unitlist'] = unitlist
-    po.identifier[sensorid+':multilist'] = multilist
+    po.identifier[sensorid + ':packingcode'] = packstr
+    po.identifier[sensorid + ':keylist'] = keylist
+    po.identifier[sensorid + ':elemlist'] = elemlist
+    po.identifier[sensorid + ':unitlist'] = unitlist
+    po.identifier[sensorid + ':multilist'] = multilist
 
 
-def create_head_dict(header,sensorid):
+def create_head_dict(header, sensorid):
     """
-    source:mqtt:
-    Interprete header information
+    DESCRIPTION
+        Builds a MagPy-compatible header metadata dictionary from a MARTAS MQTT
+        header line for a given sensor.
+    PARAMETERS
+        header : str or bytes
+            Raw MQTT meta payload string containing sensor and column definitions.
+        sensorid : str
+            Sensor identifier formatted as `<SensorName>_<SerialNum>_<Revision>`.
+    RETURNS
+        dict : MagPy header dictionary containing sensor, station, and column metadata.
     """
-    head_dict={}
+    head_dict = {}
     try:
         # python2.7
         header = header.decode('utf-8')
     except:
         pass
     # some cleaning actions for false header inputs
-    header = header.replace(', ',',')
-    header = header.replace('deg C','deg')
+    header = header.replace(', ', ',')
+    header = header.replace('deg C', 'deg')
     h_elem = header.strip().split()
     if not h_elem[-2].startswith('<'):
-        packstr = '<'+h_elem[-2]+'B'
-    else: # LEMI
+        packstr = '<' + h_elem[-2] + 'B'
+    else:  # LEMI
         packstr = h_elem[-2]
-    packstr = packstr.encode('ascii','ignore')
+    packstr = packstr.encode('ascii', 'ignore')
     lengthcode = struct.calcsize(packstr)
     si = h_elem[2]
     if not si == sensorid:
-        log.msg("Different sensorids in publish address {} and header {} - please check - aborting".format(si,sensorid))
+        log.msg("Different sensorids in publish address {} and header {} - please check - aborting".format(si, sensorid))
         sys.exit()
     keylist = h_elem[3].strip('[').strip(']').split(',')
     elemlist = h_elem[4].strip('[').strip(']').split(',')
     unitlist = h_elem[5].strip('[').strip(']').split(',')
-    multilist = list(map(float,h_elem[6].strip('[').strip(']').split(',')))
+    multilist = list(map(float, h_elem[6].strip('[').strip(']').split(',')))
     if debug:
         log.msg("Packing code: {}".format(packstr))
         log.msg("keylist: {}".format(keylist))
@@ -344,7 +566,7 @@ def create_head_dict(header,sensorid):
     #head_dict['SensorDescription'] = ...
     l1 = []
     l2 = []
-    for idx,key in enumerate(KEYLIST):
+    for idx, key in enumerate(KEYLIST):
         if key in keylist:
             l1.append(elemlist[keylist.index(key)])
             l2.append(unitlist[keylist.index(key)])
@@ -355,32 +577,43 @@ def create_head_dict(header,sensorid):
     head_dict['ColumnUnits'] = ','.join(l2[1:])
     return head_dict
 
+
 def interprete_data(payload, sensorid):
     """
-    source:mqtt:
+    DESCRIPTION
+        Parses semicolon-separated ASCII data records from an MQTT payload into a
+        MagPy `DataStream`-compatible object ndarray, scaling numerical values by
+        their stored multipliers.
+    PARAMETERS
+        payload : str
+            Semicolon-separated data lines containing timestamp fields followed by sensor values.
+        sensorid : str
+            Identifier of the sensor whose `keylist` and `multilist` are stored in `po.identifier`.
+    RETURNS
+        numpy.ndarray : Object-dtype 2D ndarray aligned with `KEYLIST` (timestamps at index 0).
     """
     # future: check for json payload first
 
-    lines = payload.split(';') # for multiple lines send within one payload
+    lines = payload.split(';')  # for multiple lines send within one payload
     # allow for strings in payload !!
     array = [[] for elem in KEYLIST]
-    keylist = po.identifier[sensorid+':keylist']
-    multilist = po.identifier[sensorid+':multilist']
+    keylist = po.identifier[sensorid + ':keylist']
+    multilist = po.identifier[sensorid + ':multilist']
     try:
         for line in lines:
             data = line.split(',')
-            timear = list(map(int,data[:7]))
+            timear = list(map(int, data[:7]))
             #log.msg(timear)
-            time = datetime(timear[0],timear[1],timear[2],timear[3],timear[4],timear[5],timear[6])
+            time = datetime(timear[0], timear[1], timear[2], timear[3], timear[4], timear[5], timear[6])
             array[0].append(time)
             for idx, elem in enumerate(keylist):
                 try:
                     index = KEYLIST.index(elem)
                     if not elem.endswith('time'):
                         if elem in NUMKEYLIST:
-                            array[index].append(float(data[idx+7])/float(multilist[idx]))
+                            array[index].append(float(data[idx + 7]) / float(multilist[idx]))
                         else:
-                            array[index].append(data[idx+7])
+                            array[index].append(data[idx + 7])
                 except:
                     # might fail with list index out of range - take all others
                     pass
@@ -388,14 +621,46 @@ def interprete_data(payload, sensorid):
         log.msg(
             "collector: interprete_data problems with: {}".format(line))
 
-    return np.asarray([np.asarray(elem) for elem in array],dtype=object)
+    return np.asarray([np.asarray(elem) for elem in array], dtype=object)
+
 
 def merge_two_dicts(x, y):
-        z = x.copy()   # start with x's keys and values
-        z.update(y)    # modifies z with y's keys and values & returns None
-        return z
+    """
+    DESCRIPTION
+        Creates a shallow copy of dictionary `x` merged with key-value pairs from dictionary `y`.
+    PARAMETERS
+        x : dict
+            Base dictionary.
+        y : dict
+            Dictionary whose entries overwrite or extend those in `x`.
+    RETURNS
+        dict : New dictionary containing the combined entries of `x` and `y`.
+    """
+    z = x.copy()   # start with x's keys and values
+    z.update(y)    # modifies z with y's keys and values & returns None
+    return z
+
 
 def on_connect(client, userdata, flags, rc, properties=None):
+    """
+    DESCRIPTION
+        MQTT callback executed upon broker connection; logs connection status and
+        subscribes to the configured station topic wildcard with the active QoS.
+    PARAMETERS
+        client : paho.mqtt.client.Client
+            The client instance for this callback.
+        userdata : Any
+            Private user data set in `Client()` or `user_data_set()`.
+        flags : dict
+            Response flags sent by the broker.
+        rc : int or ReasonCode
+            Connection result code (`0` indicates success).
+    OPTIONS
+        properties : paho.mqtt.properties.Properties or None, optional
+            MQTT v5 connection properties (default: None).
+    RETURNS
+        None
+    """
     global concount
     global debug
     if debug or not concount:
@@ -408,48 +673,60 @@ def on_connect(client, userdata, flags, rc, properties=None):
     elif str(rc) == '5':
         log.msg("Broker eventually requires authentication - use options -u and -P")
     # important obtain subscription from some config file or provide it directly (e.g. collector -a localhost -p 1883 -t mqtt -s wic)
-    if stationid in ['all','All','ALL']:
+    if stationid in ['all', 'All', 'ALL']:
         substring = '#'
     else:
-        substring = stationid+'/#'
+        substring = stationid + '/#'
     if debug or not concount:
-        log.msg("Subscribing to {} with qos {}".format(substring,qos))
+        log.msg("Subscribing to {} with qos {}".format(substring, qos))
     concount += 1
-    client.subscribe(substring,qos=qos)
+    client.subscribe(substring, qos=qos)
+
 
 def on_message(client, userdata, msg):
-    if not stationid in ['all','All','ALL']:
+    """
+    DESCRIPTION
+        MQTT callback executed whenever a message is received on a subscribed topic.
+        Handles metadata headers (`meta`), dictionary updates (`dict`), status logs
+        (`statuslog`), and incoming sensor records (`data`), routing parsed data
+        using a local `DataStream` instance to configured destinations (`file`,
+        `websocket`, `diff`, `stdout`, `db`, `stringio`).
+    PARAMETERS
+        client : paho.mqtt.client.Client
+            The client instance for this callback.
+        userdata : Any
+            Private user data set in `Client()` or `user_data_set()`.
+        msg : paho.mqtt.client.MQTTMessage
+            Received MQTT message object containing `topic`, `payload`, and `qos`.
+    RETURNS
+        None
+    """
+    if not stationid in ['all', 'All', 'ALL']:
         if not msg.topic.startswith(stationid):
             return
 
     if not pyversion.startswith('2'):
-       msg.payload= msg.payload.decode('ascii')
+        msg.payload = msg.payload.decode('ascii')
 
     global qos
     global verifiedlocation
-    global stream
     global debug
     global stid
     global senslst
     global diffstruct
     digit = 0
-    arrayinterpreted = False
-    wsarrayinterpreted = False
-    diarrayinterpreted = False
-    siarrayinterpreted = False
-    soarrayinterpreted = False
-    dbarrayinterpreted = False
-    if stationid in ['all','All','ALL']:
+
+    if stationid in ['all', 'All', 'ALL']:
         stid = msg.topic.split('/')[0]
     else:
         stid = stationid
     try:
         sensorind = msg.topic.split('/')[1]
-        sensorid = sensorind.replace('meta','').replace('data','').replace('dict','')
+        sensorid = sensorind.replace('meta', '').replace('data', '').replace('dict', '')
     except:
         # Above will fail if msg.topic does not contain /
         # TODO (previous version was without 1, first occurrence -> the following line should work as well although the code above is more general)
-        sensorid = msg.topic.replace(stid,"",1).replace('/','').replace('meta','').replace('data','').replace('dict','')
+        sensorid = msg.topic.replace(stid, "", 1).replace('/', '').replace('meta', '').replace('data', '').replace('dict', '')
     # define a new data stream for each non-existing sensor
     if not instrument == '':
         if not sensorid.find(instrument) > -1:
@@ -457,7 +734,7 @@ def on_message(client, userdata, msg):
 
     if sensorid in blacklist:
         if debug:
-            print ("Sensor {} in blacklist - not collecting".format(sensorid))
+            print("Sensor {} in blacklist - not collecting".format(sensorid))
         return
 
     ## ################################################################################
@@ -466,46 +743,45 @@ def on_message(client, userdata, msg):
     identdic = {}
 
     if addlib and len(addlib) > 0:
-            # Currently only one additional library is supported
-            lib = addlib[0]
-            #for lib in addlib:
-            elemlist = []
-            for elem in topic_identifiers[lib]:
-                strelem = "msg.topic.{}('{}')".format(elem,topic_identifiers[lib][elem])
-                elemlist.append(strelem)
-            if len(elemlist) > 1:
-                teststring = " and ".join(elemlist)
-            else:
-                teststring = "".join(elemlist)
-            if eval(teststring):
-                classref = class_reference.get(lib)
-                #print ("1", msg.payload)
-                try:
-                    msg.payload, sensorid, headerline, headerdictionary, identdic = classref.GetPayload(msg.payload,msg.topic)
-                except:
-                    print ("Interpretation error for {}".format(msg.topic))
-                    return
-                #print (payload, sensorid, headerline)
-                headdict[sensorid] = headerline
-                headstream[sensorid] = create_head_dict(headerline,sensorid)
-                headstream[sensorid] = merge_two_dicts(headstream[sensorid], headerdictionary)
-                msg.topic = msg.topic+'/data'
-                for el in identdic:
-                    po.identifier[el] = identdic[el]
+        # Currently only one additional library is supported
+        lib = addlib[0]
+        #for lib in addlib:
+        elemlist = []
+        for elem in topic_identifiers[lib]:
+            strelem = "msg.topic.{}('{}')".format(elem, topic_identifiers[lib][elem])
+            elemlist.append(strelem)
+        if len(elemlist) > 1:
+            teststring = " and ".join(elemlist)
+        else:
+            teststring = "".join(elemlist)
+        if eval(teststring):
+            classref = class_reference.get(lib)
+            #print ("1", msg.payload)
+            try:
+                msg.payload, sensorid, headerline, headerdictionary, identdic = classref.GetPayload(msg.payload, msg.topic)
+            except:
+                print("Interpretation error for {}".format(msg.topic))
+                return
+            #print (payload, sensorid, headerline)
+            headdict[sensorid] = headerline
+            headstream[sensorid] = create_head_dict(headerline, sensorid)
+            headstream[sensorid] = merge_two_dicts(headstream[sensorid], headerdictionary)
+            msg.topic = msg.topic + '/data'
+            for el in identdic:
+                po.identifier[el] = identdic[el]
 
-    metacheck = po.identifier.get(sensorid+':packingcode','')
-
+    metacheck = po.identifier.get(sensorid + ':packingcode', '')
 
     ## ################################################################################
 
     if msg.topic.endswith('meta') and metacheck == '':
         log.msg("Found basic header:{}".format(str(msg.payload)))
         log.msg("Quality of Service (QOS):{}".format(str(msg.qos)))
-        analyse_meta(str(msg.payload),sensorid,debug=debug)
+        analyse_meta(str(msg.payload), sensorid, debug=debug)
         if not sensorid in headdict:
             headdict[sensorid] = msg.payload
-            # create stream.header dictionary and it here
-            headstream[sensorid] = create_head_dict(str(msg.payload),sensorid)
+            # create stream.header dictionary and add it here
+            headstream[sensorid] = create_head_dict(str(msg.payload), sensorid)
             if debug:
                 log.msg("New headdict: {}".format(headdict))
     elif msg.topic.endswith('dict') and sensorid in headdict:
@@ -514,35 +790,37 @@ def on_message(client, userdata, msg):
         for elem in str(msg.payload).split(','):
             keyvaluespair = elem.split(':')
             try:
-                if not keyvaluespair[1] in ['-','-\n','-\r\n']:
+                if not keyvaluespair[1] in ['-', '-\n', '-\r\n']:
                     head_dict[keyvaluespair[0]] = keyvaluespair[1].strip()
             except:
                 pass
         if debug:
             log.msg("Dictionary now looks like {}".format(headstream[sensorid]))
     elif msg.topic.endswith('data'):  # or readable json
-        #if readable json -> create stream.ndarray and set arrayinterpreted :
-        #    log.msg("Found data:", str(msg.payload), metacheck)
         if not metacheck == '':
+            # Create a local DataStream instance only when needed by stream-based destinations
+            local_stream = None
+            if any(dest in destination for dest in ('websocket', 'stdout', 'db', 'stringio')):
+                local_stream = DataStream(
+                    header=headstream.get(sensorid, {}),
+                    ndarray=interprete_data(msg.payload, sensorid)
+                )
+
             if 'file' in destination:
-                # Import module for writing data from acquistion
-                # -------------------
-                #if debug:
-                #    log.msg(sensorid, metacheck, msg.payload)  # payload can be split
                 # Check whether header is already identified
                 # -------------------
                 if sensorid in headdict:
                     header = headdict.get(sensorid)
-                    if sys.version_info >= (3,0):
+                    if sys.version_info >= (3, 0):
                         metacheck = metacheck.decode()
                     if metacheck.endswith('B'):
-                        packcode = metacheck.strip('<')[:-1] # drop leading < and final B
+                        packcode = metacheck.strip('<')[:-1]  # drop leading < and final B
                     else:
-                        packcode = metacheck.strip('<') # drop leading <
-                    # temporary code - too be deleted when lemi protocol has been updated
+                        packcode = metacheck.strip('<')  # drop leading <
+                    # temporary code - to be deleted when lemi protocol has been updated
                     if packcode.find('4cb6B8hb30f3Bc') >= 0:
-                        header = header.replace('<4cb6B8hb30f3BcBcc5hL 169\n','6hLffflll {}'.format(struct.calcsize('<6hLffflll')))
-                        packcode = '6hLffflll' 
+                        header = header.replace('<4cb6B8hb30f3BcBcc5hL 169\n', '6hLffflll {}'.format(struct.calcsize('<6hLffflll')))
+                        packcode = '6hLffflll'
                     arrayelem = msg.payload.split(';')
                     for ar in arrayelem:
                         datearray = ar.split(',')
@@ -555,7 +833,7 @@ def on_message(client, userdata, msg):
                                 digit = int(c)
                             else:
                                 cpack.extend([c] * digit)
-                                digit=1
+                                digit = 1
                         cpackcode = "".join(cpack)
                         for i in range(len(cpackcode)):
                             if cpackcode[-i] == 's':
@@ -565,53 +843,61 @@ def on_message(client, userdata, msg):
                             else:
                                 datearray[-i] = int(float(datearray[-i]))
                         # pack data using little endian byte order
-                        data_bin = struct.pack('<'+packcode,*datearray)
+                        data_bin = struct.pack('<' + packcode, *datearray)
                         # Check whether destination path has been verified already
                         # -------------------
                         if not verifiedlocation:
-                            if not location in [None,''] and os.path.exists(location):
+                            if not location in [None, ''] and os.path.exists(location):
                                 verifiedlocation = True
                             else:
                                 log.msg("File: destination location {} is not accessible".format(location))
-                                log.msg("      -> please use option l (e.g. -l '/my/path') to define") 
+                                log.msg("      -> please use option l (e.g. -l '/my/path') to define")
                         if verifiedlocation:
-                            filename = "{}-{:02d}-{:02d}".format(datearray[0],datearray[1],datearray[2])
+                            filename = "{}-{:02d}-{:02d}".format(datearray[0], datearray[1], datearray[2])
                             mm.data_to_file(location, sensorid, filename, data_bin, header)
             if 'websocket' in destination:
-                if not wsarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, sensorid)
-                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    wsarrayinterpreted = True
-                for idx,dt in enumerate(stream.ndarray[0]):
-                    msecSince1970 = int((dt - datetime(1970,1,1)).total_seconds()*1000)
-                    datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
+                local_ndarray = local_stream.ndarray
+                sensor_keys = po.identifier.get(sensorid + ':keylist', [])
+                for idx, dt in enumerate(local_ndarray[0]):
+                    msecSince1970 = int((dt - datetime(1970, 1, 1)).total_seconds() * 1000)
+                    # Assemble values in the exact order of the sensor keylist (matching '# ' metadata)
+                    vals = []
+                    for k in sensor_keys:
+                        if k in KEYLIST:
+                            k_idx = KEYLIST.index(k)
+                            if len(local_ndarray[k_idx]) > idx:
+                                vals.append(str(local_ndarray[k_idx][idx]))
+                    datastring = ','.join(vals)
                     if debug:
-                        print ("Sending {}: {},{} to webserver".format(sensorid, msecSince1970,datastring))
-                    wsserver.send_message_to_all("{}: {},{}".format(sensorid,msecSince1970,datastring))
+                        print(f"Sending {sensorid}: {msecSince1970},{datastring} to webserver")
+                    try:
+                        wsserver.send_message_to_all(f"{sensorid}: {msecSince1970},{datastring}")
+                    except Exception as e:
+                        if debug:
+                            log.msg(f"WebSocket data send error: {e}")
             if 'diff' in destination:
                 """
                 How does it work:
                 - add AMOUNT of recent data to array for each fitting sensor
-                - create dictionary with data streams of length "cover" - default is 5 
-                - subtract all stream 
+                - create dictionary with data streams of length "cover" - default is 5
+                - subtract all streams
                 """
-                global diffcounter # used to send meta information not every step
+                global diffcounter  # used to send meta information not every step
                 global prevlasttimestamp_prim
                 cover = 5
                 if sensorid.find(diffsens) >= 0:
                     st = diffstruct.get(sensorid, DataStream())
                     ar = interprete_data(msg.payload, sensorid)
                     ds = DataStream(header={"SensorID": sensorid}, ndarray=ar)
-                    st = join_streams(ds,st)
+                    st = join_streams(ds, st)
                     st = st.cut(cover, 1, 0)
                     diffstruct[sensorid] = st
                 if len(diffstruct) >= 2:
                     names = sorted(diffstruct.keys())
                     lasttimestamp_prim = diffstruct.get(names[0]).timerange()[1]
-                    #print (lasttimestamp_prim, prevlasttimestamp_prim)
-                    for i,name in enumerate(names):
+                    for i, name in enumerate(names):
                         if i > 0:
-                            prim = diffstruct.get(names[i-1])
+                            prim = diffstruct.get(names[i - 1])
                             seco = diffstruct.get(name)
                             if len(prim) >= cover and len(seco) >= cover:
                                 # Sub has been verified - please note: has half of the original resolution - why?
@@ -632,7 +918,6 @@ def on_message(client, userdata, msg):
                                         else:
                                             valstr = int(val[0] * 1000)
                                         data = "{},{}".format(timestr, valstr)
-                                        # print (data)
                                         topic = "{}/{}".format(stid, diffname)
                                         diffcounter += 1
                                         client.publish(topic + "/data", data, qos=qos)
@@ -645,16 +930,15 @@ def on_message(client, userdata, msg):
                                             if keystr == headtemplatelist[3]:
                                                 # then use column names and units from data header and add delta to names
                                                 try:
-                                                    keynamestr = "[{}]".format(",".join(["delta_{}".format(el) for el in headtemplatelist[4].replace("[","").replace("]","").split(",")]))
+                                                    keynamestr = "[{}]".format(",".join(["delta_{}".format(el) for el in headtemplatelist[4].replace("[", "").replace("]", "").split(",")]))
                                                 except:
                                                     keynamestr = keystr
                                                 unit = headtemplatelist[5]
                                             else:
-                                                #use keys as names and arbitrary units
+                                                # use keys as names and arbitrary units
                                                 unit = "[{}]".format(",".join(['arb'] * len(keys)))
                                                 keynamestr = keystr
 
-                                            # takeunits =  ### take from st[0]
                                             packcode = "6hL{}".format("".join(['l'] * len(keys)))
                                             multi = "[{}]".format(",".join(['1000'] * len(keys)))
                                             head = "# MagPyBin {} {} {} {} {} {} {}".format(diffname, keystr, keynamestr, unit,
@@ -666,42 +950,27 @@ def on_message(client, userdata, msg):
                                         if debug:
                                             print(" -> diff {} published: {}".format(diffname, data))
                                     except:
-                                        print (" -> diff failed")
+                                        print(" -> diff failed")
             if 'stdout' in destination:
-                if not soarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, sensorid)
-                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    soarrayinterpreted = True
-                for idx,dt in enumerate(stream.ndarray[0]):
-                    datastring = ','.join([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
+                for idx, dt in enumerate(local_stream.ndarray[0]):
+                    datastring = ','.join([str(val[idx]) for i, val in enumerate(local_stream.ndarray) if len(val) > 0 and not i == 0])
                     log.msg("{}: {},{}".format(sensorid, dt, datastring))
             elif 'db' in destination:
-                if not dbarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, sensorid)
-                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    dbarrayinterpreted = True
-                # create a stream.header
                 if debug:
-                    log.msg(stream.ndarray)
-                stream.header = headstream[sensorid]
-                if debug:
-                    log.msg("writing header: {}".format(headstream[sensorid]))
+                    log.msg(local_stream.ndarray)
+                    log.msg("writing header: {}".format(local_stream.header))
                 if revision != 'free':
-                    db.write(stream,tablename="{}_{}".format(sensorid,'0001'))
+                    db.write(local_stream, tablename="{}_{}".format(sensorid, '0001'))
                 else:
-                    db.write(stream)
+                    db.write(local_stream)
             elif 'stringio' in destination:
-                if not siarrayinterpreted:
-                    stream.ndarray = interprete_data(msg.payload, sensorid)
-                    #streamdict[sensorid] = stream.ndarray  # to store data from different sensors
-                    siarrayinterpreted = True
-                for idx,dt in enumerate(stream.ndarray[0]):
-                    date = datetime.strftime(dt,"%Y-%m-%d %H:%M:%S.%f")
-                    linelist = list(map(str,[dt,date]))
-                    linelist.extend([str(val[idx]) for i,val in enumerate(stream.ndarray) if len(val) > 0 and not i == 0])
+                for idx, dt in enumerate(local_stream.ndarray[0]):
+                    date = datetime.strftime(dt, "%Y-%m-%d %H:%M:%S.%f")
+                    linelist = list(map(str, [dt, date]))
+                    linelist.extend([str(val[idx]) for i, val in enumerate(local_stream.ndarray) if len(val) > 0 and not i == 0])
                     line = ','.join(linelist)
                     eol = '\r\n'
-                    output.write(line+eol)
+                    output.write(line + eol)
             else:
                 pass
         else:
@@ -709,10 +978,6 @@ def on_message(client, userdata, msg):
     elif msg.topic and msg.topic.find('statuslog') > 0:
         # json style statusinfo is coming
         hostname = msg.topic.split('/')[-1]
-        #log.msg("---------------------------------------------------------------")
-        #log.msg("Receiving updated status information from {}".format(hostname))
-        #log.msg("---------------------------------------------------------------")
-        print ("FOUND STATUS CHANGE", telegramconf)
         statusdict = json.loads(msg.payload)
         for elem in statusdict:
             logmsg = "{}: {} - {}".format(hostname, elem, statusdict[elem])
@@ -720,52 +985,48 @@ def on_message(client, userdata, msg):
             log.msg(logmsg)
         # For Telegram
         try:
-            # try to import telegram and telegram.cfg
-            ##### Add the configuration to input and marcos.cfg
-            ## Please note: requires anaconda2/bin/python on my test PC
-            ## !!! Requires network connection !!!
             if telegramconf and os.path.isfile(telegramconf):
                 martaslog = ml(receiver='telegram')
-                martaslog.receiveroptions('telegram',options={'conf':telegramconf})
+                martaslog.receiveroptions('telegram', options={'conf': telegramconf})
                 statusdict['Hostname'] = hostname
                 martaslog.notify(statusdict)
         except:
             pass
 
-        #telegram.send(msg)
-
     if msg.topic.endswith('meta') and 'websocket' in destination:
-        # send header info for each element (# sensorid   nr   key   elem   unit)
-        analyse_meta(str(msg.payload),sensorid)
-        for (i,void) in enumerate(po.identifier[sensorid+':keylist']):
-            jsonstr={}
-            jsonstr['sensorid'] = sensorid
-            jsonstr['nr'] = i
-            jsonstr['key'] = po.identifier[sensorid+':keylist'][i]
-            jsonstr['elem'] = po.identifier[sensorid+':elemlist'][i]
-            jsonstr['unit'] = po.identifier[sensorid+':unitlist'][i]
-            payload = json.dumps(jsonstr)
-            wsserver.send_message_to_all('# '+payload)
+        analyse_meta(str(msg.payload), sensorid)
+        send_ws_meta(sensorid)
 
 
 def main(argv):
+    """
+    DESCRIPTION
+        Entry point for the MARCOS MQTT collector CLI. Parses command-line arguments and
+        configuration files, initializes logging, optional protocol libraries, WebSocket/HTTP
+        servers, or database connections, and starts the blocking MQTT client loop.
+    PARAMETERS
+        argv : list of str
+            Command-line argument list (typically `sys.argv[1:]`).
+    RETURNS
+        None
+    """
     broker = 'localhost'  # default
     port = 1883
-    timeout=60
+    timeout = 60
     altbroker = ''
     user = ''
     password = ''
     logging = 'sys.stdout'
     global destination
-    destination='stdout'
+    destination = 'stdout'
     global location
-    location='/tmp'
+    location = '/tmp'
     global credentials
-    credentials=''
+    credentials = ''
     global offset
     offset = ''
     global dbcred
-    dbcred=''
+    dbcred = ''
     global stationid
     stationid = 'wic'
     global stid
@@ -783,7 +1044,7 @@ def main(argv):
     global addlib
     addlib = []
     global source
-    source='mqtt' # projected sources: mqtt (default), wamp, mysql, postgres, etc
+    source = 'mqtt'  # projected sources: mqtt (default), wamp, mysql, postgres, etc
     global debug
     debug = False
     global output
@@ -801,7 +1062,7 @@ def main(argv):
     global number
     number = 1
     global qos
-    qos=0
+    qos = 0
     global blacklist
     blacklist = []
     global diffsens
@@ -809,145 +1070,144 @@ def main(argv):
     concount = 0
     conf = {}
 
-
     usagestring = 'collector.py -b <broker> -p <port> -t <timeout> -o <topic> -i <instrument> -d <destination> -v <revision> -l <location> -c <credentials> -r <dbcred> -q <qos> -u <user> -P <password> -s <source> -f <offset> -m <marcos> -n <number> -e <telegramconf> -a <addlib>'
     try:
-        opts, args = getopt.getopt(argv,"hb:p:t:o:i:d:vl:c:r:q:u:P:s:f:m:n:e:a:U",["broker=","port=","timeout=","topic=","instrument=","destination=","revision=","location=","credentials=","dbcred=","qos=","debug=","user=","password=","source=","offset=","marcos=","number=","telegramconf=","addlib="])
+        opts, args = getopt.getopt(argv, "hb:p:t:o:i:d:vl:c:r:q:u:P:s:f:m:n:e:a:U", ["broker=", "port=", "timeout=", "topic=", "instrument=", "destination=", "revision=", "location=", "credentials=", "dbcred=", "qos=", "debug=", "user=", "password=", "source=", "offset=", "marcos=", "number=", "telegramconf=", "addlib="])
     except getopt.GetoptError:
-        print ('Check your options:')
-        print (usagestring)
+        print('Check your options:')
+        print(usagestring)
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print ('------------------------------------------------------')
-            print ('Usage:')
-            print (usagestring)
-            print ('------------------------------------------------------')
-            print ('Options:')
-            print ('-h                             help')
-            print ('-b                             set broker address: default = localhost')
-            print ('-p                             set port - default is 1883')
-            print ('-t                             set timeout - default is 60')
-            print ('-o                             set base topic - for MARTAS this corresponds')
-            print ('                               to the station ID (e.g. wic)')
-            print ('                               use "-o all" to get all stationids at a specific broker')
-            print ('-i                             choose instrument(s) - only sensors containing')
-            print ('                               the provided string are used: ')
-            print ('                               -i GSM  will access GSM90_xxx and GSM19_xyz ')
-            print ('                               Default is to use all')
-            print ('-d                             set destination - std.out, db, file') 
-            print ('                               default is std.out') 
-            print ('-v                             (no option)') 
-            print ('                               if provided: meta information will be added, revision') 
-            print ('                                     automatically assigned.') 
-            print ('                               if not set: revision 0001 will be used, no meta.') 
-            print ('-l                             set location depending on destination')
-            print ('                               if d="file": provide path')
-            print ('                               if d="std.out": not used')
-            print ('-c                             set mqtt communication credential keyword')
-            print ('-q                             set mqtt quality of service (default = 0)')            
-            print ('-r                             set db credential keyword')            
-            print ('-s                             source protocol of data: default is mqtt')            
-            print ('                               other options:')
-            print ('                               -s wamp    not yet implemented.')
-            print ('-f                             offset values. Can either be "db" for')
-            print ('                               applying delta values from db or a string')
-            print ('                               of the following format (key:value):')
-            print ('                               -f "t1:3.234,x:45674.2"')
-            print ('                               other options:')
-            print ('-m                             marcos configuration file ')
-            print ('                               e.g. "/home/cobs/marcos.cfg"')
-            print ('-n                             provide a integer number ')
-            print ('                               "-d diff -i GSM": difference of two GSM will')
-            print ('                                                 be calculated every n th step.')
-            print ('-e                             provide a path to telegram configuration for ')
-            print ('                               sending critical log changes.')
-            print ('-a                             additional MQTT translation library ')
-            print ('------------------------------------------------------')
-            print ('Examples:')
-            print ('1. Basic')
-            print ('   python collector.py -b "192.168.0.100" -o wic')
-            print ('2. Writing to file in directory "/my/path/"')
-            print ('   python collector.py -b "192.168.0.100" -d file -l "/my/path" -o wic')
-            print ('3. Writing to file and stdout')
-            print ('   python collector.py -b "192.168.0.100" -d file,stdout -l "/tmp" -o wic')
-            print ('4. Writing to db')
-            print ('   python collector.py -b "192.168.0.100" -d db -r mydb -o wic')
-            print ('   python collector.py -d "db,file" -r testdb')
-            print ('5. Using configuration file')
-            print ('   python collector.py -m "/path/to/marcos.cfg"')
-            print ('6. Overriding individual parameters from config file')
-            print ('   python collector.py -m "/path/to/marcos.cfg" -b "192.168.0.100"')
-            print ('   (make sure that config is called first)')
-            print ('7. Calculating differences/gradients on the fly:')
-            print ('   python collector.py -d diff -i G823A -n 10')
-            print ('   (will calculate the diffs of two G823A every 10th record)')
+            print('------------------------------------------------------')
+            print('Usage:')
+            print(usagestring)
+            print('------------------------------------------------------')
+            print('Options:')
+            print('-h                             help')
+            print('-b                             set broker address: default = localhost')
+            print('-p                             set port - default is 1883')
+            print('-t                             set timeout - default is 60')
+            print('-o                             set base topic - for MARTAS this corresponds')
+            print('                               to the station ID (e.g. wic)')
+            print('                               use "-o all" to get all stationids at a specific broker')
+            print('-i                             choose instrument(s) - only sensors containing')
+            print('                               the provided string are used: ')
+            print('                               -i GSM  will access GSM90_xxx and GSM19_xyz ')
+            print('                               Default is to use all')
+            print('-d                             set destination - std.out, db, file')
+            print('                               default is std.out')
+            print('-v                             (no option)')
+            print('                               if provided: meta information will be added, revision')
+            print('                                     automatically assigned.')
+            print('                               if not set: revision 0001 will be used, no meta.')
+            print('-l                             set location depending on destination')
+            print('                               if d="file": provide path')
+            print('                               if d="std.out": not used')
+            print('-c                             set mqtt communication credential keyword')
+            print('-q                             set mqtt quality of service (default = 0)')
+            print('-r                             set db credential keyword')
+            print('-s                             source protocol of data: default is mqtt')
+            print('                               other options:')
+            print('                               -s wamp    not yet implemented.')
+            print('-f                             offset values. Can either be "db" for')
+            print('                               applying delta values from db or a string')
+            print('                               of the following format (key:value):')
+            print('                               -f "t1:3.234,x:45674.2"')
+            print('                               other options:')
+            print('-m                             marcos configuration file ')
+            print('                               e.g. "/home/cobs/marcos.cfg"')
+            print('-n                             provide a integer number ')
+            print('                               "-d diff -i GSM": difference of two GSM will')
+            print('                                                 be calculated every n th step.')
+            print('-e                             provide a path to telegram configuration for ')
+            print('                               sending critical log changes.')
+            print('-a                             additional MQTT translation library ')
+            print('------------------------------------------------------')
+            print('Examples:')
+            print('1. Basic')
+            print('   python collector.py -b "192.168.0.100" -o wic')
+            print('2. Writing to file in directory "/my/path/"')
+            print('   python collector.py -b "192.168.0.100" -d file -l "/my/path" -o wic')
+            print('3. Writing to file and stdout')
+            print('   python collector.py -b "192.168.0.100" -d file,stdout -l "/tmp" -o wic')
+            print('4. Writing to db')
+            print('   python collector.py -b "192.168.0.100" -d db -r mydb -o wic')
+            print('   python collector.py -d "db,file" -r testdb')
+            print('5. Using configuration file')
+            print('   python collector.py -m "/path/to/marcos.cfg"')
+            print('6. Overriding individual parameters from config file')
+            print('   python collector.py -m "/path/to/marcos.cfg" -b "192.168.0.100"')
+            print('   (make sure that config is called first)')
+            print('7. Calculating differences/gradients on the fly:')
+            print('   python collector.py -d diff -i G823A -n 10')
+            print('   (will calculate the diffs of two G823A every 10th record)')
             sys.exit()
         elif opt in ("-m", "--marcos"):
             marcosfile = arg
-            print ("Getting all parameters from configration file: {}".format(marcosfile))
+            print("Getting all parameters from configration file: {}".format(marcosfile))
             conf = mm.get_conf(marcosfile)
-            if not conf.get('logging','') == '':
+            if not conf.get('logging', '') == '':
                 logging = conf.get('logging').strip()
-            if not conf.get('broker','') == '':
+            if not conf.get('broker', '') == '':
                 broker = conf.get('broker').strip()
-            if not conf.get('mqttport','') in ['','-']:
+            if not conf.get('mqttport', '') in ['', '-']:
                 port = int(conf.get('mqttport'))
-            if not conf.get('mqttdelay','') in ['','-']:
+            if not conf.get('mqttdelay', '') in ['', '-']:
                 timeout = int(conf.get('mqttdelay'))
-            if not conf.get('mqttuser','') in ['','-']:
+            if not conf.get('mqttuser', '') in ['', '-']:
                 user = conf.get('mqttuser').strip()
-            if not conf.get('mqttqos','') in ['','-']:
+            if not conf.get('mqttqos', '') in ['', '-']:
                 try:
                     qos = int(conf.get('mqttqos'))
                 except:
                     qos = 0
-            if not conf.get('mqttcred','') in ['','-']:
-                print ("will be deprecated: please use mqttcredentials")
-                credentials=conf.get('mqttcred').strip()
-            if not conf.get('mqttcredentials','') in ['','-']:
-                credentials=conf.get('mqttcredentials').strip()
-            if not conf.get('blacklist','') in ['','-']:
-                blacklist=conf.get('blacklist').split(',')
+            if not conf.get('mqttcred', '') in ['', '-']:
+                print("will be deprecated: please use mqttcredentials")
+                credentials = conf.get('mqttcred').strip()
+            if not conf.get('mqttcredentials', '') in ['', '-']:
+                credentials = conf.get('mqttcredentials').strip()
+            if not conf.get('blacklist', '') in ['', '-']:
+                blacklist = conf.get('blacklist').split(',')
                 blacklist = [el.strip() for el in blacklist]
-            if not conf.get('station','') in ['','-']:
+            if not conf.get('station', '') in ['', '-']:
                 stationid = conf.get('station').strip().lower()
                 stid = stationid
-            if not conf.get('destination','') in ['','-']:
-                destination=conf.get('destination')
-            if not conf.get('filepath','') in ['','-']:
-                location=conf.get('filepath').strip()
-            if not conf.get('dbcredentials','') in ['','-']:
-                dbcred=conf.get('dbcredentials').strip()
-            if not conf.get('revision','') in ['','-']:
-                destination=conf.get('revision').strip()
-            if not conf.get('offset','') in ['','-']:
+            if not conf.get('destination', '') in ['', '-']:
+                destination = conf.get('destination')
+            if not conf.get('filepath', '') in ['', '-']:
+                location = conf.get('filepath').strip()
+            if not conf.get('dbcredentials', '') in ['', '-']:
+                dbcred = conf.get('dbcredentials').strip()
+            if not conf.get('revision', '') in ['', '-']:
+                revision = conf.get('revision').strip()
+            if not conf.get('offset', '') in ['', '-']:
                 offset = conf.get('offset').strip()
-            if not conf.get('debug','') in ['','-']:
+            if not conf.get('debug', '') in ['', '-']:
                 debug = conf.get('debug').strip()
-                if debug in ['True','true']:
+                if debug in ['True', 'true']:
                     debug = True
                 else:
                     debug = False
-            if not conf.get('socketport','') in ['','-']:
+            if not conf.get('socketport', '') in ['', '-']:
                 try:
                     socketport = int(conf.get('socketport'))
                 except:
-                    print('socketport could not be extracted from  marcos config file')
+                    print('socketport could not be extracted from marcos config file')
                     socketport = 5000
-            if not conf.get('webport','') in ['','-']:
+            if not conf.get('webport', '') in ['', '-']:
                 try:
                     webport = int(conf.get('webport'))
                 except:
                     print('webport could not be extracted from marcos config file')
                     webport = 8080
-            if not conf.get('webpath','') in ['','-']:
+            if not conf.get('webpath', '') in ['', '-']:
                 webpath = conf.get('webpath').strip()
-            if not conf.get('telegramconf','') in ['','-']:
+            if not conf.get('telegramconf', '') in ['', '-']:
                 telegramconf = conf.get('telegramconf').strip()
-            if not conf.get('addlib','') in ['','-']:
+            if not conf.get('addlib', '') in ['', '-']:
                 addlib = conf.get('addlib').strip().split(',')
-            source='mqtt'
+            source = 'mqtt'
         elif opt in ("-b", "--broker"):
             broker = arg
         elif opt in ("-p", "--port"):
@@ -996,10 +1256,10 @@ def main(argv):
         elif opt in ("-U", "--debug"):
             debug = True
 
-    diffsens = conf.get('differencesensors',"G823")
+    diffsens = conf.get('differencesensors', "G823")
     if debug:
-        print ("collector starting with the following parameters:")
-        print ("Logs: {}; Broker: {}; Topic/StationID: {}; QOS: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, qos, port, user, credentials, destination, location, dbcred, offset))
+        print("collector starting with the following parameters:")
+        print("Logs: {}; Broker: {}; Topic/StationID: {}; QOS: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, qos, port, user, credentials, destination, location, dbcred, offset))
 
     try:
         ##  Start Twisted logging system
@@ -1008,8 +1268,8 @@ def main(argv):
             log.startLogging(sys.stdout)
         else:
             try:
-                print (" -- Logging to {}".format(logging))
-                log.startLogging(open(logging,'a'))
+                print(" -- Logging to {}".format(logging))
+                log.startLogging(open(logging, 'a'))
                 log.msg("----------------")
                 log.msg("  -> Logging to {}".format(logging))
             except:
@@ -1023,16 +1283,15 @@ def main(argv):
         ##  Eventually import additional libraries
         ##  ----------------------------
         if addlib and len(addlib) > 0:
-            print ("Importing additional library")
+            print("Importing additional library")
             for lib in addlib:
-                exec("from libmqtt.{} import {}".format(lib,lib))
-                exec("c{} = {}()".format(lib,lib))
+                exec("from libmqtt.{} import {}".format(lib, lib))
+                exec("c{} = {}()".format(lib, lib))
                 class_reference[lib] = eval("c{}".format(lib))
                 topic_identifiers[lib] = eval("c{}.topicidentifier".format(lib))
-                print ("Imported library {}: Topic identifiers are {}".format(lib, topic_identifiers[lib]))
+                print("Imported library {}: Topic identifiers are {}".format(lib, topic_identifiers[lib]))
     except:
         pass
-
 
     if debug:
         log.msg("Logs: {}; Broker: {}; Topic/StationID: {}; QOS: {}; MQTTport: {}; MQTTuser: {}; MQTTcredentials: {}; Data destination: {}; Filepath: {}; DB credentials: {}; Offsets: {}".format(logging, broker, stationid, qos, port, user, credentials, destination, location, dbcred, offset))
@@ -1041,37 +1300,38 @@ def main(argv):
     log.msg(" Starting collector {}".format(__version__))
     log.msg("----------------")
 
-    if not qos in [0,1,2]:
+    if not qos in [0, 1, 2]:
         qos = 1
 
     if 'stringio' in destination:
         #TODO seems to be unfinished - started that long ago without documentation and need to find out why ;)
         output = StringIO()
     if 'file' in destination:
-        if location in [None,''] and not os.path.exists(location):
+        if location in [None, ''] and not os.path.exists(location):
             log.msg('destination "file" requires a valid path provided as location')
             log.msg(' ... aborting ...')
             sys.exit()
     if 'websocket' in destination:
         if ws_available:
-            # 0.0.0.0 makes the websocket accessable from anywhere
+            # 0.0.0.0 makes the websocket accessible from anywhere
             global wsserver
             wsserver = WebsocketServer(socketport, host='0.0.0.0')
-            wsThr = threading.Thread(target=wsThread,args=(wsserver,))
+            wsThr = threading.Thread(target=wsThread, args=(wsserver,))
             # start websocket-server in a thread as daemon, so the entire Python program exits
             wsThr.daemon = True
-            log.msg('starting WEBSOCKET on port '+str(socketport))
+            log.msg('starting WEBSOCKET on port ' + str(socketport))
             wsThr.start()
             # start webserver as process, also as daemon (kills process, when main program ends)
-            webPr = Process(target=webProcess, args=(webpath,webport))
+            #webPr = Process(target=webProcess, args=(webpath,webport))
+            webPr = threading.Thread(target=webProcess, args=(webpath, webport))
             webPr.daemon = True
             webPr.start()
-            log.msg('starting WEBSERVER on port '+str(webport))
+            log.msg('starting WEBSERVER on port ' + str(webport))
         else:
             print("no webserver or no websocket-server available: remove 'websocket' from destination")
             sys.exit()
     if 'db' in destination:
-        if dbcred in [None,'']:
+        if dbcred in [None, '']:
             log.msg('destination "db" requires database credentials')
             log.msg('to create them use method "addcred"')
             log.msg('to provide use option -r like -r mydb')
@@ -1080,12 +1340,10 @@ def main(argv):
             try:
                 global db
                 if debug:
-                    log.msg("Connecting database {} at host {} with user {}".format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
-                #db = mysql.connect(host=mpcred.lc(dbcred,'host'),user=mpcred.lc(dbcred,'user'),passwd=mpcred.lc(dbcred,'passwd'),db=mpcred.lc(dbcred,'db'))
-                db = database.DataBank(mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user'),mpcred.lc(dbcred,'passwd'),mpcred.lc(dbcred,'db'))
-                #db = dbcon.db
+                    log.msg("Connecting database {} at host {} with user {}".format(mpcred.lc(dbcred, 'db'), mpcred.lc(dbcred, 'host'), mpcred.lc(dbcred, 'user')))
+                db = database.DataBank(mpcred.lc(dbcred, 'host'), mpcred.lc(dbcred, 'user'), mpcred.lc(dbcred, 'passwd'), mpcred.lc(dbcred, 'db'))
             except:
-                log.msg('database {} at host {} with user {} could not be connected'.format(mpcred.lc(dbcred,'db'),mpcred.lc(dbcred,'host'),mpcred.lc(dbcred,'user')))
+                log.msg('database {} at host {} with user {} could not be connected'.format(mpcred.lc(dbcred, 'db'), mpcred.lc(dbcred, 'host'), mpcred.lc(dbcred, 'user')))
                 log.msg(' ... aborting ...')
                 sys.exit()
 
@@ -1098,7 +1356,7 @@ def main(argv):
         mqttversion = int(conf.get("mqttversion", 2))
         mqttcert = conf.get("mqttcert", "")
         mqttpsk = conf.get("mqttpsk", "")
-        client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttcert=mqttcert, mqttpsk=mqttpsk, mqttversion=mqttversion, destinationid=dbcred, debug=debug) # dbcred is used for clientid
+        client = connectclient(broker, port, timeout, credentials, user, password, qos, mqttcert=mqttcert, mqttpsk=mqttpsk, mqttversion=mqttversion, destinationid=dbcred, debug=debug)  # dbcred is used for clientid
         client.loop_forever()
 
     elif source == 'wamp':
@@ -1108,5 +1366,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
-
+    main(sys.argv[1:])
