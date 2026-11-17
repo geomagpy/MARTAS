@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -308,17 +308,17 @@
 
     <div class="controls">
         <div class="control-group">
-            <label for="timeWindowSelect">Time Window:</label>
+            <label for="timeWindowSelect">Time range:</label>
             <select id="timeWindowSelect">
-                <option value="30">30 sec</option>
-                <option value="60">1 min</option>
-                <option value="180" selected>3 min</option>
-                <option value="300">5 min</option>
-                <option value="900">15 min</option>
-                <option value="3600">1 h</option>
-                <option value="21600">6 h</option>
-                <option value="43200">12 h</option>
-                <option value="86400">24 h</option>
+                <option value="30">30 sec.</option>
+                <option value="60">1 min.</option>
+                <option value="180" selected>3 min.</option>
+                <option value="300">5 min.</option>
+                <option value="900">15 min.</option>
+                <option value="3600">1 hou.</option>
+                <option value="21600">6 hou.</option>
+                <option value="43200">12 hou.</option>
+                <option value="86400">24 hou.</option>
             </select>
         </div>
 
@@ -331,15 +331,15 @@
         <div class="control-group">
             <label for="layoutSelect">Layout:</label>
             <select id="layoutSelect">
-                <option value="grid" selected>Grid (2 Columns)</option>
-                <option value="single">Single Column (Full Width)</option>
+                <option value="grid" selected>Grid (2 columns)</option>
+                <option value="single">1 column</option>
             </select>
         </div>
 
         <div class="control-group">
-            <label for="yPaddingSelect">Y-Padding:</label>
+            <label for="yPaddingSelect">Y-Buffer:</label>
             <select id="yPaddingSelect">
-                <option value="0" selected>Auto (Exact)</option>
+                <option value="0" selected>Auto (exact)</option>
                 <option value="0.5">± 0.5</option>
                 <option value="3">± 3.0</option>
                 <option value="10">± 10.0</option>
@@ -355,7 +355,7 @@
             </select>
         </div>
 
-        <button id="pauseBtn" title="Pause or resume chart rendering">⏸ Pause</button>
+        <button id="pauseBtn" title="pause/continue">⏸ Pause</button>
     </div>
 </header>
 
@@ -369,7 +369,7 @@
             </div>
         </div>
         <div id="sensor-list">
-            <p style="font-size: 0.8rem; color: var(--text-secondary);">Waiting for sensor metadata...</p>
+            <p style="font-size: 0.8rem; color: var(--text-secondary);">Waiting for sensor-metadata...</p>
         </div>
     </aside>
 

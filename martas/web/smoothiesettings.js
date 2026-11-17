@@ -37,16 +37,16 @@ const smoothiesettings = {
     timestampFormatter: SmoothieChart.timeFormatter
 };
 
-// Color palette for distinct sensor channels
+// Farbpalette für unterschiedliche Kanäle eines Sensors
 const signalColors = [
-    '#38bdf8', // Sky Blue
-    '#fbbf24', // Amber
-    '#34d399', // Emerald
+    '#38bdf8', // Hellblau
+    '#fbbf24', // Gelb/Gold
+    '#34d399', // Smaragdgrün
     '#f472b6', // Pink
-    '#a78bfa', // Violet
+    '#a78bfa', // Violett
     '#fb923c', // Orange
-    '#2dd4bf', // Teal
-    '#f87171'  // Coral
+    '#2dd4bf', // Türkis
+    '#f87171'  // Koralle
 ];
 
 function getTimeSeriesSettings(index) {
@@ -54,6 +54,6 @@ function getTimeSeriesSettings(index) {
     return {
         lineWidth: 2,
         strokeStyle: color,
-        fillStyle: color + '1A' // ~10% opacity fill beneath line
+        fillStyle: color + '1A' // ~10% Transparenz unter der Linie
     };
 }
