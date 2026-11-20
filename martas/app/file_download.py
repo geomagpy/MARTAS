@@ -5,6 +5,7 @@ Get files from a remote server (to be reached by nfs, samba, ftp, html or local 
 file content is directly added to a data bank (or local file if preferred).
 """
 
+import os
 from magpy.stream import *
 from magpy.core import database
 from magpy.core.methods import testtime
@@ -23,6 +24,8 @@ from shutil import copyfile
 import filecmp
 import subprocess
 import socket
+import traceback
+import shlex
 
 from martas.core.methods import martaslog as ml
 from martas.core import methods as mm
@@ -685,92 +688,80 @@ def create_transfer_list(config=None,datelist=None,debug=False):
     return filelist
 
 
-def obtain_data_files(config=None,filelist=None,debug=False):
+def obtain_data_files(config=None, filelist=None, debug=False):
     """
     DESCRIPTION
-        Download data files ane write either to raw directory ot tmp (or to specified folder)
-    ###   2.3 Get selected files and copy them to destination
-    ###
-    ### only if not protocol == '' and localpath
-
-    ### update filelist with new filenamens on local harddisk
-
-        What about rsync? -> no need to use create list but requires passwd-less connection
+        Download data files and write either to raw directory or tmp (or to specified folder).
+        Safely handles local and remote directory paths containing spaces.
 
     RETURNS
-        localfilelist (a list with full paths to all files copied to the localfilesystem)
+        localfilelist (a list with full paths to all files copied to the local filesystem)
     """
-
     if not config:
         config = {}
     if not filelist:
         filelist = []
 
-    # Requires
-    stationid = config.get('stationid')
-    # if sensorid is not provided it will be extracted from the filelist
-    sensorid = config.get('sensorid')
-    localpath = config.get('archivepath')
-    protocol = config.get('protocol')
-    source = config.get('source')
-    destination = config.get('destination')
-    usedatedir = config.get('subdirectory','')
-    deleteremote = config.get('deleteremote',False)
-    user = config.get('rmuser')
+    # Requires (alle String-Parameter sauber trimmen)
+    stationid = str(config.get('stationid') or '').strip()
+    sensorid = str(config.get('sensorid') or '').strip()
+    localpath = str(config.get('archivepath') or '').strip()
+    protocol = str(config.get('protocol') or '').strip()
+    source = str(config.get('source') or '').strip()
+    destination = str(config.get('destination') or '').strip()
+    usedatedir = str(config.get('subdirectory') or '').strip()
+    deleteremote = config.get('deleteremote', False)
+    user = str(config.get('rmuser') or '').strip()
     password = config.get('rmpassword')
-    address = config.get('rmaddress')
-    port = config.get('rmport',21)
+    address = str(config.get('rmaddress') or '').strip()
+    port = int(config.get('rmport') or 21)
     zipping = mm.get_bool(config.get('zipdata'))
-    forcelocal = mm.get_bool(config.get('forcedirectory',False))
-    deleteopt = " "
+    forcelocal = mm.get_bool(config.get('forcedirectory', False))
     sensid = ""
     ftp = None
 
-    #filename = config.get('filenamestructure')
-    #dateformat = config.get('dateformat')
+    def createdestinationpath(basepath='', stationid='', sensorid='', datedir='', forcelocal=False):
+        if (not stationid and not sensorid) or forcelocal:
+            destpath = basepath
+        elif not stationid:
+            destpath = os.path.join(basepath, sensorid, 'raw')
+        elif not sensorid:
+            destpath = os.path.join(basepath, stationid.upper())
+        else:
+            destpath = os.path.join(basepath, stationid.upper(), sensorid, 'raw')
 
-    def createdestinationpath(localpath='', stationid='', sensorid='', datedir='', forcelocal=False):
-            subdir = 'raw'
-            if not stationid and not sensorid or forcelocal:
-                destpath = os.path.join(localpath)
-            elif not stationid:
-                destpath = os.path.join(localpath,sensorid,'raw')
-            elif not sensorid:
-                destpath = os.path.join(localpath,stationid.upper())
-            else:
-                destpath = os.path.join(localpath,stationid.upper(),sensorid,'raw')
-            if not datedir == '':
-                destpath = os.path.join(destpath, str(datedir))
-            return destpath
-
+        if str(datedir) != '':
+            destpath = os.path.join(destpath, str(datedir))
+        return os.path.normpath(destpath)
 
     print("  Writing data to a local directory (or tmp)")
 
-    if deleteremote in [True,'True']:
+    if deleteremote in [True, 'True']:
         print("  IMPORTANT: deleting remote data has been activated")
 
     if debug:
-        print ("   Please Note: files will be copied to local filesystem even when debug is selected")
+        print("   Please Note: files will be copied to local filesystem even when debug is selected")
 
     localpathlist = []
 
-    if not protocol == '' or (protocol == '' and not destination == tempfile.gettempdir()):
-        ### Create a directory by getting sensorid names (from source directory)
+    if protocol != '' or (protocol == '' and os.path.normpath(destination) != os.path.normpath(tempfile.gettempdir())):
         # Open the specific channel
-        if protocol in ['ftp','FTP']:
-            if not port == 21:
-                ftp = ftplib.FTP()
-                ftp.connect(address,port)
+        if protocol in ['ftp', 'FTP']:
+            ftp = ftplib.FTP()
+            if port != 21:
+                ftp.connect(address, port)
             else:
-                ftp = ftplib.FTP(address)
-            ftp.login(user,password)
-            ftp.cwd(source)
+                ftp.connect(address)
+            ftp.login(user, password)
+            if source:
+                ftp.cwd(source)
 
         for f in filelist:
             datedir = ''
             if debug:
-                print ("   Accessing file {}".format(f))
-            if usedatedir in ['Y','Ym','Yj']:
+                print("   Accessing file {}".format(f))
+
+            if usedatedir in ['Y', 'Ym', 'Yj']:
                 # get year from filename or ctime/mtime
                 tcheck = datetime.fromtimestamp(os.path.getmtime(f))
                 fyear = tcheck.year
@@ -778,175 +769,210 @@ def obtain_data_files(config=None,filelist=None,debug=False):
                 dirdoy = tcheck.strftime('%j')
 
                 if usedatedir == 'Y':
-                    # get year from filename or ctime/mtime
-                    datedir = fyear
+                    datedir = str(fyear)
                 elif usedatedir == 'Ym':
-                    datedir = '{}/{:02d}'.format(fyear,fmonth)
+                    datedir = os.path.join(str(fyear), '{:02d}'.format(fmonth))
                 elif usedatedir == 'Yj':
-                    datedir = '{}/{:03d}'.format(fyear,dirdoy)
+                    datedir = os.path.join(str(fyear), '{:03d}'.format(dirdoy))
                 if debug:
-                    print ("date related subdirectory:", datedir)
+                    print("date related subdirectory:", datedir)
+
             path = os.path.normpath(f)
             li = path.split(os.sep)
-            if not sensorid and not protocol in ['ftp','FTP']:
+
+            if not sensorid and protocol not in ['ftp', 'FTP']:
                 if len(li) >= 2:
-                    sensid = li[-2]
+                    sensid = li[-2].strip()
                 if sensid == 'raw' and len(li) >= 3:  # in case an archive raw data structure is loaded
-                    sensid = li[-3]
-            elif not sensorid and protocol in ['ftp','FTP']:
-                sensid = f.split('.')[0].rpartition('_')[0]
+                    sensid = li[-3].strip()
+            elif not sensorid and protocol in ['ftp', 'FTP']:
+                sensid = os.path.basename(f).split('.')[0].rpartition('_')[0].strip()
             else:
                 sensid = sensorid
 
             destpath = createdestinationpath(destination, stationid, sensid, datedir=datedir, forcelocal=forcelocal)
             if debug:
-                print ("Destinationpath:", destpath)
+                print("Destinationpath:", destpath)
 
-            destname = os.path.join(destpath,li[-1])
+            filename_only = li[-1]
+            destname = os.path.join(destpath, filename_only)
 
-            if not os.path.isdir(destpath):
-                os.makedirs(destpath)
+            os.makedirs(destpath, exist_ok=True)
             if debug:
-                print ("   -> write destination (for raw files): {} , {}".format(destpath, li[-1]))
+                print("   -> write destination (for raw files): {} , {}".format(destpath, filename_only))
 
-            if protocol in ['ftp','FTP']:
-                fhandle = open(destname, 'wb')
-                ftp.retrbinary('RETR ' + f, fhandle.write)
-                fhandle.close()
-                if deleteremote in [True,'True']:
+            if protocol in ['ftp', 'FTP']:
+                with open(destname, 'wb') as fhandle:
+                    ftp.retrbinary('RETR ' + f, fhandle.write)
+                if deleteremote in [True, 'True']:
                     ftp.delete(f)
-            elif protocol in ['scp','SCP']:
-                #print (user+'@'+address+':'+f)
-                if port==21:
-                    port = 22
-                mm.scptransfer(user+'@'+address+':'+f,destpath,password,timeout=600,port=port)
+
+            elif protocol in ['scp', 'SCP']:
+                scp_port = 22 if port == 21 else port
+                # Workaround für Spaces im lokalen Zielpfad: Kurz in destpath wechseln und '.' nutzen
+                prev_cwd = os.getcwd()
+                try:
+                    os.chdir(destpath)
+                    mm.scptransfer(f"{user}@{address}:{f}", '.', password, timeout=600, port=scp_port)
+                finally:
+                    os.chdir(prev_cwd)
+
             elif protocol in ['rsync']:
-                # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
-                if deleteremote in [True,'True']:
-                    deleteopt = " --remove-source-files "
-                else:
-                    deleteopt = " "
-                rsyncstring = "rsync -avz -e ssh{}{} {}".format(deleteopt, user+'@'+address+':'+f,destpath)
-                print ("Executing:", rsyncstring)
-                subprocess.call(rsyncstring.split())
-            elif protocol in ['html','HTML']:
+                # Liste statt String.split() verwenden -> lokales destpath mit Leerzeichen funktioniert zuverlässig
+                rsync_cmd = ['rsync', '-avz', '-e', 'ssh']
+                if deleteremote in [True, 'True']:
+                    rsync_cmd.append('--remove-source-files')
+                # Remote-Pfad mit shlex.quote schützen, falls dort Leerzeichen enthalten sind
+                remote_spec = f"{user}@{address}:{shlex.quote(f)}"
+                rsync_cmd.extend([remote_spec, destpath])
+
+                if debug:
+                    print("Executing:", rsync_cmd)
+                subprocess.run(rsync_cmd, check=False)
+
+            elif protocol in ['html', 'HTML']:
                 pass
-            elif protocol in ['']:
-                if not os.path.exists(destname) or not filecmp.cmp(f, destname):
+
+            elif protocol == '':
+                if not os.path.exists(destname) or not filecmp.cmp(f, destname, shallow=False):
                     copyfile(f, destname)
-                    if deleteremote in [True,'True']:
+                    if deleteremote in [True, 'True']:
                         os.remove(f)
                 else:
-                    print ("   -> raw file already existing - skipping write")
+                    print("   -> raw file already existing - skipping write")
+
             if zipping:
                 if debug:
-                    print (" raw data wil be zipped")
+                    print(" raw data will be zipped")
                 dirname = os.path.dirname(destname)
                 oldname = os.path.basename(destname)
                 pname = os.path.splitext(oldname)
-                if not pname[1] in [".zip",".gz",".ZIP",".GZ"]:
-                    zipname = pname[0]+'.zip'
-                    with zipfile.ZipFile(os.path.join(dirname,zipname), 'w') as myzip:
-                        myzip.write(destname,oldname, zipfile.ZIP_DEFLATED)
+                if pname[1].lower() not in [".zip", ".gz"]:
+                    zipname = pname[0] + '.zip'
+                    zip_full_path = os.path.join(dirname, zipname)
+                    with zipfile.ZipFile(zip_full_path, 'w') as myzip:
+                        myzip.write(destname, oldname, zipfile.ZIP_DEFLATED)
                     os.remove(destname)
-                    destname = os.path.join(dirname,zipname)
+                    destname = zip_full_path
                 else:
                     if debug:
-                        print (" data is zipped already")
+                        print(" data is zipped already")
+
             localpathlist.append(destname)
 
-        if protocol in ['ftp','FTP']:
+        if protocol in ['ftp', 'FTP'] and ftp:
             ftp.close()
     else:
-        localpathlist = [elem for elem in filelist]
+        localpathlist = [os.path.normpath(elem) for elem in filelist]
 
     if debug:
-        print ("   => all files are now on local system: {}".format(localpathlist))
+        print("   => all files are now on local system: {}".format(localpathlist))
 
     return localpathlist
 
 
-
-def write_data(config=None,localpathlist=None,debug=False):
+def write_data(config=None, localpathlist=None, debug=False):
     """
     DESCRIPTION
-        Read local data and write to database  
+        Read local data and write to database and/or archive.
+        Handles directory paths containing spaces safely.
 
     RETURNS
+        bool: True if all operations succeeded, False otherwise.
     """
     success = True
     if not config:
-        config={}
+        config = {}
     if not localpathlist:
-        localpathlist=[]
+        localpathlist = []
     print("  Writing data to database and/or archive")
 
     db = config.get('db')
-    stationid = config.get('stationid','')
-    sensorid = config.get('sensorid','')
-    force = config.get('forcerevision','')
-    subdirectory = config.get('writedirectory','')
-    writemode = config.get('writemode','replace')
-    if not writemode in ['replace','overwrite']:
+    stationid = str(config.get('stationid', '')).strip()
+    sensorid = str(config.get('sensorid', '')).strip()
+    force = str(config.get('forcerevision', '')).strip()
+    subdirectory = str(config.get('writedirectory', '')).strip()
+    writemode = str(config.get('writemode', 'replace')).strip()
+    if writemode not in ['replace', 'overwrite']:
         # replace will replace existing data and leave the rest unchanged
         # overwrite will delete the file and write a new one
         writemode = 'replace'
 
+    def merge_two_dicts(x, y):
+        z = x.copy()   # start with x's keys and values
+        z.update(y)    # modifies z with y's keys and values & returns None
+        return z
 
     for f in localpathlist:
+        f_clean = os.path.normpath(str(f).strip())
         data = DataStream()
 
+        # Datei sicher einlesen (mit Workaround für Verzeichnisse mit Leerzeichen)
         try:
-            data = read(f)
-        except:
+            abs_file = os.path.abspath(f_clean)
+            file_dir = os.path.dirname(abs_file)
+            file_name = os.path.basename(abs_file)
+
+            if os.path.isdir(file_dir):
+                prev_cwd = os.getcwd()
+                try:
+                    os.chdir(file_dir)
+                    data = read(file_name)
+                finally:
+                    os.chdir(prev_cwd)
+            else:
+                data = read(f_clean)
+        except Exception as e:
+            print(f" !! Error reading '{f_clean}': {e}")
+            if debug:
+                traceback.print_exc()
             data = DataStream()
 
         if data.length()[0] > 0:
             if debug:
-                print (" Dealing with {}. Length = {}".format(f,data.length()[0]))
-                print (" -------------------------------")
-                print (" data looks like: ", data.ndarray)
-                #print ("SensorID in file: {}".format(data.header.get('SensorID')))
+                print(" Dealing with {}. Length = {}".format(f_clean, data.length()[0]))
+                print(" -------------------------------")
+                print(" data looks like: ", data.ndarray)
 
             # Station ID provided?
-            statiddata = data.header.get('StationID','')
+            statiddata = str(data.header.get('StationID', '')).strip()
 
-            if not stationid == '':
-                if not statiddata == stationid and not statiddata == '':
+            if stationid != '':
+                if statiddata != stationid and statiddata != '':
                     print("   StationID's from file and provided one (or dir) are different!")
-                    print ("   Using provided value")
+                    print("   Using provided value")
                 data.header['StationID'] = stationid.upper()
             else:
-                if data.header.get('StationID','') == '':
+                if statiddata == '':
                     print("   Could not find station ID in datafile")
                     print("   Please provide by using -t stationid")
-                    #sys.exit()
                     success = False
                     continue
+                data.header['StationID'] = statiddata.upper()
 
             if debug:
                 print("  -> Using StationID", data.header.get('StationID'))
 
             # Sensor ID extractable?
-            sensiddata = data.header.get('SensorID','')
+            sensiddata = str(data.header.get('SensorID', '')).strip()
 
-            if not sensorid == '':
-                if not sensiddata == sensorid and not sensiddata == '':
+            if sensorid != '':
+                if sensiddata != sensorid and sensiddata != '':
                     print("   SensorID's from file and provided one (or dir) are different!")
-                    print ("   Using provided value")
+                    print("   Using provided value")
                 data.header['SensorID'] = sensorid
             else:
-                if data.header.get('SensorID','') == '':
+                if sensiddata == '':
                     print("   Could not find sensor ID in datafile")
                     print("   Please provide in configuration or by using -s sensorid")
-                    # Abort try clause
                     success = False
                     continue
+                data.header['SensorID'] = sensiddata
 
-            fixsensorid = data.header.get('SensorID')
+            fixsensorid = str(data.header.get('SensorID', '')).strip()
 
             if debug:
-                print("  -> Using SensorID", data.header.get('SensorID'))
+                print("  -> Using SensorID", fixsensorid)
 
             # Conversions
             if config.get(fixsensorid):
@@ -955,102 +981,128 @@ def write_data(config=None,localpathlist=None,debug=False):
                 comment = data.header.get('DataComments')
                 if comment:
                     comments.append(comment)
-                print ("  Found modification parameters - applying ...")
+                print("  Found modification parameters - applying ...")
                 paradict = config.get(fixsensorid)
                 if paradict.get('defaulttimecolumn') == 'sectime':
-                    print ("    -> secondary time column of raw data will be used as primary")
+                    print("    -> secondary time column of raw data will be used as primary")
                     data = data.use_sectime()
                     comm1 = "secondary time colum moved to primary"
                     comments.append(comm1)
                 keylist = data._get_key_headers()
-                keylist.extend(['time','sectime'])
+                keylist.extend(['time', 'sectime'])
                 for key in keylist:
                     offset = paradict.get(key)
-                    #if debug:
-                    #    print ("     offset for key {}: {}".format(key, offset))
                     if offset:
-                        #try:
-                        offset = float(offset)
-                        if offset and key in ['time','sectime']:
-                            offdict[key] = timedelta(seconds=offset)
-                        elif offset:
-                            offdict[key] = offset
-                        comm = "applied an offset of {} to column {}".format(offset, key)
-                        comments.append(comm)
-                        print ("    -> offset of {} applied to {}".format(offset, key))
-                        #except:
-                        #    print ("    -> failure applying offset")
+                        try:
+                            offset = float(offset)
+                            if offset and key in ['time', 'sectime']:
+                                offdict[key] = timedelta(seconds=offset)
+                            elif offset:
+                                offdict[key] = offset
+                            comm = "applied an offset of {} to column {}".format(offset, key)
+                            comments.append(comm)
+                            print("    -> offset of {} applied to {}".format(offset, key))
+                        except Exception as e:
+                            print(f"    -> failure applying offset for {key}: {e}")
                 if offdict:
                     if debug:
-                        print ("    applying offsets: {}".format(offdict))
-                    #'time': timedelta(hours=1), 'x': 4.2, 'f': -1.34242
+                        print("    applying offsets: {}".format(offdict))
                     data = data.offset(offdict)
 
                 # extend comment
                 if len(comments) > 1:
-                    newcomment = ", ".join(comments) 
+                    newcomment = ", ".join(comments)
                     data.header['DataComments'] = newcomment
                 elif len(comments) > 0:
                     newcomment = comments[0]
                     data.header['DataComments'] = newcomment
-                print ("  => modifications done")
+                print("  => modifications done")
 
-                #print ("DATAComments", comments, newcomment, data.header['DataComments'])
-
-            def merge_two_dicts(x, y):
-                z = x.copy()   # start with x's keys and values
-                z.update(y)    # modifies z with y's keys and values & returns None
-                return z
-
-            datainfoid = data.header.get('DataID')
+            datainfoid = str(data.header.get('DataID', '')).strip()
             if force:
                 if not datainfoid:
-                    datainfoid = "{}_{}".format(fixsensorid,str(force).zfill(4))
+                    datainfoid = "{}_{}".format(fixsensorid, str(force).zfill(4))
                     if debug:
-                        print ("Using DataID: {}".format(datainfoid))
+                        print("Using DataID: {}".format(datainfoid))
 
             # Get existing header information from database and combine with new info
-            if datainfoid:
+            if datainfoid and db is not None:
                 existheader = db.fields_to_dict(datainfoid)
-                data.header = merge_two_dicts(existheader,data.header)
+                data.header = merge_two_dicts(existheader, data.header)
 
-            # Writing data
+            # Writing data to database
             if not debug and mm.get_bool(config.get('writedatabase')):
-                print("  {}: Adding {} data points to DB now".format(data.header.get('SensorID'), data.length()[0]))
+                print("  {}: Adding {} data points to DB now".format(fixsensorid, data.length()[0]))
 
                 if not len(data.ndarray[0]) > 0:
-                    data = data.linestruct2ndarray()  # Dealing with very old formats                   
+                    data = data.linestruct2ndarray()  # Dealing with very old formats
                 if len(data.ndarray[0]) > 0:
                     try:
-                        if not force == '':
-                            tabname = "{}_{}".format(fixsensorid,str(force).zfill(4))
-                            print (" - Force option chosen: forcing data to table {}".format(tabname))
-                            print ("   IMPORTANT: general database meta information will not be updated")
+                        if force != '':
+                            tabname = "{}_{}".format(fixsensorid, str(force).zfill(4))
+                            print(" - Force option chosen: forcing data to table {}".format(tabname))
+                            print("   IMPORTANT: general database meta information will not be updated")
                             db.write(data, tablename=tabname)
                         else:
                             db.write(data)
-                    except:
-                        print (" !! Error when writing ", f)
+                    except Exception as e:
+                        print(f" !! Error when writing '{f_clean}' to database: {e}")
+                        if debug:
+                            traceback.print_exc()
                         success = False
             elif debug:
-                print ("  DEBUG selected - no database written")
+                print("  DEBUG selected - no database written")
 
-            # Writing data
+            # Writing data to archive (abgesichert gegen Leerzeichen in Verzeichnisnamen)
             if not debug and mm.get_bool(config.get('writearchive')):
                 if force:
-                    archivepath = os.path.join(config.get('archivepath'),stationid.upper(),fixsensorid,datainfoid)
+                    base_archive = str(config.get('archivepath', '')).strip()
+                    if not base_archive:
+                        print(" !! Error: archivepath is not configured")
+                        success = False
+                        continue
+
+                    active_stationid = str(data.header.get('StationID', stationid)).strip().upper()
+                    archivepath = os.path.normpath(
+                        os.path.join(base_archive, active_stationid, fixsensorid, datainfoid)
+                    )
 
                     if config.get('archiveformat'):
-                        print("  {}: Writing {} data points archive".format(data.header.get('SensorID'), data.length()[0]))
+                        print("  {}: Writing {} data points archive".format(fixsensorid, data.length()[0]))
                         if fixsensorid.startswith("LEMI"):
                             # LEMI bin files contains str1 column which cannot be written to PYCDF (TODO) - column contains GPS state
                             data = data._drop_column('str1')
+
                         if archivepath:
-                            data.write(archivepath,filenamebegins=datainfoid+'_',format_type=config.get('archiveformat'),mode=writemode,subdirectory=subdirectory)
+                            try:
+                                # Zielverzeichnis inkl. Unterverzeichnis vorab sicher anlegen
+                                target_dir = os.path.join(archivepath, subdirectory) if subdirectory else archivepath
+                                os.makedirs(target_dir, exist_ok=True)
+
+                                # Kurz in archivepath wechseln, damit C-Bibliotheken (z.B. pycdf)
+                                # nur den relativen Pfad '.' ohne Leerzeichen sehen
+                                prev_cwd = os.getcwd()
+                                try:
+                                    os.chdir(archivepath)
+                                    data.write(
+                                        '.',
+                                        filenamebegins=datainfoid + '_',
+                                        format_type=config.get('archiveformat'),
+                                        mode=writemode,
+                                        subdirectory=subdirectory
+                                    )
+                                finally:
+                                    os.chdir(prev_cwd)
+                            except Exception as e:
+                                print(f" !! Error when writing archive to '{archivepath}': {e}")
+                                if debug:
+                                    traceback.print_exc()
+                                success = False
                 else:
-                    print ("  Writing to archive requires forcerevision")
+                    print("  Writing to archive requires forcerevision")
             elif debug:
-                print ("  DEBUG selected - no archive written")
+                print("  DEBUG selected - no archive written")
+
     return success
 
 def main(argv):
