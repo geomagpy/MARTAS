@@ -253,7 +253,7 @@ class TestFileDownload(unittest.TestCase):
             config['sourcedatapath'] = '/srv/mqtt'
             config['writedatabase'] =  'False'
             config['walksubdirs'] = 'True'
-            config['archivepath'] = '/tmp/archive'
+            config['archivepath'] = '/tmp/my test/archive'
             config, success = file_download.check_configuration(config=config, debug=False)
             datelist = ['2026-07-20']
             print (config)
