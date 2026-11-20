@@ -5,6 +5,7 @@ and collection from many different sources.
 ####v<2.0.3>, <2027-XX-XX> --
 
 v2.0.3 fixes:
+    - file_download and archive: correctly consider paths with space
 
 v2.0.3 additions:
 
