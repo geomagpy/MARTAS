@@ -8,6 +8,7 @@ v2.0.3 fixes:
     - file_download and archive: correctly consider paths with space
 
 v2.0.3 additions:
+    - improved archive for speed and prevent locking of database while archiving
 
 v2.0.3 general:
 

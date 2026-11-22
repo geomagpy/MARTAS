@@ -26,6 +26,9 @@ from datetime import datetime, timezone
 import pwd
 import socket
 from math import isnan
+import time
+import gc
+
 
 
 """
@@ -134,32 +137,77 @@ def create_data_selectionlist(blacklist=None, debug=False):
         print("   -> query looks like: {}".format(sql))
     return sql
 
-
 def get_data_dictionary(db, sql, debug=False):
     if debug:
         print("   Obtaining DataID dict with times...")
 
     resultdict = {}
-    # looks like {'data_1_0001_0001' : {'mintime':xxx, 'maxtime' : xxx }, ...}
-
     cursor = db.db.cursor()
     try:
+        # Alle existierenden Tabellen auf einmal abrufen
+        cursor.execute("SHOW TABLES")
+        existing_tables = {row[0] for row in cursor.fetchall()}
+
         cursor.execute(sql)
+        for el in cursor.fetchall():
+            if el[0] in existing_tables:
+                resultdict[el[0]] = {'mintime': el[1], 'maxtime': el[2]}
     except Exception as e:
         print(f"   Error when sending sql query: {e}")
-    result = cursor.fetchall()
-    for el in result:
-        # check whether a data table with this name is existing
-        verifytable = "SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{}'".format(el[0])
-        cursor.execute(verifytable)
-        test = cursor.fetchall()
-        if test:
-            resultdict[el[0]] = {'mintime': el[1], 'maxtime': el[2]}
-    cursor.close()
+    finally:
+        cursor.close()
+
     if debug:
         print("   -> Obtained the following DataIDs:", resultdict)
-
     return resultdict
+
+
+def chunked_delete(db, dataid, sr, ratio, chunk_size=5000):
+    """
+    DESCRIPTION
+        Deletes old entries, older then sr*ratio days in small
+        chunks to prevent long table/row locks
+        This method will be part of MagPy starting with 2.0.4
+    """
+    success = True
+    days_to_keep = sr * ratio
+    cutoff_dt = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_to_keep)
+    cutoff_str = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    print(f"   Deleting entries in {dataid} older than {cutoff_str} ({days_to_keep} days) in chunks...")
+    cursor = db.db.cursor()
+    total_deleted = 0
+    try:
+        # Tabellenname gegen SQL-Injection absichern (nur alphanumerisch + Unterstrich)
+        if not dataid.replace('_', '').isalnum():
+            print(f"   Invalid table name skipped: {dataid}")
+            return
+
+        while True:
+            sql = f"DELETE FROM `{dataid}` WHERE time < %s LIMIT {int(chunk_size)}"
+            cursor.execute(sql, (cutoff_str,))
+            affected = cursor.rowcount
+            db.db.commit()
+            total_deleted += affected
+            if affected < chunk_size:
+                break
+            # Kurze Pause, damit parallele INSERTs sofort durchkommen
+            time.sleep(0.1)
+
+        if total_deleted > 0:
+            # DataMinTime in DATAINFO aktualisieren
+            cursor.execute(f"SELECT MIN(time) FROM `{dataid}`")
+            new_min = cursor.fetchone()[0]
+            if new_min:
+                cursor.execute("UPDATE DATAINFO SET DataMinTime = %s WHERE DataID = %s", (new_min, dataid))
+                db.db.commit()
+        print(f"   -> Deleted {total_deleted} old rows smoothly.")
+    except Exception as e:
+        print(f"   !! Error during chunked delete on {dataid}: {e}")
+        success = False
+    finally:
+        cursor.close()
+    return success
 
 
 def get_parameter(plist, debug=False):
@@ -296,6 +344,9 @@ def main(argv):
     subdirectory = str(config.get('subdirectory') or '').strip() or None
 
     db = mm.connect_db(config.get('dbcredentials'))
+    cur = db.db.cursor()
+    cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED")
+    cur.close()
 
     sql = create_data_selectionlist(blacklist=config.get('blacklist', []), debug=debug)
     datainfoiddict = get_data_dictionary(db, sql, debug=False)
@@ -365,7 +416,10 @@ def main(argv):
             if debug:
                 print("  Running for range", tup)
                 print("  Reading data from DB ...")
-
+            if not validtimerange([tup], datainfoiddict[data]['mintime'], datainfoiddict[data]['maxtime']):
+                if debug:
+                    print(" -> nothing to do - moving on")
+                continue
             stream = db.read(data, starttime=tup[0], endtime=tup[1])
             if debug:
                 print("    -> Done ({} data points)".format(stream.length()[0]))
@@ -441,13 +495,17 @@ def main(argv):
                 else:
                     print("   Debug: skip writing")
                     print("    -> without debug a file with {} inputs would be written to {}".format(stream.length()[0], archivepath))
+                # Cleanup and delete stream
+                del stream
+                gc.collect()
             else:
                 print("No data between {} and {}".format(tup[0], tup[1]))
             msg = "successfully finished"
 
         if not debug and cdb and datainfoid != '':
             print("Now deleting old entries in database older than {} days".format(sr * ratio))
-            db.delete(datainfoid, samplingrateratio=ratio)
+            chunked_delete(db,datainfoid, sr, ratio)
+            #db.delete(datainfoid, samplingrateratio=ratio)
         else:
             print("   Debug: skip deleting DB")
             print("    -> without debug all entries older than {} days would be deleted".format(sr * ratio))

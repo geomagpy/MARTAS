@@ -70,20 +70,52 @@ class TestArchive(unittest.TestCase):
         dl = archive.create_datelist(startdate='', depth=10, debug=True)
         self.assertEqual(len(dl), 10)
 
-    #def test_create_data_selectionlist(self):
-    #    dt = archive.create_data_selectionlist(blacklist=None, debug=False)
-    #    self.assertEqual(ar[1],11)
+    def test_create_data_selectionlist(self):
+        sql = archive.create_data_selectionlist(blacklist=None, debug=True)
+        test = sql.split()
+        self.assertEqual(test[0],"SELECT")
 
-    #def test_get_data_dictionary(self):
-    #    cfg = archive.get_data_dictionary(db,sql,debug=False)
-    #    self.assertEqual(cfg.get("station"),"myhome")
+    def test_get_data_dictionary(self):
+        conn = database.DataBank(host='localhost', user=mpcred.lc('cobsdb', 'user'),
+                                 password=mpcred.lc('cobsdb', 'passwd'), database='cobsdb')
+        sql = archive.create_data_selectionlist(blacklist=None, debug=False)
+        cfg = archive.get_data_dictionary(conn,sql,debug=True)
+        self.assertIsInstance(cfg, dict)
 
-    #def test_get_parameter(self):
-    #    sens = archive.get_parameter(plist, debug=False)
-    #    self.assertEqual(sens,[])
+    def test_chunked_delete(self):
+        conn = database.DataBank(host='localhost', user=mpcred.lc('cobsdb', 'user'),
+                                 password=mpcred.lc('cobsdb', 'passwd'), database='cobsdb')
+        data = create_teststream()
+        data.header['DataID'] = 'Test_0002_0001_0001'
+        data.header['StationID'] = 'TST'
+        dataid = data.header.get('DataID')
+        sr = data.samplingrate()
+        #print (dataid, sr)
+        conn.write(data)
+        succ = archive.chunked_delete(conn, dataid, sr, 10, chunk_size=5000)
+        self.assertTrue(succ)
 
-    #def test_validtimerange(self):
-    #    archive.validtimerange(timetuple, mintime, maxtime, debug=False)
+    def test_get_parameter(self):
+        confpath = os.path.abspath(os.path.join(os.path.dirname(__file__),'..','conf','archive.cfg'))
+        config = mameth.get_conf(confpath)
+        para = [
+                    config.get('defaultdepth'),
+                    config.get('archiveformat'),
+                    config.get('writearchive'),
+                    config.get('applyflags'),
+                    config.get('cleandb'),
+                    config.get('cleanratio')
+                ]
+        depth, fo, wa, af, cdb, ratio = archive.get_parameter(para)
+        self.assertEqual(depth,2)
+
+    def test_validtimerange(self):
+        dl = archive.create_datelist(startdate='', depth=10, debug=False)
+        mintime = datetime.strftime(datetime.now()-timedelta(days=3), "%Y-%m-%d")
+        maxtime = datetime.strftime(datetime.now()-timedelta(days=2), "%Y-%m-%d")
+        succ = archive.validtimerange(dl, mintime, maxtime, debug=True)
+        self.assertTrue(succ)
+
 
 class TestBasevalue(unittest.TestCase):
     """
