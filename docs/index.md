@@ -1047,6 +1047,73 @@ Figure 5.5.1: The MARCOS viewer provides a quick overview about collection jobs 
 database, archive and monitoring state plus storage consumption (center left), as well as scheduled jobs (bottom left) and
 sensors, data records in the database (table right). 
 
+### 5.6 Optional REST API (`api.py`)
+
+For database-backed MARCOS collector nodes, an optional FastAPI-based REST interface (`api.py`) is available to query 
+measurement data and sensor metadata over the local network. It runs as an independent, lightweight background service 
+decoupled from the MARCOS viewer (`martas_view.py`) and accesses the MariaDB database via `db_service.py`.
+
+#### 5.6.1 Prerequisites
+
+Install FastAPI and Uvicorn inside your MARCOS Python environment on the database collector machine:
+
+        (martas)$ pip install fastapi uvicorn
+
+Ensure that TCP port `8000` (or your chosen port) is reachable within your local network (e.g. `sudo ufw allow 8000/tcp`).
+
+#### 5.6.2 Starting the API manually
+
+Navigate to the viewer/application directory containing `api.py` and `db_service.py` and launch the Uvicorn server 
+bound to `0.0.0.0` so external clients on the network can connect:
+
+        (martas)$ cd ~/MARTAS/app
+        (martas)$ uvicorn api:app --host 0.0.0.0 --port 8000
+
+#### 5.6.3 Running as an optional system service (systemd)
+
+To operate the API persistently on database collector machines without manual startup, create a systemd unit file 
+`/etc/systemd/system/martas-api.service`:
+
+        [Unit]
+        Description=MARTAS Data REST API
+        After=network.target mariadb.service
+
+        [Service]
+        Type=simple
+        User=martas
+        WorkingDirectory=/home/martas/MARTAS/app
+        ExecStart=/home/martas/venv/bin/uvicorn api:app --host 0.0.0.0 --port 8000
+        Restart=on-failure
+        RestartSec=5
+
+        [Install]
+        WantedBy=multi-user.target
+
+Enable and start the service on collector nodes:
+
+        $ sudo systemctl daemon-reload
+        $ sudo systemctl enable --now martas-api
+        $ sudo systemctl status martas-api
+
+*(Note: Adjust `User`, `WorkingDirectory`, and the path to `uvicorn` according to your local installation.)*
+
+#### 5.6.4 Accessing endpoints from remote machines
+
+Once running, any machine on the same network can query the API using HTTP GET requests (replace `ip_of_marcos` 
+with the collector's IP address or hostname):
+
+- **Interactive API documentation (Swagger UI):**
+  
+        http://ip_of_marcos:8000/docs
+
+- **Query sensor metadata (`DATAINFO`):**
+  
+        $ curl http://ip_of_marcos:8000/api/v1/meta
+
+- **Query recent measurements for a specific `DataID`:**
+  
+        $ curl "http://ip_of_marcos:8000/api/v1/data/Sensor1_0001_0001_0001?limit=100"
+
 
 ## 6. Applications
 

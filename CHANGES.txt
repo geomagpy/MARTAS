@@ -9,6 +9,7 @@ v2.0.3 fixes:
 
 v2.0.3 additions:
     - improved archive for speed and prevent locking of database while archiving
+    - improved db_truncate to prevent locking of database while cleaning up
 
 v2.0.3 general:
 
