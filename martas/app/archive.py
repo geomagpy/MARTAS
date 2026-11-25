@@ -144,14 +144,20 @@ def get_data_dictionary(db, sql, debug=False):
     resultdict = {}
     cursor = db.db.cursor()
     try:
-        # Alle existierenden Tabellen auf einmal abrufen
         cursor.execute("SHOW TABLES")
         existing_tables = {row[0] for row in cursor.fetchall()}
 
         cursor.execute(sql)
-        for el in cursor.fetchall():
-            if el[0] in existing_tables:
-                resultdict[el[0]] = {'mintime': el[1], 'maxtime': el[2]}
+        for data_id, min_t, max_t in cursor.fetchall():
+            if data_id in existing_tables:
+                # Falls DATAINFO NULL-Werte hat, direkt in der Datentabelle nachschauen
+                if min_t is None or max_t is None:
+                    if data_id.replace('_', '').isalnum():
+                        cursor.execute(f"SELECT MIN(time), MAX(time) FROM `{data_id}`")
+                        row = cursor.fetchone()
+                        if row:
+                            min_t, max_t = row[0], row[1]
+                resultdict[data_id] = {'mintime': min_t, 'maxtime': max_t}
     except Exception as e:
         print(f"   Error when sending sql query: {e}")
     finally:
@@ -160,7 +166,6 @@ def get_data_dictionary(db, sql, debug=False):
     if debug:
         print("   -> Obtained the following DataIDs:", resultdict)
     return resultdict
-
 
 def chunked_delete(db, dataid, sr, ratio, chunk_size=5000):
     """
@@ -231,10 +236,23 @@ def get_parameter(plist, debug=False):
 
 
 def validtimerange(timetuple, mintime, maxtime, debug=False):
-    mintuptime = magpymeth.testtime(min(min(timetuple)))
-    maxtuptime = magpymeth.testtime(max(max(timetuple)))
-    mintime = magpymeth.testtime(mintime)
-    maxtime = magpymeth.testtime(maxtime)
+    # Falls in DATAINFO noch keine Zeitstempel hinterlegt sind (NULL -> None),
+    # geben wir True zurück, damit trotzdem in der Datentabelle nachgesehen wird.
+    if mintime is None or maxtime is None:
+        if debug:
+            print("  No mintime/maxtime in DATAINFO (None) - assuming valid range to check table")
+        return True
+
+    try:
+        mintuptime = magpymeth.testtime(min(min(timetuple)))
+        maxtuptime = magpymeth.testtime(max(max(timetuple)))
+        mintime = magpymeth.testtime(mintime)
+        maxtime = magpymeth.testtime(maxtime)
+    except Exception as e:
+        if debug:
+            print(f"  Could not parse time values ({mintime}, {maxtime}): {e}")
+        return True
+
     if mintuptime < maxtime and maxtuptime > mintime:
         if debug:
             print("  Found valid time range")
