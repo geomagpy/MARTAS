@@ -23,6 +23,7 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from email import encoders
 import pexpect
+import time
 
 
 """
@@ -244,6 +245,54 @@ def check_conf(config, startdate=None, enddate='now', varios=None, scalars=None,
             config[key] = True
 
     return config
+
+
+def chunked_delete(db, dataid, sr, ratio, chunk_size=5000):
+    """
+    DESCRIPTION
+        Deletes old entries, older then sr*ratio days in small
+        chunks to prevent long table/row locks
+        This method will be part of MagPy starting with 2.0.4
+    """
+    success = True
+    days_to_keep = sr * ratio
+    cutoff_dt = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_to_keep)
+    cutoff_str = cutoff_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    print(f"   Deleting entries in {dataid} older than {cutoff_str} ({days_to_keep} days) in chunks...")
+    cursor = db.db.cursor()
+    total_deleted = 0
+    try:
+        # Tabellenname gegen SQL-Injection absichern (nur alphanumerisch + Unterstrich)
+        if not dataid.replace('_', '').isalnum():
+            print(f"   Invalid table name skipped: {dataid}")
+            return False
+
+        while True:
+            sql = f"DELETE FROM `{dataid}` WHERE time < %s LIMIT {int(chunk_size)}"
+            cursor.execute(sql, (cutoff_str,))
+            affected = cursor.rowcount
+            db.db.commit()
+            total_deleted += affected
+            if affected < chunk_size:
+                break
+            # Kurze Pause, damit parallele INSERTs sofort durchkommen
+            time.sleep(0.1)
+
+        if total_deleted > 0:
+            # DataMinTime in DATAINFO aktualisieren
+            cursor.execute(f"SELECT MIN(time) FROM `{dataid}`")
+            new_min = cursor.fetchone()[0]
+            if new_min:
+                cursor.execute("UPDATE DATAINFO SET DataMinTime = %s WHERE DataID = %s", (new_min, dataid))
+                db.db.commit()
+        print(f"   -> Deleted {total_deleted} old rows smoothly.")
+    except Exception as e:
+        print(f"   !! Error during chunked delete on {dataid}: {e}")
+        success = False
+    finally:
+        cursor.close()
+    return success
 
 
 def connect_db(mcred, exitonfailure=True, report=True):

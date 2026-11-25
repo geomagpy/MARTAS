@@ -474,7 +474,7 @@ def main(argv):
             print ('-l            : loggername')
             print ('-------------------------------------')
             print ('Application:')
-            print ('python3 filter.py -c ../conf/filter.cfg -j archive,second -d 3 -s LEMI025_28_0002_0001')
+            print ('python3 filter.py -c ../conf/filter.cfg -j archive,second -d 3')
             sys.exit()
         elif opt in ("-c", "--config"):
             # delete any / at the end of the string

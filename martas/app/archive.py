@@ -504,7 +504,7 @@ def main(argv):
 
         if not debug and cdb and datainfoid != '':
             print("Now deleting old entries in database older than {} days".format(sr * ratio))
-            chunked_delete(db,datainfoid, sr, ratio)
+            mm.chunked_delete(db,datainfoid, sr, ratio)
             #db.delete(datainfoid, samplingrateratio=ratio)
         else:
             print("   Debug: skip deleting DB")
