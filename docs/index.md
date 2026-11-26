@@ -1036,6 +1036,7 @@ visualize gradients directly.
 
 The MARCOS database is built on a high-performance [MariaDB](https://mariadb.org/) backend designed to ingest high-frequency measurement streams in real time while simultaneously serving low-latency analytical queries, monitoring tools, and external web interfaces. To prevent table- or row-level lock contention during continuous sensor writes, database maintenance tasks (such as retention cleanup and archiving) employ non-blocking, chunked operations.
 
+```mermaid
 flowchart TB
     %% Styling
     classDef dbCore fill:#eef6ff,stroke:#1d4ed8,stroke-width:2px,color:#0f172a
@@ -1078,8 +1079,6 @@ flowchart TB
             EVENTS["<b>(g) Custom Event Tables</b><br/>e.g., <b>QUAKES</b> (Seismic catalogs)<br/><i>Extensible domain event linking</i>"]:::tableExt
         end
 
-        ENC["<i>Planned Security Enhancement: Encryption of contact details in STATUS and STATIONS</i>"]:::secNote
-
         META -.->|"SensorID / StationID"| OPT
         META -.->|"SensorID / StationID"| GEOMAG
         TS -.->|"SensorID"| FLAGS
@@ -1102,8 +1101,9 @@ flowchart TB
     MARIADB <-->|"Health & Volume Metrics"| MON
     MQTT -.->|"Broker Health"| MON
     MARIADB ==>|"Read Queries"| API
+```
 
-![5.5.1](./img/marcos_db_architecture.png "MARCOS Database Architecture")
+![5.5.1](./img/marcos-database-architecture.png "MARCOS Database Architecture")
 
 *Figure 5.5.1: Architecture of the MARCOS MariaDB database and its surrounding ingestion, monitoring, and API ecosystem. The database is organized into functional table groups: (a) high-frequency timeseries tables (Name_Serial_SensorRev_DataRev), (b) core relational metadata (DATAINFO, SENSORS, STATIONS), (c) optional hardware and site inventory (SYSTEMS, INSTRUMENTS, PIERS), (d) geomagnetic absolute observations and adopted baseline fit functions (DIDATA, BASELINE), (e) quality control annotations (FLAGS), (f) automated threshold and state evaluations (STATUS), and (g) extensible domain-specific event tables (e.g., QUAKES). Tables marked with an asterisk (*) conform to the standard schema of the MagPy software package. Real-time data ingestion from MQTT brokers and non-blocking maintenance operations ensure continuous low-latency read access for the monitoring suite (martas_viewer, Section 5.6) and the REST API (Section 5.7).*
 
