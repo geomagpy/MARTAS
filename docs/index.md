@@ -962,27 +962,20 @@ first time then run the collector with the "update" option, at least for a few s
 
 ### 5.4 Data destinations
 
-#### 5.4.1 Saving incoming data as files
+#### 5.4.1 Streaming to a database (Primary Destination)
 
-Select destination "file" during initialization. You will also have to provide a file path then. Within this file path
-a directory named with the SensorID will be created and within this directory daily binary files will be created 
-again with SensorId and date as file name. The binary files have a single, ASCII readable header line describing its 
-packing formats. These binary files can be read with MagPy and transformed into any MagPy supported format.
+Streaming incoming data into a relational database ([MariaDB](https://mariadb.org/) / MySQL) is the **primary and recommended destination** for MARCOS data collection systems. It provides immediate, concurrent access to real-time measurements, unified metadata management, and seamless integration with automated analysis, monitoring, and visualization pipelines. For full details on the underlying table schemas and architecture, refer to [Section 5.5](#55-the-marcos-database-architecture).
 
-#### 5.4.2 Streaming to a database
-
-Checkout the MagPy instructions to setup and initialize a MagPy data base
-(see [section 9](https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#9-sql-databases)). 
-This is usually done within minutes and then can be readily used for pMARCOS data collections or pMARTAS dissemination. 
-When initializing MARCOS and selecting destination "db" you will need to provide a credential shortcut for the 
-database. You can create such credentials using addcred. Use addcred -h for all options.
+To initialize a MagPy-compatible database, follow the [MagPy SQL database setup instructions](https://github.com/geomagpy/magpy/tree/develop?tab=readme-ov-file#9-sql-databases). When selecting destination `"db"` during MARCOS initialization, provide a credential shortcut created via `addcred` (use `addcred -h` for all options):
 
       $ addcred -t db -c mydb -u user -p secret -o localhost -d mydb
 
-Please use the "update" option when running a job with a new sensor for the first time to create default inputs into the
-database (and not only the data table).
+When running a collection job with a newly added sensor for the first time, execute the job with the `update` option so that default metadata entries in `DATAINFO` and `SENSORS` are populated alongside the timeseries data table:
 
-#### 5.4.3 Streaming to a web interface
+      $ bash collect-MYJOB1.sh update
+
+
+#### 5.4.2 Streaming to a web interface
 
 Select destination "websocket"
 
@@ -1019,6 +1012,14 @@ c) Customizing the WEB interface/ports of MARCOS
         $ nano ~/MARTAS/web/smoothiesettings.js
 
 
+#### 5.4.3 Saving incoming data as files
+
+Select destination "file" during initialization. You will also have to provide a file path then. Within this file path
+a directory named with the SensorID will be created and within this directory daily binary files will be created 
+again with SensorId and date as file name. The binary files have a single, ASCII readable header line describing its 
+packing formats. These binary files can be read with MagPy and transformed into any MagPy supported format.
+
+
 #### 5.4.4 Writing to stdout
 
 When selecting destination "stdout" the ASCII output will be written to the destination defined by logging. This can 
@@ -1031,14 +1032,114 @@ visualize gradients directly.
 
 
 
-### 5.5 The MARCOS viewer
+### 5.5 The MARCOS Database Architecture
 
-Since MARTAS version 2.0 a MARCOS viewer is included. The viewer will create a local webpage giving you some information
-about the MARCOS collection system. Please note that this viewer is specifically developed for a datbase based collection
+The MARCOS database is built on a high-performance [MariaDB](https://mariadb.org/) backend designed to ingest high-frequency measurement streams in real time while simultaneously serving low-latency analytical queries, monitoring tools, and external web interfaces. To prevent table- or row-level lock contention during continuous sensor writes, database maintenance tasks (such as retention cleanup and archiving) employ non-blocking, chunked operations.
+
+flowchart TB
+    %% Styling
+    classDef dbCore fill:#eef6ff,stroke:#1d4ed8,stroke-width:2px,color:#0f172a
+    classDef tableStd fill:#ffffff,stroke:#2563eb,stroke-width:1.5px,color:#0f172a
+    classDef tableExt fill:#f8fafc,stroke:#64748b,stroke-width:1.5px,stroke-dasharray: 4 3,color:#0f172a
+    classDef ioNode fill:#f0fdf4,stroke:#15803d,stroke-width:1.5px,color:#0f172a
+    classDef appNode fill:#fff7ed,stroke:#c2410c,stroke-width:1.5px,color:#0f172a
+    classDef secNote fill:#fef2f2,stroke:#b91c1c,stroke-width:1px,stroke-dasharray: 3 3,color:#7f1d1d
+
+    %% Left: Real-Time Ingestion & Maintenance
+    subgraph INGEST ["Real-Time Ingestion & Non-Blocking Maintenance"]
+        direction TB
+        MQTT["<b>MQTT Broker</b><br/><i>High-Frequency Sensor Streams</i>"]:::ioNode
+        MARCOS["<b>pMARCOS Collectors</b><br/><i>Real-Time Stream Ingestion</i>"]:::ioNode
+        MAINT["<b>Non-Blocking Maintenance</b><br/><i>Chunked Deletes & Archive Jobs<br/>(Zero Row-Lock Contention)</i>"]:::ioNode
+        MQTT --> MARCOS
+    end
+
+    %% Center: MARCOS MariaDB Core
+    subgraph MARIADB ["MARCOS Database Architecture (High-Performance MariaDB)"]
+        direction TB
+
+        subgraph CORE_GRP ["Core Timeseries & Metadata (MagPy Standard*)"]
+            direction LR
+            TS["<b>(a) Timeseries Tables*</b><br/><code>Name_Serial_SensorRev_DataRev</code><br/><i>High-frequency raw & processed data</i>"]:::tableStd
+            META["<b>(b) Core Metadata*</b><br/><b>DATAINFO*</b> (links DataID ↔ Sensor/Station)<br/><b>SENSORS*</b> (<code>Name_Serial_SensorRev</code>)<br/><b>STATIONS*</b> (StationID, site coordinates)"]:::tableStd
+            TS <-->|"DataID"| META
+        end
+
+        subgraph OPT_GRP ["Extended Infrastructure & Geomagnetic Tables"]
+            direction LR
+            OPT["<b>(c) Optional Asset Metadata</b><br/><b>SYSTEMS</b> (Acquisition / MARTAS)<br/><b>INSTRUMENTS</b> (<code>Name_Serial</code>, inventory, price)<br/><b>PIERS</b> (Measurement pillars & points)"]:::tableExt
+            GEOMAG["<b>(d) Geomagnetic Baselines*</b><br/><b>DIDATA*</b> (Absolute DI measurements)<br/><b>BASELINE*</b> (Validity & fit functions)"]:::tableStd
+        end
+
+        subgraph ANALYTICS_GRP ["Quality Control, Status & Event Extensions"]
+            direction LR
+            FLAGS["<b>(e) Quality Flags*</b><br/><b>FLAGS*</b><br/><i>Event markers & annotations<br/>linked via SensorID</i>"]:::tableStd
+            STATUS["<b>(f) Operational Status</b><br/><b>STATUS</b><br/><i>Latest values, min/max, avg, gradients,<br/>warning/critical thresholds & receivers</i>"]:::tableExt
+            EVENTS["<b>(g) Custom Event Tables</b><br/>e.g., <b>QUAKES</b> (Seismic catalogs)<br/><i>Extensible domain event linking</i>"]:::tableExt
+        end
+
+        ENC["<i>Planned Security Enhancement: Encryption of contact details in STATUS and STATIONS</i>"]:::secNote
+
+        META -.->|"SensorID / StationID"| OPT
+        META -.->|"SensorID / StationID"| GEOMAG
+        TS -.->|"SensorID"| FLAGS
+        TS -.->|"Aggregation"| STATUS
+        TS -.->|"Time / Event Correlation"| EVENTS
+    end
+
+    %% Right: Monitoring & External Access
+    subgraph ACCESS ["Monitoring & External Interfaces"]
+        direction TB
+        MON["<b>System & DB Monitoring</b><br/>• Graphical: <i>Dash App (martas_viewer)</i> [Sec. 5.6]<br/>• Headless: <i>monitoring scripts</i><br/><i>Tracks server load, MQTT sources & storage volumes</i>"]:::appNode
+        API["<b>REST API Interface (FastAPI)</b> [Sec. 5.7]<br/><i>GeoJSON locations, CovJSON timeseries & metadata<br/>for external dashboards and frontends</i>"]:::appNode
+    end
+
+    %% Cross-System Flows
+    MARCOS ==>|"Real-Time INSERTs"| TS
+    MARCOS -->|"Metadata Sync"| META
+    MAINT <-->|"Batched Cleanup"| TS
+
+    MARIADB <-->|"Health & Volume Metrics"| MON
+    MQTT -.->|"Broker Health"| MON
+    MARIADB ==>|"Read Queries"| API
+
+![5.5.1](./img/marcos_db_architecture.png "MARCOS Database Architecture")
+
+*Figure 5.5.1: Architecture of the MARCOS MariaDB database and its surrounding ingestion, monitoring, and API ecosystem. The database is organized into functional table groups: (a) high-frequency timeseries tables (Name_Serial_SensorRev_DataRev), (b) core relational metadata (DATAINFO, SENSORS, STATIONS), (c) optional hardware and site inventory (SYSTEMS, INSTRUMENTS, PIERS), (d) geomagnetic absolute observations and adopted baseline fit functions (DIDATA, BASELINE), (e) quality control annotations (FLAGS), (f) automated threshold and state evaluations (STATUS), and (g) extensible domain-specific event tables (e.g., QUAKES). Tables marked with an asterisk (*) conform to the standard schema of the MagPy software package. Real-time data ingestion from MQTT brokers and non-blocking maintenance operations ensure continuous low-latency read access for the monitoring suite (martas_viewer, Section 5.6) and the REST API (Section 5.7).*
+
+
+
+#### 5.5.1 Functional Table Groups
+
+The database schema extends the standard data model of the [MagPy](https://github.com/geomagpy/magpy) package (tables marked with `*` are native MagPy standard tables):
+
+* **(a) Timeseries Tables (`*`):** Individual data tables store the actual time-ordered measurement records. Table names follow the strict four-part hierarchical convention `Name_SerialNumber_SensorRevision_DataRevision` (e.g., `BM35_029_0001_0001`), allowing multiple hardware revisions and processing levels to coexist cleanly.
+* **(b) Core Metadata (`DATAINFO*`, `SENSORS*`, `STATIONS*`):** `DATAINFO` acts as the central relational hub linking each timeseries table (`DataID`) to its physical instrument definition in `SENSORS` (keyed by `SensorID` = `Name_SerialNumber_SensorRevision`) and its geographic observatory or field site in `STATIONS` (`StationID`), alongside sampling rates, validity intervals, and coordinate references.
+* **(c) Optional Infrastructure & Asset Metadata (`SYSTEMS`, `INSTRUMENTS`, `PIERS`):** Supplementary tables capture operational context beyond raw sensor outputs: `SYSTEMS` documents the acquisition hardware and data loggers (e.g., MARTAS edge nodes), `INSTRUMENTS` tracks physical hardware assets (`Name_SerialNumber`) including inventory numbers, purchase prices, and acquisition dates, and `PIERS` describes available measurement pillars and reference points at a station.
+* **(d) Geomagnetic Baseline Tables (`DIDATA*`, `BASELINE*`):** Specialized tables support observatory-grade geomagnetic processing. `DIDATA` stores discrete absolute declination/inclination (DI) measurements (which do not form a continuous timeseries), while `BASELINE` stores temporal validity bounds (`start` and `end` timestamps) together with analytical fit functions for adopted baselines.
+* **(e) Quality Control Flags (`FLAGS*`):** Stores time-bounded quality markers, outlier annotations, and operator comments linked to instruments via `SensorID`, enabling reproducible flagging and data cleaning across processing stages.
+* **(f) Automated Status & Thresholds (`STATUS`):** Holds continuously updated operational diagnostics derived from the timeseries, including latest values, minima, maxima, averages, and temporal gradients, paired with configurable warning/critical thresholds and notification recipient lists.
+* **(g) Extensible Event Tables (e.g., `QUAKES`, `BOOKINGS`):** The relational structure allows arbitrary domain-specific event catalogs—such as seismic event tables (`QUAKES`)—to be linked seamlessly with timeseries data for cross-disciplinary correlation and automated event analysis.
+
+#### 5.5.2 Monitoring and External API Access
+
+* **System and Database Monitoring:** Continuous operational oversight is provided both graphically via the Dash-based web application (`martas_viewer`, see [Section 5.6](#56-the-marcos-viewer)) and via headless background services (`monitoring`). These components track host server health, upstream data sources (MQTT brokers), and database storage volumes.
+* **REST API Interface:** An optional FastAPI-based web service (see [Section 5.7](#57-optional-rest-api-apipy)) exposes standardized read-only endpoints (including GeoJSON sensor locations and CovJSON timeseries) so external dashboards, frontends, and remote clients can query database contents securely over the network without direct SQL access.
+
+#### 5.5.3 Scheduled Security Improvements
+
+* **Contact Data Encryption:** In future releases, personal contact information and notification receiver details stored within the `STATUS` and `STATIONS` tables will be encrypted at rest to strengthen data privacy and compliance. 
+* **REST API requests:** Contact data should not be delivered in REST API requests.
+
+
+### 5.6 The MARCOS viewer (`martas_view.py`)
+
+Since MARTAS version 2.0 a MARCOS viewer is included into `martas_view.py`. The viewer will create a local webpage giving you some information
+about the MARCOS collection system. Please note that this viewer is specifically developed for a database based collection
 system. You can start and open the MARCOS viewer as follows: 
 
         (martas)$ cd ~/.martas
-        (martas)$ bash marcos_view
+        (martas)$ bash martas_view
 
 Open webpage http://127.0.0.1:8050 will give you something like:
 
@@ -1047,13 +1148,13 @@ Figure 5.5.1: The MARCOS viewer provides a quick overview about collection jobs 
 database, archive and monitoring state plus storage consumption (center left), as well as scheduled jobs (bottom left) and
 sensors, data records in the database (table right). 
 
-### 5.6 Optional REST API (`api.py`)
+### 5.7 Optional REST API (`api.py`)
 
 For database-backed MARCOS collector nodes, an optional FastAPI-based REST interface (`api.py`) is available to query 
 measurement data and sensor metadata over the local network. It runs as an independent, lightweight background service 
 decoupled from the MARCOS viewer (`martas_view.py`) and accesses the MariaDB database via `db_service.py`.
 
-#### 5.6.1 Prerequisites
+#### 5.7.1 Prerequisites
 
 Install FastAPI and Uvicorn inside your MARCOS Python environment on the database collector machine:
 
@@ -1061,7 +1162,7 @@ Install FastAPI and Uvicorn inside your MARCOS Python environment on the databas
 
 Ensure that TCP port `8000` (or your chosen port) is reachable within your local network (e.g. `sudo ufw allow 8000/tcp`).
 
-#### 5.6.2 Starting the API manually
+#### 5.7.2 Starting the API manually
 
 Navigate to the viewer/application directory containing `api.py` and `db_service.py` and launch the Uvicorn server 
 bound to `0.0.0.0` so external clients on the network can connect:
@@ -1069,7 +1170,7 @@ bound to `0.0.0.0` so external clients on the network can connect:
         (martas)$ cd ~/MARTAS/app
         (martas)$ uvicorn api:app --host 0.0.0.0 --port 8000
 
-#### 5.6.3 Running as an optional system service (systemd)
+#### 5.7.3 Running as an optional system service (systemd)
 
 To operate the API persistently on database collector machines without manual startup, create a systemd unit file 
 `/etc/systemd/system/martas-api.service`:
@@ -1097,7 +1198,7 @@ Enable and start the service on collector nodes:
 
 *(Note: Adjust `User`, `WorkingDirectory`, and the path to `uvicorn` according to your local installation.)*
 
-#### 5.6.4 Accessing endpoints from remote machines
+#### 5.7.4 Accessing endpoints from remote machines
 
 Once running, any machine on the same network can query the API using HTTP GET requests (replace `ip_of_marcos` 
 with the collector's IP address or hostname):
