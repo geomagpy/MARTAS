@@ -1228,13 +1228,13 @@ find subsections with detailed instructions and example applications for all of 
 
 | Script           | Purpose                                              | Config              | Version | Section |
 |------------------|------------------------------------------------------|---------------------|---------|---------|
-| archive.py       | Read database tables and create archive files        | archive.cfg         | 2.0.0*  | 6.2     |
+| archive.py       | Read database tables and create archive files        | archive.cfg         | 2.0.3  | 6.2     |
 | ardcomm.py       | Communicating with arduino microcontroller           |                     | 2.0.0*  | 6.3     |
 | backup.py        | Backup configuration                                 |                     | 2.0.0   | 6.4     |
 | basevalue.py     | Analyse mag. DI data and create adopted baselines    | basevalue.cfg       | 2.0.0   | 6.5     |
 | checkdatainfo.py | List/ad data tables not existing in DATAINFO/SENS    |                     | 2.0.0*  | 6.6     |
-| db_truncate.py   | Delete data from all data tables                     | truncate.cfg        | 2.0.0*  | 6.7     |
-| file_download.py | Download files, store them and add to archives       | download-source.cfg | 2.0.0   | 6.8     |
+| db_truncate.py   | Delete data from all data tables                     | truncate.cfg        | 2.0.3  | 6.7     |
+| file_download.py | Download files, store them and add to archives       | download-source.cfg | 2.0.2   | 6.8     |
 | file_upload.py   | Upload files                                         | upload.json         | 2.0.0*  | 6.9     |
 | filter.py        | filter data                                          | filter.cfg          | 2.0.0   | 6.10    |
 | gamma.py         | DIGIBASE gamma radiation acquisition and analysis    | gamma.cfg           |         | 6.11    |
@@ -1249,7 +1249,7 @@ find subsections with detailed instructions and example applications for all of 
 | testserial.py    | test script for serial comm - development tool       |                     | 1.0.0   | 6.20    |
 | threshold.py     | Tests values and send reports                        | threshold.cfg       | 2.0.0   | 6.21    |
 
-Version 2.0.0* means it still needs to be tested
+Version 2.0.0* means it still needs to be tested. 2.0.3 means that the latest verified code is part of MARTAS version 2.0.3.
 
 ### 6.2 archive
 
@@ -1917,283 +1917,379 @@ You also might need to add the following line to your .bashrc
 The *upgrade* option, to be used to remotely update martas based on pip install -U, does not support 
 --break-system-packages.   
 
+## 8. Applications and Automated Data Processing
 
-## 8. Additional tools
-
-### 8.1 analysis.py for continuous flagging, adjusted/quasidefinitive data products and status information 
-
-#### 8.1.1 MartasAnalysis
-
-For continuous flagging of data in a MARCOS environment you can use the MartasAnalysis class as follows. Flagging 
-configurations need to be supplied to the method in form of json data. An example of such flagging configuration 
-information is given here
-
-```
-flagdict = {'TEST': {"coverage": 86400,
-                     "keys": ['x','y','z'],
-                     "mode": ['outlier'],  # outlier, range, ultra, ai,
-                     "samplingrate": 1,
-                     "min": -59000,
-                     "max": 50000,
-                     "addflag": True,
-                     "threshold": 4,
-                     "window": 60,
-                     "markall": True,
-                     },
-                     ...
-            }
-```
-
-This dictionary provides details on the Sensor or SensorGroup and the applied flagging method. The "TEST" refers to 
-the SensorID of datasets to be flagged. All SensorIDs containing TEST in their name will be flagged with the given
-parameters (i.e. TEST_1234_0001, TEST001_XXX_0002, AWSOME_TEST_0001). The last 86400 datapoint will be read and 
-outlier flagging (despiking) be performed using threshold and window.
+The analysis and processing tools in MARTAS/MARCOS and [MagPy](https://github.com/geomagpy/magpy) are designed around concrete operational workflows rather than standalone scripts. Most routines operate directly on a MagPy-compatible MariaDB/MySQL database and are typically executed periodically via `cron` or system schedulers.
 
 > [!IMPORTANT]  
-> the methods of the analysis module are designed to work with a MagPy/MARTAS database. Using the methods on
-non-DB architectures will need some work to adjust the methods. Methods and Classes of the analysis module are typically
-scheduled using cron.
-
-Typical application for continuous flagging looks as follows. The periodically method will read data, remove already 
-existing flags and then apply the flagging method on remaining data.
-
-        from martas.core import methods as mm
-        from martas.core.analysis import MartasAnalysis
-        config = mm.get_conf('Configuration file like basevalue.cfg')
-        config = mm.check_conf(config)
-        flagdict = mm.get_json('Flagdict file like shown above')
-        mf = MartasAnalysis(config=config, flagdict=flagdict)
-        fl = mf.periodically(debug=False)
-        suc = mf.update_flags_db(fl, debug=True)
-
-Other flagging related methods are upload, archive, cleanup.
-
-In order to obtain adjusted or quasidefinitive data, the MartasAnalysis class contains methods specifically designed for 
-geomagnetic data analysis. Adjusted data can be obtained hereby.
+> The automated analysis classes (`MartasAnalysis`, `MartasStatus`) and baseline routines are designed primarily for database-backed MARCOS installations. Applying them to file-only architectures requires adapting the data source parameters accordingly.
 
 
-        from martas.core import methods as mm
-        from martas.core.analysis import MartasAnalysis
-        config = mm.get_conf('Configuration file like basevalue.cfg')
-        config = mm.check_conf(config)
-        mf = MartasAnalysis(config=config)
-        primary_vario = mf.get_primary(variometer DataID list)
-        primary_scalar = mf.get_primary(scalar DataID list)
-        merged = mf.magnetism_data_product('adjusted', primary_vario, primary_scalar)
-        results = merged.get('merge')
-        for samplingrate in results:
-            mf.db.write(results.get(samplingrate))
+### 8.1 Status Information and Automated Warnings
 
-If you have multiple variometers on your site the get_primary method investigates supplied variometer data sets and
-selects the first one of the list which contains valid data. The method *magnetim_data_products* will then read data,
-eventually remove flags, apply offsets as defined in the database, perform a baseline correction and construct merged 
-data sets. If one-second data is supplied it will also create a filtered one-minute record. 
+Continuous health monitoring of sensors, environmental conditions, and observatory infrastructure is handled by the `MartasStatus` class (`martas.core.analysis`). It periodically queries recent measurement intervals from the database, computes statistical aggregates (mean, median, min, max, standard deviation, or temporal gradient), evaluates configurable warning and critical thresholds, and writes the state into a dedicated status table (e.g., `COBSSTATUS`) for dashboards and alerting services.
 
+#### Configuration (`statusdict.json`)
 
-#### 8.1.2 MartasStatus
+Each entry in the JSON configuration defines a unique, human-readable status metric, its target data stream, evaluation mode, and threshold limits:
 
-MartasStatus is used to extract specific values from the data sets. This method can be used to supply status information
-and current values to webpages and services. The kind of status information is defined in a dictionary which might be
-stored as json file on your system. 
+```json
+{
+  "Average Temperature of TEST001": {
+    "source": "TEST001_1234_0001_0001",
+    "key": "x",
+    "type": "temperature",
+    "group": "tunnel condition",
+    "field": "environment",
+    "location": "gmo",
+    "pierid": "",
+    "range": 30,
+    "mode": "mean",
+    "value_unit": "°C",
+    "warning_high": 10,
+    "critical_high": 20,
+    "notification_warning": ["email.cfg"],
+    "notification_critical": ["telegram.cfg"]
+  }
+}
 
 ```
-statusdict = {"Average Temperature of TEST001": {
-                                "source": "TEST001_1234_0001_0001",
-                                "key": "x",
-                                "type": "temperature",
-                                "group": "tunnel condition",
-                                "field": "environment",
-                                "location": "gmo",
-                                "pierid": "",
-                                "range": 30,
-                                "mode": "mean",
-                                "value_unit": "°C",
-                                "warning_high": 10,
-                                "critical_high": 20
-                                },
-                     ...
-            }
+
+#### Parameter Reference
+
+| Key | Description | DB Field | Default | Example |
+| --- | --- | --- | --- | --- |
+| `source` | Target `DataID` (supports `*` wildcards) | `source` | - | `TEST001_1234_0001_0001` |
+| `key` | Data column to evaluate | `status_key` | `x` | `t1` |
+| `field` | Physical property (not stored in `DATAINFO`, must be set here) | `status_field` | - | `temperature` |
+| `group` | Primary purpose of the instrument/sensor | `status_group` | `SensorGroup` | `magnetism` |
+| `type` | Specific primary sensor type | `status_type` | `SensorType` | `fluxgate` |
+| `pierid` | Reference pier identifier | `pierid` | `PierID` | `A2` |
+| `station` | Reference `StationID` | `location` | `StationID` | `WIC` |
+| `longitude` / `latitude` | Geographic coordinates (overrides DB metadata) | `longitude` / `latitude` | `DataAcquisition...` | `15.865` / `47.930` |
+| `altitude` | Elevation of the sensor | `elevation` | `DataElevation` | `1087.85` |
+| `range` | Evaluation time window in minutes | - | `30` | `30` |
+| `mode` | Aggregation mode: `mean`, `median`, `max`, `min`, `std`, `gradient`, `last` | - | `mean` | `median` |
+| `value_unit` | Physical unit of the evaluated key | `value_unit` | `unit-col-KEY` | `°C` |
+| `warning_low` / `warning_high` | Lower and upper warning thresholds | `warning_low` / `warning_high` | `0` | `-5` / `10` |
+| `critical_low` / `critical_high` | Lower and upper critical thresholds | `critical_low` / `critical_high` | `0` | `-20` / `20` |
+| `access` | Access visibility level | `access` | `public` | `public` |
+| `notification_warning` | List of notification configurations for warnings | `notification_warning` | `None` | `["email.cfg"]` |
+| `notification_critical` | List of notification configurations for critical alerts | `notification_critical` | `None` | `["telegram.cfg"]` |
+| `symbol_standard` / `_warning` / `_critical` | URLs to status indicator icons (PNG) | `symbol_*` | - | `icons/st.png` |
+| `picture` | URL to an associated camera/sensor image | `picture` | - | `img/cam1.png` |
+
+*(Note: Fields such as `status_value`, `value_min`, `value_max`, `value_std`, `validity_start`, `validity_end`, `date_added`, and `active` [1 = active data, 0 = no recent data] are populated automatically in the database.)*
+
+#### Implementation Example
+
+```python
+from martas.core import methods as mm
+from martas.core.analysis import MartasStatus
+
+# Load configuration and status definitions
+config = mm.check_conf(mm.get_conf('/home/USER/.martas/conf/basevalue.cfg'))
+statusdict = mm.get_json('/home/USER/.martas/conf/statusdict.json')
+
+ms = MartasStatus(config=config, statusdict=statusdict, tablename='COBSSTATUS')
+
+# 1. Initialize the status table in MariaDB (required once)
+init_sql = ms.statustableinit()
+cursor = ms.db.db.cursor()
+ms.db._executesql(cursor, init_sql)
+
+# 2. Evaluate all configured status metrics and update the database
+for name, statuselem in ms.statusdict.items():
+    res = ms.read_data(statuselem=statuselem, debug=False)
+    warn_msg = ms.check_highs(res.get('value'), statuselem=statuselem)
+    update_sql = ms.create_sql(name, res, statuselem, state=warn_msg)
+    ms.db._executesql(cursor, update_sql)
+
+ms.db.db.commit()
+cursor.close()
+
 ```
 
-THe keys of each status element refer to the following inputs:
 
-| key                   | description                          | DB field       | default                  | example       |
-|-----------------------|--------------------------------------|----------------|--------------------------|---------------|
-| source                | DataID                               | source         | -                        | -             |
-| key                   | column of DataID                     |                | x                        | t1            |
-| field                 | physical property contained in key   | status_field   | -                        | temperature   |
-| group                 | primary purpose of Instrument/Sensor | status_group   | SensorGroup              | magnetism     |
-| type                  | specific primary sensor type         | status_type    | SensorType               | fluxgate      |
-| pierid                | reference to pier                    | pierid         | PierID                   | A2            |
-| station               | reference to StationID               | stationid      | StationID                | WIC           |
-| longitude             |                                      | longitude      | DataAcquisitionLongitude | -             |
-| latitude              |                                      | latitude       | DataAcquisitionLatitude  | -             |
-| altitude              |                                      | altitude       | DataElevation            | -             |
-| range                 | timerange in minutes                 |                | 30                       | 30            |
-| mode                  | mean,median,max,min,uncert,gradient  |                | mean                     | fluxgate      |
-| value_unit            | unit of key                          | value_unit     | unit-col-KEY             | -             |
-| warning_low           | lower warning level                  | warning_low    | 0                        | -5            |
-| warning_high          | upper warning level                  | warning_high   | 0                        | 10            |
-| critical_low          | lower critical level                 | critical_low   | 0                        | -20           |
-| critical_high         | upper critical level                 | critical_high  | 0                        | 20            |
-| access                | define access level                  | access         | public                   | public        |
-| notification warning  | list of notification configs         |                | None                     | ["email.cfg"] |
-| notification critical | list of notification configs         |                | None                     | ["email.cfg"] |
-| symbol standard       | URL with png                         |                |                          | icons/st.png  |
-| symbol warning        | URL with png                         |                |                          |               |
-| symbol critical       | URL with png                         |                |                          |               |
-| picture               | URL with png                         |                |                          |               |
-| -                     | filled in DB                         | status_value   |                          | 13.3          |
-| -                     | filled in DB                         | value_min      |                          |               |
-| -                     | filled in DB                         | value_max      |                          |               |
-| -                     | filled in DB                         | value_std      |                          |               |
-| -                     | filled in DB                         | validity_start |                          |               |
-| -                     | filled in DB                         | validity_end   |                          |               |
-| -                     | filled in DB                         | comment        |                          |               |
-| -                     | filled in DB                         | date_added     |                          |               |
-| -                     | filled in DB                         | active         |                          |               |
+### 8.2 Automated Data Flagging
 
+To maintain clean timeseries without altering raw measurements, the `MartasAnalysis` class (`martas.core.analysis`) performs automated quality control. It periodically scans recent data streams for spikes, out-of-range values, or statistical anomalies and stores time-bounded quality markers in the `FLAGS` table linked to the respective `SensorID`.
 
-The key values of each status element contained in the status dictionary need to be unique and are ideally human 
-readable. The subdictionary defines parameters of the data set to be extracted. Typically recent data covering the 
-last "range" minutes are extracted and the value as defined by mode (mean, median, max, min, uncert, gradient (= mean 
-gradient based on numpy.gradient)) is obtained. If 
-no data is found the "active" value of the return dictionary is set to 0. Most properties are obtained from existing
-tables in the database. You can override database contents by providing the corresponding inputs within the status
-elements. Please note: the physical property "field" is not contained in the database and can only be supplied here.
+#### Configuration (`flagdict.json`)
 
-As all other methods, the MartasStatus class methods are designed for data base usage. You can extend your MagPy data
-base with a status information tables using the following command:
+Keys in `flagdict` act as substring filters against `SensorID` (e.g., `"TEST"` matches `TEST_1234_0001` as well as `TEST001_XXX_0002`):
 
-        from martas.core import methods as mm
-        from martas.core.analysis import MartasStatus
-        config = mm.get_conf('Configuration file like basevalue.cfg')
-        config = mm.check_conf()
-        statusdict = mm.get_json('Statusdict file like shown above')
-        ms = MartasStatus(config=config, statusdict=statusdict,tablename='COBSSTATUS')
+```json
+{
+  "TEST": {
+    "coverage": 86400,
+    "keys": ["x", "y", "z"],
+    "mode": ["outlier"],
+    "samplingrate": 1,
+    "min": -59000,
+    "max": 50000,
+    "addflag": true,
+    "threshold": 4,
+    "window": 60,
+    "markall": true
+  }
+}
 
-        initsql = ms.statustableinit(debug=True)
+```
 
-Status messages in this table can then be updated by scheduling a job like the following
+* Supported modes: `'outlier'` (despiking via rolling window and threshold), `'range'` (hard physical limits `min`/`max`), and `'ultra'` (probability-based anomaly detection requiring $\ge 86402$ data points).
 
-        ms = MartasStatus(config=config, statusdict=statusdict,tablename='COBSSTATUS')
-        sqllist = []
-        for elem in ms.statusdict:
-            statuselem = ms.statusdict.get(elem)
-            res = ms.read_data(statuselem=statuselem,debug=True)
-            warnmsg = ms.check_highs(res.get('value'), statuselem=statuselem)
-            newsql = ms.create_sql(elem, res, statuselem)
-            sqllist.extend(newsql)
+#### Implementation Example
+
+```python
+from martas.core import methods as mm
+from martas.core.analysis import MartasAnalysis
+
+config = mm.check_conf(mm.get_conf('/home/USER/.martas/conf/basevalue.cfg'))
+flagdict = mm.get_json('/home/USER/.martas/conf/flagdict.json')
+
+mf = MartasAnalysis(config=config, flagdict=flagdict)
+
+# Run periodic anomaly detection on the configured coverage window
+new_flags = mf.periodically(debug=False)
+
+# Write unified flags back to the database
+if len(new_flags) > 0:
+    mf.update_flags_db(new_flags, debug=False)
+
+```
+
+> **Lifecycle Management:** Use `mf.cleanup()` periodically to merge overlapping/adjacent flags in the database, `mf.upload('/path/to/flags/')` to import manual flag files (`*flags.json`), and `mf.archive('/srv/archive/flags/', keepyears=3)` once a year to offload historical flags into JSON archives.
 
 
-### 8.2 definitive.py for geomagnetic definitive data production
+### 8.3 Geomagnetic Data: Automatic DI Analysis and Baseline Production
 
-The definitive module contains a number of methods for geomagnetic definitive data analysis. It is currently part of 
-MARTAS2.0 and uses the same configuration data as basevalue. Please note that this module was specifically developed 
-for the Conrad Observatory and some of the methods will only be useful for very similar procedures. The module contains
-methods for analyzing variometer and scalar data. The methods are designed for an iterative analysis of one-second data,
-allowing for optimization of baseline adoption. Filtered one-minute products are generated.
-Following the data treatment philosophy of MagPy data from different sensors is treated separately,
+In geomagnetic observatories, continuous variometer records (which drift over time) must be calibrated against discrete absolute measurements of Declination ($D$) and Inclination ($I$). Two complementary tools automate this workflow:
 
-Please note: for a general application some of the methods will need to be updated. I included this module anyway, as 
-it might turn out to be useful for others, although it can not readily be applied in a general form.
+1. **`di.py` (Operational DI Processing):** Collects incoming manual theodolite or automated DI-flux (`autodif`) measurement files from local directories, web upload folders, or remote FTP/SFTP servers. It matches each absolute measurement against synchronous variometer and scalar ($F$) records from the database (or file archive), applies pier azimuths and delta values (`PIERS` table), calculates basevalues ($H_0, D_0, Z_0$), writes `BLV` text files, and optionally uploads results to `DIDATA` and `BLV` database tables.
+2. **`basevalue.py` (Iterative Baseline Recalculation & Fitting):** Recalculates basevalues across longer periods (e.g., 380 days) with optional compensation fields and Euler rotation angles (`DataRotationAlpha`, `DataRotationBeta`), removes flagged outliers, fits means, lines, spline or polynomial baseline curves, and generates overview plots.
 
-#### 8.2.1 variocorr
+#### Command-Line Implementation Examples
 
-Using variocorr one can analyse the variation data of several instruments, apply flagging information, eventually apply 
-transformations, rotations and offsets, and perform baseline adoption. Three different application levels are supported 
-for an iterative analysis: firstrun, secondrun and thirdrun. Firstrun will use a simple average baseline, whereas 
-secondrun and thirdrun support complex baseline fits. The application of bias fields (also called compensation fields), 
-rotation angles (Euler rotation) and flagging information can be varied between runs. By default the method requires 
-a full year of one second data of one or multiple instruments and baseline data files for each sensor. Data will be 
-treated in monthly chunks. The method can also be used for single day analysis by providing the date in 
-config['testdate']. The method returns monthly MagPyCDF data files containing raw data, flagging info and 
-baseline function, i.e. data files which contain basically every information to review IM variation and produce IM
-definitve data.
-Variocorr will always return rotation angles between measured field components and a magnetic coordinate system as 
-obtained by DI data. In case of an optimal DHZ oriented system these angles are zero. 
+**1. Automated daily DI analysis (`di.py`):**
 
-#### 8.2.2 variocomb
+```bash
+python3 di.py \
+  -c cobsdb \
+  -a /srv/archive/WIC/DI/analyze \
+  -v LEMI036_1_0002,FGE_S0252_0002 \
+  -j 0002,0002 \
+  -s GP20S3NSS2_012201_0001 \
+  -k 0001 \
+  -t WIC \
+  -p A2,A5,H1,A16 \
+  -y di,di,di,autodif \
+  -z False,179.8978,180.1391,267.3982 \
+  -w /srv/archive \
+  -n -g -r
 
-Variocomb is used to create a merged variation data set from multiple variometer records. The order of instruments in 
-the configuration files is used to define primary, secondary, ... systems. Baseline corrected data from variocorr is 
-then used to construct a joint record with gaps filled in minute resolution. Variocomb can also read scalar products 
-from 8.1.3 and create definitive minute products as requested by INTERMAGNET/IAGA. Definitve second products have to 
-be constructed from outputs of variocomb and scalarcomb in a separate step.
+```
 
-#### 8.2.3 scalarcorr and scalarcomb
+* `-n`: Adds calculated DI and basevalues (`BLV_*`) directly to the database.
+* `-g`: Applies quality flags from the database before computing basevalues.
+* `-r`: Moves processed raw DI files to `/srv/archive/WIC/DI/raw`.
 
-For scalar data the two methods to the same job as similar methods for variometers, without baseline adoption. Please
-note, complex F baseline require a different approach currently not supported by these methods. Currently only constant
-offsets are supported. Joint data sets are supported for both minute and second data.
+**2. Baseline recalculation and overview plotting (`basevalue.py`):**
 
-#### 8.2.4 create_rotation
+```bash
+# Recalculate basevalues using configuration file and generate spline fit overview plots
+python3 basevalue.py -c /home/USER/.martas/conf/basevalue.cfg -j secondrun,overview -e now
 
-Take the return of variocorr and add rotation data into the database so that average yearly rotations can be considered
-for analysis (leading to baseline jumps every year). 
-
-#### 8.2.5 pier_diff
-
-Used to determine F differences of multiple piers provided that a mobile reference sensor is used regularly to measure on 
-all these piers. This is very Conrad Observatory specific and you might want to contact the Cobs Team for details.  
-
-#### 8.2.6 dissemination: definitive_min and definitive_sec
-
-Creates geomagnetic dissemination data by producing the corresponding data formats and contents from the MagPy files
-obtained by above methods. Created are IAGA, IAF and ImagCDF (in minute and second resolution).
-
-#### 8.2.7 dissemination: activity_analysis
-
-Performs an analysis of geomagnetic activity
-
-#### 8.2.8 dissemination: blv
-
-Creates INTERMAGNET baseline format files and includes all required information into these files.
+```
 
 
-### 8.3 Useful commands during runtime
+### 8.4 Geomagnetic Data: Near Real-Time Adjusted and Quasi-Definitive Data Production
 
-acquisition process still running?  
+To provide immediate, calibrated geomagnetic time series for space weather monitoring and data portals before final yearly definitive processing is completed, `MartasAnalysis` supports automated **adjusted** and **quasi-definitive (QD)** data product generation:
 
-              bash /home/USER/.martas/runmartas status
+* **Adjusted Data (`runmode='adjusted'`):** Selects the primary active variometer and scalar sensor, removes known flags, applies sensor offsets/compensations, corrects the variometer data using a constant median baseline derived from recent absolute measurements, merges $X, Y, Z$ with scalar $F$, and generates filtered 1-minute (and 1-second) streams.
+* **Quasi-Definitive Data (`runmode='quasidefinitive'`):** Applies full functional baseline models (`BASELINE` table in DB) and updated rotation parameters to produce observatory-grade data products within days of acquisition.
 
-check log file contents
+#### Implementation Example
 
-              tail -30 /home/USER/.martas/log/martas.log
+```python
+from martas.core import methods as mm
+from martas.core.analysis import MartasAnalysis
 
-Are buffer files written
+config = mm.check_conf(mm.get_conf('/home/USER/.martas/conf/basevalue.cfg'))
+mf = MartasAnalysis(config=config)
 
-              ls -al /home/USER/MARTAS/mqtt/YOURSENSOR/
+# 1. Automatically select the primary operational variometer and scalar sensor
+vario_candidates = ['LEMI036_1_0002_0002', 'FGE_S0252_0002_0002']
+scalar_candidates = ['GP20S3NSS2_012201_0001_0001', 'GSM90_14245_0002_0002']
 
-Can I subscribe to the MQTT data stream (MQTTBROKER might be localhost, etc) 
+primary_vario = mf.get_primary(vario_candidates, coverage=86400)
+primary_scalar = mf.get_primary(scalar_candidates, coverage=86400, valuerange={'f': [40000, 55000]})
 
-              mosquitto_sub -h MQTTBROKER -t TOPIC/#
+# 2. Generate near real-time adjusted data products (1-sec and filtered 1-min)
+merged_products = mf.magnetism_data_product(
+    runmode='adjusted',
+    prim_v=primary_vario,
+    prim_s=primary_scalar
+)
 
-Can I publish data to a broker?
+# 3. Write resulting DataStreams back to the database
+results = merged_products.get('merge', {})
+for samplingrate, stream in results.items():
+    mf.db.write(stream)
 
-              mosquitto_pub -h MQTTBROKER -t TOPIC -m "Hello"
+```
 
- collector process running?  
+### 8.5 Geomagnetic Data: Real-Time Geomagnetic Activity
 
-          bash /home/USER/.martas/collect-JOBNAME status
+Real-time geomagnetic activity indices—specifically local **K-index nowcasts**—allow observatories and space weather services to quantify magnetic storm intensity without waiting for a full 3-hour synoptic interval to elapse.
 
-log file contents
+Because standard K-index algorithms (such as the FMI method implemented in `magpy.core.activity.K_fmi`) require complete 3-hour UT intervals and quiet-day Solar Regular ($S_R$) curves, real-time estimation relies on **forecasted/prolongated time series**. The `kvalues.py` workflow implements the **SFC (Shifted & Constant Prolongation)** method: it takes the most recent 1-minute adjusted variometer stream (`<STATION>_adjustedmin_0001_0001`), prolongs the remaining minutes of the current 3-hour UT window using a weighted blend of a constant last-value extension and a 24-hour shifted diurnal curve (with a 45-minute linear overlap), and computes the nowcast K-index (`<STATION>_K_0001_0001`).
 
-          tail -30 /home/USER/.martas/log/collect-JOBNAME.log
+> **Reference:** For methodological details, validation against definitive K-indices, and operational performance at the Conrad Observatory, see the *Conrad Observatory Yearbook 2025* (*Jahrbuch 2025*, GeoSphere Austria).
 
-data files/ database  written
+#### Command-Line Implementation Example
 
-          DATABASE:
-          mysql -u user -p mydb
-          select * from DATATABLE order by time desc limit 10;
+```bash
+# Calculate real-time nowcast K-values from 1-minute adjusted data and write to DB
+python3 kvalues.py -c /home/USER/.martas/conf/basevalue.cfg
 
-          FILE:
-          ls -al /my/file/destination/
+```
+
+*(Typically scheduled every 5 to 15 minutes via `cron` to update `<STATION>_K_0001_0001` in real time.)*
 
 
-## 9. Instruments and library
+### 8.6 Geomagnetic Data: Definitive Data Production
 
-### 9.1 Sensor communication libraries
+Producing annual **definitive** geomagnetic datasets (for submission to INTERMAGNET and World Data Centres) requires iterative baseline optimization, multi-instrument gap filling, pier difference corrections, and standardized dissemination formatting. This workflow is supported by `martas.core.definitive` in combination with the [MagPy](https://github.com/geomagpy/magpy) package.
+
+> [!NOTE]
+> While the underlying MagPy algorithms are general, the orchestration helpers in `definitive.py` were tailored to the multi-variometer and multi-pier setup of the Conrad Observatory and require adaptation for other observatory layouts.
+
+#### Iterative Processing Pipeline
+
+1. **Iterative Variometer & Scalar Correction (`variocorr`, `scalarcorr`):** Processes 1-second archive data in monthly chunks across three refinement stages (`firstrun` with constant median baselines; `secondrun` and `thirdrun` with spline/polynomial baseline functions from the `BASELINE` table, bias compensation, and annual Euler rotations via `create_rotation_sql`). Outputs monthly `PYCDF` files and 1-minute filtered streams.
+2. **Pier Difference Calibration (`pier_diff`):** Evaluates directional ($\Delta D, \Delta I$) and scalar ($\Delta F$) pier differences using mobile reference measurements and updates `DeltaDictionary` in the `PIERS` table.
+3. **Multi-Sensor Merging (`variocomb`, `scalarcomb`):** Combines primary, secondary, and tertiary instruments in priority order to fill data gaps and produces unified 1-minute and 1-second definitive datasets.
+4. **Dissemination & Activity Exports (`definitivefiles_min`, `definitivefiles_sec`, `blv`, `activity_analysis`):** Generates publication-ready files (`DataPublicationLevel = 4`) in **ImagCDF**, **IAGA-2002**, and **IAF** formats, creates INTERMAGNET baseline files (`BLV` / `IYFV`), and classifies quiet and disturbed days.
+
+#### Implementation Example
+
+```python
+import os
+from martas.core import methods as mm
+from martas.app import basevalue
+from martas.core import definitive
+
+# 1. Load and validate yearly configuration
+config = mm.get_conf('/home/USER/.martas/conf/basevalue_2025.cfg')
+config = basevalue.check_conf(
+    config,
+    startdate='2025-01-01',
+    enddate='2025-12-31',
+    varios=['LEMI036_1_0002_0002', 'FGE_S0252_0002_0002'],
+    scalars=['GP20S3NSS2_012201_0001_0001'],
+    piers=['A2', 'A5']
+)
+config['year'] = 2025
+config['outputformats'] = ['IMAGCDF', 'IAGA', 'IAF', 'MagPyK']
+
+# 2. Run third-pass baseline adoption and scalar cleaning
+rot_angles = definitive.variocorr('thirdrun', config=config)
+definitive.scalarcorr('thirdrun', config=config)
+
+# 3. Combine primary/backup instruments into gap-free records
+definitive.variocomb('thirdrun', config=config)
+definitive.scalarcomb('thirdrun', config=config)
+
+# 4. Generate INTERMAGNET/IAGA dissemination files (1-min, 1-sec, and BLV)
+results = {}
+results = definitive.definitivefiles_min(config=config, results=results, runmode='thirdrun')
+results = definitive.definitivefiles_sec(config=config, results=results, runmode='thirdrun')
+results = definitive.blv(config=config, results=results)
+
+```
+
+
+## 9. Useful Tools and Runtime Commands
+
+The following commands assist in verifying acquisition processes, MQTT broker communication, collector jobs, and database/file outputs during operation.
+
+### 9.1 MARTAS Acquisition (Edge Node)
+
+* **Check acquisition service status:**
+```bash
+bash /home/USER/.martas/runmartas status
+
+```
+
+
+* **Inspect recent acquisition logs:**
+```bash
+tail -30 /home/USER/.martas/log/martas.log
+
+```
+
+
+* **Verify local MQTT buffer files:**
+```bash
+ls -al /home/USER/MARTAS/mqtt/YOURSENSOR/
+
+```
+
+
+
+### 9.2 MQTT Broker Diagnostics
+
+* **Subscribe to live sensor topics** (replace `MQTTBROKER` with hostname or `localhost`):
+```bash
+mosquitto_sub -h MQTTBROKER -t TOPIC/#
+
+```
+
+
+* **Publish a test message to verify broker connectivity:**
+```bash
+mosquitto_pub -h MQTTBROKER -t TOPIC -m "Hello"
+
+```
+
+
+
+### 9.3 MARCOS Collector & Storage Verification
+
+* **Check collector job status:**
+```bash
+bash /home/USER/.martas/collect-JOBNAME status
+
+```
+
+
+* **Inspect collector log output:**
+```bash
+tail -30 /home/USER/.martas/log/collect-JOBNAME.log
+
+```
+
+
+* **Verify incoming records in MariaDB:**
+```bash
+mysql -u user -p mydb -e "SELECT * FROM DATATABLE ORDER BY time DESC LIMIT 10;"
+
+```
+
+
+* **Verify binary archive files on disk:**
+```bash
+ls -al /my/file/destination/
+
+```
+
+
+
+## 10. Instruments and library
+
+### 10.1 Sensor communication libraries
 
 Principally all libraries should work in version 2.0.0 although only tested libraries contain the new version number.
 
@@ -2230,9 +2326,9 @@ Principally all libraries should work in version 2.0.0 although only tested libr
 
 The library folder further contains publishing.py defining different MQTT topic/payload formats and lorawan stuff. 
 
-### 9.2 Sensor specific initialization files and settings
+### 10.2 Sensor specific initialization files and settings
 
-#### 9.2.1 GEM Systems Overhauser GSM90
+#### 10.2.1 GEM Systems Overhauser GSM90
 
 Using the initialization file of the GSM90 a command will be send towards the system in order to initialize passive 
 data transfer. You need to edit the initialization file within the configuration directory 
@@ -2251,7 +2347,7 @@ following parameters:
             D          -> sampling rate: D -> down, U -> up, leave out to keep sampling rate
             R          -> Run
 
-#### 9.2.2 GEM Systems Overhauser GSM19
+#### 10.2.2 GEM Systems Overhauser GSM19
 
 A GSM19 sensors does not need a initialization file. You need to configure the GSM19 to send data continuously to 
 the serial port however. Please note that the data transmission will stop as soon as the internal memory of the GSM19 
@@ -2300,15 +2396,15 @@ B. MARTAS
               $ ls -al ~/MARTAS/mqtt/SENSORID  (check buffermemory for new data)
 
 
-#### 9.2.3 Quantum POS1
+#### 10.2.3 Quantum POS1
 
 to be written
 
-#### 9.2.4 Meteolabs BM35 pressure
+#### 10.2.4 Meteolabs BM35 pressure
 
 to be written
 
-#### 9.2.5 ObsDAQ / PalmAcq
+#### 10.2.5 ObsDAQ / PalmAcq
 
 Having set up MARTAS, but before logging data, make sure to have the right settings for Palmacq and ObsDAQ.
 1) Use palmacq.py -h  and obsdaq.py -h for further information. These two scripts can be used to make settings easily by editing, but it is recommended not to edit beyond " # please don't edit beyond this line "
@@ -2322,11 +2418,11 @@ Having set up MARTAS, but before logging data, make sure to have the right setti
       FGE\_S0252\_0002,USB0,57600,8,1,N,passive,obsdaqinit.sh,-,1,obsdaq,FGE,S0252,0002,-,ABS-67,GPS,magnetism,magnetic fluxgate from Denmark
 7) start acquisition by e.g. /etc/init.d/martas start. Note, that acquisition will not start until Palmacq gets LEAPSECOND (= 18, set in obsdaq.cfg) over the GPS antenna. This guarantees correct GPS time. From now on NTP time will be recorded additionally in the sectime column
 
-#### 9.2.6 LM - TLippmann tilt meter
+#### 10.2.6 LM - TLippmann tilt meter
 
 To be added (stalled)
 
-#### 9.2.7 Dallas OW (One wire) support
+#### 10.2.7 Dallas OW (One wire) support
 
 Modify owfs,conf
 
@@ -2345,7 +2441,7 @@ Then start the owserver
         $ sudo etc/init.d/owserver start
 
 
-#### 9.2.8  Communicating with an Arduino Uno Microcontroller
+#### 10.2.8  Communicating with an Arduino Uno Microcontroller
 
 An [Arduino Microcontroller] has to be programmed properly with serial outputs, which are interpretable from MARTAS. Such Arduino programs are called sketch.
 MARTAS contains a few example scripts, which show, how these sketches need to work, in order to be used with MARTAS. In principle, two basic acquisition modes are supported
@@ -2391,9 +2487,9 @@ configuration. You can check the Arduino independently by looking at Arduino/Too
 
 **IMPORTANT NOTE**: for active access it is sometimes necessary to start the SerialMonitor from arduino before starting pMARTAS. The reason is not clarified yet. This is important after each reboot. If not all sensors are detetcted, you can try to send the RESET command "reS" to the arduino. This will reload available sensors. Such problem might occur if you have several one wire sensors connected to the arduion and remove or replace sensors, or change their configuration.
 
-## 10. Appendix
+## A. Appendix
 
-### 10.1. Specific installation examples and possible issues
+### A.1. Specific installation examples and possible issues
 
 The installation is usually straightforward as described in section 2. For some systems, especially ARM systems, you 
 might however require very specific or some additional packages to fulfill required dependencies. Here we summarise 
@@ -2405,7 +2501,7 @@ Sometime occuring on ARM processor systems:
 - general problem with any python package: check 
 
 
-#### 10.1.1 MARTAS on BeagleBone Black Rev C with system python
+#### A.1.1 MARTAS on BeagleBone Black Rev C with system python
 
 For some hardware systems, particularly ARM processors (Beaglebone, etc) problems might occur during the 
 setup of virtual python environments. Such problems have been experienced while installing scipy inside a virtual
@@ -2460,7 +2556,7 @@ the "runmartas.sh" job within "~\.martas". Replace "acquisition" by the full pat
 it available from cron.
 Please read sections 4 for [MARTAS](#4-pmartas) setup.
 
-#### 10.1.2 MARTAS on Raspberry Zero W (32bit) and Zero 2 W (32bit recommended)
+#### A.1.2 MARTAS on Raspberry Zero W (32bit) and Zero 2 W (32bit recommended)
 
 Tested for Debian 13 "Trixie" and Debian "Bookworm" (python 3.11). It is recommended to use a python environment for 
 installation. You can, however, also use the "break-system-packages" approach as in 10.1.1.
@@ -2545,7 +2641,7 @@ Add some post-installation things
 Please read sections 4 for [MARTAS](#4-pmartas) setup. It is not recommended to use a Raspberry Zero W for [MARCOS](#5-marcos) 
 although it will work if you limit the amount of incoming data.
 
-#### 10.1.3 MARTAS on Raspberry (RPi5, and all other 64bit systems)
+#### A.1.3 MARTAS on Raspberry (RPi5, and all other 64bit systems)
 
 For Debian 13 "Trixie" please use the [standard installation routine](#22-installing-martas). 
 
@@ -2630,7 +2726,7 @@ Add some post-installation things
       # activate TEST
 
 
-#### 10.1.4 Full installation example with all options
+#### A.1.4 Full installation example with all options
 
 Please install your preferred debian like system onto your preferred hardware. MARTAS will work with every debian 
 like system. Please follow the installation instructions given for the specific operating system. In the following we
@@ -2746,18 +2842,18 @@ add credentials for database access (please replace dbnames, user and passwords 
        addcred -t db -c sqlmaster -u admin -p passwd -o localhost -d magpydb
 
 
-#### 10.1.5 Installation behind a proxy server
+#### A.1.5 Installation behind a proxy server
 
 Reconfigure pip to use the proxy server (if necessary)
 
       pip config set global.proxy http://{host}/{port}
 
 
-#### 10.1.6 installation problems and their solutions
+#### A.1.6 installation problems and their solutions
 
 sslpsk2 cannot be installed -> sudo apt install ssh libssl-dev and retry
 
-#### 10.1.7 Removing MARTAS 1.x and replacing by MARTAS2
+#### A.1.7 Removing MARTAS 1.x and replacing by MARTAS2
 
 Install the MARTAS 2. Copy all essential config information. Then
 
@@ -2771,9 +2867,9 @@ If successful:
 
       sudo rm /etc/init.d/martas
 
-### 10.2 Setting up a secure TLS based mosquitto broker for MARTAS
+### A.2 Setting up a secure TLS based mosquitto broker for MARTAS
 
-#### 10.2.1 Certificate based TLS encryption
+#### A.2.1 Certificate based TLS encryption
 
 In the following you will find an example for a TLS encrypted self-certified setup. We strongly recommend to follow
 official mosquitto installation instructions when setting up a secure TLS broker. TLS encryption is recommended if you 
@@ -2890,7 +2986,7 @@ Testing certificate based connections:
        mosquitto_pub -h theia -t test -m "hello" -p 8883 --cafile /etc/mosquitto/ca_certificates/ca.crt -d
 
 
-#### 10.2.2 TLS-PSK encryption using pre-shared-keys
+#### A.2.2 TLS-PSK encryption using pre-shared-keys
 
 On the mosquitto broker, go to /etc/mosquitto and copy the pskfile.example
 
@@ -2932,9 +3028,9 @@ Testing TLS-PSK connections:
        mosquitto_sub -h theia -t test/# -p 8883 --cafile /etc/mosquitto/ca_certificates/ca.crt -v -d
 
 
-### 10.3 Development tools
+### A.3 Development tools
 
-#### 10.3.1 Testing modules
+#### A.3.1 Testing modules
 
 Unittest are included in the following modules. app_tester will perform a unittest on applications in the app folder:
 
@@ -2942,13 +3038,13 @@ Unittest are included in the following modules. app_tester will perform a unitte
        python core/methods.py
        python core/definitive.py
 
-#### 10.3.2 Testing acquisition
+#### A.3.2 Testing acquisition
 
 The main program contains a testing option -T which will create an artificial/random data set published on topic "tst":
 
        python acquisition.py -m ~/.martas/conf/martas.cfg -T
 
-#### 10.3.3 Testing pMARTAS and pMARCOS
+#### A.3.3 Testing pMARTAS and pMARCOS
 
 Run a test acquisition as shown in 9.5.2 to simulate a sensor
 
@@ -2964,7 +3060,7 @@ two libraries. Please configure sensors.cfg accordingly and use a stationID diff
        nano ~/.martas/conf/sensors.cfg
        python acquisition.py -m ~/.martas/conf/martas.cfg
 
-### 10.4 Setting up upterm for remote station maintenance
+### A.4 Setting up upterm for remote station maintenance
 
 tested on Ubuntu 22.04.5 LTS (x86-64, ThinkPad X13 Gen 4) and Raspbian 10 buster (arm, v7l) 
 
@@ -2972,7 +3068,7 @@ Please note: in order to use 2way communication and uterm together you need to a
 
        PATH=/bin:/usr/bin:/usr/local/bin
 
-#### 10.4.1 Ubuntu 22 
+#### A.4.1 Ubuntu 22 
 
 Download the linux Version console 
 
@@ -3025,7 +3121,7 @@ for example:
 the last line starting with "ssh bJ5OpbvIM...." is the command you need to enter in your clients terminal - with upterm also installed.
         exit 
 
-#### 10.4.2 Raspberry 
+#### A.4.2 Raspberry 
 
 To build a upterm binary for ARM you have to download a new Go tool (at least Go 1.13+). For 32bit systems you need to 
 change "arm64.tar.gz" to "armv6l.tar.gz and use "GOARM=6":
@@ -3053,7 +3149,7 @@ check
 
 In case of “Permission denied (publickey)” check 1.1. Caution: geosphere guest is blocking port 22!!! 
 
-#### 10.4.3 Beaglebone 
+#### A.4.3 Beaglebone 
 
 tested for: 
 
@@ -3077,7 +3173,7 @@ go version Build upterm binary: console
 
 In case of “Permission denied (publickey)” check 1.1
 
-### 10.5 Fixing switching of USB ports on reboot
+### A.5 Fixing switching of USB ports on reboot
 
 This answer is a summary of a Gemini request:
 
@@ -3148,9 +3244,9 @@ Within sensors.cfg in MARTAS configuration directory you then need to point to /
 instead of the unpredictable USBx.
 
 
-### 10.6 Setup examples for automatic analysis processes
+### A.6 Setup examples for automatic analysis processes
 
-#### 10.6.1 continuous, automatic DI analysis 
+#### A.6.1 continuous, automatic DI analysis 
 
 The automatic DI analysis makes use of the basevalue application.
 ```
@@ -3243,7 +3339,7 @@ echo "Success"
 ```
 
 
-### 10.6 Issues and TODO
+### A.6 Issues and TODO
 
 in some cases, if the recording process terminates, the daily buffer file might be corrupt. In that case you need to 
 delete the daily file and restart the recoding process. The next daily file will be OK in any case.
