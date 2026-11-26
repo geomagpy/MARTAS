@@ -8,7 +8,7 @@ v2.0.3 fixes:
     - file_download and archive: correctly consider paths with space
 
 v2.0.3 additions:
-    - included REST API to access data on a MARCOS collector (check manual 5.6)
+    - included REST API to access data on a MARCOS collector (check manual 5.7)
     - improved archive for speed and prevent locking of database while archiving
     - improved db_truncate to prevent locking of database while cleaning up
 

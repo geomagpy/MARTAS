@@ -860,6 +860,11 @@ structure you send in std.out. You might also want to activate debug : True with
 information on delivery.
 
 
+### 4.9 Full example: Setting up a MARTAS acquisition system
+
+Steps: install packages, prepare directory structure, credentials, martas_init, configure sensors
+
+
 ## 5. MARCOS
 
 ### 5.1. Quick instructions
@@ -1167,7 +1172,7 @@ Ensure that TCP port `8000` (or your chosen port) is reachable within your local
 Navigate to the viewer/application directory containing `api.py` and `db_service.py` and launch the Uvicorn server 
 bound to `0.0.0.0` so external clients on the network can connect:
 
-        (martas)$ cd ~/MARTAS/app
+        (martas)$ cd ~/.martas/web
         (martas)$ uvicorn api:app --host 0.0.0.0 --port 8000
 
 #### 5.7.3 Running as an optional system service (systemd)
@@ -1216,7 +1221,29 @@ with the collector's IP address or hostname):
         $ curl "http://ip_of_marcos:8000/api/v1/data/Sensor1_0001_0001_0001?limit=100"
 
 
-## 6. Applications
+#### 5.7.5 Testing the API endpoints
+
+The application `api_tester.html` provides an overview abd a test environment for the API. Start the API following the intsructions above from the web folder.
+
+        uvicorn api:app --host 0.0.0.0 --port 8000
+
+Then run a http.server locally from the same directory:
+
+        python3 -m http.server 8081
+
+To access the test functions open the following page:
+
+        http://localhost:8081/api_tester.html
+
+
+### 5.8 Full example: Setting up a complete MARCOS collector with database
+
+In the following we provide a complete step-by-step example on how to setup up a complete MARCOS database including essential and optional tools on a Ubuntu 26.04 machine. This instructions are valid for most linux distributions and systems. You find specific instructions for some old and low-performance boards like raspberry zero/beaglebones in the appendix.
+
+Steps: install packages, prepare directory structure, database install and init, credentials, martas_init, add MARTAS, add from file, configure monitoring, archive threshold, cleanup and filtering 
+
+
+## 6. Modules and applications
 
 ### 6.1 Overview of applications
 
@@ -2209,6 +2236,145 @@ results = definitive.definitivefiles_sec(config=config, results=results, runmode
 results = definitive.blv(config=config, results=results)
 
 ```
+
+### 8.7 Full example: Implementing a real-time geomagnetic observatory
+
+In the following we summarize all implementation steps to get your geomagnetic raw data from the MARCOS database towards a Geomagnetic Information Node (GIN) or the INTERMAGNET real-time receiver. For this purpose we assume the following notations and parameters. Your observatory code is **TST**. Please replace bold face parameters (i.e.**TST**) when implementing the code into your observatory environment. You have a MARCOS database installed as outlined above and credentials have been created using `addcred` with shortcut **tstdb**. You have two variometers [**VARIO1_12345_0001**, **VARIO2_54321_0001**] and two scalar sensors [**SCALAR1_15243_0001**, **SCALAR2_51423_0001**]. Data from these sensors is available in the MARCOS database in tables like **VARIO1_12345_0001_0001** either by continuous ingestion using MARTAS or by periodic uploads using `file_upload.py`. Please note: you need at least one variometer and one scalar sensor. Your observatory is routinely performing DI measurements using a DI-flux system on pier **P1**. Your MARCOS server is a Linux machine equipped with a storage disk mounted as /media/storage which is used for the data archive in /media/storage/archive/**TST**. Data from all sensors is recorded in 1 sec resolution. 
+
+#### Handling of DI-flux measurements
+
+For this example we assume manual DI-flux measurements performed periodically on pier **P1**. 
+
+#### Preparing the configuration files
+
+The following steps need to be performed: (1) automated flagging of all 1 sec data, (2) periodic DI analysis of new DI-flux measurements and extension of baseline information for each variometer, (3) validation and assignment of primary systems, (4) periodic calculation of adjusted data for the primary sensors. 
+
+In order to perform above steps we firstly have to update the required configuration files associated with above tasks:
+
+`/home/USER/.martas/conf/basevalue.cfg`:
+
+```
+vainstlist     :      **VARIO1_12345_0001**,**VARIO2_54321_0001**
+scinstlist     :      **SCALAR1_15243_0001**,**SCALAR2_51423_0001**
+pierlist       :      **P1**
+primarypier    :      **P1**
+#pierdict       :      A16:0.2
+#diid           :      .abs
+
+# Databases
+# --------------------------------------------------------------
+dbcredentials  :      **tstdb**
+
+
+# Analysis parameters
+# --------------------------------------------------------------
+# - magrotation = True will activate compensation and rotation
+# - compensation = True will activate compensation and rotation
+# - usealpha will handle rotation parameter
+# - expectedD = the expected declination as integer
+# - expectedI = the expected inclination as integer
+#    -> deviation of more than 2deg lead to failure reports
+# - skipscalardb True will not use offsets from database
+#    -> use only if your scalar source is fully corrected for
+#       pier diffs already TODO OR TOGETHER WITH F-ADOPTION
+# - movetoarchive: if True and didatapath = analyze then
+#      successfully analyzed DI data is moved to raw
+# --------------------------------------------------------------
+magrotation    :      False
+compensation   :      False
+usealpha       :      False
+usebeta        :      False
+expectedD      :      0
+expectedI      :      0
+skipscalardb   :      False
+movetoarchive  :      True
+
+
+# Paths and data sources
+# --------------------------------------------------------------
+#  - basepath expects a "magpy" directory structure below
+#    like /srv    -> /srv/archive/WIC/Di; /srv/archive/WIC/
+#  - if blvdatapath = None: /srv/archive/obscode/DI/data
+#  - didata path can be either analyze, raw or a full path
+#  - backup = True will create a backup of BLV data before saving
+#  - writemode supports:
+#          -> replace: Replace only existing data
+#          -> overwrite: Delete all and write new
+#          -> append: Append data if not existing
+#          -> fullreplace: Replace everything within time range
+# --------------------------------------------------------------
+obscode        :      **TST**
+datasource     :      file
+ext            :      cdf
+base           :      /media/storage
+plot           :      False
+blvabb         :      BLV
+#blvdatapath   :      /media/storage/archive/TST/DI/data
+diflagfile     :      /media/storage/products/data/magnetism/definitive/BLV_flags.json
+contflagfile   :      /media/storage/products/products/data/magnetism/definitive/all_flags.json
+#saveplotpath   :      xxx
+didatapath     :      raw
+writemode      :      fullreplace
+backup         :      False
+
+
+# Data receivers
+# --------------------------------------------------------------
+#  - writeflags: write flags within the DataStream structure - CDF
+#  - writedi2db: write di raw data to db
+#  - writeblv2db: write basevalues to db
+#  - writedbcond: only write BLV data to BD for this combination
+#  - writeraw: move successfully analyzed data to raw folder
+#  - writeblv2db: write basevalues to file
+# --------------------------------------------------------------
+writeraw       :      False
+writeblv2db    :      True
+writeblv2file  :      False
+writedi2db     :      True
+writeflags     :      False
+#writedbcond    :      vario:LEMI036_1_0002_0002;scalar:GP20S3NSS2_012201_0001_0001;pier:A5
+
+# Monitoring
+# --------------------------------------------------------------
+#  - Logfile (a json style dictionary, which contains statusmessages)
+#  - Notifaction (uses martaslog class, one of email, telegram, mqtt, log)
+# --------------------------------------------------------------
+logfile              :   /home/USER/.martas/log/basevalue.log
+notification         :   email
+notificationconfig   :   notificationcfg
+```
+
+Then we create a flagging configuration file. Please note: flagging configuration is stored within a json structure. 
+
+`/home/USER/.martas/conf/flagdict.json`:
+
+```json
+{
+  "VARIO1": {
+    "coverage": 86400,
+    "keys": ["x", "y", "z"],
+    "mode": ["outlier"],
+    "samplingrate": 1,
+    "min": -59000,
+    "max": 59000,
+    "addflag": true,
+    "threshold": 4,
+    "window": 60,
+    "markall": true
+  }
+}
+```
+
+#### Preparing scheduled applications
+
+
+
+
+#### Suggestions for deviations from above example:
+
+* **VARIO1_12345_0001** records in 10Hz: use the basic MARCOS `filter.py` to filter 10Hz data to 1Hz data peridoically i.e. every 1-5 minutes. This will create **VARIO1_12345_0001_0002** containing 1Hz data. Use this table for all steps described above
+
+* **Considering bias fields**: Sensors like LEMI025 provide bias field within their meta information. I personally apply these bias fields when analyzing data, as in a well calibrated system the resultant vector is close to the geomagnetic field, which allows for fast data analyses like delta F tests without baseline adoption. Bias field application is referred to the *compensation* parameter. Set it to *True* to apply it. Bias field values are found (and can be added for other sensors in the "DataCompensation" columns in the `DATAINFO` table. 
 
 
 ## 9. Useful Tools and Runtime Commands

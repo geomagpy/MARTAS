@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MARCOS REST API & DB Service Tester</title>
+    <style>
+        :root {
+            --bg-main: #0f1117;
+            --bg-panel: #161b22;
+            --bg-card: #1c212b;
+            --border-color: #2d333b;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #38bdf8;
+            --accent-hover: #0284c7;
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header / Toolbar */
+        header {
+            background-color: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(139, 148, 158, 0.15);
+            color: var(--text-secondary);
+            border: 1px solid rgba(139, 148, 158, 0.3);
+        }
+
+        .status-badge.connected {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--success);
+            border-color: rgba(63, 185, 80, 0.3);
+        }
+
+        .status-badge.error {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--danger);
+            border-color: rgba(248, 81, 73, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        input[type="text"], input[type="number"], input[type="datetime-local"], select, button {
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.85rem;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        button {
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+        }
+
+        button.primary {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: 600;
+            border-color: var(--accent);
+        }
+
+        button.primary:hover {
+            background-color: var(--accent-hover);
+            color: #fff;
+        }
+
+        /* Main Layout */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar Navigation */
+        aside {
+            width: 280px;
+            background-color: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 15px;
+            flex-shrink: 0;
+            gap: 16px;
+        }
+
+        .sidebar-section h2 {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .endpoint-btn {
+            width: 100%;
+            text-align: left;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 6px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .endpoint-btn:hover {
+            background-color: var(--bg-card);
+            border-color: var(--border-color);
+        }
+
+        .endpoint-btn.active {
+            background-color: var(--bg-card);
+            border-color: var(--accent);
+        }
+
+        .endpoint-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .method-tag {
+            font-family: monospace;
+            font-size: 0.7rem;
+            padding: 1px 5px;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .endpoint-path {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        /* Content Area */
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px 18px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .param-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .field label {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .url-preview {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: #11141c;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            overflow-x: auto;
+        }
+
+        .url-preview span {
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        /* Tabs for Response */
+        .tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab-btn {
+            padding: 4px 10px;
+            font-size: 0.8rem;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent);
+            color: #000;
+            font-weight: 600;
+            border-color: var(--accent);
+        }
+
+        /* Table & JSON Output */
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 360px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            background-color: var(--bg-panel);
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        pre {
+            background-color: #11141c;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.8rem;
+            color: #c9d1d9;
+            overflow: auto;
+            max-height: 450px;
+            line-height: 1.45;
+        }
+
+        canvas {
+            width: 100%;
+            height: 240px;
+            background-color: #11141c;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: block;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .pill-ok { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+        .pill-warn { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+        .pill-crit { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+
+        .meta-bar {
+            display: flex;
+            gap: 15px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--bg-panel);
+            border-top: 1px solid var(--border-color);
+            padding: 6px 20px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #debug {
+            font-family: monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="brand">
+        <h1>MARCOS REST API Tester</h1>
+        <span id="api-status" class="status-badge">
+            <span class="status-dot"></span>
+            <span id="api-status-text">Not checked</span>
+        </span>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="baseUrlInput">Base URL:</label>
+            <input type="text" id="baseUrlInput" value="http://localhost:8000" style="width: 220px;" placeholder="http://ip_of_marcos:8000">
+        </div>
+        <button id="checkHealthBtn" class="primary">Test Connection</button>
+        <button id="openDocsBtn" title="Open FastAPI Swagger UI">Swagger /docs ↗</button>
+    </div>
+</header>
+
+<div class="workspace">
+    <aside>
+        <div class="sidebar-section">
+            <h2>Diagnostics & DB Service</h2>
+            <button class="endpoint-btn active" data-endpoint="health">
+                <div class="endpoint-title"><span>API Health Check</span><span class="method-tag">GET</span></div>
+                <div class="endpoint-path">/api/v1/health</div>
+            </button>
+            <button class="endpoint-btn" data-endpoint="database">
+                <div class="endpoint-title"><span>Database & Tables</span><span class="method-tag">GET</span></div>
+                <div class="endpoint-path">/api/v1/database</div>
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <h2>Metadata & Status</h2>
+            <button class="endpoint-btn" data-endpoint="location">
+                <div class="endpoint-title"><span>Sensor Locations (GeoJSON)</span><span class="method-tag">GET</span></div>
+                <div class="endpoint-path">/api/v1/location</div>
+            </button>
+            <button class="endpoint-btn" data-endpoint="status">
+                <div class="endpoint-title"><span>Status Metric (COBSSTATUS)</span><span class="method-tag">GET</span></div>
+                <div class="endpoint-path">/api/v1/status/{metric}</div>
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <h2>Timeseries Data</h2>
+            <button class="endpoint-btn" data-endpoint="timeseries">
+                <div class="endpoint-title"><span>Timeseries (CovJSON)</span><span class="method-tag">GET</span></div>
+                <div class="endpoint-path">/api/v1/timeseries/{data_id}</div>
+            </button>
+        </div>
+
+        <div class="sidebar-section">
+            <h2>Custom Request</h2>
+            <button class="endpoint-btn" data-endpoint="custom">
+                <div class="endpoint-title"><span>Custom Endpoint</span><span class="method-tag">GET</span></div>
+                <div class="endpoint-path">/api/...</div>
+            </button>
+        </div>
+    </aside>
+
+    <main>
+        <!-- Request Builder Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" id="panelTitle">API Health Check (/api/v1/health)</span>
+                <button id="sendRequestBtn" class="primary">▶ Send Request</button>
+            </div>
+
+            <!-- Dynamic Parameter Forms -->
+            <div id="params-health" class="param-panel">
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                    Prüft die Erreichbarkeit von <code>api.py</code> und die aktive Verbindung über <code>db_service.py</code> zur MariaDB.
+                </p>
+            </div>
+
+            <div id="params-database" class="param-panel hidden">
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                    Liefert Datenbank-Diagnosedaten, Tabellenübersichten (<code>DATAINFO</code>, <code>SENSORS</code>, etc.) und Speicherstatistiken.
+                </p>
+            </div>
+
+            <div id="params-location" class="param-panel hidden">
+                <div class="param-grid">
+                    <div class="field">
+                        <label for="locMaxAge">max_age_minutes (Aktivitätsfilter):</label>
+                        <input type="number" id="locMaxAge" value="60" min="1" placeholder="60">
+                    </div>
+                </div>
+            </div>
+
+            <div id="params-status" class="param-panel hidden">
+                <div class="param-grid">
+                    <div class="field">
+                        <label for="statusMetricInput">Status Metric Name (aus statusdict.json):</label>
+                        <input type="text" id="statusMetricInput" value="Average Temperature of TEST001" placeholder="z.B. Average Temperature of TEST001">
+                    </div>
+                    <div class="field">
+                        <label for="statusPresetSelect">Schnellauswahl / Beispiel:</label>
+                        <select id="statusPresetSelect">
+                            <option value="Average Temperature of TEST001">Average Temperature of TEST001</option>
+                            <option value="">-- Eigenen Namen eingeben --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="params-timeseries" class="param-panel hidden">
+                <div class="param-grid">
+                    <div class="field">
+                        <label for="tsDataId">DataID (Tabellenname):</label>
+                        <input type="text" id="tsDataId" value="BM35_029_0001_0001" placeholder="Name_Serial_SensorRev_DataRev">
+                    </div>
+                    <div class="field">
+                        <label for="tsKnownSensors">Gefundene Sensoren (aus /location oder /database):</label>
+                        <select id="tsKnownSensors">
+                            <option value="">-- Erst /location oder /database abfragen --</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="tsStart">starttime (optional, leer = letzte 24h):</label>
+                        <input type="text" id="tsStart" placeholder="YYYY-MM-DD oder YYYY-MM-DDTHH:MM:SS">
+                    </div>
+                    <div class="field">
+                        <label for="tsEnd">endtime (optional):</label>
+                        <input type="text" id="tsEnd" placeholder="YYYY-MM-DD oder YYYY-MM-DDTHH:MM:SS">
+                    </div>
+                </div>
+            </div>
+
+            <div id="params-custom" class="param-panel hidden">
+                <div class="param-grid">
+                    <div class="field" style="grid-column: 1 / -1;">
+                        <label for="customPathInput">Relativer Pfad & Query-Parameter:</label>
+                        <input type="text" id="customPathInput" value="/api/v1/location?max_age_minutes=1440" placeholder="/api/v1/...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live URL Preview -->
+            <div class="url-preview" style="margin-top: 12px;">
+                <span id="fullUrlPreview">http://localhost:8000/api/v1/health</span>
+                <button id="copyUrlBtn" style="padding: 2px 8px; font-size: 0.75rem;">Copy URL</button>
+                <button id="copyCurlBtn" style="padding: 2px 8px; font-size: 0.75rem;">Copy cURL</button>
+            </div>
+        </div>
+
+        <!-- Response Card -->
+        <div class="card" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="card-header">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="card-title">Response</span>
+                    <div class="meta-bar">
+                        <span id="respStatus">HTTP: -</span>
+                        <span id="respTime">Duration: -</span>
+                        <span id="respSize">Size: -</span>
+                    </div>
+                </div>
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="visual">Structured / Plot</button>
+                    <button class="tab-btn" data-tab="raw">Raw JSON</button>
+                </div>
+            </div>
+
+            <!-- Structured / Visual View -->
+            <div id="view-visual" style="display: flex; flex-direction: column; gap: 12px;">
+                <div id="chartContainer" class="hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 0.82rem; color: var(--text-secondary);">Timeseries Preview (CovJSON / Array)</span>
+                        <select id="plotChannelSelect" style="font-size: 0.8rem;"></select>
+                    </div>
+                    <canvas id="tsCanvas" width="900" height="240"></canvas>
+                </div>
+                <div id="structuredOutput" class="table-wrapper">
+                    <p style="font-size: 0.85rem; color: var(--text-secondary);">Klicke auf "Send Request", um einen Endpunkt zu testen.</p>
+                </div>
+            </div>
+
+            <!-- Raw JSON View -->
+            <div id="view-raw" class="hidden">
+                <pre id="rawJsonOutput">{}</pre>
+            </div>
+        </div>
+    </main>
+</div>
+
+<footer>
+    <div id="debug">Ready. Hinweis: Falls diese Datei lokal via file:// geöffnet wird, muss CORS in api.py aktiv sein (oder über http.server bereitstellen).</div>
+    <div id="server-info">MARCOS FastAPI / db_service.py</div>
+</footer>
+
+<script>
+    let currentEndpoint = 'health';
+    let lastResponseData = null;
+    let parsedSeriesMap = {};
+
+    const els = {
+        baseUrl: document.getElementById('baseUrlInput'),
+        apiStatus: document.getElementById('api-status'),
+        apiStatusText: document.getElementById('api-status-text'),
+        panelTitle: document.getElementById('panelTitle'),
+        fullUrlPreview: document.getElementById('fullUrlPreview'),
+        respStatus: document.getElementById('respStatus'),
+        respTime: document.getElementById('respTime'),
+        respSize: document.getElementById('respSize'),
+        structuredOutput: document.getElementById('structuredOutput'),
+        rawJsonOutput: document.getElementById('rawJsonOutput'),
+        chartContainer: document.getElementById('chartContainer'),
+        plotChannelSelect: document.getElementById('plotChannelSelect'),
+        tsCanvas: document.getElementById('tsCanvas'),
+        debug: document.getElementById('debug')
+    };
+
+    const titles = {
+        health: 'API Health Check (/api/v1/health)',
+        database: 'Database & Tables Diagnostics (/api/v1/database)',
+        location: 'Sensor Locations & Activity GeoJSON (/api/v1/location)',
+        status: 'Status Metric from COBSSTATUS (/api/v1/status/{metric})',
+        timeseries: 'Timeseries Data CovJSON (/api/v1/timeseries/{data_id})',
+        custom: 'Custom Endpoint Request'
+    };
+
+    function buildUrl() {
+        const base = els.baseUrl.value.replace(/\/+$/, '');
+        switch (currentEndpoint) {
+            case 'health':
+                return `${base}/api/v1/health`;
+            case 'database':
+                return `${base}/api/v1/database`;
+            case 'location': {
+                const age = document.getElementById('locMaxAge').value;
+                return age ? `${base}/api/v1/location?max_age_minutes=${encodeURIComponent(age)}` : `${base}/api/v1/location`;
+            }
+            case 'status': {
+                const metric = document.getElementById('statusMetricInput').value.trim();
+                return `${base}/api/v1/status/${encodeURIComponent(metric)}`;
+            }
+            case 'timeseries': {
+                const dataId = document.getElementById('tsDataId').value.trim();
+                const start = document.getElementById('tsStart').value.trim();
+                const end = document.getElementById('tsEnd').value.trim();
+                const params = new URLSearchParams();
+                if (start) params.append('starttime', start);
+                if (end) params.append('endtime', end);
+                const qs = params.toString();
+                return `${base}/api/v1/timeseries/${encodeURIComponent(dataId)}${qs ? '?' + qs : ''}`;
+            }
+            case 'custom': {
+                let path = document.getElementById('customPathInput').value.trim();
+                if (!path.startsWith('/')) path = '/' + path;
+                return `${base}${path}`;
+            }
+        }
+    }
+
+    function updateUrlPreview() {
+        els.fullUrlPreview.textContent = buildUrl();
+    }
+
+    // Sidebar navigation
+    document.querySelectorAll('.endpoint-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.endpoint-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentEndpoint = btn.dataset.endpoint;
+            els.panelTitle.textContent = titles[currentEndpoint];
+
+            document.querySelectorAll('.param-panel').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`params-${currentEndpoint}`).classList.remove('hidden');
+            updateUrlPreview();
+        });
+    });
+
+    // Live URL updates on input
+    document.querySelectorAll('input, select').forEach(inp => {
+        inp.addEventListener('input', updateUrlPreview);
+    });
+
+    document.getElementById('statusPresetSelect').addEventListener('change', (e) => {
+        if (e.target.value) {
+            document.getElementById('statusMetricInput').value = e.target.value;
+            updateUrlPreview();
+        }
+    });
+
+    document.getElementById('tsKnownSensors').addEventListener('change', (e) => {
+        if (e.target.value) {
+            document.getElementById('tsDataId').value = e.target.value;
+            updateUrlPreview();
+        }
+    });
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            document.getElementById('view-visual').classList.toggle('hidden', tab !== 'visual');
+            document.getElementById('view-raw').classList.toggle('hidden', tab !== 'raw');
+        });
+    });
+
+    // Copy buttons & Swagger
+    document.getElementById('copyUrlBtn').addEventListener('click', () => {
+        navigator.clipboard.writeText(buildUrl());
+        els.debug.textContent = 'Copied URL to clipboard.';
+    });
+
+    document.getElementById('copyCurlBtn').addEventListener('click', () => {
+        navigator.clipboard.writeText(`curl -s "${buildUrl()}"`);
+        els.debug.textContent = 'Copied cURL command to clipboard.';
+    });
+
+    document.getElementById('openDocsBtn').addEventListener('click', () => {
+        const base = els.baseUrl.value.replace(/\/+$/, '');
+        window.open(`${base}/docs`, '_blank');
+    });
+
+    // Discover DataIDs automatically from /location or /database responses
+    function populateKnownSensors(data) {
+        const select = document.getElementById('tsKnownSensors');
+        const ids = new Set();
+
+        if (data && data.features && Array.isArray(data.features)) {
+            data.features.forEach(f => {
+                const p = f.properties || {};
+                if (p.DataID) ids.add(p.DataID);
+                if (p.data_id) ids.add(p.data_id);
+                if (f.id) ids.add(f.id);
+            });
+        }
+        if (data && data.tables && Array.isArray(data.tables)) {
+            data.tables.forEach(t => {
+                const name = typeof t === 'string' ? t : (t.DataID || t.table_name || t.name);
+                if (name && name.includes('_')) ids.add(name);
+            });
+        }
+        if (data && Array.isArray(data.datainfo)) {
+            data.datainfo.forEach(d => {
+                if (d.DataID) ids.add(d.DataID);
+            });
+        }
+
+        if (ids.size > 0) {
+            select.innerHTML = '<option value="">-- Gefundene DataID auswählen --</option>';
+            ids.forEach(id => {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = id;
+                select.appendChild(opt);
+            });
+        }
+    }
+
+    // Render structured views depending on payload shape
+    function renderResponse(data) {
+        lastResponseData = data;
+        els.rawJsonOutput.textContent = JSON.stringify(data, null, 2);
+        els.chartContainer.classList.add('hidden');
+        populateKnownSensors(data);
+
+        // 1. GeoJSON FeatureCollection (/api/v1/location)
+        if (data && data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+            if (data.features.length === 0) {
+                els.structuredOutput.innerHTML = '<p style="color: var(--text-secondary);">Keine aktiven Sensoren im gewählten Zeitfenster gefunden.</p>';
+                return;
+            }
+            let html = `<table><thead><tr>
+                <th>Sensor / DataID</th><th>Station</th><th>Group / Type</th><th>Coordinates (Lon, Lat, Elev)</th><th>Status / Last Update</th>
+            </tr></thead><tbody>`;
+
+            data.features.forEach(f => {
+                const p = f.properties || {};
+                const coords = (f.geometry && f.geometry.coordinates) ? f.geometry.coordinates.join(', ') : '-';
+                const id = p.DataID || p.SensorID || f.id || '-';
+                const active = p.active === true || p.active === 1 || p.status === 'active';
+                const badge = active ? '<span class="pill pill-ok">active</span>' : '<span class="pill pill-warn">inactive</span>';
+                html += `<tr>
+                    <td><strong>${id}</strong></td>
+                    <td>${p.StationID || p.station || '-'}</td>
+                    <td>${p.SensorGroup || '-'} / ${p.SensorType || '-'}</td>
+                    <td style="font-family:monospace;">${coords}</td>
+                    <td>${badge} <span style="color:var(--text-secondary); font-size:0.75rem;">${p.DataMaxTime || p.last_seen || ''}</span></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            els.structuredOutput.innerHTML = html;
+            return;
+        }
+
+        // 2. CovJSON Coverage (/api/v1/timeseries/...)
+        if (data && (data.type === 'Coverage' || data.domain && data.ranges)) {
+            renderCovJson(data);
+            return;
+        }
+
+        // 3. Generic Object / Key-Value Table (Health, Database, Status)
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+            let html = '<table><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>';
+            for (const [k, v] of Object.entries(data)) {
+                const valStr = (typeof v === 'object' && v !== null)
+                    ? `<pre style="max-height:140px; margin:0;">${JSON.stringify(v, null, 2)}</pre>`
+                    : `<code>${String(v)}</code>`;
+                html += `<tr><td style="width:240px; color:var(--accent); font-weight:600;">${k}</td><td>${valStr}</td></tr>`;
+            }
+            html += '</tbody></table>';
+            els.structuredOutput.innerHTML = html;
+            return;
+        }
+
+        // Fallback
+        els.structuredOutput.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+    }
+
+    function renderCovJson(cov) {
+        const times = (cov.domain && cov.domain.axes && cov.domain.axes.t && cov.domain.axes.t.values) || [];
+        const ranges = cov.ranges || {};
+        const params = cov.parameters || {};
+        const keys = Object.keys(ranges);
+
+        if (keys.length === 0 || times.length === 0) {
+            els.structuredOutput.innerHTML = '<p style="color: var(--text-secondary);">CovJSON enthält keine Datenpunkte für diesen Zeitraum.</p>';
+            return;
+        }
+
+        parsedSeriesMap = {};
+        els.plotChannelSelect.innerHTML = '';
+
+        keys.forEach(k => {
+            const vals = ranges[k].values || [];
+            const unit = (params[k] && params[k].unit && params[k].unit.symbol) ? params[k].unit.symbol : '';
+            parsedSeriesMap[k] = { times, values: vals, unit };
+            const opt = document.createElement('option');
+            opt.value = k;
+            opt.textContent = unit ? `${k} [${unit}]` : k;
+            els.plotChannelSelect.appendChild(opt);
+        });
+
+        els.chartContainer.classList.remove('hidden');
+        drawChart(keys[0]);
+
+        // Show last 15 rows in table
+        const startIdx = Math.max(0, times.length - 15);
+        let html = `<p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:6px;">Zeige die letzten ${times.length - startIdx} von insgesamt ${times.length} Datensätzen:</p>`;
+        html += '<table><thead><tr><th>Timestamp (UTC)</th>' + keys.map(k => `<th>${k}</th>`).join('') + '</tr></thead><tbody>';
+        for (let i = times.length - 1; i >= startIdx; i--) {
+            html += `<tr><td style="font-family:monospace;">${times[i]}</td>` +
+                keys.map(k => `<td style="font-family:monospace;">${ranges[k].values[i] ?? 'null'}</td>`).join('') +
+                '</tr>';
+        }
+        html += '</tbody></table>';
+        els.structuredOutput.innerHTML = html;
+    }
+
+    els.plotChannelSelect.addEventListener('change', (e) => {
+        if (e.target.value) drawChart(e.target.value);
+    });
+
+    function drawChart(channelKey) {
+        const series = parsedSeriesMap[channelKey];
+        if (!series) return;
+
+        const canvas = els.tsCanvas;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const pts = series.values.map((v, i) => ({ t: series.times[i], v: Number(v) })).filter(p => !Number.isNaN(p.v) && p.v !== null);
+        if (pts.length < 2) return;
+
+        const minV = Math.min(...pts.map(p => p.v));
+        const maxV = Math.max(...pts.map(p => p.v));
+        const spanV = (maxV - minV) || 1;
+        const padL = 65, padR = 20, padT = 20, padB = 28;
+        const plotW = w - padL - padR;
+        const plotH = h - padT - padB;
+
+        // Grid & Y-Labels
+        ctx.strokeStyle = '#2d333b';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#8b949e';
+        ctx.font = '11px monospace';
+        for (let i = 0; i <= 4; i++) {
+            const y = padT + (plotH * i) / 4;
+            const val = maxV - (spanV * i) / 4;
+            ctx.beginPath();
+            ctx.moveTo(padL, y);
+            ctx.lineTo(w - padR, y);
+            ctx.stroke();
+            ctx.fillText(val.toFixed(2), 6, y + 4);
+        }
+
+        // Line
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        pts.forEach((p, idx) => {
+            const x = padL + (idx / (pts.length - 1)) * plotW;
+            const y = padT + plotH - ((p.v - minV) / spanV) * plotH;
+            if (idx === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Start/End Time Labels
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText(pts[0].t, padL, h - 8);
+        const endLabel = pts[pts.length - 1].t;
+        ctx.fillText(endLabel, w - padR - ctx.measureText(endLabel).width, h - 8);
+    }
+
+    async function executeRequest(overrideUrl = null, isHealthCheck = false) {
+        const url = overrideUrl || buildUrl();
+        const t0 = performance.now();
+        els.debug.textContent = `Fetching ${url} ...`;
+
+        try {
+            const response = await fetch(url);
+            const dt = (performance.now() - t0).toFixed(1);
+            const rawText = await response.text();
+
+            els.respStatus.textContent = `HTTP: ${response.status} ${response.statusText}`;
+            els.respStatus.style.color = response.ok ? 'var(--success)' : 'var(--danger)';
+            els.respTime.textContent = `Duration: ${dt} ms`;
+            els.respSize.textContent = `Size: ${(rawText.length / 1024).toFixed(2)} KB`;
+
+            let json;
+            try {
+                json = JSON.parse(rawText);
+            } catch {
+                json = { raw_response: rawText };
+            }
+
+            if (isHealthCheck) {
+                if (response.ok) {
+                    els.apiStatus.className = 'status-badge connected';
+                    els.apiStatusText.textContent = `Connected (${dt} ms)`;
+                } else {
+                    els.apiStatus.className = 'status-badge error';
+                    els.apiStatusText.textContent = `HTTP ${response.status}`;
+                }
+            }
+
+            renderResponse(json);
+            els.debug.textContent = `Success: ${url} (${response.status})`;
+        } catch (err) {
+            const dt = (performance.now() - t0).toFixed(1);
+            els.respStatus.textContent = 'HTTP: Network / CORS Error';
+            els.respStatus.style.color = 'var(--danger)';
+            els.respTime.textContent = `Duration: ${dt} ms`;
+
+            if (isHealthCheck) {
+                els.apiStatus.className = 'status-badge error';
+                els.apiStatusText.textContent = 'Unreachable / CORS';
+            }
+
+            const errPayload = {
+                error: err.message,
+                hint: 'Prüfe ob uvicorn läuft (uvicorn api:app --host 0.0.0.0 --port 8000) und CORS für deinen Origin erlaubt ist.'
+            };
+            els.rawJsonOutput.textContent = JSON.stringify(errPayload, null, 2);
+            els.structuredOutput.innerHTML = `<pre style="color:var(--danger);">${JSON.stringify(errPayload, null, 2)}</pre>`;
+            els.debug.textContent = `Error: ${err.message}`;
+        }
+    }
+
+    document.getElementById('sendRequestBtn').addEventListener('click', () => executeRequest());
+    document.getElementById('checkHealthBtn').addEventListener('click', () => {
+        const base = els.baseUrl.value.replace(/\/+$/, '');
+        executeRequest(`${base}/api/v1/health`, true);
+    });
+
+    // Init
+    updateUrlPreview();
+</script>
+</body>
+</html>
