@@ -13,6 +13,7 @@ v2.0.3 additions:
     - improved db_truncate to prevent locking of database while cleaning up
 
 v2.0.3 general:
+    - sections 5 and 8 of the docs have been rewritten
 
 
 ####v<2.0.2>, <2026-11-17> --
