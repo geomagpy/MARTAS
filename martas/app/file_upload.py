@@ -5,177 +5,190 @@
 Upload files
 
 DESCRIPTION
-   upload data to a destination using various different protocols
-   supported are FTP, SFTP, RSYNC, SCP
+   Upload data to a destination using various different protocols.
+   Supported protocols are FTP, SFTP, RSYNC, SCP, and GIN.
 
 JOBLIST:
-   Jobs are listed in a json structure and read by the upload process.
+   Jobs are listed in a JSON structure and read by the upload process.
    You can have multiple jobs. Each job refers to a local path. Each job
    can have multiple destinations.
-
 
    {"graphmag" :  {"path":"/home/leon/Tmp/Upload/graph/aut.png",
                     "destinations": {"conradpage": { "type":"ftp", "path" : "/images/graphs/magnetism"} },
                     "log":"/home/leon/Tmp/Upload/testupload.log",
                     "endtime":"utcnow",
-                     "starttime":2},
+                    "starttime":2},
     "wicadjmin" :  {"path":"/home/leon/Tmp/Temp",
                     "destinations": {"gleave": { "type":"sftp", "path" : "/uploads/all-obs"} },
                     "log":"/home/leon/Tmp/wicadjart.log",
                     "endtime":"utcnow",
-                     "starttime":2},
+                    "starttime":2},
    }
 
-## FTP Upload from a directory using files not older than 2 days
-{"graphmag" : {"path":"/srv/products/graphs/magnetism/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"], "namefractions" : ["aut"], "starttime" : 2, "endtime" : "utcnow"}}
-## FTP Upload a single file
-{"graphmag" : {"path":"/home/leon/Tmp/Upload/graph/aut.png","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log"}}
-## FTP Upload all files with extensions
-{"mgraphsmag" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/leon/Tmp/Upload/testupload.log", "extensions" : ["png"]} }
-## Test environment
-{"TEST" : {"path":"../","destinations": {"homepage": { "type":"test", "path" : "my/remote/path/"} },"log":"/var/log/magpy/testupload.log", "extensions" : ["png"], "starttime" : 2, "endtime" : "utcnow"} }
-## RSYNC upload
-{"ganymed" : {"path":"/home/leon/Tmp/Upload/graph/","destinations": {"ganymed": { "type":"rsync", "path" : "/home/cobs/Downloads/"} },"log":"/home/leon/Tmp/Upload/testupload.log"} }
-## JOB on BROKER
-{"magnetsim" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["magvar","gic_prediction","solarwind"], "starttime" : 20, "endtime" : "utcnow"}, "supergrad" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/magnetism/supergrad"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["supergrad"], "starttime" : 20, "endtime" : "utcnow"},"meteo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/meteorology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["Meteo"], "starttime" : 20, "endtime" : "utcnow"}, "radon" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/radon/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["radon"], "starttime" : 20, "endtime" : "utcnow"}, "title" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/slideshow/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["title"]}, "gic" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/spaceweather/gic/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png","gif"], "namefractions" : ["24hours"]}, "seismo" : {"path":"/home/cobs/SPACE/graphs/","destinations": {"conradpage": { "type":"ftp", "path" : "images/graphs/seismology/"} },"log":"/home/cobs/Tmp/testupload.log", "extensions" : ["png"], "namefractions" : ["quake"]} }
-
-## JOB on MARTAS2
-{"bufferdata" : {"path":"/srv/mqtt/GSM19_7122568_0001/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["bin"], "starttime" : 60, "endtime" : "utcnow"}, "env1data" : {"path":"/srv/mqtt/DS18B20_2874EA75D0013CD4_0001/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["bin"], "starttime" : 60, "endtime" : "utcnow"}, "env2data" : {"path":"/srv/mqtt/UNOR3_851383136333516112E0_0001/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["bin"], "starttime" : 60, "endtime" : "utcnow"}, "backup" : {"path":"/home/debian/Backups/","destinations": {"zamgftp": { "type":"ftp", "path" : "data/beagle/saogabriel"} },"log":"/var/log/magpy/upload.log", "extensions" : ["*"], "starttime" : 60, "endtime" : "utcnow"} }
-
-APPLICTAION:
+APPLICATION:
    python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json
 """
 
-
-#from magpy.stream import *
 import magpy.opt.cred as mpcred
-
 from martas.core.methods import martaslog as ml
 from martas.core import methods as mm
 
 import ftplib
 from threading import Thread
-
 import getopt
 import json
+import logging
 import subprocess
-from subprocess import check_output   # used for checking whether send process already finished
+from subprocess import check_output
 from datetime import datetime, timedelta, timezone
 import paramiko
-import sys, os
+import sys
+import os
 from pathlib import Path
+
+
+# ################################################
+#             Logging Setup
+# ################################################
+
+DEFAULT_LOG_DIR = os.path.expanduser("~/.martas/log")
+DEFAULT_LOG_FILE = os.path.join(DEFAULT_LOG_DIR, "file_uploads.log")
+
+
+def setup_logger(log_file=DEFAULT_LOG_FILE, debug=False):
+    """
+    Configure a dedicated logger that writes to both the specified log file
+    and stdout without duplicating handlers across jobs.
+    """
+    log_file = os.path.expanduser(log_file)
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
+    logger = logging.getLogger("file_uploads")
+    logger.setLevel(logging.DEBUG if debug else logging.INFO)
+
+    # Clear existing handlers if reconfiguring for a job-specific log file
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    return logger
+
+
+# Initialize default logger
+logger = setup_logger()
 
 
 # ################################################
 #             Methods
 # ################################################
 
-# deprecated - replace already by mm.get_json
-def getcurrentdata(path):
-    """
-    usage: getcurrentdata(currentvaluepath)
-    example: update kvalue
-    fulldict = getcurrentdata(currentvaluepath)
-    valdict = fulldict.get('magnetism',{})
-    valdict['k'] = [kval,'']
-    valdict['k-time'] = [kvaltime,'']
-    fulldict[u'magnetism'] = valdict
-    writecurrentdata(path, fulldict)
-    """
-    fulldict = {}
-    if os.path.isfile(path):
-        with open(path, 'r') as file:
-            fulldict = json.load(file)
-    else:
-        print ("path not found")
-    return fulldict
-
-# deprecated - replace already by mm.put_json
-def writecurrentdata(path,dic):
-    """
-    usage: writecurrentdata(currentvaluepath,fulldict)
-    example: update kvalue
-    see getcurrentdata
-    """
-    with open(path, 'w', encoding='utf-8') as f:
-        json.dump(dic, f, ensure_ascii=False, indent=4)
-    return True
-
-
 def active_pid(name):
-     # Part of Magpy starting with version ??
+    """Check whether a process with the given name is currently running."""
     try:
-        pids = map(int,check_output(["pidof",name]).split())
-    except:
+        list(map(int, check_output(["pidof", name]).split()))
+        return True
+    except Exception:
         return False
-    return True
 
 
 def uploaddata(localpath, destinationpath, typus='ftp', address='', user='', pwd='', port=None, proxy=None, logfile='stdout'):
     """
-    DEFINITION:
-        upload data method.
-        Supports file upload to servers using the following schemes:
-        ftp
-        sftp     (requires sftp)
-        ftpback (background process)
-        scp  (please consider using rsync)  scp transfer requires a established key, therefor connect to the server once using ssh to create it
-        gin   (curl based ftp upload to data gins)
+    Upload a single file to a remote server using the specified protocol
+    (ftp, ftpback, sftp, scp, rsync, gin, test).
     """
     success = True
-    print ("Running upload to {} (as {}) via {}: {} -> {}, logging to {}".format(address, user, typus, localpath, destinationpath, logfile)) 
-    if typus == 'ftpback':
-           Thread(target=ftptransfer, kwargs={'source':localpath,'destination':destinationpath,'host':address,'port':port,'user':user,'password':pwd,'logfile':logfile}).start()
-    elif typus == 'ftp':
-           success = ftptransfer(source=localpath,destination=destinationpath,host=address,port=port,user=user,password=pwd,logfile=logfile)
-    elif typus == 'sftp':
-           success = sftptransfer(source=localpath,destination=destinationpath,host=address,user=user,password=pwd,proxy=proxy,logfile=logfile)
-    elif typus == 'scp':
-           timeout = 60
-           destina = "{}@{}:{}".format(user,address,destinationpath)
-           mm.scptransfer(localpath,destina,pwd,timeout=timeout)
-    elif typus == 'rsync':
-           # create a command line string with rsync ### please note,,, rsync requires password less comminuctaion
-           rsyncstring = "rsync -avz -e ssh {} {}".format(localpath, user+'@'+address+':'+destinationpath)
-           print ("Executing:", rsyncstring)
-           subprocess.call(rsyncstring.split())
-    elif typus.startswith('gin'):
-        if not active_pid('curl'):
-            print ("  -- Uploading minute data to GIN - active now")
-            stdout = False
-            if logfile == 'stdout':
+    logger.info(
+        "Running upload to %s (as %s) via %s: %s -> %s",
+        address, user, typus, localpath, destinationpath
+    )
+
+    try:
+        if typus == 'ftpback':
+            Thread(
+                target=ftptransfer,
+                kwargs={
+                    'source': localpath,
+                    'destination': destinationpath,
+                    'host': address,
+                    'port': port,
+                    'user': user,
+                    'password': pwd,
+                    'logfile': logfile,
+                },
+            ).start()
+        elif typus == 'ftp':
+            success = ftptransfer(
+                source=localpath,
+                destination=destinationpath,
+                host=address,
+                port=port,
+                user=user,
+                password=pwd,
+                logfile=logfile,
+            )
+        elif typus == 'sftp':
+            success = sftptransfer(
+                source=localpath,
+                destination=destinationpath,
+                host=address,
+                port=port or 22,
+                user=user,
+                password=pwd,
+                proxy=proxy,
+                logfile=logfile,
+            )
+        elif typus == 'scp':
+            timeout = 60
+            destina = "{}@{}:{}".format(user, address, destinationpath)
+            mm.scptransfer(localpath, destina, pwd, timeout=timeout)
+        elif typus == 'rsync':
+            # Note: rsync requires passwordless SSH key authentication
+            rsync_cmd = ["rsync", "-avz", "-e", "ssh", localpath, f"{user}@{address}:{destinationpath}"]
+            logger.info("Executing: %s", " ".join(rsync_cmd))
+            subprocess.run(rsync_cmd, check=True, capture_output=True, text=True)
+        elif typus.startswith('gin'):
+            if not active_pid('curl'):
+                logger.info("Uploading minute data to GIN via curl")
                 stdout = True
-            print (" -- calling GINUPLOAD")
-            stdout = True
-            if typus.endswith('basic'):
-                success = ginupload(localpath, user, pwd, address, authentication=' ',stdout=stdout)
+                if typus.endswith('basic'):
+                    success = ginupload(localpath, user, pwd, address, authentication=' ', stdout=stdout)
+                else:
+                    success = ginupload(localpath, user, pwd, address, stdout=stdout)
+                logger.info("Finished GINUPLOAD (success=%s)", success)
             else:
-                success = ginupload(localpath, user, pwd, address, stdout=stdout)
-            print ("   -> Done GINUPLOAD")
+                logger.warning("curl is already active; skipping GIN upload for %s", localpath)
+                success = False
+        elif typus == 'test':
+            logger.info("Test mode: skipping actual file transfer for %s", localpath)
         else:
-            print ("curl is active")
-    elif typus == 'test':
-           print ("No file transfer - just a test run")
-    else:
-        print ("Selected type of transfer is not supported")
+            logger.error("Selected transfer type '%s' is not supported", typus)
+            success = False
+
+    except subprocess.CalledProcessError as e:
+        logger.error("Subprocess transfer failed for %s: %s | stderr: %s", localpath, e, e.stderr)
+        success = False
+    except Exception as e:
+        logger.exception("Unexpected error during %s upload of %s to %s: %s", typus, localpath, address, e)
+        success = False
 
     return success
 
 
-def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, extensions=None, namefractions=None, add="newer", debug=False):
+def getchangedfiles(basepath, memory, startdate=datetime(1777, 4, 30), enddate=None, extensions=None, namefractions=None, add="newer", debug=False):
     """
-    DESCRIPTION
-        Will compare contents of basepath and memory and create a list of paths with changed information
-        This method will work a bit like rsync without accessing the zieldirectory. It just checks whether
-        such data has been uploaded already
-    VARIABLES
-        basepath  (String)      :  contains the basepath in which all files will be checked
-        memory    (list/dict)   :  a dictionary with filepath and last change date (use getcurrentdata)
-        startdate (datetime)    :  changes after startdate will be considered
-        enddate   (datetime)    :  changes before enddate will be considered
-        add       (string)      :  either "all" or "newer" (default)
-    RETURNS
-        dict1, dict2   : dict1 contains all new data sets to be uploaded, dict2 all analyzed data files for storage
+    Compare contents of basepath against memory and return dictionaries of
+    newly modified files to upload and all analyzed files within the time window.
     """
     if not enddate:
         enddate = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -186,49 +199,64 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, 
     startdate = startdate.replace(tzinfo=None)
     enddate = enddate.replace(tzinfo=None)
 
-
-    filelist=[]
+    filelist = []
     try:
         if os.path.isfile(basepath):
             filelist = [basepath]
-        else:
+        elif os.path.isdir(basepath):
             for file in os.listdir(basepath):
-                fullpath=os.path.join(basepath, file)
+                fullpath = os.path.join(basepath, file)
                 filename, file_extension = os.path.splitext(fullpath)
                 if os.path.isfile(fullpath):
-                    if isinstance(extensions,list) and len(extensions) > 0 and any([file_extension.find(ext)>-1 for ext in extensions]) and len(namefractions) > 0:
-                        if isinstance(namefractions,list) and len(namefractions) > 0 and any([filename.find(frac)>-1 for frac in namefractions]):
+                    ext_match = (
+                        isinstance(extensions, list)
+                        and len(extensions) > 0
+                        and ("*" in extensions or any(ext in file_extension for ext in extensions))
+                    )
+                    frac_match = (
+                        isinstance(namefractions, list)
+                        and len(namefractions) > 0
+                        and any(frac in filename for frac in namefractions)
+                    )
+
+                    if len(extensions) > 0 and len(namefractions) > 0:
+                        if ext_match and frac_match:
                             filelist.append(fullpath)
-                    elif isinstance(extensions,list) and len(extensions) > 0 and any([file_extension.find(ext)>-1 for ext in extensions]) and len(namefractions) == 0:
+                    elif len(extensions) > 0 and len(namefractions) == 0:
+                        if ext_match:
+                            filelist.append(fullpath)
+                    elif len(namefractions) > 0 and len(extensions) == 0:
+                        if frac_match:
+                            filelist.append(fullpath)
+                    else:
                         filelist.append(fullpath)
-                    elif isinstance(namefractions,list) and len(namefractions) > 0 and any([filename.find(frac)>-1 for frac in namefractions]) and len(extensions) == 0:
-                        filelist.append(fullpath)
-                    elif len(extensions) == 0 and len(namefractions) == 0:
-                        filelist.append(fullpath)
-    except:
-        print ("Directory not found")
+        else:
+            logger.error("Source path does not exist: %s", basepath)
+            return {}, {}
+    except Exception as e:
+        logger.exception("Error scanning source directory '%s': %s", basepath, e)
         return {}, {}
 
     if debug:
-        print ("getchangedfiles 1:", filelist, startdate, enddate)
+        logger.debug("getchangedfiles 1: %s (%s to %s)", filelist, startdate, enddate)
 
-
-    retrievedSet={}
+    retrievedSet = {}
     for name in filelist:
-        mtime = datetime.fromtimestamp(os.path.getmtime(name))
-        stat=os.stat(os.path.join(basepath, name))
-        mtime=stat.st_mtime
-        if datetime.fromtimestamp(mtime, timezone.utc).replace(tzinfo=None) > startdate and datetime.fromtimestamp(mtime, timezone.utc).replace(tzinfo=None) <= enddate:
-            retrievedSet[name] = mtime
+        try:
+            stat = os.stat(name)
+            mtime = stat.st_mtime
+            mtime_dt = datetime.fromtimestamp(mtime, timezone.utc).replace(tzinfo=None)
+            if startdate < mtime_dt <= enddate:
+                retrievedSet[name] = mtime
+        except OSError as e:
+            logger.warning("Could not stat file '%s': %s", name, e)
 
     if debug:
-        print ("getchangedfiles 2:", retrievedSet)
-        print ("getchangedfiles 3:", memory)
+        logger.debug("getchangedfiles 2 (retrievedSet): %s", retrievedSet)
+        logger.debug("getchangedfiles 3 (memory): %s", memory)
+
     if memory:
-        if sys.version_info >= (3,):
-            newdict = dict(retrievedSet.items() - memory.items())
-        else:
-            newdict = dict(filter(lambda x: x not in memory.items(), retrievedSet.items()))
+        newdict = dict(retrievedSet.items() - memory.items())
     else:
         newdict = retrievedSet.copy()
 
@@ -237,261 +265,169 @@ def getchangedfiles(basepath,memory,startdate=datetime(1777,4,30),enddate=None, 
 
 def sftptransfer(source, destination, host="yourserverdomainorip.com", user="root", password="12345", port=22, proxy=None, logfile='stdout'):
     """
-    DEFINITION:
-        Tranfering data to an sftp server
-        (proxy support not tested - please additionally use corkscrew for tranfer through a proxy)
-
-    PARAMETERS:
-    Variables:
-        - source:       (str) Path within ftp to send file to.
-        - destination:  (str) full file path to send to.
-        - host:         (str) address of reciever
-        - user:
-        - password:
-        - proxy         (tuple) like ("123.123.123.123",8080)
-        - logfile:      (str) not used so far
-
-
-    RETURNS:
-        - success (BOOL) True if succesful.
-
-    EXAMPLE:
-        sftptransfer(source='/home/me/file.txt', destination='/data/magnetism/file.txt', host='www.example.com', user='mylogin', password='mypassword', logfile='/home/me/Logs/magpy-transfer.log'
-                            )
+    Transfer a file to an SFTP server.
+    Returns True if successful, False otherwise.
     """
-
     if not os.path.isfile(source):
-        print ("source does not exist ... aborting")
+        logger.error("SFTP source file does not exist: %s", source)
         return False
 
-    #if not logfile == 'stdout':
-    #    paramiko.util.log_to_file(logfile)
-
     if not proxy:
-        #transport = paramiko.Transport((host, port))
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            ssh.connect(host, username=user, password=password, timeout=10)
+            ssh.connect(host, port=port, username=user, password=password, timeout=15)
             with ssh.open_sftp() as sftp:
-                destina = os.path.join(destination,os.path.basename(source))
+                destina = os.path.join(destination, os.path.basename(source))
                 sftp.put(source, destina)
-        except:
-            print("failed to connect client ... aborting")
+        except Exception as e:
+            logger.error("SFTP upload failed (%s -> %s:%s): %s", source, host, destination, e)
             return False
+        finally:
+            ssh.close()
     else:
-        print ("Using proxy (needs to a tuple (paddr,pport)): {}".format(proxy))  
+        logger.info("Using SOCKS5 proxy: %s", proxy)
         import socks
         s = socks.socksocket()
         s.set_proxy(
-              proxy_type=socks.SOCKS5,
-              addr=proxy[0],
-              port=proxy[1]
+            proxy_type=socks.SOCKS5,
+            addr=proxy[0],
+            port=proxy[1]
         )
         try:
-            s.connect((host,port))
+            s.connect((host, port))
             transport = paramiko.Transport(s)
-            transport.connect(username=user,password=password)
+            transport.connect(username=user, password=password)
             with paramiko.SFTPClient.from_transport(transport) as client:
-                destina = os.path.join(destination,os.path.basename(source))
+                destina = os.path.join(destination, os.path.basename(source))
                 client.put(source, destina)
-        except:
-            print("failed to connect client ... aborting")
+        except Exception as e:
+            logger.error("SFTP upload via proxy failed (%s -> %s:%s): %s", source, host, destination, e)
             return False
 
     return True
 
 
-def ftptransfer (source, destination, host="yourserverdomainorip.com", user="root", password="12345", port=22, proxy=None, logfile='stdout', cleanup=False, debug=False):
+def ftptransfer(source, destination, host="yourserverdomainorip.com", user="root", password="12345", port=21, proxy=None, logfile='stdout', cleanup=False, debug=False):
     """
-    DEFINITION:
-        Tranfering data to an ftp server
-
-    PARAMETERS:
-    Variables:
-        - source:       (str) Path within ftp to send file to.
-        - destination:  (str) full file path to send to.
-        - host:         (str) address of reciever
-        - user:
-        - password:
-        - proxy         (tuple) like ("123.123.123.123",8080)
-        - logfile:      (str) not used so far
-        - cleanup:      (bool) If True, transfered files are removed from the local directory.
-
-    RETURNS:
-        - True/False.
-
-    EXAMPLE:
-        ftpdatatransfer(
-                localfile='/home/me/file.txt',
-                ftppath='/data/magnetism/this',
-                myproxy='www.example.com',
-                login='mylogin',
-                passwd='mypassword',
-                logfile='/home/me/Logs/magpy-transfer.log'
-                            )
-
-    APPLICATION:
+    Transfer a file to an FTP server (attempts FTP_TLS first, falls back to plain FTP).
+    Returns True if successful, False otherwise.
     """
-
-    if not source:
+    if not source or not os.path.isfile(source):
+        logger.error("FTP source file missing or invalid: %s", source)
         return False
-    else:
-        try:
-            filename = os.path.split(source)[1]
-        except:
-            print ("Could not determine filename of source")
-            return False
+
+    filename = os.path.basename(source)
 
     if debug:
-        print ("ftptransfer: running ftp transfer")
+        logger.debug("ftptransfer: starting transfer of %s", filename)
 
-    def ftpjob(site,source,destination,filename):
-        site.set_debuglevel(1)
-        site.cwd(destination)
-        try:
-            site.delete(filename)
-        except:
-            print ("File not yet existing")
+    def ftpjob(site, src, dest, fname):
         if debug:
-            print ("Uploading file ... {}".format(filename))
+            site.set_debuglevel(1)
+        site.cwd(dest)
         try:
-            with open(source, 'rb') as image_file:
-                site.storbinary('STOR {}'.format(filename), image_file)
-        except:
-            image_file = open(source, 'rb')
-            site.storbinary('STOR {}'.format(filename), image_file)
-            image_file.close()
-
+            site.delete(fname)
+        except ftplib.all_errors:
+            # File does not exist yet on remote server; safe to ignore
+            pass
+        if debug:
+            logger.debug("Uploading file: %s", fname)
+        with open(src, 'rb') as file_obj:
+            site.storbinary(f'STOR {fname}', file_obj)
 
     transfersuccess = False
-    tlsfailed = False
-    # First try to connect via TLS
-    try:
-        with ftplib.FTP_TLS(host, user, password) as ftp:
-            print ("FTP TLS connection established...")
-            ftpjob(ftp,source,destination,filename)
-            transfersuccess = True
-    except:
-        tlsfailed = True
+    tls_error = None
 
-    # First try to connect without TLS
-    if tlsfailed:
+    # 1. Try connecting via FTP_TLS
+    try:
+        with ftplib.FTP_TLS(timeout=30) as ftp:
+            ftp.connect(host, port or 21)
+            ftp.login(user, password)
+            ftp.prot_p()
+            logger.info("FTP TLS connection established to %s", host)
+            ftpjob(ftp, source, destination, filename)
+            transfersuccess = True
+    except Exception as e:
+        tls_error = e
+        logger.debug("FTP_TLS failed for %s (%s), falling back to plain FTP", host, e)
+
+    # 2. Fallback to plain FTP if TLS failed
+    if not transfersuccess:
         try:
-            with ftplib.FTP(host, user, password) as ftp:
-                print ("FTP connection established...")
-                ftpjob(ftp,source,destination,filename)
+            with ftplib.FTP(timeout=30) as ftp:
+                ftp.connect(host, port or 21)
+                ftp.login(user, password)
+                logger.info("Plain FTP connection established to %s", host)
+                ftpjob(ftp, source, destination, filename)
                 transfersuccess = True
-        except:
-            try:
-                # fallback without with (seems to be problemtic on some old py2 machines
-                ftp = ftplib.FTP(host, user, password)
-                print ("FTP connection established...")
-                ftpjob(ftp,source,destination,filename)
-                ftp.close()
-                transfersuccess = True                
-            except:
-                pass
+        except Exception as plain_error:
+            logger.error(
+                "FTP transfer failed for %s -> %s:%s (TLS error: %s | Plain FTP error: %s)",
+                source, host, destination, tls_error, plain_error
+            )
 
     if cleanup and transfersuccess:
-        os.remove(source)
+        try:
+            os.remove(source)
+        except OSError as e:
+            logger.warning("Failed to remove local file %s after cleanup: %s", source, e)
 
     return transfersuccess
 
+
 def ginupload(filename, user, password, url, authentication=' --digest ', stdout=True):
     """
-    DEFINITION:
-        Method to upload data to the Intermagnet GINs using curl
-        tries to upload data to the gin - if not succesful ...
-    PARAMETERS:
-        filename        (string) filename including path
-        user            (string) GIN user
-        password        (string) GIN passwd
-        url             (string) url address (e.g. http://app.geomag.bgs.ac.uk/GINFileUpload/Cache)
-        stdout          (bool) if True the return will be printed
-    REQUIRES:
-        - a working installation of curl
-        - the package subprocess
+    Upload data to Intermagnet GINs using curl.
     """
-    print ("  Starting ginupload")
-    print ("  ------------------")
-    faillog = ''
-    logpath = ''
+    logger.info("Starting ginupload for %s", filename)
     success = False
 
-    if not logpath:
-        logpath = "/tmp/ginupload.log"
+    curlstring = (
+        f'curl -F "File=@{filename};type=text/plain" -F "Format=plain" '
+        f'-F "Request=Upload" -u {user}:{password}{authentication}{url}'
+    )
 
-    commandlist = []
+    try:
+        p = subprocess.Popen(curlstring, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, error = p.communicate(timeout=60)
+        out = out.decode('utf-8', errors='replace')
+        error = error.decode('utf-8', errors='replace')
 
-    print ("Running ginupload")
-
-    curlstring = 'curl -F "File=@'+filename+';type=text/plain" -F "Format=plain" -F "Request=Upload" -u '+user+':'+password+authentication+url
-    print ("CURL command looks like {}".format(curlstring))
-    if not curlstring in commandlist:
-        commandlist.append(curlstring)
-
-    # Process each upload
-    # -----------------------------------------------------
-    for command in commandlist:
-        print ("Running command:", command)
-        p = subprocess.Popen(command,stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        out, error = p.communicate()
-        print (" -> Done")
-        if sys.version_info.major >= 3:
-            out = out.decode('ascii')
-            error = error.decode('ascii')
         if stdout:
-            print(out, error)
+            logger.info("GIN curl output: %s", out.strip())
         if "Success" in out:
             success = True
+        else:
+            logger.error("GIN upload did not return 'Success'. Output: %s | Error: %s", out.strip(), error.strip())
+    except Exception as e:
+        logger.exception("Exception during GIN upload for %s: %s", filename, e)
 
     return success
 
 
 def main(argv):
+    global logger
     statusmsg = {}
     jobs = ''
     tele = ''
-    sendlogpath=''
-    logpath = ''
-    name = ''
+    sendlogpath = ''
+    logpath = DEFAULT_LOG_FILE
     receiver = ''
     receiverconf = ''
     proxies = {}
     debug = False
+
     try:
-        opts, args = getopt.getopt(argv,"hj:m:t:",["jobs=","memory=","telegram=",])
+        opts, args = getopt.getopt(argv, "hj:m:t:D", ["jobs=", "memory=", "telegram=", "debug"])
     except getopt.GetoptError:
-        print ('file_upload.py -j <jobs> -m <memory> -t <telegram>')
+        print('file_uploads.py -j <jobs> -m <memory> -t <telegram> [-D]')
         sys.exit(2)
+
     for opt, arg in opts:
         if opt == '-h':
-            print ('-------------------------------------')
-            print ('Description:')
-            print ('-- file_uploads.py send data to any destination of your choice  --')
-            print ('-----------------------------------------------------------------')
-            print ('file_uploads is a python wrapper allowing to send either by')
-            print ('ftp, scp, sftp using a similar inputs.')
-            print ('It can handle several different uploads at once.')
-            print ('Upload parameters have to be provided in a json structure.')
-            print ('file_uploads requires magpy >= 2.0.0.')
-            print ('-------------------------------------')
-            print ('Usage:')
-            print ('file_uploads.py -j <jobs> -m <memory> -t <telegram>')
-            print ('-------------------------------------')
-            print ('Options:')
-            print ('-j (required) : a json structure defining the uploads')
-            print ('-m (required) : a path for "memory"')
-            print ('-------------------------------------')
-            print ('Example of jobs structure:')
-            print ('{"wicadjmin":{"path":"/home/leon/Tmp/Temp","destinations":{"gleave":{"type":"sftp", "path" : "/uploads/all-obs"}},')
-            print ('"log":"/home/leon/Tmp/wicadjart.log","endtime":"utcnow","starttime":2}}')
-            print ('! please note endtime is usually utcnow')
-            print ('! starttime is given as a timedelta in days toward endtime, an integer is required')
-            print ('-------------------------------------')
-            print ('Application:')
-            print ('python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json')
+            print('-------------------------------------')
+            print('Usage: python3 file_uploads.py -j /my/path/uploads.json -m /tmp/sendmemory.json [-t telegram] [-D]')
             sys.exit()
         elif opt in ("-j", "--jobs"):
             jobs = arg
@@ -502,16 +438,16 @@ def main(argv):
         elif opt in ("-D", "--debug"):
             debug = True
 
+    logger = setup_logger(DEFAULT_LOG_FILE, debug=debug)
+
     if tele:
-        # ################################################
-        #          Telegram Logging
-        # ################################################
-        # tele needs a logpath, and a configuration path ('/home/cobs/SCRIPTS/telegram_notify.conf')
+        # Configure notification receiver for MARTAS logging
         mainpath = os.path.dirname(os.path.realpath(__file__))
-        logpath = os.path.join(mainpath, "..", "log", "mm-fu-uploads.log")
+        logpath = os.path.join(DEFAULT_LOG_DIR, "mm-fu-uploads.log")
+        Path(logpath).parent.mkdir(parents=True, exist_ok=True)
         configpath = os.path.join(mainpath, "..", "conf", "monitor.cfg")
         if os.path.isfile(configpath):
-            print (" reading configuration file ...")
+            logger.info("Reading monitor configuration file: %s", configpath)
             monitorconf = mm.get_conf(configpath)
             receiver = monitorconf.get('notification')
             receiverconf = monitorconf.get('notificationconf')
@@ -520,119 +456,158 @@ def main(argv):
             if monitorconf.get('http'):
                 proxies['http'] = monitorconf.get('http')
 
-    if jobs == '':
-        print ('Specify a valid path to a jobs dictionary (json):')
-        print ('-- check file_uploads.py -h for more options and requirements')
-        sys.exit()
-    else:
-        if os.path.isfile(jobs):
-            workdictionary = mm.get_json(jobs)
-            #mm.put_json("/home/leon/.martas/conf/fileuploadjobs.json", workdictionary)
-        else:
-            print ('Specify a valid path to a jobs dictionary (json):')
-            print ('-- check file_uploads.py -h for more options and requirements')
-            sys.exit()
+    if not jobs or not os.path.isfile(jobs):
+        logger.error("Please specify a valid path to a jobs JSON file (-j).")
+        sys.exit(1)
 
-    # make fileupload an independent method importing workingdictionary (add to MARTAS?)
+    try:
+        workdictionary = mm.get_json(jobs)
+    except Exception as e:
+        logger.exception("Failed to parse jobs JSON file '%s': %s", jobs, e)
+        sys.exit(1)
+
     if not sendlogpath:
         sendlogpath = '/tmp/lastupload.json'
     else:
-        # create a new memory if not existing
-        if not os.path.isfile(sendlogpath):
-            filepath = Path(sendlogpath)
-            filepath.parent.mkdir(parents=True, exist_ok=True)
+        Path(sendlogpath).parent.mkdir(parents=True, exist_ok=True)
 
-    """
-    Main Prog
-    """
-    try:
-        for key in workdictionary:
-            name = "FileUploads-{}".format(key)
-            print("----------------------------------------------")
-            print ("DEALING with ", key)
-            print("----------------------------------------------")
-            lastfiles = {}
+    # Load existing memory file once before iterating over jobs
+    fulldict = {}
+    if os.path.isfile(sendlogpath) and os.stat(sendlogpath).st_size > 0:
+        try:
+            with open(sendlogpath, 'r', encoding='utf-8') as file:
+                fulldict = json.load(file)
+        except Exception as e:
+            logger.exception("Failed to read memory file '%s', starting with empty memory: %s", sendlogpath, e)
             fulldict = {}
-            if os.path.isfile(sendlogpath):
-                if os.stat(sendlogpath).st_size == 0:
-                    lastfiles = {}
-                else:
-                    with open(sendlogpath, 'r') as file:
-                        fulldict = json.load(file)
-                        lastfiles = fulldict.get(key)
-                        # lastfiles looks like: {'/path/to/my/file81698.txt' : '2019-01-01T12:33:12', ...}
 
-            if not lastfiles == {}:
-                print ("creating new memory")
-                pass
+    # ################################################
+    #             Process Each Job Independently
+    # ################################################
+    for key, job_cfg in workdictionary.items():
+        name = f"FileUploads-{key}"
+        job_had_errors = False
 
-            #print ("Extracting jobs ...")
-            sourcepath = workdictionary.get(key).get('path')
-            extensions = workdictionary.get(key).get('extensions',[])
-            namefractions = workdictionary.get(key).get('namefractions',[])
-            # Test if sourcepath is file
-            starttime = workdictionary.get(key).get('starttime',datetime(1777,4,30))
+        # Switch to job-specific log file if configured, otherwise use default ~/.martas/log/file_uploads.log
+        job_logfile = job_cfg.get('log', DEFAULT_LOG_FILE)
+        logger = setup_logger(job_logfile, debug=debug)
+
+        logger.info("==============================================")
+        logger.info("PROCESSING JOB: %s", key)
+        logger.info("==============================================")
+
+        try:
+            if not isinstance(job_cfg, dict):
+                raise ValueError(f"Invalid job configuration format for '{key}': expected dict.")
+
+            lastfiles = fulldict.get(key) or {}
+            if not lastfiles:
+                logger.info("No previous upload memory found for job '%s'; initializing new memory.", key)
+
+            sourcepath = job_cfg.get('path')
+            if not sourcepath:
+                raise ValueError(f"Missing 'path' in configuration for job '{key}'.")
+
+            extensions = job_cfg.get('extensions', [])
+            namefractions = job_cfg.get('namefractions', [])
+            starttime = job_cfg.get('starttime', datetime(1777, 4, 30))
             now = datetime.now(timezone.utc).replace(tzinfo=None)
-            endtime = workdictionary.get(key).get('endtime',now)
-            if endtime in ["utc","now","utcnow"]:
+            endtime = job_cfg.get('endtime', now)
+
+            if endtime in ["utc", "now", "utcnow"]:
                 endtime = now
             if isinstance(starttime, int):
-                starttime = now-timedelta(days=starttime)
-            #print ("Done ...")
-            newfiledict, alldic = getchangedfiles(sourcepath, lastfiles, starttime, endtime, extensions,namefractions)
+                starttime = now - timedelta(days=starttime)
 
-            #print ("Found new: {} and all {}".format(newfiledict, alldic))
+            newfiledict, alldic = getchangedfiles(
+                sourcepath, lastfiles, starttime, endtime, extensions, namefractions, debug=debug
+            )
+            logger.info("Job '%s': found %d new/changed files to upload.", key, len(newfiledict))
 
-            for dest in workdictionary.get(key).get('destinations'):
-                print ("  --------------------------------------------")
-                print ("  -> Destination: {}".format(dest))
-                print ("  --------------------------------------------")
-                print ("")
-                address=mpcred.lc(dest,'address')
-                user=mpcred.lc(dest,'user')
-                passwd=mpcred.lc(dest,'passwd')
-                port=mpcred.lc(dest,'port')
-                destdict = workdictionary.get(key).get('destinations')[dest]
-                proxy = destdict.get('proxy',None)
-                #print (destdict)
-                if address and user and newfiledict:
+            destinations = job_cfg.get('destinations')
+            if not destinations or not isinstance(destinations, dict):
+                raise ValueError(f"Missing or invalid 'destinations' in configuration for job '{key}'.")
+
+            for dest, destdict in destinations.items():
+                logger.info("  --------------------------------------------")
+                logger.info("  -> Destination: %s", dest)
+                logger.info("  --------------------------------------------")
+
+                try:
+                    address = mpcred.lc(dest, 'address')
+                    user = mpcred.lc(dest, 'user')
+                    passwd = mpcred.lc(dest, 'passwd')
+                    port = mpcred.lc(dest, 'port')
+                    proxy = destdict.get('proxy', None)
+
+                    if not address or not user:
+                        logger.error("Missing credentials (address or user) for destination '%s' in job '%s'.", dest, key)
+                        job_had_errors = True
+                        continue
+
+                    if not newfiledict:
+                        logger.info("  No new files to transfer for destination '%s'.", dest)
+                        continue
+
                     for nfile in newfiledict:
-                        print ("    -> Uploading {} to dest {}".format(nfile, dest))
-                        success = uploaddata(nfile, destdict.get('path'), destdict.get('type'), address, user, passwd, port, proxy=proxy, logfile=destdict.get('logfile','stdout'))
-                        print ("    -> Success", success)
+                        logger.info("    -> Uploading %s to destination '%s'", nfile, dest)
+                        success = uploaddata(
+                            nfile,
+                            destdict.get('path'),
+                            destdict.get('type', 'ftp'),
+                            address,
+                            user,
+                            passwd,
+                            port,
+                            proxy=proxy,
+                            logfile=destdict.get('logfile', 'stdout'),
+                        )
+                        logger.info("    -> Result for %s: success=%s", nfile, success)
                         if not success:
-                            #remove nfile from alldic
-                            # thus it will be retried again next time
-                            print (" !---> upload of {} not successful: keeping it in todo list".format(nfile))
-                            del alldic[nfile]
+                            job_had_errors = True
+                            logger.warning(
+                                "Upload of %s to '%s' failed: keeping file in pending list for next run.",
+                                nfile, dest
+                            )
+                            # Use pop() instead of del to avoid KeyError if multiple destinations fail for the same file
+                            alldic.pop(nfile, None)
 
-            print (" ... done for key", key)
+                except Exception as dest_err:
+                    job_had_errors = True
+                    logger.exception("Unhandled error in job '%s' for destination '%s': %s", key, dest, dest_err)
+
+            # Persist updated memory immediately after each job so progress is saved even if later jobs fail
             fulldict[key] = alldic
             mm.put_json(sendlogpath, fulldict)
-            print(" ... log written")
-        statusmsg[name] = "uploading data successful"
-    except:
-        statusmsg[name] = "error when uploading files - please check"
+            logger.info("Memory updated for job '%s' in %s", key, sendlogpath)
+
+            if job_had_errors:
+                statusmsg[name] = f"partial or full upload error in job '{key}' - check log ({job_logfile})"
+            else:
+                statusmsg[name] = "uploading data successful"
+
+        except Exception as job_err:
+            logger.exception("CRITICAL ERROR in job '%s': %s", key, job_err)
+            statusmsg[name] = f"error when uploading files in '{key}': {job_err}"
+
+    # Restore default logger for final summary
+    logger = setup_logger(DEFAULT_LOG_FILE, debug=debug)
 
     if tele:
         if debug:
-            print(statusmsg)
+            logger.debug("Notification statusmsg: %s", statusmsg)
         elif receiver:
             martaslog = ml(logfile=logpath, receiver=receiver, proxies=proxies)
             if receiver == 'email':
                 martaslog.email['config'] = receiverconf
             elif receiver == 'telegram':
                 martaslog.telegram['config'] = receiverconf
-            changes = martaslog.msg(statusmsg)
+            martaslog.msg(statusmsg)
 
-    print ("----------------------------------------------------------------")
-    print ("file upload app finished")
-    print ("----------------------------------------------------------------")
-    print ("SUCCESS")
+    logger.info("----------------------------------------------------------------")
+    logger.info("File upload application finished")
+    logger.info("----------------------------------------------------------------")
 
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
-
-
-
+    main(sys.argv[1:])
